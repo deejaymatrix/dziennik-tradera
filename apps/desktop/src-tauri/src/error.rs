@@ -26,7 +26,9 @@ impl AppError {
     fn user_message(&self) -> String {
         match self {
             AppError::Validation(message) | AppError::NotFound(message) => message.clone(),
-            AppError::Database(_) => "Wystąpił błąd bazy danych. Szczegóły zapisano w logu diagnostycznym.".to_string(),
+            AppError::Database(_) => {
+                "Wystąpił błąd bazy danych. Szczegóły zapisano w logu diagnostycznym.".to_string()
+            }
         }
     }
 }

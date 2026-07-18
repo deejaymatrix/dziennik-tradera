@@ -36,7 +36,9 @@ pub struct UpdateAccount {
 
 fn validate_name(name: &str) -> Result<(), AppError> {
     if name.trim().is_empty() {
-        return Err(AppError::Validation("Nazwa konta nie może być pusta.".to_string()));
+        return Err(AppError::Validation(
+            "Nazwa konta nie może być pusta.".to_string(),
+        ));
     }
     Ok(())
 }
@@ -138,7 +140,10 @@ mod tests {
     fn decimal_serializes_as_json_string_not_float() {
         let value = dec!(1000.50);
         let json = serde_json::to_value(value).expect("serialize");
-        assert!(json.is_string(), "Decimal powinien serializować się jako string JSON, nie float");
+        assert!(
+            json.is_string(),
+            "Decimal powinien serializować się jako string JSON, nie float"
+        );
         assert_eq!(json, serde_json::Value::String("1000.50".to_string()));
     }
 }

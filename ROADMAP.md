@@ -4,8 +4,8 @@
 
 | Cel | Zakres                                                                               | Status       |
 | --- | ------------------------------------------------------------------------------------ | ------------ |
-| 1.1 | Repozytorium, standardy, uruchomiony podgląd (Vite + Tauri dev), error boundary, ADR | 🚧 w trakcie |
-| 1.2 | Baza danych SQLite, migracje wersjonowane, repozytoria, WAL, kopia przed migracją    | ⬜           |
+| 1.1 | Repozytorium, standardy, uruchomiony podgląd (Vite + Tauri dev), error boundary, ADR | ✅ ukończony |
+| 1.2 | Baza danych SQLite, migracje wersjonowane, repozytoria, WAL, kopia przed migracją    | 🚧 w trakcie |
 | 1.3 | Nowy system wizualny (tokeny, komponenty) i nawigacja                                | ⬜           |
 | 1.4 | Konta, operacje finansowe (wpłaty/wypłaty/korekty), biblioteka instrumentów          | ⬜           |
 | 1.5 | Strategie użytkownika (start pusty) i pełny formularz transakcji                     | ⬜           |

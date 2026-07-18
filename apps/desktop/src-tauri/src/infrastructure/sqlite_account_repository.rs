@@ -60,7 +60,10 @@ impl AccountRepository for SqliteAccountRepository {
     fn create(&self, input: &NewAccount) -> Result<Account, AppError> {
         input.validate()?;
 
-        let mut conn = self.conn.lock().expect("mutex bazy danych zatruty (poprzedni panik)");
+        let mut conn = self
+            .conn
+            .lock()
+            .expect("mutex bazy danych zatruty (poprzedni panik)");
         let tx = conn.transaction()?;
 
         let id = Uuid::now_v7().to_string();
@@ -81,12 +84,16 @@ impl AccountRepository for SqliteAccountRepository {
         )?;
         write_audit_log(&tx, &id, "account.created", now)?;
         tx.commit()?;
+        drop(conn);
 
         self.get(&id)
     }
 
     fn get(&self, id: &str) -> Result<Account, AppError> {
-        let conn = self.conn.lock().expect("mutex bazy danych zatruty (poprzedni panik)");
+        let conn = self
+            .conn
+            .lock()
+            .expect("mutex bazy danych zatruty (poprzedni panik)");
         let account = conn
             .query_row(
                 &format!("SELECT {SELECT_COLUMNS} FROM accounts WHERE id = ?1"),
@@ -98,21 +105,29 @@ impl AccountRepository for SqliteAccountRepository {
     }
 
     fn list(&self, include_archived: bool) -> Result<Vec<Account>, AppError> {
-        let conn = self.conn.lock().expect("mutex bazy danych zatruty (poprzedni panik)");
+        let conn = self
+            .conn
+            .lock()
+            .expect("mutex bazy danych zatruty (poprzedni panik)");
         let sql = if include_archived {
             format!("SELECT {SELECT_COLUMNS} FROM accounts ORDER BY created_at")
         } else {
             format!("SELECT {SELECT_COLUMNS} FROM accounts WHERE archived_at IS NULL ORDER BY created_at")
         };
         let mut stmt = conn.prepare(&sql)?;
-        let accounts = stmt.query_map([], map_row)?.collect::<rusqlite::Result<Vec<_>>>()?;
+        let accounts = stmt
+            .query_map([], map_row)?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(accounts)
     }
 
     fn update(&self, id: &str, input: &UpdateAccount) -> Result<Account, AppError> {
         input.validate()?;
 
-        let mut conn = self.conn.lock().expect("mutex bazy danych zatruty (poprzedni panik)");
+        let mut conn = self
+            .conn
+            .lock()
+            .expect("mutex bazy danych zatruty (poprzedni panik)");
         let tx = conn.transaction()?;
         let now = Utc::now();
 
@@ -121,7 +136,9 @@ impl AccountRepository for SqliteAccountRepository {
             rusqlite::params![input.name.trim(), input.description, input.account_type, input.currency, now.to_rfc3339(), id],
         )?;
         if affected == 0 {
-            return Err(AppError::NotFound(format!("Nie znaleziono konta o id {id}.")));
+            return Err(AppError::NotFound(format!(
+                "Nie znaleziono konta o id {id}."
+            )));
         }
         write_audit_log(&tx, id, "account.updated", now)?;
         tx.commit()?;
@@ -131,7 +148,10 @@ impl AccountRepository for SqliteAccountRepository {
     }
 
     fn archive(&self, id: &str) -> Result<Account, AppError> {
-        let mut conn = self.conn.lock().expect("mutex bazy danych zatruty (poprzedni panik)");
+        let mut conn = self
+            .conn
+            .lock()
+            .expect("mutex bazy danych zatruty (poprzedni panik)");
         let tx = conn.transaction()?;
         let now = Utc::now();
 
@@ -152,7 +172,10 @@ impl AccountRepository for SqliteAccountRepository {
     }
 
     fn restore(&self, id: &str) -> Result<Account, AppError> {
-        let mut conn = self.conn.lock().expect("mutex bazy danych zatruty (poprzedni panik)");
+        let mut conn = self
+            .conn
+            .lock()
+            .expect("mutex bazy danych zatruty (poprzedni panik)");
         let tx = conn.transaction()?;
         let now = Utc::now();
 
@@ -179,7 +202,11 @@ mod tests {
     use crate::db::{connection, migrations};
     use rust_decimal_macros::dec;
 
-    fn repo_with_fresh_db() -> (SqliteAccountRepository, Arc<Mutex<Connection>>, tempfile::TempDir) {
+    fn repo_with_fresh_db() -> (
+        SqliteAccountRepository,
+        Arc<Mutex<Connection>>,
+        tempfile::TempDir,
+    ) {
         let dir = tempfile::tempdir().expect("tempdir");
         let mut conn = connection::open(&dir.path().join("db.sqlite3")).expect("open");
         migrations::run_migrations(&mut conn, &dir.path().join("backups")).expect("migrate");

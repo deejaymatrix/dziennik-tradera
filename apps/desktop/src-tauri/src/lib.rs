@@ -71,7 +71,10 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
-            let app_data_dir = app.path().app_data_dir().expect("nie można ustalić katalogu danych aplikacji");
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
+                .expect("nie można ustalić katalogu danych aplikacji");
             let db_state = init_db_state(&app_data_dir);
             app.manage(AppState { db: db_state });
             Ok(())

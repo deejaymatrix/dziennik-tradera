@@ -4,7 +4,9 @@ use crate::domain::account::{Account, NewAccount, UpdateAccount};
 use crate::error::AppError;
 use crate::state::{AppState, DbState};
 
-fn require_db(state: &AppState) -> Result<&crate::application::accounts::AccountsService, AppError> {
+fn require_db(
+    state: &AppState,
+) -> Result<&crate::application::accounts::AccountsService, AppError> {
     match &state.db {
         DbState::Ready { accounts, .. } => Ok(accounts),
         DbState::Failed { reason } => Err(AppError::Database(format!(
@@ -19,12 +21,19 @@ pub fn create_account(state: State<'_, AppState>, input: NewAccount) -> Result<A
 }
 
 #[tauri::command]
-pub fn list_accounts(state: State<'_, AppState>, include_archived: bool) -> Result<Vec<Account>, AppError> {
+pub fn list_accounts(
+    state: State<'_, AppState>,
+    include_archived: bool,
+) -> Result<Vec<Account>, AppError> {
     require_db(&state)?.list(include_archived)
 }
 
 #[tauri::command]
-pub fn update_account(state: State<'_, AppState>, id: String, input: UpdateAccount) -> Result<Account, AppError> {
+pub fn update_account(
+    state: State<'_, AppState>,
+    id: String,
+    input: UpdateAccount,
+) -> Result<Account, AppError> {
     require_db(&state)?.update(&id, input)
 }
 

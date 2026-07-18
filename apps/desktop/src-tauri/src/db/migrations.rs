@@ -46,7 +46,10 @@ pub struct MigrationReport {
 /// Uruchamia wszystkie oczekujące migracje w jednej transakcji na migrację. Jeżeli baza miała
 /// już zastosowane migracje (czyli to nie jest świeża instalacja), przed pierwszą oczekującą
 /// migracją wykonuje pełną kopię bazy. Po migracjach sprawdza integralność bazy i klucze obce.
-pub fn run_migrations(conn: &mut Connection, backup_dir: &Path) -> Result<MigrationReport, MigrationError> {
+pub fn run_migrations(
+    conn: &mut Connection,
+    backup_dir: &Path,
+) -> Result<MigrationReport, MigrationError> {
     run_migrations_against(conn, backup_dir, MIGRATIONS)
 }
 
@@ -86,10 +89,16 @@ fn run_migrations_against(
 
     check_integrity(conn)?;
 
-    Ok(MigrationReport { applied, backup_path })
+    Ok(MigrationReport {
+        applied,
+        backup_path,
+    })
 }
 
-fn verify_checksums(migrations: &[Migration], applied: &[(i64, String)]) -> Result<(), MigrationError> {
+fn verify_checksums(
+    migrations: &[Migration],
+    applied: &[(i64, String)],
+) -> Result<(), MigrationError> {
     for migration in migrations {
         if let Some((_, checksum)) = applied.iter().find(|(v, _)| *v == migration.version) {
             let expected = checksum_of(migration.sql);
@@ -125,7 +134,10 @@ fn apply_migration(conn: &mut Connection, migration: &Migration) -> Result<(), M
     Ok(())
 }
 
-fn backup_before_migration(conn: &Connection, backup_dir: &Path) -> Result<PathBuf, MigrationError> {
+fn backup_before_migration(
+    conn: &Connection,
+    backup_dir: &Path,
+) -> Result<PathBuf, MigrationError> {
     std::fs::create_dir_all(backup_dir)?;
     let timestamp = chrono::Utc::now().format("%Y%m%dT%H%M%S%.3fZ");
     let backup_path = backup_dir.join(format!("pre-migration-{timestamp}.sqlite3"));
@@ -141,7 +153,10 @@ fn check_integrity(conn: &Connection) -> Result<(), MigrationError> {
         return Err(MigrationError::IntegrityCheckFailed(result));
     }
 
-    let fk_violations: i64 = conn.query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |row| row.get(0))?;
+    let fk_violations: i64 =
+        conn.query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |row| {
+            row.get(0)
+        })?;
     if fk_violations > 0 {
         return Err(MigrationError::IntegrityCheckFailed(format!(
             "{fk_violations} naruszeń kluczy obcych"
@@ -163,7 +178,8 @@ fn ensure_schema_migrations_table(conn: &Connection) -> rusqlite::Result<()> {
 }
 
 fn read_applied(conn: &Connection) -> rusqlite::Result<Vec<(i64, String)>> {
-    let mut stmt = conn.prepare("SELECT version, checksum FROM schema_migrations ORDER BY version")?;
+    let mut stmt =
+        conn.prepare("SELECT version, checksum FROM schema_migrations ORDER BY version")?;
     let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
     rows.collect()
 }
@@ -198,7 +214,10 @@ mod tests {
         let report = run_migrations(&mut conn, &dir.path().join("backups")).expect("migrate");
 
         assert_eq!(report.applied, vec![1]);
-        assert!(report.backup_path.is_none(), "świeża baza nie powinna być kopiowana");
+        assert!(
+            report.backup_path.is_none(),
+            "świeża baza nie powinna być kopiowana"
+        );
         let tables = table_names(&conn);
         for expected in [
             "accounts",
@@ -213,7 +232,10 @@ mod tests {
             "trade_executions",
             "trades",
         ] {
-            assert!(tables.iter().any(|t| t == expected), "brak tabeli {expected}");
+            assert!(
+                tables.iter().any(|t| t == expected),
+                "brak tabeli {expected}"
+            );
         }
     }
 
@@ -269,7 +291,10 @@ mod tests {
         }];
 
         let result = run_migrations_against(&mut conn, &dir.path().join("backups"), &broken);
-        assert!(matches!(result, Err(MigrationError::Failed { version: 1, .. })));
+        assert!(matches!(
+            result,
+            Err(MigrationError::Failed { version: 1, .. })
+        ));
 
         let tables = table_names(&conn);
         assert!(
@@ -289,10 +314,16 @@ mod tests {
         let mut conn = connection::open(&dir.path().join("db.sqlite3")).expect("open");
         run_migrations(&mut conn, &dir.path().join("backups")).expect("first run");
 
-        conn.execute("UPDATE schema_migrations SET checksum = 'zepsuta' WHERE version = 1", [])
-            .expect("tamper with checksum");
+        conn.execute(
+            "UPDATE schema_migrations SET checksum = 'zepsuta' WHERE version = 1",
+            [],
+        )
+        .expect("tamper with checksum");
 
         let result = run_migrations(&mut conn, &dir.path().join("backups"));
-        assert!(matches!(result, Err(MigrationError::ChecksumMismatch { version: 1, .. })));
+        assert!(matches!(
+            result,
+            Err(MigrationError::ChecksumMismatch { version: 1, .. })
+        ));
     }
 }

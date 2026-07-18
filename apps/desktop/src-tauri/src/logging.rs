@@ -26,7 +26,12 @@ pub fn log_info(context: &str, message: &str) {
 }
 
 fn write_line(level: &str, context: &str, message: &str) {
-    let line = format!("{} {level} [{}] {}\n", chrono::Utc::now().to_rfc3339(), context, message);
+    let line = format!(
+        "{} {level} [{}] {}\n",
+        chrono::Utc::now().to_rfc3339(),
+        context,
+        message
+    );
 
     match LOG_FILE_PATH.get() {
         Some(path) => {
