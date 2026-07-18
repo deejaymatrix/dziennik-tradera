@@ -67,7 +67,12 @@ kopia przed migracją, testy integracyjne CRUD.
   (`logging.rs`, plik lokalny, bez telemetrii) na surowe błędy SQL.
 - `DbState::Failed` — jeśli baza nie otworzy się/nie zmigruje przy starcie, komendy zwracają
   jawny błąd zamiast udawać sukces; `get_database_status` na ekranie startowym pokazuje
-  prawdziwy stan (otwarta + integralność OK, albo przyczynę awarii).
+  prawdziwy stan (otwarta + integralność OK, albo przyczynę awarii) — **rzeczywiście
+  wpięte w `SafeStartScreen`** przez wspólny hook `useTauriQuery`, nie tylko istniejące
+  w backendzie.
+- Port serwera deweloperskiego zmieniony na **1430** (nie domyślny 1420 Tauri) — na maszynie
+  deweloperskiej 1420 jest zajęty przez niepowiązany serwer Vite z innego katalogu
+  (`docs/adr/0004-port-dev-1430.md`).
 
 **Przetestowane:**
 

@@ -5,7 +5,7 @@
       "name": "dziennik-tradera-web",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@dziennik-tradera/desktop", "run", "dev"],
-      "port": 1420
+      "port": 1430
     }
   ]
 }

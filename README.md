@@ -21,7 +21,7 @@ pnpm dev
 albo po prostu uruchom `start-dev.ps1` (lub `start-dev.bat`) — zainstaluje zależności, jeśli
 brakuje `node_modules`, i uruchomi podgląd.
 
-`pnpm dev` uruchamia jednocześnie serwer Vite (HMR, http://localhost:1420) oraz `tauri dev`,
+`pnpm dev` uruchamia jednocześnie serwer Vite (HMR, http://localhost:1430) oraz `tauri dev`,
 które otwiera natywne okno aplikacji podłączone do tego podglądu.
 
 Sam podgląd frontendu (bez okna Tauri) można uruchomić przez `pnpm dev:vite`.
