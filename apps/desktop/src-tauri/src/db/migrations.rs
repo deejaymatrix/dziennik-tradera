@@ -10,11 +10,18 @@ struct Migration {
     sql: &'static str,
 }
 
-const MIGRATIONS: &[Migration] = &[Migration {
-    version: 1,
-    name: "0001_init",
-    sql: include_str!("migrations/0001_init.sql"),
-}];
+const MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 1,
+        name: "0001_init",
+        sql: include_str!("migrations/0001_init.sql"),
+    },
+    Migration {
+        version: 2,
+        name: "0002_seed_instruments",
+        sql: include_str!("migrations/0002_seed_instruments.sql"),
+    },
+];
 
 #[derive(Debug, Error)]
 pub enum MigrationError {
@@ -213,7 +220,7 @@ mod tests {
 
         let report = run_migrations(&mut conn, &dir.path().join("backups")).expect("migrate");
 
-        assert_eq!(report.applied, vec![1]);
+        assert_eq!(report.applied, vec![1, 2]);
         assert!(
             report.backup_path.is_none(),
             "świeża baza nie powinna być kopiowana"
@@ -237,6 +244,14 @@ mod tests {
                 "brak tabeli {expected}"
             );
         }
+
+        let instrument_count: i64 = conn
+            .query_row("SELECT count(*) FROM instruments", [], |row| row.get(0))
+            .expect("count instruments");
+        assert!(
+            instrument_count >= 10,
+            "oczekiwano startowej biblioteki instrumentów, jest {instrument_count}"
+        );
     }
 
     #[test]
