@@ -35,9 +35,12 @@ Ostatnia aktualizacja: 2026-07-18
   ekranu startowego i poprawny, nie awaryjny komunikat "Backend Rust: niedostępny" —
   brak błędów w konsoli poza standardowymi logami debug/info Vite/React.
 
-**Nie zweryfikowane wizualnie:** natywne okno `desktop.exe` (agent nie ma dostępu do zrzutu
-ekranu okien natywnych Windows, tylko do treści w przeglądarce) — proces wystartował i
-zakończył się bez błędu w logu, ale samo okno na ekranie powinien potwierdzić użytkownik.
+**Zweryfikowane przez użytkownika (2026-07-18):** natywne okno `desktop.exe` uruchamia się
+poprawnie na maszynie użytkownika przez `start-dev.bat` — konsola sprawdza zależności, instaluje
+brakujące (pnpm) i otwiera działające okno "Dziennik Tradera". Po drodze naprawione dwa realne
+błędy skryptu (brak BOM UTF-8 psuł parsowanie polskich znaków; `corepack enable` wymagał
+uprawnień administratora, zastąpione przez `npm install -g pnpm` które instaluje się w
+katalogu użytkownika) — szczegóły w historii commitów.
 
 **Następny krok:** Cel 1.2 — schemat SQLite, migracje wersjonowane, repozytoria Rust, WAL,
 kopia przed migracją, testy integracyjne CRUD.
@@ -141,9 +144,10 @@ Celów (instrumenty i operacje finansowe w Celu 1.4, strategie i transakcje w Ce
   zepsuć w prawdziwej przeglądarce/WebView2).
 - Brak błędów w konsoli na żadnej z odwiedzonych stron (Dashboard, Strategie, Raporty, 404).
 
-**Nie zweryfikowane:** natywne okno Tauri (to samo ograniczenie sandboksa co w Celu 1.1) oraz
-realne skalowanie Windows 125%/150% (symulowane tylko przez zmianę rozmiaru viewportu, nie
-przez faktyczne ustawienie DPI systemu) — do potwierdzenia przez użytkownika na żywej maszynie.
+**Zweryfikowane przez użytkownika:** natywne okno Tauri uruchamia się i działa poprawnie na
+maszynie użytkownika (patrz Cel 1.1). **Nadal nie zweryfikowane:** realne skalowanie Windows
+125%/150% (symulowane tylko przez zmianę rozmiaru viewportu, nie przez faktyczne ustawienie DPI
+systemu).
 
 **Następny krok:** Cel 1.4 — CRUD kont z archiwizacją (UI na już istniejącym, przetestowanym
 backendzie), wpłaty/wypłaty/korekty, biblioteka instrumentów.
