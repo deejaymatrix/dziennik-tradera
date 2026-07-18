@@ -20,8 +20,13 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
 - System wizualny: tokeny (paleta, typografia Inter lokalnie, odstępy, ruch), biblioteka
   komponentów (Button, IconButton, TextField, Select, Checkbox, Switch, Tag, Badge, Tooltip,
   Modal, Toast, EmptyState, Skeleton, ErrorState), zwijana pogrupowana nawigacja, routing.
+- Startowa biblioteka 11 instrumentów CFD/Forex, operacje finansowe (wpłaty/wypłaty/korekty)
+  z saldem konta liczonym autorytatywnie w Rust.
+- Ekrany Kont i Instrumentów: pełny CRUD z archiwizacją/aktywacją, modal operacji
+  finansowych z historią, komponent Table.
 
 ### Fixed
 
 - Zakleszczenie mutexa w `SqliteAccountRepository::create` (brakujące zwolnienie blokady przed
   wywołaniem `self.get()`).
+- Kolizja kluczy React między modalami na stronie Kont (oba domyślnie `key="closed"`).

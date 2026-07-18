@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { useTheme } from "../app/ThemeProvider";
-import { useTauriQuery } from "../app/useTauriQuery";
+import { useTauriQuery, type TauriQueryState } from "../app/useTauriQuery";
 import type { AppStatus, DatabaseStatus } from "../app/tauriTypes";
 import { Switch } from "../ui/components/Switch/Switch";
 import styles from "./SettingsPage.module.css";
@@ -10,7 +10,7 @@ const ENV_LABELS: Record<string, string> = {
   production: "Produkcyjne",
 };
 
-function renderAppStatus(state: ReturnType<typeof useTauriQuery<AppStatus>>): string {
+function renderAppStatus(state: TauriQueryState<AppStatus>): string {
   switch (state.kind) {
     case "loading":
       return "Sprawdzanie...";
@@ -21,7 +21,7 @@ function renderAppStatus(state: ReturnType<typeof useTauriQuery<AppStatus>>): st
   }
 }
 
-function renderDatabaseStatus(state: ReturnType<typeof useTauriQuery<DatabaseStatus>>): string {
+function renderDatabaseStatus(state: TauriQueryState<DatabaseStatus>): string {
   if (state.kind === "loading") {
     return "Sprawdzanie...";
   }
@@ -39,8 +39,8 @@ function renderDatabaseStatus(state: ReturnType<typeof useTauriQuery<DatabaseSta
 
 export function SettingsPage(): ReactElement {
   const { theme, toggleTheme } = useTheme();
-  const appStatus = useTauriQuery<AppStatus>("get_app_status");
-  const dbStatus = useTauriQuery<DatabaseStatus>("get_database_status");
+  const { state: appStatus } = useTauriQuery<AppStatus>("get_app_status");
+  const { state: dbStatus } = useTauriQuery<DatabaseStatus>("get_database_status");
 
   return (
     <div className={styles.page}>

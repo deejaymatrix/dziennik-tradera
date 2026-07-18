@@ -34,6 +34,9 @@ export default tseslint.config(
       // Konflikt ze strictTypeChecked (no-non-null-assertion): dla znanych,
       // gwarantowanych elementów DOM (np. #root z index.html) `!` jest czytelniejsze.
       "@typescript-eslint/non-nullable-type-assertion-style": "off",
+      // Bez tego flagowany jest idiomatyczny wzorzec onChange={(e) => setX(e.target.value)}
+      // wszędzie w formularzach - to nie jest "mylące", tylko standardowy React.
+      "@typescript-eslint/no-confusing-void-expression": ["error", { ignoreArrowShorthand: true }],
     },
   },
   {

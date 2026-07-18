@@ -1,0 +1,38 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.balance {
+  margin: 0;
+  font-size: var(--font-size-md);
+}
+
+.form {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.formActions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.error {
+  grid-column: 1 / -1;
+  color: var(--color-loss);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.historyTitle {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  margin: 0;
+}

@@ -152,6 +152,50 @@ systemu).
 **Następny krok:** Cel 1.4 — CRUD kont z archiwizacją (UI na już istniejącym, przetestowanym
 backendzie), wpłaty/wypłaty/korekty, biblioteka instrumentów.
 
+## Cel 1.4 — Konta, operacje finansowe i instrumenty — ✅ ukończony
+
+**Co działa:**
+
+- Backend (patrz commit "Cel 1.4 (backend)"): biblioteka 11 startowych instrumentów
+  CFD/Forex (edytowalna), pełny CRUD instrumentów z aktywacją/dezaktywacją, operacje
+  finansowe (wpłaty/wypłaty/korekty) z saldem liczonym w jednym miejscu w Rust.
+- `AccountsPage`: tabela kont z saldem (`AccountWithBalance` z backendu, nigdy liczone we
+  frontendzie), przełącznik "Pokaż zarchiwizowane", modal dodawania/edycji konta, modal
+  operacji finansowych (historia + formularz dodawania wpłaty/wypłaty/korekty), akcje
+  archiwizuj/przywróć. Pusta lista pokazuje `EmptyState` z CTA "Utwórz konto" — brak
+  obowiązkowego kreatora, zgodnie z kryterium Celu 1.4.
+- `InstrumentsPage`: tabela instrumentów, przełącznik "Pokaż nieaktywne", modal
+  dodawania/edycji z pełną specyfikacją (tick size, tick value, wielkość kontraktu, pip
+  size, waluty, min lot, krok lota), akcje aktywuj/dezaktywuj.
+- Wspólny `Table` (nowy komponent), `invokeCommand`/`extractErrorMessage` (normalizacja
+  błędów z `AppError` backendu do czytelnego komunikatu, także w `useTauriQuery`, które
+  wcześniej gubiło prawdziwy komunikat błędu poza przypadkiem "brak Tauri").
+- Formularze (`AccountFormModal`, `InstrumentFormModal`, `CashOperationsModal`) resetują
+  się przez `key` na rodzicu (remount) zamiast efektu resetującego pola - prostsze i unika
+  konfliktu z regułą `react-hooks/set-state-in-effect`.
+
+**Przetestowane:**
+
+- `cargo test`: 40 testów, wszystkie ✅ (patrz commit backendu).
+- `pnpm typecheck`/`lint`/`format:check`/`test` (13 testów JS) — zielone.
+- Zweryfikowane wizualnie w przeglądarce (Konta i Instrumenty): listy, puste stany, oba
+  modale formularzy renderują się poprawnie ze wszystkimi polami, walidacja i komunikat
+  błędu (poza kontekstem Tauri: "Cannot read properties of undefined (reading 'invoke')")
+  wyświetlają się bez utraty wprowadzonych danych w formularzu.
+- **Znaleziony i naprawiony błąd:** dwa modale w `AccountsPage` używały tego samego
+  literału `key="closed"` w stanie domyślnym - React zgłaszał kolizję kluczy między
+  rodzeństwem. Naprawione przez prefiksowanie kluczy (`form-...`/`ops-...`).
+- **Napotkany i naprawiony problem narzędziowy (nie błąd aplikacji):** długo działający
+  serwer Vite (sesja testowa użytkownika) miał w cache pusty/przerwany transform pliku
+  `AccountFormModal.tsx` z chwili w trakcie zapisu - klasyczny wyścig watchera plików przy
+  bardzo szybkich, kolejnych nadpisaniach tego samego pliku. Zdiagnozowane przez
+  bezpośrednie `fetch()` modułu i porównanie z zawartością na dysku (sourcemap ujawniał
+  pustą `sourcesContent`), naprawione przez `touch` plików, by wymusić ponowny transform
+  - bez restartu całego procesu `tauri dev` (żeby nie zerwać żywej sesji użytkownika).
+
+**Następny krok:** Cel 1.5 — strategie użytkownika (start pusty) i pełny formularz
+transakcji z podglądem ryzyka/RR na żywo.
+
 ## Pozostałe cele Etapu 1
 
 Patrz [ROADMAP.md](ROADMAP.md) — jeszcze nierozpoczęte.

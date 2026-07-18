@@ -7,7 +7,7 @@
 | 1.1 | Repozytorium, standardy, uruchomiony podgląd (Vite + Tauri dev), error boundary, ADR | ✅ ukończony |
 | 1.2 | Baza danych SQLite, migracje wersjonowane, repozytoria, WAL, kopia przed migracją    | ✅ ukończony |
 | 1.3 | Nowy system wizualny (tokeny, komponenty) i nawigacja                                | ✅ ukończony |
-| 1.4 | Konta, operacje finansowe (wpłaty/wypłaty/korekty), biblioteka instrumentów          | ⬜           |
+| 1.4 | Konta, operacje finansowe (wpłaty/wypłaty/korekty), biblioteka instrumentów          | ✅ ukończony |
 | 1.5 | Strategie użytkownika (start pusty) i pełny formularz transakcji                     | ⬜           |
 | 1.6 | Historia transakcji, dashboard, kalendarz, podstawowe raporty                        | ⬜           |
 | 1.7 | Eksport CSV/XLSX/PDF, pełny backup `.dtjbackup` z weryfikacją i restore              | ⬜           |

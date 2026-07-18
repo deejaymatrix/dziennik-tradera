@@ -39,3 +39,6 @@ export type { SkeletonProps } from "./components/Skeleton/Skeleton";
 
 export { ErrorState } from "./components/ErrorState/ErrorState";
 export type { ErrorStateProps } from "./components/ErrorState/ErrorState";
+
+export { Table, tableStyles } from "./components/Table/Table";
+export type { TableProps } from "./components/Table/Table";
