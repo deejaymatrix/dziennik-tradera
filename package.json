@@ -3,30 +3,33 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Dziennik Tradera - aplikacja desktop/web/PWA do dziennika transakcji tradingowych",
-  "license": "UNLICENSED",
-  "packageManager": "pnpm@11.14.0",
+  "description": "Lokalny dziennik tradera (Windows, Tauri + Rust + SQLite).",
   "engines": {
-    "node": ">=22"
+    "node": "^20.19.0 || >=22.12.0",
+    "pnpm": ">=9"
   },
+  "packageManager": "pnpm@11.14.0",
   "scripts": {
-    "build": "pnpm -r --if-present run build",
-    "test": "pnpm -r --if-present run test:run",
+    "dev": "pnpm --filter @dziennik-tradera/desktop tauri dev",
+    "dev:vite": "pnpm --filter @dziennik-tradera/desktop dev",
+    "build": "pnpm --filter @dziennik-tradera/desktop tauri build",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "pnpm -r --if-present run typecheck",
-    "secrets:scan": "node scripts/scan-secrets.mjs"
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "test:rust": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@types/node": "^26.1.1",
-    "eslint": "^10.7.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-storybook": "^10.5.2",
-    "globals": "^17.7.0",
-    "prettier": "^3.9.5",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.64.0"
+    "eslint": "10.7.0",
+    "typescript-eslint": "8.64.0",
+    "@eslint/js": "10.0.1",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.3",
+    "eslint-config-prettier": "10.1.8",
+    "globals": "17.7.0",
+    "prettier": "3.9.5",
+    "typescript": "6.0.3"
   }
 }

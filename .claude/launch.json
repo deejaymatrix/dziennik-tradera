@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "web",
+      "name": "dziennik-tradera-web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@dziennik/web", "dev"],
-      "port": 5173
+      "runtimeArgs": ["--filter", "@dziennik-tradera/desktop", "run", "dev"],
+      "port": 1420
     }
   ]
 }

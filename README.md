@@ -1,72 +1,52 @@
 # Dziennik Tradera
 
-Prywatna aplikacja do prowadzenia dziennika transakcji tradingowych — dostępna jako aplikacja Windows (`Setup.exe`), aplikacja internetowa oraz instalowalna aplikacja PWA. Jeden produkt, wspólna domena i design system, synchronizacja offline-first.
-
-Pełna specyfikacja produktu: [`docs/specyfikacja-produktu.md`](docs/specyfikacja-produktu.md).
-Aktualny stan prac: [`docs/stan-projektu.md`](docs/stan-projektu.md).
-Decyzje architektoniczne: [`docs/decyzje-architektoniczne.md`](docs/decyzje-architektoniczne.md).
-
-> **Status:** projekt jest na etapie Kamienia 0 (fundament repozytorium). Żaden moduł produktowy nie jest jeszcze gotowy do użycia.
+Lokalna aplikacja desktopowa dla Windows do prowadzenia dziennika transakcji tradingowych.
+Brak logowania, kont, chmury, telemetrii i importu z MT5 — wszystkie dane trzymane są
+lokalnie. Zobacz [ROADMAP.md](ROADMAP.md) i [PROGRESS.md](PROGRESS.md) po aktualny stan prac.
 
 ## Wymagania
 
-- Node.js ≥ 22
-- pnpm ≥ 11 (`corepack enable` albo `npm i -g pnpm`)
-- Rust stable + Cargo (dla `apps/desktop`, Tauri 2)
-- Na Windows: [wymagania Tauri dla Windows](https://v2.tauri.app/start/prerequisites/) (Microsoft C++ Build Tools, WebView2)
-
-## Struktura repozytorium
-
-```text
-apps/
-  web/          # aplikacja webowa i PWA (Vite + React)
-  desktop/      # aplikacja Windows (Tauri 2)
-packages/
-  app-shell/    # wspólny routing i layout React
-  domain/       # encje, obliczenia, reguły biznesowe (bez zależności od UI)
-  ui/           # design system i komponenty
-  data-contracts/ # schematy Zod, typy współdzielone, metadane synchronizacji
-  data-desktop/ # adapter SQLite (komendy Rust)
-  data-web/     # adapter IndexedDB/Dexie
-  sync-engine/  # outbox, push/pull, rozwiązywanie konfliktów
-  i18n/         # polskie komunikaty UI
-  testing/      # fabryki danych wyłącznie do testów
-supabase/
-  migrations/   # migracje SQL
-  functions/    # Edge Functions
-  tests/        # testy pgTAP
-docs/           # specyfikacja, ADR, dokumentacja techniczna i użytkownika
-```
+- Node.js `^20.19.0 || >=22.12.0`
+- pnpm `>=9` (`corepack enable` jeśli nie masz pnpm)
+- Rust (stable) + Cargo — https://rustup.rs
+- Windows 10/11 z zainstalowanym WebView2 (zwykle już obecny w systemie)
 
 ## Uruchomienie środowiska deweloperskiego
 
-```bash
+```powershell
 pnpm install
-cp .env.example .env   # uzupełnij lokalnie wartościami z własnego środowiska
+pnpm dev
 ```
 
-Komendy root (uruchamiane rekurencyjnie po wszystkich pakietach workspace):
+albo po prostu uruchom `start-dev.ps1` (lub `start-dev.bat`) — zainstaluje zależności, jeśli
+brakuje `node_modules`, i uruchomi podgląd.
 
-```bash
-pnpm test        # testy jednostkowe wszystkich pakietów
-pnpm typecheck    # sprawdzenie typów TypeScript
-pnpm lint         # ESLint
-pnpm format       # Prettier (zapis)
-pnpm secrets:scan # lokalny skan sekretów przed commitem
-```
+`pnpm dev` uruchamia jednocześnie serwer Vite (HMR, http://localhost:1420) oraz `tauri dev`,
+które otwiera natywne okno aplikacji podłączone do tego podglądu.
 
-Uruchomienie poszczególnych aplikacji opisane jest w `README` odpowiednich pakietów (`apps/web`, `apps/desktop`) w miarę ich powstawania.
+Sam podgląd frontendu (bez okna Tauri) można uruchomić przez `pnpm dev:vite`.
 
-## Zasady projektu (skrót)
+## Pozostałe polecenia
 
-- Cała komunikacja i UI po polsku, w poprawnym UTF-8.
-- Brak jakiejkolwiek domyślnej/przykładowej strategii (w tym „Japan Attack”) i brak danych demonstracyjnych w bazie produkcyjnej.
-- Pieniądze i ceny wyłącznie na typach dziesiętnych (`decimal.js`), nigdy na surowym `number`.
-- Offline-first: desktop i web/PWA działają bez internetu po wcześniejszym zalogowaniu; synchronizacja nigdy nie gubi danych po cichu.
-- Sekrety (klucze API, service-role, klucz podpisu aktualizacji) nigdy nie trafiają do repozytorium ani do bundle klienckiego.
+| Polecenie                      | Opis                                                   |
+| ------------------------------ | ------------------------------------------------------ |
+| `pnpm lint`                    | ESLint (TypeScript, ze świadomością typów)             |
+| `pnpm format` / `format:check` | Prettier                                               |
+| `pnpm typecheck`               | `tsc` bez emisji plików                                |
+| `pnpm test`                    | Testy jednostkowe/komponentów (Vitest)                 |
+| `pnpm test:rust`               | Testy Rust (`cargo test`) dla `apps/desktop/src-tauri` |
+| `pnpm build`                   | Build instalatora (`tauri build`)                      |
 
-Pełne, wiążące zasady: [`docs/specyfikacja-produktu.md`](docs/specyfikacja-produktu.md).
+## Struktura repozytorium
 
-## Licencja
+- `apps/desktop` — aplikacja Tauri (Rust w `src-tauri/`, interfejs React/TS w `src/`).
+- `packages/*` — wspólne pakiety (domain, ui, ...), dodawane wraz z realną zawartością
+  w kolejnych etapach — patrz `docs/adr/0002-struktura-workspace.md`.
+- `docs/adr/` — decyzje architektoniczne.
 
-Projekt prywatny, nieprzeznaczony do dystrybucji publicznej.
+## Dokumentacja
+
+- [ROADMAP.md](ROADMAP.md) — plan Etapu 1 i 2.
+- [PROGRESS.md](PROGRESS.md) — bieżący status prac.
+- [CHANGELOG.md](CHANGELOG.md) — historia zmian.
+- [docs/adr/](docs/adr/) — decyzje architektoniczne.
