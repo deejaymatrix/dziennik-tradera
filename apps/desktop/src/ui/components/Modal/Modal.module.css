@@ -1,0 +1,33 @@
+.dialog {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 0;
+  width: min(560px, calc(100vw - var(--space-5)));
+  max-height: calc(100vh - var(--space-6));
+}
+
+.dialog::backdrop {
+  background-color: rgba(3, 6, 10, 0.6);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin: 0;
+}
+
+.body {
+  padding: var(--space-4);
+  overflow-y: auto;
+}

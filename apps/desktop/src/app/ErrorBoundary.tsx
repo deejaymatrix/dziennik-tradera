@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Button } from "../ui/components/Button/Button";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -51,12 +52,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         </p>
         <p className="recovery-screen__detail">{error.message}</p>
         <div className="recovery-screen__actions">
-          <button type="button" onClick={this.handleReload}>
+          <Button variant="primary" onClick={this.handleReload}>
             Uruchom ponownie
-          </button>
-          <button type="button" onClick={this.handleCopyDetails}>
+          </Button>
+          <Button variant="secondary" onClick={this.handleCopyDetails}>
             Skopiuj szczegóły błędu
-          </button>
+          </Button>
         </div>
       </div>
     );

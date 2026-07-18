@@ -1,0 +1,113 @@
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: var(--sidebar-width-expanded);
+  min-width: var(--sidebar-width-expanded);
+  height: 100vh;
+  background-color: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  transition: width var(--motion-normal) var(--motion-easing);
+  overflow-x: hidden;
+}
+
+.collapsed {
+  width: var(--sidebar-width-collapsed);
+  min-width: var(--sidebar-width-collapsed);
+}
+
+.brandRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-height);
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.brandName {
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.groupLabel {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  padding: 0 var(--space-2);
+  margin: 0 0 var(--space-1);
+  white-space: nowrap;
+}
+
+.collapsed .groupLabel {
+  opacity: 0;
+  height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color var(--motion-fast) var(--motion-easing),
+    color var(--motion-fast) var(--motion-easing);
+}
+
+.navLink:hover {
+  background-color: var(--color-surface-alt);
+  color: var(--color-text);
+}
+
+.navLink:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.navLinkActive {
+  background-color: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  color: var(--color-accent);
+}
+
+.navLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.collapsed .navLabel {
+  display: none;
+}
+
+.icon {
+  flex-shrink: 0;
+  width: 1.125rem;
+  height: 1.125rem;
+}

@@ -42,7 +42,7 @@ zakończył się bez błędu w logu, ale samo okno na ekranie powinien potwierdz
 **Następny krok:** Cel 1.2 — schemat SQLite, migracje wersjonowane, repozytoria Rust, WAL,
 kopia przed migracją, testy integracyjne CRUD.
 
-## Cel 1.2 — Baza danych, migracje i bezpieczeństwo zapisu — 🚧 w trakcie
+## Cel 1.2 — Baza danych, migracje i bezpieczeństwo zapisu — ✅ ukończony
 
 **Co działa:**
 
@@ -92,8 +92,61 @@ kopia przed migracją, testy integracyjne CRUD.
   przed tym wywołaniem.
 
 **Następny krok:** rozszerzenie repozytoriów o pozostałe encje w miarę potrzeb kolejnych
-Celów (instrumenty i operacje finansowe w Celu 1.4, strategie i transakcje w Celu 1.5), albo
-przejście od razu do Celu 1.3 (system wizualny i nawigacja) zgodnie z kolejnością w ROADMAP.
+Celów (instrumenty i operacje finansowe w Celu 1.4, strategie i transakcje w Celu 1.5).
+
+## Cel 1.3 — Nowy system wizualny i nawigacja — ✅ ukończony
+
+**Co działa:**
+
+- Tokeny projektowe (`design/tokens.css`): paleta z sekcji 11.1 (tło/powierzchnie/obramowanie/
+  tekst/akcent złoty/zysk/strata/info/warning), motyw ciemny domyślny, jasny jako pełnoprawna
+  opcja (`[data-theme="light"]`), system odstępów 8px, ograniczony zestaw promieni, typografia
+  (Inter, lokalnie przez `@fontsource/inter` — bez CDN), `prefers-reduced-motion` globalnie.
+- Biblioteka komponentów (`ui/components/`): Button, IconButton, TextField, Select, Checkbox,
+  Switch, Tag, Badge, Tooltip, Modal (natywny `<dialog>` — przechwytywanie focusu i Esc "za
+  darmo" z przeglądarki), Toast/ToastProvider (powiadomienia, auto-dismiss, zamykalne),
+  EmptyState, Skeleton, ErrorState. Każdy z realną obsługą stanów focus/hover/disabled/error
+  i etykietami dostępności (nie tylko wizualnie).
+- `AppShell`: zwijana lewa nawigacja pogrupowana wg sekcji 11.3 (Główne/Konfiguracja/Analiza/
+  Dane/System), nagłówek z tytułem bieżącej strony, przełącznik motywu, skip-link "Przejdź do
+  treści głównej". Celowo pominięte "Zasady" i "Psychologia" (Etap 2) — nie pokazujemy
+  niedziałających pozycji "wkrótce".
+- Routing (`react-router`) z realnymi stronami dla każdej pozycji nawigacji. Strony bez
+  jeszcze zaimplementowanej funkcji (Transakcje, Kalendarz, Konta, Strategie, Instrumenty,
+  Raporty, Eksport i kopie) pokazują uczciwy `EmptyState` z nazwą Celu, w którym się pojawią —
+  to nawigacja do prawdziwej strony, nie martwy przycisk. Dashboard ma działającą, zamykalną
+  listę startową (sekcja 10.1) linkującą do Kont/Instrumentów/Transakcji.
+- `SafeStartScreen` (z Celu 1.1) wycofany — diagnostyka (status backendu/bazy) przeniesiona
+  do Ustawień ("Informacje i diagnostyka"), zgodnie z sekcją 10.6. Ustawienia mają też sekcję
+  "Wygląd" (rzeczywisty przełącznik motywu) oraz zapowiedzi "Dane i kopie"/"Aktualizacje".
+
+**Przetestowane:**
+
+- `pnpm typecheck`/`lint`/`format:check`/`test` — zielone (13 testów: Button, TextField, Modal,
+  ToastProvider, ErrorBoundary).
+- Naprawiony brak czyszczenia DOM między testami (brak `afterEach(cleanup)`, bo projekt celowo
+  nie używa globalnych API Vitest) — bez tego kolejne testy w tym samym pliku widziały
+  duplikaty poprzednich renderów.
+- Zweryfikowane wizualnie w przeglądarce (sam Vite, bez Tauri): 1366×768, 1920×1080, oraz
+  symulacja powiększenia ekranu Windows 125%/150% (efektywny viewport 1093×614 i 911×512) —
+  bez przewijania poziomego (potwierdzone też programowo:
+  `scrollWidth === clientWidth` na każdej szerokości). Lista startowa poprawnie zawija się do
+  wielu wierszy przy węższym viewporcie zamiast przepełniać się w bok.
+- Kolejność Tab potwierdzona przez inspekcję `document.activeElement` krok po kroku: skip-link
+  → zwijanie nawigacji → 9 pozycji menu → przełącznik motywu → treść strony. Aktywacja klawiszem
+  Enter/Space nie zadziałała w tym konkretnym narzędziu do zdalnego sterowania przeglądarką
+  (potwierdzone jako ograniczenie tego narzędzia, nie aplikacji: to samo zdarzenie w
+  `Button.test.tsx` przez `@testing-library/user-event` działa poprawnie, a komponenty używają
+  wyłącznie natywnych `<button>`/`<a>` bez żadnej własnej obsługi klawiszy, która mogłaby to
+  zepsuć w prawdziwej przeglądarce/WebView2).
+- Brak błędów w konsoli na żadnej z odwiedzonych stron (Dashboard, Strategie, Raporty, 404).
+
+**Nie zweryfikowane:** natywne okno Tauri (to samo ograniczenie sandboksa co w Celu 1.1) oraz
+realne skalowanie Windows 125%/150% (symulowane tylko przez zmianę rozmiaru viewportu, nie
+przez faktyczne ustawienie DPI systemu) — do potwierdzenia przez użytkownika na żywej maszynie.
+
+**Następny krok:** Cel 1.4 — CRUD kont z archiwizacją (UI na już istniejącym, przetestowanym
+backendzie), wpłaty/wypłaty/korekty, biblioteka instrumentów.
 
 ## Pozostałe cele Etapu 1
 

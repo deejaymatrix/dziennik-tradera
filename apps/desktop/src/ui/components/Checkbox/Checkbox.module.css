@@ -1,0 +1,30 @@
+.wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.checkbox {
+  width: 1.125rem;
+  height: 1.125rem;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.checkbox:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.checkbox:disabled {
+  cursor: not-allowed;
+}
+
+.disabledLabel {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

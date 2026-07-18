@@ -1,0 +1,49 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 640px;
+}
+
+.section {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sectionTitle {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.statusList {
+  margin: 0;
+}
+
+.statusList dt {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.statusList dd {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+.placeholderNote {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}

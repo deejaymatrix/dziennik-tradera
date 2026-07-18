@@ -1,0 +1,39 @@
+.layout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
+
+.contentColumn {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+.skipLink {
+  position: absolute;
+  left: -9999px;
+  top: var(--space-2);
+  z-index: 200;
+  background-color: var(--color-accent);
+  color: var(--color-accent-contrast);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.skipLink:focus {
+  left: var(--space-2);
+}
