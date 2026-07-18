@@ -5,67 +5,61 @@
 
 ## Aktualny etap
 
-**ETAP I — Kamień 0: repozytorium i decyzje** (brama spełniona, gotowe do Kamienia 1)
+**ETAP I — Kamień 1: wspólny shell i design system** (brama spełniona, gotowe do Kamienia 2)
 
-## Status bramy Kamienia 0
+Kamień 0 (repozytorium i decyzje) — ✅ zamknięty, patrz historia w `CHANGELOG.md`.
 
-Wymagane dowody: czysty build, test przykładowy na każdej warstwie, skan sekretów, dokumentacja uruchomienia.
+## Status bramy Kamienia 1
 
-| Kryterium                                                  | Status                                                                                                                                                                                                            |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Monorepo (pnpm workspaces, 2 aplikacje + 9 pakietów)       | ✅                                                                                                                                                                                                                |
-| Specyfikacja skopiowana do `docs/specyfikacja-produktu.md` | ✅                                                                                                                                                                                                                |
-| ADR założone (4 wpisy)                                     | ✅ (`docs/decyzje-architektoniczne.md`)                                                                                                                                                                           |
-| `.env.example` bez sekretów                                | ✅                                                                                                                                                                                                                |
-| CI (lint/typecheck/test, bez publikacji)                   | ✅ (`.github/workflows/ci.yml`; nieuruchomione na zdalnym GitHub - brak jeszcze repo zdalnego)                                                                                                                    |
-| Threat model wstępny                                       | ✅ (`docs/model-zagrozen.md`)                                                                                                                                                                                     |
-| Kontrakty danych (metadane synchronizacji, Zod)            | ✅ (`packages/data-contracts`)                                                                                                                                                                                    |
-| Pusty seed produkcyjny bez strategii                       | ✅ (brak jakiegokolwiek seeda strategii/danych demo w `supabase/migrations`)                                                                                                                                      |
-| Test przykładowy: TS (domain)                              | ✅ 9 testów, `pnpm test` zielone                                                                                                                                                                                  |
-| Test przykładowy: web (Vite/React)                         | ✅ 2 testy, `pnpm test` zielone                                                                                                                                                                                   |
-| Test przykładowy: desktop (Rust/Tauri)                     | ✅ `cargo test` zielone (1 test), `cargo clippy` i `cargo fmt --check` czyste                                                                                                                                     |
-| Test przykładowy: SQL (pgTAP)                              | 🚧 napisany (`supabase/tests/00_extensions.test.sql`), **nieuruchomiony lokalnie** - wymaga Dockera, którego nie ma w tym środowisku deweloperskim; uruchomi się w CI (`supabase/setup-cli` + `supabase test db`) |
-| Skan sekretów                                              | ✅ `pnpm secrets:scan` czyste                                                                                                                                                                                     |
-| Dokumentacja uruchomienia (README)                         | ✅                                                                                                                                                                                                                |
+Wymagane dowody: web i Tauri uruchamiają ten sam spójny shell; testy polskich znaków i dostępności.
+
+| Kryterium                                                                                        | Status                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Design tokens + ThemeProvider (dark domyślny, jasny, `prefers-color-scheme`)                     | ✅ `packages/ui`                                                                                                                                                      |
+| Prymitywy UI (Button, TextField, SelectField, Card, Typography, Badge, Spinner, Modal)           | ✅ z testami i story w Storybooku                                                                                                                                     |
+| Komponenty stanów (EmptyState, ErrorState, LoadingState, StatusIndicator)                        | ✅                                                                                                                                                                    |
+| Routing typowany + AppShell (sidebar desktop, dolna nawigacja mobile, paleta poleceń Ctrl/Cmd+K) | ✅ `packages/app-shell`                                                                                                                                               |
+| Ekran logowania (UI + walidacja Zod/RHF)                                                         | ✅ **bez realnego backendu** - jawna informacja, że Supabase Auth podłączymy w Kamieniu 2                                                                             |
+| Ekran onboardingu (profil, strefa czasowa, waluta, pierwsze konto, opcjonalna strategia)         | ✅ **bez realnego backendu**, tak jak wyżej; strategia zawsze startuje pusta                                                                                          |
+| `apps/web` renderuje `packages/app-shell` (nie własny placeholder)                               | ✅ zweryfikowane w prawdziwej przeglądarce (nie tylko w testach)                                                                                                      |
+| `apps/desktop` używa tego samego builda `apps/web` jako frontendu                                | ✅ konfiguracja (`tauri.conf.json`) niezmieniona od Kamienia 0 i nadal poprawna; **nie uruchomiono interaktywnie okna Tauri w tym środowisku** (brak GUI w sandboxie) |
+| Testy polskich znaków (mojibake)                                                                 | ✅ katalog `pl` w `packages/i18n` rozbudowany o nav/auth/onboarding/states, test dalej zielony                                                                        |
+| Testy dostępności (axe)                                                                          | ✅ Button, TextField, SelectField, Modal, EmptyState/ErrorState/LoadingState/StatusIndicator, AppShell+Dashboard, ekran logowania, onboarding, 404                    |
+| Storybook kluczowych komponentów i ekranów                                                       | ✅ `apps/storybook` (Storybook 10, addon a11y + docs), `storybook build` przechodzi                                                                                   |
 
 Legenda: ✅ zrobione i zweryfikowane, 🚧 zrobione ale niezweryfikowane wykonanie, ⬜ nie rozpoczęto, ❌ zablokowane.
 
-**Uczciwa uwaga:** test pgTAP nie został uruchomiony na tej maszynie (brak Dockera). Skrypt i migracja są napisane i logicznie poprawne, ale "zielony" status tego jednego elementu potwierdzi dopiero pierwsze uruchomienie CI na GitHubie lub lokalne uruchomienie z Dockerem. Nie deklaruję tego jako w pełni zweryfikowane.
+## Zweryfikowane komendy i działania (Kamień 1)
 
-## Zweryfikowane komendy (uruchomione lokalnie, wynik pozytywny)
-
-- `pnpm install` — 12 projektów workspace, bez błędów.
-- `pnpm lint` — 0 błędów.
-- `pnpm format:check` — zgodne z Prettier.
-- `pnpm typecheck` — 0 błędów we wszystkich pakietach.
-- `pnpm test` — wszystkie pakiety TS/React zielone (domain, data-contracts, i18n, apps/web).
-- `pnpm --filter @dziennik/web run build` — build produkcyjny Vite bez błędów.
-- `cargo check` / `cargo test` / `cargo clippy --all-targets` / `cargo fmt -- --check` w `apps/desktop/src-tauri` — zielone.
-- `node scripts/scan-secrets.mjs` — brak wykrytych sekretów w repozytorium.
+- `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test` — całe repo, zielone (12 pakietów, 72 testy TS/React).
+- `cargo test` / `cargo clippy --all-targets -- -D warnings` / `cargo fmt -- --check` w `apps/desktop/src-tauri` — zielone (bez zmian od Kamienia 0).
+- `pnpm --filter @dziennik/web run build` — build produkcyjny bez błędów.
+- `pnpm --filter @dziennik/storybook run build` (`storybook build`) — kompletuje się, wszystkie story wchodzą do bundla.
+- **Ręczna weryfikacja w prawdziwej przeglądarce** (nie tylko jsdom): uruchomiony `pnpm --filter @dziennik/web dev`, otwarty w podglądzie przeglądarki, potwierdzone: Dashboard z pustym stanem, nawigacja (kliknięcie „Ustawienia” faktycznie routuje), przełącznik motywu (dark→light działa, zmienia `data-theme` na `<html>`), paleta poleceń otwiera się na Ctrl/Cmd+K i pokazuje listę stron. Zrzut ekranu narzędzia zawiódł (timeout renderera w tym sandboxie) - weryfikacja oparta o drzewo dostępności i treść strony zamiast obrazu, ale to potwierdzenie działania w realnej przeglądarce, nie tylko w testach.
 
 ## Blokady wymagające danych/decyzji właściciela
 
-Żadna z poniższych pozycji nie blokuje obecnej pracy lokalnej — są potrzebne dopiero na dalszych kamieniach.
+Bez zmian względem Kamienia 0 - nadal nic nie blokuje obecnej pracy lokalnej:
 
-1. **Domena produkcyjna** — potrzebna dla web (Cloudflare Pages) i manifestu aktualizatora (Kamień 6).
-2. **Projekt Supabase** (URL + klucze) — potrzebny od Kamienia 2 (backend/synchronizacja).
-3. **Konto Cloudflare** (Pages + R2) — potrzebne od Kamienia 2 (storage) i Kamienia 6 (dystrybucja updatera).
-4. **Prywatne repozytorium GitHub** — potrzebne do uruchomienia realnego CI/CD na zdalnym runnerze. Kamień 0 działa lokalnie bez tego; workflow jest gotowy i czeka na pierwszy push.
-5. **Certyfikat Authenticode** — potrzebny dopiero w Kamieniu 6 do podpisania produkcyjnego instalatora Windows. Bez niego dostarczymy build testowy i instrukcję uzyskania certyfikatu, nie nazywając go „produkcyjnie podpisanym”.
+1. Domena produkcyjna (Kamień 6).
+2. Projekt Supabase (Kamień 2).
+3. Konto Cloudflare - Pages/R2 (Kamień 2/6).
+4. Prywatne repozytorium GitHub - CI gotowe, czeka na pierwszy push.
+5. Certyfikat Authenticode (Kamień 6).
 
 ## Lista niespełnionych kryteriów odbioru (z `docs/specyfikacja-produktu.md` §17)
 
-Wszystkie 26 kryteriów pozostaje otwarte — Kamień 0 to wyłącznie fundament repozytorium, żaden z 16 modułów produktowych jeszcze nie istnieje. Lista będzie aktualizowana po każdym kamieniu milowym.
+Nadal wszystkie 26 kryteriów otwarte — Kamień 1 to fundament UI/routingu, żaden z 16 modułów produktowych (Transakcje, Konta, Strategie itd.) jeszcze nie ma logiki biznesowej ani danych. Logowanie i onboarding mają już kompletny interfejs, ale świadomie **bez podłączonego backendu** — nic tu nie udaje działania, którego jeszcze nie ma.
 
 ## Znane ograniczenia na tym etapie
 
-- Brak jeszcze jakiegokolwiek działającego UI produktowego, bazy danych, synchronizacji ani modułów z §8 specyfikacji — to wyłącznie fundament repozytorium (routing, design system i pierwszy ekran logowania to Kamień 1).
-- `apps/web` zawiera tylko tymczasowy ekran potwierdzający działanie pakietów współdzielonych — zostanie zastąpiony przez `packages/app-shell` w Kamieniu 1.
-- `apps/desktop` to szkielet Tauri 2 (jedna komenda `app_version`) bez logiki biznesowej; frontend współdzielony z `apps/web`, ale integracja SQLite/IPC dopiero w Kamieniu 2.
-- Test pgTAP nie zweryfikowany lokalnie (patrz wyżej — brak Dockera w tym środowisku).
-- Brak zdalnego repo GitHub — CI zdefiniowane, ale nieuruchomione na runnerze.
-- `packages/ui`, `packages/app-shell`, `packages/data-desktop`, `packages/data-web`, `packages/sync-engine`, `packages/testing` to na razie puste pakiety zarezerwowane w strukturze workspace (każdy ma plik wyjaśniający, w którym kamieniu otrzyma implementację).
+- Logowanie i onboarding nie zapisują niczego trwale - to Kamień 2 (Supabase Auth + warstwa danych).
+- Nawigacja główna celowo zawiera tylko Dashboard + strony infrastrukturalne (Ustawienia, Centrum synchronizacji) - pozostałe 13 modułów dołączą do nawigacji dopiero z własną implementacją (Kamień 3-5), zamiast być teraz pustymi zaślepkami.
+- `NetworkStatusBadge` pokazuje wyłącznie łączność sieciową przeglądarki (`navigator.onLine`) - pełny status synchronizacji (kolejka, konflikty) przyjdzie z `packages/sync-engine` w Kamieniu 2. Mapowanie na docelowy wygląd (`syncStatusPresentation`) jest już gotowe i przetestowane.
+- Preferencja motywu (dark/light) żyje tylko w pamięci procesu (resetuje się po odświeżeniu) - patrz ADR-0005. Trwały zapis trafi do właściwego modelu Ustawień w Kamieniu 2/3.
+- `packages/data-desktop`, `packages/data-web`, `packages/sync-engine`, `packages/testing` (poza `expectNoAccessibilityViolations`) nadal są w większości zarezerwowanymi miejscami w strukturze - ich właściwa implementacja to Kamień 2.
+- Okno aplikacji desktopowej (Tauri) nie zostało odpalone interaktywnie w tym środowisku (brak GUI w sandboxie) - konfiguracja jest poprawna i niezmieniona od Kamienia 0, ale to nie to samo co realne uruchomienie.
 
 ## Następny krok
 
-Kamień 1: wspólny shell (`packages/app-shell`) i design system (`packages/ui`) — routing, layout responsywny, motyw ciemny/jasny, polski system tekstów rozbudowany o realne ekrany, onboarding i logowanie, stany loading/empty/error/offline, Storybook kluczowych komponentów.
+Kamień 2: dane lokalne, backend i synchronizacja — schemat PostgreSQL/RLS, SQLite desktop, IndexedDB web, repository, outbox/push/pull, Centrum synchronizacji z prawdziwymi danymi, konflikty, prywatne pliki, invite-only auth (podłączenie ekranu logowania do Supabase Auth).

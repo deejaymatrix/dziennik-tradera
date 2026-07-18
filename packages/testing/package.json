@@ -7,5 +7,13 @@
   "types": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "jest-axe": "^10.0.0",
+    "vitest": "^3.2.7"
+  },
+  "devDependencies": {
+    "@types/jest-axe": "^3.5.9",
+    "typescript": "^5.9.3"
   }
 }

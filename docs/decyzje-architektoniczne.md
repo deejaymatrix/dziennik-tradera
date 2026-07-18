@@ -62,4 +62,17 @@ Format: krótki wpis na decyzję. Numeracja rosnąca, wpisy nie są usuwane (ewe
 
 ---
 
+## ADR-0005: Preferencja motywu (dark/light) tymczasowo tylko w pamięci
+
+**Data:** 2026-07-18
+**Status:** przyjęte, do rewizji w Kamieniu 2/3
+
+**Kontekst:** Specyfikacja (§8.14, §18) wprost zabrania trzymania ustawień aplikacji w rozsianych kluczach `localStorage` zamiast w spójnym modelu danych, oraz zabrania używania `localStorage` jako głównej bazy. W Kamieniu 1 nie istnieje jeszcze żaden model Ustawień ani warstwa danych (`data-desktop`/`data-web` powstają w Kamieniu 2).
+
+**Decyzja:** `ThemeProvider` (`packages/ui`) trzyma wybór motywu wyłącznie w stanie React (resetuje się po odświeżeniu strony), domyślnie `dark`, z rozpoznawaniem `prefers-color-scheme` dla trybu `system`. Nie zapisujemy tej preferencji w `localStorage` jako obejścia.
+
+**Konsekwencje:** Do czasu Kamienia 2/3 użytkownik musi ponownie wybrać jasny motyw po każdym odświeżeniu. Trwałe zapamiętanie preferencji trafi do właściwej encji profilu/ustawień, zsynchronizowanej tak jak reszta danych - nie jako pojedynczy klucz `localStorage`.
+
+---
+
 <!-- Kolejne wpisy dopisywać poniżej, zachowując numerację rosnącą. -->

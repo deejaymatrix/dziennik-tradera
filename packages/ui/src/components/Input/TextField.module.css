@@ -1,0 +1,54 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dt-space-1);
+}
+
+.label {
+  font-size: var(--dt-font-size-sm);
+  font-weight: 600;
+  color: var(--dt-color-text-secondary);
+}
+
+.required {
+  color: var(--dt-color-danger-text);
+  margin-left: var(--dt-space-1);
+}
+
+.input {
+  height: 40px;
+  padding: 0 var(--dt-space-3);
+  border-radius: var(--dt-radius-md);
+  border: 1px solid var(--dt-color-border-strong);
+  background-color: var(--dt-color-bg-surface);
+  color: var(--dt-color-text-primary);
+  font-family: var(--dt-font-sans);
+  font-size: var(--dt-font-size-sm);
+  transition:
+    border-color var(--dt-transition-fast),
+    box-shadow var(--dt-transition-fast);
+}
+
+.input::placeholder {
+  color: var(--dt-color-text-tertiary);
+}
+
+.input:focus-visible {
+  outline: none;
+  border-color: var(--dt-color-accent);
+  box-shadow: 0 0 0 3px var(--dt-color-focus-ring);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--dt-color-danger);
+}
+
+.hint {
+  font-size: var(--dt-font-size-xs);
+  color: var(--dt-color-text-tertiary);
+}
+
+.error {
+  font-size: var(--dt-font-size-xs);
+  color: var(--dt-color-danger-text);
+}

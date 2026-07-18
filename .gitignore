@@ -47,3 +47,5 @@ pnpm-debug.log*
 
 # Storybook
 storybook-static/
+
+*storybook.log

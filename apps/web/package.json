@@ -12,8 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@dziennik/domain": "workspace:*",
-    "@dziennik/i18n": "workspace:*",
+    "@dziennik/app-shell": "workspace:*",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },

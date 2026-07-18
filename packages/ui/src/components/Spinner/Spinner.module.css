@@ -1,0 +1,29 @@
+.spinner {
+  display: inline-block;
+  border-radius: 50%;
+  border: 2.5px solid var(--dt-color-border-strong);
+  border-top-color: var(--dt-color-accent);
+  animation: dt-spin 700ms linear infinite;
+}
+
+.sm {
+  width: 16px;
+  height: 16px;
+}
+
+.md {
+  width: 24px;
+  height: 24px;
+}
+
+.lg {
+  width: 40px;
+  height: 40px;
+  border-width: 3px;
+}
+
+@keyframes dt-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
