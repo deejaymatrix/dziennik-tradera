@@ -33,10 +33,9 @@ try {
     }
 
     if (-not (Test-Command "pnpm")) {
-        Write-Host "pnpm nie jest zainstalowany - próbuję zainstalować automatycznie (corepack)..." -ForegroundColor Yellow
+        Write-Host "pnpm nie jest zainstalowany - próbuję zainstalować automatycznie (npm install -g pnpm)..." -ForegroundColor Yellow
         try {
-            corepack enable 2>&1 | ForEach-Object { Write-Host $_ }
-            corepack prepare pnpm@latest --activate 2>&1 | ForEach-Object { Write-Host $_ }
+            npm install -g pnpm 2>&1 | ForEach-Object { Write-Host $_ }
         } catch {
             Write-Host "Automatyczna instalacja napotkała błąd: $($_.Exception.Message)" -ForegroundColor Yellow
         }
@@ -47,8 +46,9 @@ try {
             Write-Host "BŁĄD: automatyczna instalacja pnpm nie powiodła się." -ForegroundColor Red
             Write-Host ""
             Write-Host "Spróbuj jednego z tych rozwiązań:" -ForegroundColor Yellow
-            Write-Host "  A) Kliknij prawym przyciskiem na start-dev.bat i wybierz 'Uruchom jako administrator', spróbuj ponownie." -ForegroundColor Yellow
-            Write-Host "  B) Uruchom komputer ponownie i spróbuj jeszcze raz (czasem Windows wymaga tego po instalacji Node.js)." -ForegroundColor Yellow
+            Write-Host "  A) Zamknij to okno i uruchom start-dev.bat jeszcze raz (czasem PATH aktualizuje się dopiero po ponownym uruchomieniu)." -ForegroundColor Yellow
+            Write-Host "  B) Uruchom komputer ponownie i spróbuj jeszcze raz." -ForegroundColor Yellow
+            Write-Host "  C) Kliknij prawym przyciskiem na start-dev.bat i wybierz 'Uruchom jako administrator'." -ForegroundColor Yellow
             Wait-BeforeClose
             exit 1
         }
