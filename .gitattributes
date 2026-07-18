@@ -1,0 +1,10 @@
+# Znormalizowane końcówki linii (LF) niezależnie od platformy dewelopera,
+# żeby uniknąć szumu w diffach między Windows a CI (Linux/Windows runnery).
+* text=auto eol=lf
+
+*.ico binary
+*.icns binary
+*.png binary
+*.jpg binary
+*.woff binary
+*.woff2 binary

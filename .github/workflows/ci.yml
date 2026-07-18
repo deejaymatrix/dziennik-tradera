@@ -1,0 +1,102 @@
+name: CI
+
+# Kamień 0: lint, typecheck, testy, skan sekretów. Bez kroku publikacji -
+# zgodnie z docs/specyfikacja-produktu.md §15 (brama Kamienia 0) i §11.4.
+# Build instalatora Windows, podpis kodu, E2E i SBOM dochodzą w dalszych
+# kamieniach (patrz docs/aktualizacje-i-wydania.md).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  javascript:
+    name: Lint, typecheck, testy TS/React, skan sekretów
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Instalacja zależności
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint (ESLint)
+        run: pnpm lint
+
+      - name: Sprawdzenie formatowania (Prettier)
+        run: pnpm format:check
+
+      - name: Sprawdzenie typów (TypeScript)
+        run: pnpm typecheck
+
+      - name: Testy jednostkowe/komponentowe (Vitest)
+        run: pnpm test
+
+      - name: Build aplikacji web (Vite)
+        run: pnpm --filter @dziennik/web run build
+
+      - name: Skan sekretów w repozytorium
+        run: pnpm secrets:scan
+
+  rust:
+    name: Testy Rust/Tauri (Windows)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/desktop/src-tauri
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+
+      - name: Sprawdzenie formatowania (rustfmt)
+        run: cargo fmt -- --check
+
+      - name: Clippy (bez ignorowanych ostrzeżeń)
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: cargo check
+        run: cargo check
+
+      - name: cargo test
+        run: cargo test
+
+  sql:
+    name: Testy SQL (pgTAP przez Supabase CLI)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: latest
+
+      - name: Start lokalnego stosu Supabase i zastosowanie migracji
+        run: supabase start
+
+      - name: Testy pgTAP (supabase/tests)
+        run: supabase test db
+
+      - name: Zatrzymanie stosu Supabase
+        if: always()
+        run: supabase stop --no-backup

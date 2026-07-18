@@ -1,0 +1,49 @@
+# Zależności
+node_modules/
+.pnpm-store/
+
+# Build
+dist/
+dist-ssr/
+build/
+*.tsbuildinfo
+
+# Rust / Tauri
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+
+# Testy i pokrycie
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# Środowisko i sekrety
+.env
+.env.local
+.env.*.local
+*.pem
+*.pfx
+*.p12
+*.key
+
+# Backupy lokalne / dane deweloperskie
+*.sqlite
+*.sqlite3
+*.db
+!**/fixtures/**/*.sqlite
+
+# Edytory i OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logi
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Storybook
+storybook-static/
