@@ -14,6 +14,8 @@ pub enum AppError {
     Database(String),
     #[error("błąd wejścia/wyjścia")]
     Io(String),
+    #[error("konflikt wersji: {0}")]
+    Conflict(String),
 }
 
 impl AppError {
@@ -23,12 +25,15 @@ impl AppError {
             AppError::NotFound(_) => "not_found",
             AppError::Database(_) => "database",
             AppError::Io(_) => "io",
+            AppError::Conflict(_) => "conflict",
         }
     }
 
     fn user_message(&self) -> String {
         match self {
-            AppError::Validation(message) | AppError::NotFound(message) => message.clone(),
+            AppError::Validation(message)
+            | AppError::NotFound(message)
+            | AppError::Conflict(message) => message.clone(),
             AppError::Database(_) => {
                 "Wystąpił błąd bazy danych. Szczegóły zapisano w logu diagnostycznym.".to_string()
             }

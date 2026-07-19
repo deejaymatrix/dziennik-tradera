@@ -296,6 +296,7 @@ mod tests {
             plan_adherence_rating: None,
             pnl_source: PnlSource::Auto,
             pnl_override_reason: None,
+            emotions: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
             deleted_at: None,

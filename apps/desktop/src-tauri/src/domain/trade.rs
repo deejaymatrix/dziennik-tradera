@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::instrument::InstrumentSnapshot;
 use super::strategy::StrategySnapshot;
 use super::trade_calculations::TradeCalculation;
+use super::trade_emotions::TradeEmotions;
 use crate::error::AppError;
 
 /// Status NIGDY nie jest wybierany przez użytkownika - wynika wyłącznie z obecności danych
@@ -140,6 +141,9 @@ pub struct Trade {
     pub plan_adherence_rating: Option<i64>,
     pub pnl_source: PnlSource,
     pub pnl_override_reason: Option<String>,
+    /// Emocje w 3 momentach (przed/w trakcie/po) - `None` na starszych transakcjach zapisanych
+    /// przed tą funkcją, co frontend pokazuje identycznie jak jawnie "nie uzupełniono".
+    pub emotions: Option<TradeEmotions>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
@@ -181,6 +185,7 @@ pub struct TradeInput {
     pub conclusion: Option<String>,
     pub plan_adherence_rating: Option<i64>,
     pub pnl_override: Option<ManualPnlOverride>,
+    pub emotions: Option<TradeEmotions>,
 }
 
 fn validate_positive(label: &str, value: Decimal) -> Result<(), AppError> {
@@ -328,6 +333,10 @@ impl TradeInput {
             }
         }
 
+        if let Some(emotions) = &self.emotions {
+            emotions.validate()?;
+        }
+
         Ok(())
     }
 }
@@ -346,7 +355,16 @@ pub trait TradeRepository {
     fn create(&self, write: &TradeWrite) -> Result<Trade, AppError>;
     fn get(&self, id: &str) -> Result<Trade, AppError>;
     fn list(&self, account_id: &str, include_deleted: bool) -> Result<Vec<Trade>, AppError>;
-    fn update(&self, id: &str, write: &TradeWrite) -> Result<Trade, AppError>;
+    /// `expected_updated_at` - gdy `Some`, aktualizacja jest odrzucana jako konflikt wersji
+    /// (`AppError::Conflict`), jeśli transakcja zmieniła się od czasu jej wczytania (sekcja
+    /// "Tryb odczytu i przycisk Edytuj" - wykrywanie konfliktu). `None` pomija tę kontrolę
+    /// (używane tam, gdzie nie ma jeszcze wcześniej wczytanego stanu do porównania).
+    fn update(
+        &self,
+        id: &str,
+        write: &TradeWrite,
+        expected_updated_at: Option<DateTime<Utc>>,
+    ) -> Result<Trade, AppError>;
     fn soft_delete(&self, id: &str) -> Result<Trade, AppError>;
     fn restore(&self, id: &str) -> Result<Trade, AppError>;
 }
@@ -381,6 +399,7 @@ mod tests {
             conclusion: None,
             plan_adherence_rating: None,
             pnl_override: None,
+            emotions: None,
         }
     }
 

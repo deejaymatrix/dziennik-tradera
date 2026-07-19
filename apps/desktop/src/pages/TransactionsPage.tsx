@@ -378,6 +378,7 @@ export function TransactionsPage(): ReactElement {
           }}
           accountId={selectedAccount.id}
           accountCurrency={selectedAccount.currency}
+          accountBalance={selectedAccount.balance}
           trade={editingTrade}
         />
       )}

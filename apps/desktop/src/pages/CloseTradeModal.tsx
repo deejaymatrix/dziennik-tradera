@@ -110,7 +110,11 @@ export function CloseTradeModal({
     setSubmitting(true);
     try {
       const input = buildTradeInput(fields, trade.account_id);
-      await invokeCommand("update_trade", { id: trade.id, input });
+      await invokeCommand("update_trade", {
+        id: trade.id,
+        expectedUpdatedAt: trade.updated_at,
+        input,
+      });
       showToast("Pozycja zamknięta.", "success");
       onClosed();
       onClose();

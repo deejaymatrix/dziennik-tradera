@@ -5,6 +5,7 @@ import { useUpdater } from "../app/useUpdater";
 import type { AppStatus, DatabaseStatus } from "../app/tauriTypes";
 import { Button } from "../ui/components/Button/Button";
 import { Switch } from "../ui/components/Switch/Switch";
+import { EmotionalStatesSection } from "./EmotionalStatesSection";
 import styles from "./SettingsPage.module.css";
 
 const ENV_LABELS: Record<string, string> = {
@@ -142,6 +143,8 @@ export function SettingsPage(): ReactElement {
       </section>
 
       <UpdateSection />
+
+      <EmotionalStatesSection />
 
       <section className={styles.section} aria-labelledby="settings-diagnostics">
         <h2 id="settings-diagnostics" className={styles.sectionTitle}>

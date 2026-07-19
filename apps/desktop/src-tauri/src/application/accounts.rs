@@ -4,9 +4,9 @@ use rust_decimal::Decimal;
 use serde::Serialize;
 
 use crate::domain::account::{Account, AccountRepository, NewAccount, UpdateAccount};
-use crate::domain::cash_operation::{
-    compute_balance, CashOperation, CashOperationRepository, NewCashOperation,
-};
+use crate::domain::balance::compute_current_balance;
+use crate::domain::cash_operation::{CashOperation, CashOperationRepository, NewCashOperation};
+use crate::domain::trade::TradeRepository;
 use crate::error::AppError;
 
 #[derive(Debug, Clone, Serialize)]
@@ -22,22 +22,26 @@ pub struct AccountWithBalance {
 pub struct AccountsService {
     accounts: Arc<dyn AccountRepository + Send + Sync>,
     cash_operations: Arc<dyn CashOperationRepository + Send + Sync>,
+    trades: Arc<dyn TradeRepository + Send + Sync>,
 }
 
 impl AccountsService {
     pub fn new(
         accounts: Arc<dyn AccountRepository + Send + Sync>,
         cash_operations: Arc<dyn CashOperationRepository + Send + Sync>,
+        trades: Arc<dyn TradeRepository + Send + Sync>,
     ) -> Self {
         Self {
             accounts,
             cash_operations,
+            trades,
         }
     }
 
     fn with_balance(&self, account: Account) -> Result<AccountWithBalance, AppError> {
         let operations = self.cash_operations.list_for_account(&account.id)?;
-        let balance = compute_balance(account.initial_balance, &operations);
+        let closed_trades = self.trades.list(&account.id, false)?;
+        let balance = compute_current_balance(account.initial_balance, &operations, &closed_trades);
         Ok(AccountWithBalance { account, balance })
     }
 

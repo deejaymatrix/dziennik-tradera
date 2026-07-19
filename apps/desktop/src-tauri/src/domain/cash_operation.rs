@@ -33,7 +33,8 @@ impl CashOperationKind {
 
 /// Wpływ operacji na saldo: wpłata dodaje kwotę, wypłata odejmuje (kwota zawsze
 /// wprowadzana jako wartość dodatnia), korekta stosuje kwotę wprost ze znakiem
-/// (może zmniejszać lub zwiększać saldo).
+/// (może zmniejszać lub zwiększać saldo). Pełne saldo konta (razem z zamkniętymi
+/// transakcjami) liczy `domain::balance::compute_current_balance`.
 fn signed_contribution(kind: CashOperationKind, amount: Decimal) -> Decimal {
     match kind {
         CashOperationKind::Deposit => amount,
@@ -93,15 +94,6 @@ impl NewCashOperation {
     }
 }
 
-/// Saldo konta = saldo początkowe + suma wpłat - suma wypłat +/- korekty. Jedyne
-/// autorytatywne miejsce tego wyliczenia (sekcja 7 specyfikacji) - frontend nigdy
-/// nie liczy salda samodzielnie.
-pub fn compute_balance(initial_balance: Decimal, operations: &[CashOperation]) -> Decimal {
-    operations
-        .iter()
-        .fold(initial_balance, |balance, op| balance + op.signed_amount())
-}
-
 pub trait CashOperationRepository {
     fn create(&self, input: &NewCashOperation) -> Result<CashOperation, AppError>;
     fn list_for_account(&self, account_id: &str) -> Result<Vec<CashOperation>, AppError>;
@@ -111,18 +103,6 @@ pub trait CashOperationRepository {
 mod tests {
     use super::*;
     use rust_decimal_macros::dec;
-
-    fn operation(kind: CashOperationKind, amount: Decimal) -> CashOperation {
-        CashOperation {
-            id: "op".to_string(),
-            account_id: "acc".to_string(),
-            kind,
-            amount,
-            occurred_at: Utc::now(),
-            note: None,
-            created_at: Utc::now(),
-        }
-    }
 
     #[test]
     fn rejects_zero_amount_deposit() {
@@ -170,23 +150,5 @@ mod tests {
             note: None,
         };
         assert!(input.validate().is_err());
-    }
-
-    #[test]
-    fn computes_balance_from_initial_plus_operations() {
-        let ops = vec![
-            operation(CashOperationKind::Deposit, dec!(1000)),
-            operation(CashOperationKind::Withdrawal, dec!(200)),
-            operation(CashOperationKind::Adjustment, dec!(-50)),
-            operation(CashOperationKind::Adjustment, dec!(10)),
-        ];
-        let balance = compute_balance(dec!(5000), &ops);
-        // 5000 + 1000 - 200 - 50 + 10 = 5760
-        assert_eq!(balance, dec!(5760));
-    }
-
-    #[test]
-    fn balance_with_no_operations_equals_initial_balance() {
-        assert_eq!(compute_balance(dec!(1234.56), &[]), dec!(1234.56));
     }
 }

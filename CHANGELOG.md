@@ -65,6 +65,25 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   przechowuje edytowalny kurs przeliczeniowy zamiast cichego przybliżenia przy niezgodności.
 - Trwałe usuwanie instrumentów własnych (spoza fabrycznego katalogu) - zablokowane dla
   instrumentów fabrycznych (można je tylko ukryć) i dla instrumentów już użytych w transakcji.
+- Wspólne, autorytatywne źródło salda konta (`domain::balance`) - saldo początkowe + wpłaty/
+  wypłaty/korekty + suma netto zamkniętych transakcji nie w koszu. Karta "Aktualne saldo" na
+  Dashboardzie oraz karta salda przed/po/aktualne na karcie transakcji (chronologiczne, licząc
+  narastająco po operacjach gotówkowych i zamknięciach transakcji, z deterministycznym remisem
+  po id przy identycznych znacznikach czasu).
+- Tryb tylko-do-odczytu domyślnie na karcie edytowanej transakcji, z przyciskiem "Edytuj"
+  odblokowującym pola i akcjami "Anuluj"/"Zapisz zmiany" - pokazuje zawsze prawdziwe zapisane
+  dane, nigdy zapomniany lokalny szkic (szkic proponowany do wczytania dopiero po wejściu w
+  edycję, za potwierdzeniem).
+- Wykrywanie konfliktu wersji przy zapisie transakcji - odrzuca zapis (zamiast po cichu
+  nadpisać) jeśli transakcja zmieniła się od czasu jej wczytania (np. w innym oknie albo przez
+  szybkie zamknięcie pozycji).
+- Lokalny dziennik zmian pól transakcji - każda zapisana edycja z realnie zmienionymi polami
+  trafia do dziennika (pole, stara i nowa wartość), widoczny jako zwijana "Historia zmian" na
+  karcie transakcji; edycje bez realnych zmian nie tworzą wpisu.
+- Emocje w 3 momentach transakcji (przed/w trakcie/po) - wielokrotny wybór stanu emocjonalnego,
+  natężenie 1-5, notatka i jawna flaga "Nie uzupełniono" dla każdego momentu osobno. Zarządzana
+  lista stanów emocjonalnych (12 wbudowanych startowych) w Ustawieniach - wbudowane stany można
+  tylko ukryć, własne stany użytkownika można też usunąć w całości.
 
 ### Changed
 
@@ -76,6 +95,9 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   dla zysku i straty, zamiast jednej uśrednionej wartości na lot.
 - Migawka instrumentu zapisywana w transakcji (`instrument_spec_snapshot`) niesie teraz pełny
   zestaw parametrów wersji zamiast czterech uproszczonych pól.
+- Status transakcji (Szkic/Otwarta/Zamknięta) nie jest już polem wybieranym przez użytkownika -
+  wyliczany wyłącznie z obecności danych, identycznie przy zapisie i odczycie.
+- Precyzja czasu do sekund w polach otwarcia/zamknięcia transakcji (wcześniej tylko minuty).
 
 ### Removed
 
@@ -84,9 +106,14 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
 - Prowizoryczna startowa biblioteka 11 instrumentów z Celu 1.4 - zastąpiona fabrycznym katalogiem
   350 instrumentów (migracja usuwa stare wiersze tylko tam, gdzie żadna transakcja się już do
   nich nie odwołuje).
+- Zakładka/pole Tagi z formularza transakcji, filtrów i wyszukiwania - dane tagów zapisane przed
+  tą zmianą pozostają nietknięte na historycznych transakcjach.
 
 ### Fixed
 
+- Lokalny szkic transakcji zapisany przed dodaniem nowego pola do formularza (np. emocji) mógł
+  wywalić formularz przy pierwszym otwarciu po aktualizacji - wczytany szkic jest teraz zawsze
+  scalany z pustym szablonem, więc brakujące pole dostaje poprawną pustą wartość zamiast `undefined`.
 - Ręcznie liczone placeholdery SQL w zapytaniu wstawiającym wersję instrumentu (47 pól)
   rozjeżdżały się z listą kolumn - zastąpione programowym generowaniem listy placeholderów.
 

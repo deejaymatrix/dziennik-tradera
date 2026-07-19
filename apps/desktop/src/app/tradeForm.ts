@@ -1,6 +1,7 @@
 import { fromDatetimeLocalValue, toDatetimeLocalValue } from "./datetime";
 import { isValidDecimalString } from "./decimal";
-import type { Trade, TradeInput, TradeSide } from "./types/trade";
+import type { Trade, TradeEmotions, TradeInput, TradeSide } from "./types/trade";
+import { blankTradeEmotions } from "./types/trade";
 
 /**
  * Stan formularza transakcji jako zwykłe stringi (kontrolowane pola) - konwersja na
@@ -33,6 +34,7 @@ export interface TradeFormFields {
   overrideEnabled: boolean;
   overrideNetPnl: string;
   overrideReason: string;
+  emotions: TradeEmotions;
 }
 
 export function blankTradeFormFields(): TradeFormFields {
@@ -61,6 +63,7 @@ export function blankTradeFormFields(): TradeFormFields {
     overrideEnabled: false,
     overrideNetPnl: "",
     overrideReason: "",
+    emotions: blankTradeEmotions(),
   };
 }
 
@@ -91,6 +94,7 @@ export function tradeToFormFields(trade: Trade): TradeFormFields {
     overrideEnabled: trade.pnl_source === "manual_override",
     overrideNetPnl: trade.net_pnl ?? "",
     overrideReason: trade.pnl_override_reason ?? "",
+    emotions: trade.emotions ?? blankTradeEmotions(),
   };
 }
 
@@ -133,6 +137,7 @@ export function buildTradeInput(fields: TradeFormFields, accountId: string): Tra
     pnl_override: fields.overrideEnabled
       ? { net_pnl: fields.overrideNetPnl.trim() || "0", reason: fields.overrideReason }
       : null,
+    emotions: fields.emotions,
   };
 }
 
@@ -190,7 +195,14 @@ export function loadTradeDraft(
 ): TradeFormFields | null {
   try {
     const raw = localStorage.getItem(draftStorageKey(accountId, tradeId));
-    return raw ? (JSON.parse(raw) as TradeFormFields) : null;
+    if (!raw) {
+      return null;
+    }
+    // Scalanie z pustym szablonem - szkic zapisany przed dodaniem nowego pola (np. emocji)
+    // nie ma go w JSON-ie, więc bez tego brakujące pole zostałoby `undefined` zamiast
+    // poprawnej pustej wartości i wywaliłoby formularz przy pierwszym użyciu.
+    const parsed = JSON.parse(raw) as Partial<TradeFormFields>;
+    return { ...blankTradeFormFields(), ...parsed };
   } catch {
     return null;
   }

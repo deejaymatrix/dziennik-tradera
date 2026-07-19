@@ -1,7 +1,9 @@
+use chrono::{DateTime, Utc};
 use tauri::State;
 
-use crate::application::trades::TradesService;
+use crate::application::trades::{TradeBalanceContext, TradesService};
 use crate::domain::trade::{Trade, TradeInput};
+use crate::domain::trade_audit::TradeAuditEntry;
 use crate::domain::trade_calculations::TradeCalculation;
 use crate::error::AppError;
 use crate::state::{AppState, DbState};
@@ -46,9 +48,10 @@ pub fn list_trades(
 pub fn update_trade(
     state: State<'_, AppState>,
     id: String,
+    expected_updated_at: Option<DateTime<Utc>>,
     input: TradeInput,
 ) -> Result<Trade, AppError> {
-    require_db(&state)?.update(&id, input)
+    require_db(&state)?.update(&id, expected_updated_at, input)
 }
 
 #[tauri::command]
@@ -59,4 +62,20 @@ pub fn soft_delete_trade(state: State<'_, AppState>, id: String) -> Result<Trade
 #[tauri::command]
 pub fn restore_trade(state: State<'_, AppState>, id: String) -> Result<Trade, AppError> {
     require_db(&state)?.restore(&id)
+}
+
+#[tauri::command]
+pub fn get_trade_balance_context(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<TradeBalanceContext, AppError> {
+    require_db(&state)?.balance_context(&id)
+}
+
+#[tauri::command]
+pub fn list_trade_audit_log(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<Vec<TradeAuditEntry>, AppError> {
+    require_db(&state)?.list_audit_log(&id)
 }

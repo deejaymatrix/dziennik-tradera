@@ -302,6 +302,7 @@ mod tests {
         let accounts = Arc::new(AccountsService::new(
             Arc::new(SqliteAccountRepository::new(conn.clone())),
             Arc::new(SqliteCashOperationRepository::new(conn.clone())),
+            Arc::new(SqliteTradeRepository::new(conn.clone())),
         ));
         let account = accounts
             .create(NewAccount {
@@ -350,6 +351,7 @@ mod tests {
                 net_pnl,
                 reason: "test".to_string(),
             }),
+            emotions: None,
         };
         for override_value in [None, Some(dec!(42))] {
             trade_repo

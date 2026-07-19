@@ -31,6 +31,19 @@
   gap: var(--space-3);
 }
 
+.emotionsSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.emotionsTitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
 .error {
   color: var(--color-loss);
   font-size: var(--font-size-sm);

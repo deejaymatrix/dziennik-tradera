@@ -46,6 +46,34 @@ export interface ManualPnlOverride {
   reason: string;
 }
 
+/** Dane emocjonalne jednego z trzech momentów transakcji (przed/w trakcie/po) - wielokrotny
+ * wybór stanu + natężenie 1-5 + notatka, z jawną flagą "nie uzupełniono" odróżniającą świadomy
+ * brak danych od zwykłego pustego formularza. Patrz domain::trade_emotions::MomentEmotion. */
+export interface MomentEmotion {
+  state_ids: string[];
+  intensity: number | null;
+  note: string | null;
+  not_filled: boolean;
+}
+
+export function blankMomentEmotion(): MomentEmotion {
+  return { state_ids: [], intensity: null, note: null, not_filled: true };
+}
+
+export interface TradeEmotions {
+  before: MomentEmotion;
+  during: MomentEmotion;
+  after: MomentEmotion;
+}
+
+export function blankTradeEmotions(): TradeEmotions {
+  return {
+    before: blankMomentEmotion(),
+    during: blankMomentEmotion(),
+    after: blankMomentEmotion(),
+  };
+}
+
 /**
  * Wszystkie pola liczbowe (kwoty, wolumen, ceny) są typu string - to Decimal z backendu Rust,
  * nigdy nie parsować przez parseFloat/Number() do dalszych obliczeń, tylko do wyświetlenia.
@@ -88,6 +116,7 @@ export interface Trade {
   plan_adherence_rating: number | null;
   pnl_source: PnlSource;
   pnl_override_reason: string | null;
+  emotions: TradeEmotions | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -117,6 +146,31 @@ export interface TradeInput {
   conclusion: string | null;
   plan_adherence_rating: number | null;
   pnl_override: ManualPnlOverride | null;
+  emotions: TradeEmotions | null;
+}
+
+/** Saldo konta przed/po tej konkretnej transakcji + aktualne saldo konta (sekcja "Saldo
+ * przed/po/aktualne") - patrz application::trades::TradeBalanceContext w Rust. */
+export interface TradeBalanceContext {
+  balance_before: string;
+  balance_after: string;
+  current_balance: string;
+}
+
+/** Jedna zmiana pola w dzienniku edycji transakcji - patrz domain::trade_audit::FieldChange. */
+export interface FieldChange {
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+}
+
+/** Wpis lokalnego dziennika zmian transakcji (sekcja "Tryb odczytu i przycisk Edytuj") - jeden
+ * wpis na zapisaną edycję z realnie zmienionymi polami. */
+export interface TradeAuditEntry {
+  id: string;
+  trade_id: string;
+  changed_at: string;
+  changes: FieldChange[];
 }
 
 /** Wynik silnika przeliczeń (domain::trade_calculations) - podgląd na żywo w formularzu. */

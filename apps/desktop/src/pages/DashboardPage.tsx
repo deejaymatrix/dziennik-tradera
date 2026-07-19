@@ -120,6 +120,15 @@ export function DashboardPage(): ReactElement {
             options={accounts.map((a) => ({ value: a.id, label: `${a.name} (${a.currency})` }))}
           />
 
+          {selectedAccount && (
+            <div className={styles.statsGrid}>
+              <StatCard
+                label="Aktualne saldo"
+                value={formatMoney(selectedAccount.balance, selectedAccount.currency)}
+              />
+            </div>
+          )}
+
           {reportError && (
             <ErrorState
               title="Nie udało się wczytać podsumowania"

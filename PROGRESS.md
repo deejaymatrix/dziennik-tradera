@@ -1,6 +1,6 @@
 # Postęp prac
 
-Ostatnia aktualizacja: 2026-07-19
+Ostatnia aktualizacja: 2026-07-19 (Faza 2 ukończona: saldo, tryb odczytu/Edytuj, konflikt wersji, dziennik zmian, emocje w 3 momentach)
 
 ## Cel 1.1 — Repozytorium, standardy i uruchomiony podgląd — ✅ ukończony
 
@@ -424,7 +424,7 @@ GitHub Releases).
 
 - `cargo test`: 86 testów (bez zmian w tym Celu - autoaktualizacja to głównie konfiguracja i
   wiring wtyczek, nie nowa logika domenowa do przetestowania jednostkowo), `cargo clippy
-  -D warnings` i `cargo fmt --check` — czyste po dodaniu wtyczek.
+-D warnings` i `cargo fmt --check` — czyste po dodaniu wtyczek.
 - `pnpm typecheck`/`lint --max-warnings=0`/`format:check`/`test` (13 testów JS, bez regresji)
   — zielone.
 - Zweryfikowane wizualnie w przeglądarce (fałszywy most Tauri, tym razem z dodatkowym stubem
@@ -471,7 +471,7 @@ Celów.
 - **Brak cichej migracji istniejących kont**: `UpdateAccount::validate_with_existing_currency`
   pozwala zachować walutę już zapisaną na koncie (np. sprzed tego ograniczenia), nawet jeśli
   jest spoza listy — blokuje tylko zmianę NA inną nieobsługiwaną walutę. `SqliteAccountRepository::
-  update` pobiera aktualną walutę konta przed zapisem właśnie po to, żeby to rozróżnić. Frontend
+update` pobiera aktualną walutę konta przed zapisem właśnie po to, żeby to rozróżnić. Frontend
   pokazuje taką walutę jako dodatkową opcję "PLN (nieobsługiwana — wybierz nową walutę)" z
   wyjaśniającą podpowiedzią, więc edycja innych pól starszego konta nie wymusza migracji waluty.
 - `Select` (biblioteka UI) dostał opcjonalny `hint` (ten sam wzorzec co `TextField`) — potrzebny
@@ -605,6 +605,85 @@ ekran "Zarządzaj instrumentami").
 **Następny krok:** Faza 2 — status transakcji wyliczany automatycznie, precyzja sekund,
 usunięcie tagów z UI, wspólne źródło salda przed/po/aktualne, tryb odczytu + Edytuj na karcie
 transakcji, emocje w 3 momentach.
+
+### Faza 2 — Status automatyczny, sekundy, saldo, tryb odczytu + Edytuj, emocje — ✅ ukończona
+
+**Co działa:**
+
+- Status transakcji (`Szkic`/`Otwarta`/`Zamknięta`) nie jest już polem wybieranym przez
+  użytkownika — wylicza go wyłącznie `domain::trade::compute_status` z obecności danych,
+  identycznie przy zapisie i odczycie (migracja `0004_automatic_trade_status` porządkuje też
+  historyczne wiersze, w tym stary stan `cancelled`, którego nowy model już nie zna).
+- Precyzja czasu do sekund w polach otwarcia/zamknięcia (`step={1}` na `datetime-local`,
+  `toDatetimeLocalValue` dopisuje sekundy).
+- Tagi usunięte z formularza/filtrów/wyszukiwania — historyczne tagi zapisane przed tą zmianą
+  zostają nietknięte na starych transakcjach (nigdy nie są kasowane przy edycji przez nowy
+  formularz bez tego pola).
+- **Wspólne źródło salda** (`domain::balance`): saldo konta = początkowe + wpłaty/wypłaty/
+  korekty + suma netto zamkniętych transakcji nie w koszu (`compute_current_balance`,
+  używane przez `AccountsService` dla każdego konta). Osobna funkcja
+  (`balance_before_after_trade`) liczy chronologiczne saldo przed/po dla konkretnej transakcji,
+  łącząc operacje gotówkowe i zamknięcia transakcji na jednej osi czasu (remis identycznych
+  znaczników czasu rozstrzygany deterministycznie po id). Karta "Aktualne saldo" na
+  Dashboardzie (zawsze widoczna, nie tylko gdy są zamknięte transakcje) i karta salda
+  przed/po/aktualne na karcie transakcji (`TradeBalanceCard`) — dla nowej transakcji pokazuje
+  tylko aktualne saldo, dla edytowanej migawkę sprzed rozpoczęcia edycji.
+- **Tryb odczytu i przycisk Edytuj na karcie transakcji**: istniejąca transakcja otwiera się
+  domyślnie w trybie tylko-do-odczytu (prawdziwe zapisane dane, nigdy zapomniany szkic z
+  poprzedniej sesji — szkic jest proponowany do wczytania dopiero po kliknięciu "Edytuj", z
+  potwierdzeniem jeśli różni się od zapisanych danych). "Edytuj" odblokowuje pola, "Anuluj"
+  cofa do trybu odczytu bez zapisu, "Zapisz zmiany" zapisuje.
+- **Wykrywanie konfliktu wersji**: zapis (`update_trade`) przyjmuje opcjonalną oczekiwaną
+  `updated_at` wczytanej transakcji — jeśli w międzyczasie ktoś inny (np. inne okno albo
+  szybkie zamknięcie pozycji) zmienił tę samą transakcję, zapis jest odrzucany jako
+  `AppError::Conflict` z czytelnym komunikatem zamiast po cichu nadpisać cudzą zmianę.
+- **Lokalny dziennik zmian** (`domain::trade_audit`): każda zapisana edycja z realnie
+  zmienionymi polami (edycje bez zmian nie tworzą wpisu) trafia do współdzielonej tabeli
+  `audit_log` (ta sama, która już istniała dla kont od Celu 1.2 — `entity_type='trade'`,
+  `detail` niesie tu listę {pole, stara wartość, nowa wartość}). Widoczny na karcie transakcji
+  jako zwijana sekcja "Historia zmian".
+- Nowe komendy: `get_trade_balance_context`, `list_trade_audit_log`; `update_trade` przyjmuje
+  dodatkowy parametr `expectedUpdatedAt`.
+- **Emocje w 3 momentach** (przed/w trakcie/po transakcji): dla każdego momentu wielokrotny
+  wybór stanu emocjonalnego + natężenie 1–5 + notatka + jawna flaga "Nie uzupełniono"
+  odróżniająca świadomy brak danych od zwykłego pustego formularza (`domain::trade_emotions`,
+  zapisywane jako JSON na wierszu `trades` - ten sam wzorzec co migawki instrumentu/strategii).
+  Zaznaczenie "Nie uzupełniono" czyści resztę pól tego momentu po stronie frontendu.
+- **Zarządzana lista stanów emocjonalnych** (`domain::emotional_state`, migracja
+  `0005_trade_emotions` z 12 wbudowanymi stanami startowymi jak Spokój/Strach/Chciwość/FOMO):
+  wbudowane stany można tylko ukryć, własne stany użytkownika można też usunąć w całości;
+  odrzuca duplikaty nazw. Ekran zarządzania w Ustawieniach → "Stany emocjonalne" (lista z
+  ukryj/pokaż/usuń + dodawanie nowych).
+- Zmiany w emocjach też trafiają do lokalnego dziennika zmian (jako zwięzłe podsumowanie
+  "uzupełnione: przed, po" zamiast pełnego zrzutu JSON).
+
+**Przetestowane:**
+
+- Rust: 144 testy przechodzą (`cargo test`), `cargo clippy -D warnings`/`cargo fmt --check`
+  czyste. Nowe testy: chronologiczne saldo (sortowanie, remis po id, transakcje
+  otwarte/usunięte nie wpływają na saldo), integracyjne saldo konta przez pełny
+  `TradesService`, kontekst salda przed/po/aktualne, konflikt wersji (na poziomie repozytorium
+  i przez `TradesService`), dziennik zmian (diff pól, zero wpisów przy braku zmian), walidacja
+  natężenia emocji (1-5), repozytorium stanów emocjonalnych (seed startowy, duplikaty nazw,
+  ukrywanie wbudowanych bez usuwania, usuwanie tylko własnych).
+- Frontend: `pnpm typecheck`/`lint`/`format:check`/`test` (Vitest 13/13) czyste.
+- Zweryfikowane w przeglądarce (fałszywy most Tauri): karta "Aktualne saldo" na Dashboardzie,
+  saldo przed/po/aktualne na karcie transakcji, tryb odczytu (pola wyszarzone, przyciski
+  Zamknij/Edytuj) → tryb edycji (pola odblokowane, Anuluj/Zapisz zmiany) → zapis z
+  `expectedUpdatedAt` i poprawnym payloadem, historia zmian rozwijana z konkretnym polem i
+  wartościami przed/po, ekran "Stany emocjonalne" (wbudowane/własne, ukryj/pokaż/usuń, dodanie
+  nowego), 3-momentowy edytor emocji na karcie transakcji z poprawnym stanem checkboxów i
+  "Nie uzupełniono".
+- **Znaleziony i naprawiony błąd przy tej weryfikacji:** `loadTradeDraft` ślepo ufało kształtowi
+  szkicu z `localStorage` - szkic zapisany przed dodaniem pola `emotions` do `TradeFormFields`
+  nie miał go w JSON-ie, co wywalało `TradeFormModal` przy pierwszym otwarciu (`Cannot read
+properties of undefined (reading 'before')`). Naprawione scalaniem wczytanego szkicu z pustym
+  szablonem (`{...blankTradeFormFields(), ...parsed}`) - odporne też na każde przyszłe dodanie
+  pola.
+
+**Następny krok:** Faza 3 — przebudowa zasad strategii (zasady wejścia + nowa sekcja zasad
+zarządzania pozycją, usunięcie zasad wyjścia z aktywnego modelu, checklist w transakcji jako
+migawka zasad z momentu wyboru strategii).
 
 ## Pozostałe cele Etapu 1
 

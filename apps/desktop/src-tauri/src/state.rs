@@ -5,6 +5,7 @@ use rusqlite::Connection;
 
 use crate::application::accounts::AccountsService;
 use crate::application::backup::BackupService;
+use crate::application::emotional_states::EmotionalStatesService;
 use crate::application::export::ExportService;
 use crate::application::instruments::InstrumentsService;
 use crate::application::reports::ReportsService;
@@ -30,6 +31,7 @@ pub enum DbState {
         reports: ReportsService,
         export: ExportService,
         backup: BackupService,
+        emotional_states: EmotionalStatesService,
     },
     Failed {
         reason: String,

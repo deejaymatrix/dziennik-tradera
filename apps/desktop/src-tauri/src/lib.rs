@@ -14,6 +14,7 @@ use tauri::Manager;
 
 use application::accounts::AccountsService;
 use application::backup::BackupService;
+use application::emotional_states::EmotionalStatesService;
 use application::export::ExportService;
 use application::instruments::InstrumentsService;
 use application::reports::ReportsService;
@@ -21,6 +22,7 @@ use application::strategies::StrategiesService;
 use application::trades::TradesService;
 use infrastructure::sqlite_account_repository::SqliteAccountRepository;
 use infrastructure::sqlite_cash_operation_repository::SqliteCashOperationRepository;
+use infrastructure::sqlite_emotional_state_repository::SqliteEmotionalStateRepository;
 use infrastructure::sqlite_instrument_repository::SqliteInstrumentRepository;
 use infrastructure::sqlite_strategy_repository::SqliteStrategyRepository;
 use infrastructure::sqlite_trade_repository::SqliteTradeRepository;
@@ -89,6 +91,7 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
     let accounts = Arc::new(AccountsService::new(
         Arc::new(SqliteAccountRepository::new(conn.clone())),
         Arc::new(SqliteCashOperationRepository::new(conn.clone())),
+        Arc::new(SqliteTradeRepository::new(conn.clone())),
     ));
     let instruments = Arc::new(InstrumentsService::new(Arc::new(
         SqliteInstrumentRepository::new(conn.clone()),
@@ -97,6 +100,7 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
         SqliteStrategyRepository::new(conn.clone()),
     )));
     let trades = TradesService::new(
+        Arc::new(SqliteTradeRepository::new(conn.clone())),
         Arc::new(SqliteTradeRepository::new(conn.clone())),
         accounts.clone(),
         instruments.clone(),
@@ -108,6 +112,8 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
         accounts.clone(),
     );
     let backup = BackupService::new(conn.clone(), app_data_dir.to_path_buf());
+    let emotional_states =
+        EmotionalStatesService::new(Arc::new(SqliteEmotionalStateRepository::new(conn.clone())));
 
     DbState::Ready {
         conn,
@@ -119,6 +125,7 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
         reports,
         export,
         backup,
+        emotional_states,
     }
 }
 
@@ -175,12 +182,18 @@ pub fn run() {
             commands::trades::update_trade,
             commands::trades::soft_delete_trade,
             commands::trades::restore_trade,
+            commands::trades::get_trade_balance_context,
+            commands::trades::list_trade_audit_log,
             commands::reports::get_account_report,
             commands::export::export_trades_csv,
             commands::export::export_trades_xlsx,
             commands::export::export_trades_pdf,
             commands::backup::create_backup,
             commands::backup::prepare_backup_restore,
+            commands::emotional_states::create_emotional_state,
+            commands::emotional_states::list_emotional_states,
+            commands::emotional_states::set_emotional_state_hidden,
+            commands::emotional_states::delete_emotional_state,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
