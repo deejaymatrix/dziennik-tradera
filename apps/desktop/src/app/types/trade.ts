@@ -74,6 +74,33 @@ export function blankTradeEmotions(): TradeEmotions {
   };
 }
 
+/** Stan jednej pozycji checklisty - dla zasad wejścia czytany jako Spełniona/Niespełniona/Nie
+ * dotyczy, dla zasad zarządzania jako Wykonana/Niewykonana/Nie dotyczy. Niespełniona wymagana
+ * zasada nie blokuje zapisu, tylko oznacza naruszenie planu. Patrz
+ * domain::strategy_checklist::ChecklistStatus. */
+export type ChecklistStatus = "fulfilled" | "unfulfilled" | "not_applicable";
+
+/** Zamrożona pozycja checklisty - niesie nazwę/required wprost, więc późniejsza edycja/usunięcie
+ * zasady w definicji strategii nigdy nie zmienia już zapisanej historycznej checklisty. */
+export interface ChecklistItem {
+  rule_id: string;
+  name: string;
+  required: boolean;
+  status: ChecklistStatus;
+}
+
+/** Migawka checklisty zasad strategii z momentu jej wyboru na transakcji (sekcja "Checklist w
+ * transakcji") - świeża przy zmianie strategii na inną, zachowana bez zmian gdy strategia się
+ * nie zmienia (nawet jeśli w międzyczasie zmieniono jej definicję). */
+export interface StrategyChecklist {
+  entry: ChecklistItem[];
+  management: ChecklistItem[];
+}
+
+export function blankStrategyChecklist(): StrategyChecklist {
+  return { entry: [], management: [] };
+}
+
 /**
  * Wszystkie pola liczbowe (kwoty, wolumen, ceny) są typu string - to Decimal z backendu Rust,
  * nigdy nie parsować przez parseFloat/Number() do dalszych obliczeń, tylko do wyświetlenia.
@@ -117,6 +144,7 @@ export interface Trade {
   pnl_source: PnlSource;
   pnl_override_reason: string | null;
   emotions: TradeEmotions | null;
+  checklist: StrategyChecklist | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -147,6 +175,7 @@ export interface TradeInput {
   plan_adherence_rating: number | null;
   pnl_override: ManualPnlOverride | null;
   emotions: TradeEmotions | null;
+  checklist: StrategyChecklist | null;
 }
 
 /** Saldo konta przed/po tej konkretnej transakcji + aktualne saldo konta (sekcja "Saldo

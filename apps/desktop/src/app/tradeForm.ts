@@ -1,7 +1,7 @@
 import { fromDatetimeLocalValue, toDatetimeLocalValue } from "./datetime";
 import { isValidDecimalString } from "./decimal";
-import type { Trade, TradeEmotions, TradeInput, TradeSide } from "./types/trade";
-import { blankTradeEmotions } from "./types/trade";
+import type { StrategyChecklist, Trade, TradeEmotions, TradeInput, TradeSide } from "./types/trade";
+import { blankStrategyChecklist, blankTradeEmotions } from "./types/trade";
 
 /**
  * Stan formularza transakcji jako zwykłe stringi (kontrolowane pola) - konwersja na
@@ -35,6 +35,7 @@ export interface TradeFormFields {
   overrideNetPnl: string;
   overrideReason: string;
   emotions: TradeEmotions;
+  checklist: StrategyChecklist;
 }
 
 export function blankTradeFormFields(): TradeFormFields {
@@ -64,6 +65,7 @@ export function blankTradeFormFields(): TradeFormFields {
     overrideNetPnl: "",
     overrideReason: "",
     emotions: blankTradeEmotions(),
+    checklist: blankStrategyChecklist(),
   };
 }
 
@@ -95,6 +97,7 @@ export function tradeToFormFields(trade: Trade): TradeFormFields {
     overrideNetPnl: trade.net_pnl ?? "",
     overrideReason: trade.pnl_override_reason ?? "",
     emotions: trade.emotions ?? blankTradeEmotions(),
+    checklist: trade.checklist ?? blankStrategyChecklist(),
   };
 }
 
@@ -138,6 +141,7 @@ export function buildTradeInput(fields: TradeFormFields, accountId: string): Tra
       ? { net_pnl: fields.overrideNetPnl.trim() || "0", reason: fields.overrideReason }
       : null,
     emotions: fields.emotions,
+    checklist: fields.checklist,
   };
 }
 

@@ -4,7 +4,9 @@ use chrono::Utc;
 use rusqlite::{Connection, OptionalExtension, Row};
 use uuid::Uuid;
 
-use crate::domain::strategy::{Strategy, StrategyInput, StrategyRepository};
+use crate::domain::strategy::{
+    EntryRule, ManagementRule, Strategy, StrategyInput, StrategyRepository,
+};
 use crate::error::AppError;
 
 pub struct SqliteStrategyRepository {
@@ -18,7 +20,8 @@ impl SqliteStrategyRepository {
 }
 
 const SELECT_COLUMNS: &str =
-    "id, name, description, color, entry_rules, management_rules, exit_rules,
+    "id, name, description, color, entry_rules_json, management_rules_json,
+     entry_rules, management_rules, exit_rules,
      tags, sort_order, created_at, updated_at, archived_at";
 
 fn parse_tags(raw: Option<String>) -> rusqlite::Result<Vec<String>> {
@@ -30,15 +33,30 @@ fn parse_tags(raw: Option<String>) -> rusqlite::Result<Vec<String>> {
     }
 }
 
+fn parse_rules<T: serde::de::DeserializeOwned>(raw: Option<String>) -> rusqlite::Result<Vec<T>> {
+    match raw {
+        None => Ok(Vec::new()),
+        Some(text) => serde_json::from_str(&text).map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e))
+        }),
+    }
+}
+
+fn rules_json<T: serde::Serialize>(rules: &[T]) -> String {
+    serde_json::to_string(rules).unwrap_or_else(|_| "[]".to_string())
+}
+
 fn map_row(row: &Row) -> rusqlite::Result<Strategy> {
     Ok(Strategy {
         id: row.get("id")?,
         name: row.get("name")?,
         description: row.get("description")?,
         color: row.get("color")?,
-        entry_rules: row.get("entry_rules")?,
-        management_rules: row.get("management_rules")?,
-        exit_rules: row.get("exit_rules")?,
+        entry_rules: parse_rules::<EntryRule>(row.get("entry_rules_json")?)?,
+        management_rules: parse_rules::<ManagementRule>(row.get("management_rules_json")?)?,
+        legacy_entry_rules_text: row.get("entry_rules")?,
+        legacy_management_rules_text: row.get("management_rules")?,
+        legacy_exit_rules_text: row.get("exit_rules")?,
         tags: parse_tags(row.get("tags")?)?,
         sort_order: row.get("sort_order")?,
         created_at: row.get("created_at")?,
@@ -71,17 +89,16 @@ impl StrategyRepository for SqliteStrategyRepository {
 
         tx.execute(
             "INSERT INTO strategies (
-                id, name, description, color, entry_rules, management_rules, exit_rules,
+                id, name, description, color, entry_rules_json, management_rules_json,
                 tags, sort_order, created_at, updated_at, archived_at
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10, NULL)",
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9, NULL)",
             rusqlite::params![
                 id,
                 input.name.trim(),
                 input.description,
                 input.color,
-                input.entry_rules,
-                input.management_rules,
-                input.exit_rules,
+                rules_json(&input.entry_rules),
+                rules_json(&input.management_rules),
                 tags_json(&input.tags),
                 next_sort_order,
                 now.to_rfc3339(),
@@ -135,17 +152,19 @@ impl StrategyRepository for SqliteStrategyRepository {
         let tx = conn.transaction()?;
         let now = Utc::now();
 
+        // `entry_rules`/`management_rules`/`exit_rules` (wolny tekst) celowo nie są tu
+        // aktualizowane - to dane historyczne sprzed strukturalizacji zasad (sekcja "zachowaj
+        // dane legacy"), nowy model czyta/zapisuje wyłącznie kolumny `*_rules_json`.
         let affected = tx.execute(
-            "UPDATE strategies SET name = ?1, description = ?2, color = ?3, entry_rules = ?4,
-                management_rules = ?5, exit_rules = ?6, tags = ?7, updated_at = ?8
-             WHERE id = ?9",
+            "UPDATE strategies SET name = ?1, description = ?2, color = ?3,
+                entry_rules_json = ?4, management_rules_json = ?5, tags = ?6, updated_at = ?7
+             WHERE id = ?8",
             rusqlite::params![
                 input.name.trim(),
                 input.description,
                 input.color,
-                input.entry_rules,
-                input.management_rules,
-                input.exit_rules,
+                rules_json(&input.entry_rules),
+                rules_json(&input.management_rules),
                 tags_json(&input.tags),
                 now.to_rfc3339(),
                 id,
@@ -181,17 +200,16 @@ impl StrategyRepository for SqliteStrategyRepository {
 
         tx.execute(
             "INSERT INTO strategies (
-                id, name, description, color, entry_rules, management_rules, exit_rules,
+                id, name, description, color, entry_rules_json, management_rules_json,
                 tags, sort_order, created_at, updated_at, archived_at
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10, NULL)",
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9, NULL)",
             rusqlite::params![
                 new_id,
                 format!("{} (kopia)", original.name),
                 original.description,
                 original.color,
-                original.entry_rules,
-                original.management_rules,
-                original.exit_rules,
+                rules_json(&original.entry_rules),
+                rules_json(&original.management_rules),
                 tags_json(&original.tags),
                 next_sort_order,
                 now.to_rfc3339(),
@@ -255,14 +273,24 @@ mod tests {
         (SqliteStrategyRepository::new(conn), dir)
     }
 
+    fn sample_entry_rule() -> EntryRule {
+        EntryRule {
+            id: "entry-1".to_string(),
+            name: "Wybicie oporu".to_string(),
+            description: None,
+            required: true,
+            archived: false,
+            sort_order: 0,
+        }
+    }
+
     fn sample_input() -> StrategyInput {
         StrategyInput {
             name: "Breakout".to_string(),
             description: None,
             color: Some("#D7B45A".to_string()),
-            entry_rules: Some("Wybicie oporu".to_string()),
-            management_rules: None,
-            exit_rules: None,
+            entry_rules: vec![sample_entry_rule()],
+            management_rules: vec![],
             tags: vec!["trend".to_string(), "wybicie".to_string()],
         }
     }
@@ -274,13 +302,15 @@ mod tests {
     }
 
     #[test]
-    fn creates_with_tags_round_tripped() {
+    fn creates_with_tags_and_entry_rules_round_tripped() {
         let (repo, _dir) = repo_with_fresh_db();
         let created = repo.create(&sample_input()).expect("create");
         assert_eq!(
             created.tags,
             vec!["trend".to_string(), "wybicie".to_string()]
         );
+        assert_eq!(created.entry_rules, vec![sample_entry_rule()]);
+        assert!(created.management_rules.is_empty());
         assert_eq!(created.sort_order, 0);
     }
 
@@ -293,6 +323,32 @@ mod tests {
     }
 
     #[test]
+    fn update_replaces_entry_rules_without_touching_legacy_text_columns() {
+        let (repo, dir) = repo_with_fresh_db();
+        let created = repo.create(&sample_input()).expect("create");
+
+        // Symulujemy istniejące dane legacy sprzed strukturalizacji zasad.
+        let seed_conn = connection::open(&dir.path().join("db.sqlite3")).expect("open");
+        seed_conn
+            .execute(
+                "UPDATE strategies SET entry_rules = 'stary wolny tekst' WHERE id = ?1",
+                [&created.id],
+            )
+            .expect("seed legacy text");
+        drop(seed_conn);
+
+        let mut input = sample_input();
+        input.entry_rules[0].name = "Zmieniona nazwa".to_string();
+        let updated = repo.update(&created.id, &input).expect("update");
+
+        assert_eq!(updated.entry_rules[0].name, "Zmieniona nazwa");
+        assert_eq!(
+            updated.legacy_entry_rules_text,
+            Some("stary wolny tekst".to_string())
+        );
+    }
+
+    #[test]
     fn duplicate_creates_an_active_copy_with_suffix() {
         let (repo, _dir) = repo_with_fresh_db();
         let original = repo.create(&sample_input()).expect("create");
@@ -302,6 +358,7 @@ mod tests {
         assert_eq!(copy.name, "Breakout (kopia)");
         assert!(copy.archived_at.is_none());
         assert_ne!(copy.id, original.id);
+        assert_eq!(copy.entry_rules, vec![sample_entry_rule()]);
     }
 
     #[test]

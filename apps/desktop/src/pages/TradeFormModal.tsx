@@ -22,6 +22,7 @@ import type {
   TradeCalculation,
   TradeSide,
 } from "../app/types/trade";
+import { blankStrategyChecklist } from "../app/types/trade";
 import { Button } from "../ui/components/Button/Button";
 import { Checkbox } from "../ui/components/Checkbox/Checkbox";
 import { Modal } from "../ui/components/Modal/Modal";
@@ -30,6 +31,7 @@ import { Textarea } from "../ui/components/Textarea/Textarea";
 import { TextField } from "../ui/components/TextField/TextField";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import { EmotionMomentEditor } from "./EmotionMomentEditor";
+import { StrategyChecklistEditor } from "./StrategyChecklistEditor";
 import { TradeAuditLog } from "./TradeAuditLog";
 import { TradeBalanceCard } from "./TradeBalanceCard";
 import { TradePreviewCard } from "./TradePreviewCard";
@@ -102,6 +104,13 @@ export function TradeFormModal({
   const [preview, setPreview] = useState<TradeCalculation | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Id strategii, dla której `fields.checklist` została ostatnio zbudowana - pozwala odróżnić
+  // "strategia się nie zmieniła, zachowaj checklistę" od "wybrano inną strategię, zbuduj świeżą
+  // checklistę z jej aktualnych aktywnych zasad" (sekcja "Checklist w transakcji").
+  const [checklistStrategyId, setChecklistStrategyId] = useState<string>(
+    () => trade?.strategy_id ?? "",
+  );
 
   useEffect(() => {
     // Jednorazowe pobranie list wyboru (instrumenty/strategie aktywne) przy otwarciu -
@@ -215,6 +224,40 @@ export function TradeFormModal({
       ...current,
       emotions: { ...current.emotions, [moment]: value },
     }));
+  }
+
+  function handleStrategyChange(newStrategyId: string): void {
+    // Strategia się nie zmienia (ten sam wybór ponownie) - zachowaj istniejącą checklistę bez
+    // zmian, nawet jeśli w międzyczasie zmieniono definicję strategii (sekcja "Checklist w
+    // transakcji"). Zmiana na inną strategię (albo wyczyszczenie wyboru) buduje świeżą
+    // checklistę z jej aktualnych, aktywnych zasad.
+    if (newStrategyId === checklistStrategyId) {
+      setField("strategyId", newStrategyId);
+      return;
+    }
+    const selected = newStrategyId ? strategies.find((s) => s.id === newStrategyId) : undefined;
+    const checklist = selected
+      ? {
+          entry: selected.entry_rules
+            .filter((rule) => !rule.archived)
+            .map((rule) => ({
+              rule_id: rule.id,
+              name: rule.name,
+              required: rule.required,
+              status: "not_applicable" as const,
+            })),
+          management: selected.management_rules
+            .filter((rule) => !rule.archived)
+            .map((rule) => ({
+              rule_id: rule.id,
+              name: rule.name,
+              required: false,
+              status: "not_applicable" as const,
+            })),
+        }
+      : blankStrategyChecklist();
+    setFields((current) => ({ ...current, strategyId: newStrategyId, checklist }));
+    setChecklistStrategyId(newStrategyId);
   }
 
   function requestClose(): void {
@@ -340,7 +383,7 @@ export function TradeFormModal({
           <Select
             label="Strategia"
             value={fields.strategyId}
-            onChange={(e) => setField("strategyId", e.target.value)}
+            onChange={(e) => handleStrategyChange(e.target.value)}
             options={strategyOptions}
             disabled={readOnly}
           />
@@ -524,6 +567,12 @@ export function TradeFormModal({
             </div>
           )}
         </div>
+
+        <StrategyChecklistEditor
+          checklist={fields.checklist}
+          onChange={(checklist) => setField("checklist", checklist)}
+          disabled={readOnly}
+        />
 
         <div className={styles.emotionsSection}>
           <h3 className={styles.emotionsTitle}>Emocje</h3>

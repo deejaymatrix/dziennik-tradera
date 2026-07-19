@@ -1,12 +1,13 @@
 import { useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
 import { invokeCommand } from "../app/invokeCommand";
-import type { Strategy, StrategyInput } from "../app/types/strategy";
+import type { EntryRule, ManagementRule, Strategy, StrategyInput } from "../app/types/strategy";
 import { Button } from "../ui/components/Button/Button";
 import { Modal } from "../ui/components/Modal/Modal";
 import { Textarea } from "../ui/components/Textarea/Textarea";
 import { TextField } from "../ui/components/TextField/TextField";
 import { useToast } from "../ui/components/Toast/ToastProvider";
+import { RuleListEditor } from "./RuleListEditor";
 import styles from "./StrategyFormModal.module.css";
 
 export interface StrategyFormModalProps {
@@ -27,6 +28,27 @@ function textToTags(text: string): string[] {
     .filter((tag) => tag.length > 0);
 }
 
+function newEntryRule(): EntryRule {
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    description: null,
+    required: true,
+    archived: false,
+    sort_order: 0,
+  };
+}
+
+function newManagementRule(): ManagementRule {
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    description: null,
+    archived: false,
+    sort_order: 0,
+  };
+}
+
 /**
  * Rodzic renderuje ten komponent z `key` zależnym od edytowanej strategii (patrz
  * StrategiesPage), więc pola startowe poniżej liczą się raz przy montowaniu - nie
@@ -45,9 +67,10 @@ export function StrategyFormModal({
   const [color, setColor] = useState(() => strategy?.color ?? "#d7b45a");
   const [tagsText, setTagsText] = useState(() => tagsToText(strategy?.tags ?? []));
   const [description, setDescription] = useState(() => strategy?.description ?? "");
-  const [entryRules, setEntryRules] = useState(() => strategy?.entry_rules ?? "");
-  const [managementRules, setManagementRules] = useState(() => strategy?.management_rules ?? "");
-  const [exitRules, setExitRules] = useState(() => strategy?.exit_rules ?? "");
+  const [entryRules, setEntryRules] = useState<EntryRule[]>(() => strategy?.entry_rules ?? []);
+  const [managementRules, setManagementRules] = useState<ManagementRule[]>(
+    () => strategy?.management_rules ?? [],
+  );
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -59,9 +82,8 @@ export function StrategyFormModal({
       name,
       description: description.trim() ? description : null,
       color: color.trim() ? color : null,
-      entry_rules: entryRules.trim() ? entryRules : null,
-      management_rules: managementRules.trim() ? managementRules : null,
-      exit_rules: exitRules.trim() ? exitRules : null,
+      entry_rules: entryRules,
+      management_rules: managementRules,
       tags: textToTags(tagsText),
     };
 
@@ -119,21 +141,24 @@ export function StrategyFormModal({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
-        <Textarea
-          label="Zasady wejścia (opcjonalnie)"
-          value={entryRules}
-          onChange={(e) => setEntryRules(e.target.value)}
+
+        <RuleListEditor
+          title="Zasady wejścia"
+          hint="Każda zasada może być wymagana albo opcjonalna - przy transakcji niespełniona wymagana zasada nie blokuje zapisu, tylko oznacza naruszenie planu."
+          rules={entryRules}
+          onChange={setEntryRules}
+          showRequiredToggle
+          makeBlankRule={newEntryRule}
         />
-        <Textarea
-          label="Zasady zarządzania pozycją (opcjonalnie)"
-          value={managementRules}
-          onChange={(e) => setManagementRules(e.target.value)}
+
+        <RuleListEditor
+          title="Zasady zarządzania pozycją"
+          rules={managementRules}
+          onChange={setManagementRules}
+          showRequiredToggle={false}
+          makeBlankRule={newManagementRule}
         />
-        <Textarea
-          label="Zasady wyjścia (opcjonalnie)"
-          value={exitRules}
-          onChange={(e) => setExitRules(e.target.value)}
-        />
+
         {formError && (
           <p role="alert" className={styles.error}>
             {formError}

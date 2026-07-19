@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use crate::domain::instrument::InstrumentSnapshot;
 use crate::domain::strategy::StrategySnapshot;
+use crate::domain::strategy_checklist::StrategyChecklist;
 use crate::domain::trade::{PnlSource, Trade, TradeRepository, TradeSide, TradeWrite};
 use crate::domain::trade_audit::{FieldChange, TradeAuditEntry, TradeAuditRepository};
 use crate::domain::trade_emotions::TradeEmotions;
@@ -29,7 +30,8 @@ const SELECT_COLUMNS: &str =
      volume, entry_price, stop_loss, take_profit, exit_price, commission, swap, other_fees,
      conversion_rate, gross_pnl, net_pnl, pnl_points, pnl_percent, pnl_r, risk_amount, risk_percent,
      plan_before, management_notes, post_trade_summary, conclusion, tags, plan_adherence_rating,
-     pnl_source, pnl_override_reason, emotions_json, created_at, updated_at, deleted_at";
+     pnl_source, pnl_override_reason, emotions_json, checklist_json, created_at, updated_at,
+     deleted_at";
 
 fn parse_decimal_opt(row: &Row, idx: &str) -> rusqlite::Result<Option<Decimal>> {
     let raw: Option<String> = row.get(idx)?;
@@ -147,6 +149,7 @@ fn map_row(row: &Row) -> rusqlite::Result<Trade> {
         pnl_source: PnlSource::from_db_str(&pnl_source_raw),
         pnl_override_reason: row.get("pnl_override_reason")?,
         emotions: parse_json_opt::<TradeEmotions>(row, "emotions_json")?,
+        checklist: parse_json_opt::<StrategyChecklist>(row, "checklist_json")?,
         created_at: row.get("created_at")?,
         updated_at: row.get("updated_at")?,
         deleted_at: row.get("deleted_at")?,
@@ -215,11 +218,11 @@ impl TradeRepository for SqliteTradeRepository {
                 swap, other_fees, gross_pnl, net_pnl, pnl_points, pnl_percent, pnl_r,
                 risk_amount, risk_percent, plan_before, management_notes, post_trade_summary,
                 conclusion, tags, plan_adherence_rating, pnl_source, pnl_override_reason,
-                conversion_rate, emotions_json, created_at, updated_at, deleted_at
+                conversion_rate, emotions_json, checklist_json, created_at, updated_at, deleted_at
              ) VALUES (
                 ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
                 ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34,
-                ?35, ?36, ?37, ?38, ?39, ?39, NULL
+                ?35, ?36, ?37, ?38, ?39, ?40, ?40, NULL
              )",
             rusqlite::params![
                 id,
@@ -263,6 +266,7 @@ impl TradeRepository for SqliteTradeRepository {
                 pnl.pnl_override_reason,
                 opt_decimal_str(write.input.conversion_rate),
                 json_opt(&write.input.emotions),
+                json_opt(&write.input.checklist),
                 now.to_rfc3339(),
             ],
         )?;
@@ -329,7 +333,7 @@ impl TradeRepository for SqliteTradeRepository {
         let affected = tx.execute(
             // `tags` celowo nie jest tu aktualizowane - formularz nie ma już tego pola (sekcja
             // "Usunięcie tagów z transakcji"), więc edycja nigdy nie nadpisuje/nie kasuje
-            // ewentualnych historycznych tagów zapisanych przed tą zmianą. Warunek na `?37` to
+            // ewentualnych historycznych tagów zapisanych przed tą zmianą. Warunek na `?39` to
             // wykrywanie konfliktu wersji (sekcja "Tryb odczytu i przycisk Edytuj") - gdy
             // wywołujący poda oczekiwaną `updated_at`, edycja trafiona tylko jeśli nikt inny
             // nie zmienił transakcji od czasu jej wczytania.
@@ -343,8 +347,8 @@ impl TradeRepository for SqliteTradeRepository {
                 plan_before = ?26, management_notes = ?27, post_trade_summary = ?28,
                 conclusion = ?29, plan_adherence_rating = ?30, pnl_source = ?31,
                 pnl_override_reason = ?32, conversion_rate = ?33, emotions_json = ?34,
-                updated_at = ?35
-             WHERE id = ?36 AND deleted_at IS NULL AND (?37 IS NULL OR updated_at = ?37)",
+                checklist_json = ?35, updated_at = ?36
+             WHERE id = ?37 AND deleted_at IS NULL AND (?38 IS NULL OR updated_at = ?38)",
             rusqlite::params![
                 write.input.instrument_id,
                 json_opt(&write.instrument_snapshot),
@@ -380,6 +384,7 @@ impl TradeRepository for SqliteTradeRepository {
                 pnl.pnl_override_reason,
                 opt_decimal_str(write.input.conversion_rate),
                 json_opt(&write.input.emotions),
+                json_opt(&write.input.checklist),
                 now.to_rfc3339(),
                 id,
                 expected_updated_at_str,
@@ -593,6 +598,7 @@ mod tests {
                 plan_adherence_rating: None,
                 pnl_override: None,
                 emotions: None,
+                checklist: None,
             },
             calculation: TradeCalculation::default(),
             instrument_snapshot: None,

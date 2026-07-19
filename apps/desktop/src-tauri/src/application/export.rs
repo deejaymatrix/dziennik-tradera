@@ -352,6 +352,7 @@ mod tests {
                 reason: "test".to_string(),
             }),
             emotions: None,
+            checklist: None,
         };
         for override_value in [None, Some(dec!(42))] {
             trade_repo

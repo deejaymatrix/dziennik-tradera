@@ -297,6 +297,7 @@ mod tests {
             pnl_source: PnlSource::Auto,
             pnl_override_reason: None,
             emotions: None,
+            checklist: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
             deleted_at: None,

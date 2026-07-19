@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::instrument::InstrumentSnapshot;
 use super::strategy::StrategySnapshot;
+use super::strategy_checklist::StrategyChecklist;
 use super::trade_calculations::TradeCalculation;
 use super::trade_emotions::TradeEmotions;
 use crate::error::AppError;
@@ -144,6 +145,10 @@ pub struct Trade {
     /// Emocje w 3 momentach (przed/w trakcie/po) - `None` na starszych transakcjach zapisanych
     /// przed tą funkcją, co frontend pokazuje identycznie jak jawnie "nie uzupełniono".
     pub emotions: Option<TradeEmotions>,
+    /// Migawka checklisty zasad strategii z momentu jej wyboru (sekcja "Checklist w
+    /// transakcji") - `None` gdy transakcja nie ma przypisanej strategii albo pochodzi sprzed
+    /// tej funkcji.
+    pub checklist: Option<StrategyChecklist>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
@@ -186,6 +191,7 @@ pub struct TradeInput {
     pub plan_adherence_rating: Option<i64>,
     pub pnl_override: Option<ManualPnlOverride>,
     pub emotions: Option<TradeEmotions>,
+    pub checklist: Option<StrategyChecklist>,
 }
 
 fn validate_positive(label: &str, value: Decimal) -> Result<(), AppError> {
@@ -400,6 +406,7 @@ mod tests {
             plan_adherence_rating: None,
             pnl_override: None,
             emotions: None,
+            checklist: None,
         }
     }
 

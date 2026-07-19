@@ -228,6 +228,7 @@ mod tests {
             pnl_source: PnlSource::Auto,
             pnl_override_reason: None,
             emotions: None,
+            checklist: None,
             created_at: Utc.with_ymd_and_hms(2026, 1, 1, 10, 0, 0).unwrap(),
             updated_at: Utc.with_ymd_and_hms(2026, 1, 1, 10, 0, 0).unwrap(),
             deleted_at: None,
@@ -260,6 +261,7 @@ mod tests {
             plan_adherence_rating: old.plan_adherence_rating,
             pnl_override: None,
             emotions: None,
+            checklist: None,
         }
     }
 

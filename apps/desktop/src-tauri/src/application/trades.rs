@@ -321,6 +321,7 @@ mod tests {
                 reason: "test fixture".to_string(),
             }),
             emotions: None,
+            checklist: None,
         }
     }
 
