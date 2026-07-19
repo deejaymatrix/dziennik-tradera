@@ -84,8 +84,8 @@ pub fn diff_trade_input(old: &Trade, new: &TradeInput) -> Vec<FieldChange> {
     push_if_changed(
         &mut changes,
         "Interwał",
-        old.interval.clone(),
-        new.interval.clone(),
+        old.interval_id.clone(),
+        new.interval_id.clone(),
     );
     push_if_changed(
         &mut changes,
@@ -201,6 +201,7 @@ mod tests {
             side: TradeSide::Buy,
             opened_at: Some(Utc.with_ymd_and_hms(2026, 1, 1, 10, 0, 0).unwrap()),
             closed_at: None,
+            interval_id: None,
             interval: None,
             session: None,
             volume: Some(dec!(1)),
@@ -243,7 +244,7 @@ mod tests {
             side: old.side,
             opened_at: old.opened_at,
             closed_at: old.closed_at,
-            interval: old.interval.clone(),
+            interval_id: old.interval_id.clone(),
             session: old.session.clone(),
             volume: old.volume,
             entry_price: old.entry_price,

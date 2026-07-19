@@ -114,6 +114,11 @@ pub struct Trade {
     pub side: TradeSide,
     pub opened_at: Option<DateTime<Utc>>,
     pub closed_at: Option<DateTime<Utc>>,
+    pub interval_id: Option<String>,
+    /// Zamrożona etykieta interwału z momentu zapisu (np. "M15") - budowana przez warstwę
+    /// aplikacyjną na podstawie `interval_id`, tak jak `instrument_spec_snapshot`/
+    /// `strategy_snapshot`. Późniejsza zmiana/archiwizacja interwału w zarządzanej liście nie
+    /// zmienia już zapisanej historycznej etykiety.
     pub interval: Option<String>,
     pub session: Option<String>,
     pub volume: Option<Decimal>,
@@ -173,7 +178,7 @@ pub struct TradeInput {
     pub side: TradeSide,
     pub opened_at: Option<DateTime<Utc>>,
     pub closed_at: Option<DateTime<Utc>>,
-    pub interval: Option<String>,
+    pub interval_id: Option<String>,
     pub session: Option<String>,
     pub volume: Option<Decimal>,
     pub entry_price: Option<Decimal>,
@@ -355,6 +360,10 @@ pub struct TradeWrite {
     pub calculation: TradeCalculation,
     pub instrument_snapshot: Option<InstrumentSnapshot>,
     pub strategy_snapshot: Option<StrategySnapshot>,
+    /// Zamrożona etykieta interwału (np. "M15"), budowana przez `TradesService::build_write` na
+    /// podstawie `input.interval_id` - trafia do kolumny `interval` (patrz doc-comment na
+    /// `Trade::interval`).
+    pub interval_snapshot: Option<String>,
 }
 
 pub trait TradeRepository {
@@ -388,7 +397,7 @@ mod tests {
             side: TradeSide::Buy,
             opened_at: None,
             closed_at: None,
-            interval: None,
+            interval_id: None,
             session: None,
             volume: None,
             entry_price: None,

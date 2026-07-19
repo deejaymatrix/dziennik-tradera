@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use crate::application::accounts::AccountsService;
 use crate::application::instruments::InstrumentsService;
+use crate::application::intervals::IntervalsService;
 use crate::application::strategies::StrategiesService;
 use crate::domain::balance::balance_before_after_trade;
 use crate::domain::instrument::InstrumentSnapshot;
@@ -36,6 +37,7 @@ pub struct TradesService {
     accounts: Arc<AccountsService>,
     instruments: Arc<InstrumentsService>,
     strategies: Arc<StrategiesService>,
+    intervals: Arc<IntervalsService>,
 }
 
 impl TradesService {
@@ -45,6 +47,7 @@ impl TradesService {
         accounts: Arc<AccountsService>,
         instruments: Arc<InstrumentsService>,
         strategies: Arc<StrategiesService>,
+        intervals: Arc<IntervalsService>,
     ) -> Self {
         Self {
             trades,
@@ -52,6 +55,7 @@ impl TradesService {
             accounts,
             instruments,
             strategies,
+            intervals,
         }
     }
 
@@ -119,10 +123,24 @@ impl TradesService {
         }
     }
 
+    fn resolve_interval_snapshot(
+        &self,
+        interval_id: Option<&str>,
+    ) -> Result<Option<String>, AppError> {
+        match interval_id {
+            None => Ok(None),
+            Some(id) => {
+                let interval = self.intervals.get(id)?;
+                Ok(Some(interval.label))
+            }
+        }
+    }
+
     fn build_write(&self, input: TradeInput) -> Result<TradeWrite, AppError> {
         let instrument_snapshot =
             self.resolve_instrument_snapshot(input.instrument_id.as_deref())?;
         let strategy_snapshot = self.resolve_strategy_snapshot(input.strategy_id.as_deref())?;
+        let interval_snapshot = self.resolve_interval_snapshot(input.interval_id.as_deref())?;
         let account = self.accounts.get(&input.account_id)?;
 
         let calc_input = TradeCalculationInput {
@@ -149,6 +167,7 @@ impl TradesService {
             calculation,
             instrument_snapshot,
             strategy_snapshot,
+            interval_snapshot,
         })
     }
 
@@ -227,6 +246,7 @@ mod tests {
     use crate::infrastructure::sqlite_account_repository::SqliteAccountRepository;
     use crate::infrastructure::sqlite_cash_operation_repository::SqliteCashOperationRepository;
     use crate::infrastructure::sqlite_instrument_repository::SqliteInstrumentRepository;
+    use crate::infrastructure::sqlite_interval_repository::SqliteIntervalRepository;
     use crate::infrastructure::sqlite_strategy_repository::SqliteStrategyRepository;
     use crate::infrastructure::sqlite_trade_repository::SqliteTradeRepository;
     use rust_decimal_macros::dec;
@@ -235,6 +255,7 @@ mod tests {
     fn setup() -> (
         TradesService,
         Arc<AccountsService>,
+        String,
         String,
         String,
         tempfile::TempDir,
@@ -269,11 +290,22 @@ mod tests {
             )
             .expect("EURUSD musi istnieć w fabrycznym katalogu");
 
+        let interval_id: String = conn
+            .lock()
+            .unwrap()
+            .query_row("SELECT id FROM intervals WHERE label = 'M15'", [], |row| {
+                row.get(0)
+            })
+            .expect("M15 musi istnieć jako wbudowany interwał");
+
         let instruments = Arc::new(InstrumentsService::new(Arc::new(
             SqliteInstrumentRepository::new(conn.clone()),
         )));
         let strategies = Arc::new(StrategiesService::new(Arc::new(
             SqliteStrategyRepository::new(conn.clone()),
+        )));
+        let intervals = Arc::new(IntervalsService::new(Arc::new(
+            SqliteIntervalRepository::new(conn.clone()),
         )));
         let trades = TradesService::new(
             Arc::new(SqliteTradeRepository::new(conn.clone())),
@@ -281,9 +313,17 @@ mod tests {
             accounts.clone(),
             instruments,
             strategies,
+            intervals,
         );
 
-        (trades, accounts, account.account.id, instrument_id, dir)
+        (
+            trades,
+            accounts,
+            account.account.id,
+            instrument_id,
+            interval_id,
+            dir,
+        )
     }
 
     fn closed_trade_input(
@@ -300,7 +340,7 @@ mod tests {
             side: TradeSide::Buy,
             opened_at: Some(closed_at.parse().unwrap()),
             closed_at: Some(closed_at.parse().unwrap()),
-            interval: None,
+            interval_id: None,
             session: None,
             volume: Some(dec!(1)),
             entry_price: Some(dec!(1)),
@@ -327,7 +367,7 @@ mod tests {
 
     #[test]
     fn account_balance_reflects_closed_trades_net_pnl() {
-        let (trades, accounts, account_id, instrument_id, _dir) = setup();
+        let (trades, accounts, account_id, instrument_id, _interval_id, _dir) = setup();
         trades
             .create(closed_trade_input(
                 &account_id,
@@ -351,7 +391,7 @@ mod tests {
 
     #[test]
     fn balance_context_reports_before_after_and_current_for_a_closed_trade() {
-        let (trades, _accounts, account_id, instrument_id, _dir) = setup();
+        let (trades, _accounts, account_id, instrument_id, _interval_id, _dir) = setup();
         let first = trades
             .create(closed_trade_input(
                 &account_id,
@@ -386,7 +426,7 @@ mod tests {
 
     #[test]
     fn balance_context_for_open_trade_shows_before_equal_to_after() {
-        let (trades, _accounts, account_id, instrument_id, _dir) = setup();
+        let (trades, _accounts, account_id, instrument_id, _interval_id, _dir) = setup();
         let mut input = closed_trade_input(
             &account_id,
             &instrument_id,
@@ -408,7 +448,7 @@ mod tests {
 
     #[test]
     fn deleting_a_trade_removes_its_contribution_from_the_account_balance() {
-        let (trades, accounts, account_id, instrument_id, _dir) = setup();
+        let (trades, accounts, account_id, instrument_id, _interval_id, _dir) = setup();
         let trade = trades
             .create(closed_trade_input(
                 &account_id,
@@ -425,7 +465,7 @@ mod tests {
 
     #[test]
     fn updating_a_trade_with_real_changes_writes_one_audit_entry() {
-        let (trades, _accounts, account_id, instrument_id, _dir) = setup();
+        let (trades, _accounts, account_id, instrument_id, _interval_id, _dir) = setup();
         let trade = trades
             .create(closed_trade_input(
                 &account_id,
@@ -453,7 +493,7 @@ mod tests {
 
     #[test]
     fn updating_a_trade_with_no_real_changes_writes_no_audit_entry() {
-        let (trades, _accounts, account_id, instrument_id, _dir) = setup();
+        let (trades, _accounts, account_id, instrument_id, _interval_id, _dir) = setup();
         let trade = trades
             .create(closed_trade_input(
                 &account_id,
@@ -479,7 +519,7 @@ mod tests {
 
     #[test]
     fn updating_with_a_stale_expected_updated_at_returns_a_conflict_error() {
-        let (trades, _accounts, account_id, instrument_id, _dir) = setup();
+        let (trades, _accounts, account_id, instrument_id, _interval_id, _dir) = setup();
         let trade = trades
             .create(closed_trade_input(
                 &account_id,
@@ -515,5 +555,45 @@ mod tests {
             ),
         );
         assert!(matches!(result, Err(AppError::Conflict(_))));
+    }
+
+    #[test]
+    fn creating_a_trade_freezes_the_interval_label_and_editing_the_list_does_not_change_it() {
+        use crate::domain::interval::NewInterval;
+
+        let (trades, _accounts, account_id, instrument_id, _interval_id, dir) = setup();
+
+        let interval_conn = Arc::new(Mutex::new(
+            connection::open(&dir.path().join("db.sqlite3")).expect("reopen for intervals"),
+        ));
+        let intervals =
+            IntervalsService::new(Arc::new(SqliteIntervalRepository::new(interval_conn)));
+        let custom_interval = intervals
+            .create(NewInterval {
+                label: "M20".to_string(),
+            })
+            .expect("create custom interval");
+
+        let mut input = closed_trade_input(
+            &account_id,
+            &instrument_id,
+            dec!(100),
+            "2026-01-05T00:00:00Z",
+        );
+        input.interval_id = Some(custom_interval.id.clone());
+
+        let trade = trades.create(input).expect("create trade");
+        assert_eq!(trade.interval_id, Some(custom_interval.id.clone()));
+        assert_eq!(trade.interval, Some("M20".to_string()));
+
+        // Późniejsze przemianowanie interwału w zarządzanej liście nie zmienia już zapisanej
+        // migawki etykiety na historycznej transakcji (ten sam wzorzec co migawka instrumentu/
+        // strategii).
+        intervals
+            .update_label(&custom_interval.id, "M20-zmieniony".to_string())
+            .expect("rename interval");
+
+        let reloaded = trades.get(&trade.id).expect("get trade");
+        assert_eq!(reloaded.interval, Some("M20".to_string()));
     }
 }

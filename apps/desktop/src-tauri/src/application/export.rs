@@ -331,7 +331,7 @@ mod tests {
             side: TradeSide::Buy,
             opened_at: Some(Utc::now()),
             closed_at: Some(Utc::now()),
-            interval: None,
+            interval_id: None,
             session: None,
             volume: Some(dec!(1)),
             entry_price: Some(dec!(1.1)),
@@ -365,6 +365,7 @@ mod tests {
                     },
                     instrument_snapshot: None,
                     strategy_snapshot: None,
+                    interval_snapshot: None,
                 })
                 .expect("create trade");
         }

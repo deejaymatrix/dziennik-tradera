@@ -107,6 +107,7 @@ mod tests {
             side: TradeSide::Buy,
             opened_at: Some(closed_at.parse().unwrap()),
             closed_at: Some(closed_at.parse().unwrap()),
+            interval_id: None,
             interval: None,
             session: None,
             volume: None,

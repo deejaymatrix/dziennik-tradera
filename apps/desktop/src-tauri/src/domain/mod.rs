@@ -4,6 +4,7 @@ pub mod balance;
 pub mod cash_operation;
 pub mod emotional_state;
 pub mod instrument;
+pub mod interval;
 pub mod strategy;
 pub mod strategy_checklist;
 pub mod trade;

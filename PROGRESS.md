@@ -1,6 +1,6 @@
 # Postęp prac
 
-Ostatnia aktualizacja: 2026-07-19 (Faza 3 ukończona: zasady strategii jako listy, usunięcie zasad wyjścia, checklist w transakcji)
+Ostatnia aktualizacja: 2026-07-19 (Faza 4 ukończona: zarządzanie interwałami zamiast wolnego pola tekstowego)
 
 ## Cel 1.1 — Repozytorium, standardy i uruchomiony podgląd — ✅ ukończony
 
@@ -726,6 +726,66 @@ migawka zasad z momentu wyboru strategii).
 
 **Następny krok:** Faza 4 — zarządzanie interwałami (lista wbudowanych M1/M5/M15/M30/H1/H4 +
 własne interwały użytkownika, zamiast wolnego pola tekstowego na transakcji).
+
+**Dodatkowo w tej turze (poza planem faz):** naprawiony zgłoszony przez użytkownika błąd
+produkcyjny — przycisk "Edytuj" na karcie transakcji przy szybkim podwójnym kliknięciu zapisywał
+transakcję bez żadnej zmiany, zamiast wejść w tryb edycji. Przyczyna: "Edytuj" i "Zapisz zmiany"
+zajmują to samo miejsce w stopce (prawy, główny przycisk) w zależności od trybu — drugie
+kliknięcie szybkiego podwójnego kliknięcia trafiało już w nowo podstawiony przycisk zapisu.
+Naprawione krótką blokadą zapisu (`submitLocked`, 500ms) uzbrajaną przy wejściu w tryb edycji,
+sprawdzaną też w `disabled` przycisku i na starcie `handleSubmit`. Zweryfikowane realnym
+`computer{action:"double_click"}` na prawdziwych współrzędnych ekranu (nie zdarzeniem `.click()`,
+które nie odtwarza tego błędu) — potwierdzone zero zapisów po podwójnym kliknięciu i jeden zapis
+po kolejnym, prawdziwym kliknięciu "Zapisz zmiany".
+
+### Faza 4 — Zarządzanie interwałami — ✅ ukończona
+
+**Co działa:**
+
+- **Zarządzana lista interwałów** (`domain::interval::Interval`, migracja `0007_intervals`) —
+  ten sam wzorzec co `EmotionalState`, rozszerzony o niezależną flagę `archived_at`: `hidden` to
+  szybki przełącznik widoczności dostępny też dla wbudowanych, `archived_at` to docelowe miejsce
+  dla własnych interwałów w przyszłym uniwersalnym Koszu (Faza 5). Sześć wbudowanych wpisów
+  (M1/M5/M15/M30/H1/H4) nie do przemianowania/archiwizacji — tylko ukrycia i reorder; własne
+  interwały użytkownika można dodać, przemianować, ukryć, zarchiwizować/przywrócić.
+  `SqliteIntervalRepository`: CRUD + `update_label`/`archive`/`restore` (odrzucają wbudowane) +
+  `reorder`. Nowe komendy: `create/get/list/update_interval_label/set_interval_hidden/
+archive/restore/reorder_intervals`.
+- **Transakcja przechowuje ID + zamrożoną migawkę etykiety**: `Trade.interval_id` (odniesienie) +
+  `Trade.interval` (etykieta z momentu zapisu, np. "M15") — ten sam wzorzec co migawka
+  instrumentu/strategii. `TradesService::build_write` resolwuje `interval_id` → `Interval` →
+  zamrożoną etykietę (`TradeWrite.interval_snapshot`); `TradeInput` ma tylko `interval_id`, nigdy
+  wolnego tekstu. Późniejsze przemianowanie/archiwizacja interwału w zarządzanej liście nie
+  zmienia już zapisanej historycznej etykiety (potwierdzone testem integracyjnym).
+- `TradeFormModal`: pole "Interwał (opcjonalnie)" zamienione z wolnego tekstu na `Select`
+  wypełniany zarządzaną listą (tylko widoczne/aktywne); jeśli edytowana transakcja używa
+  interwału ukrytego/zarchiwizowanego od tego czasu, nadal pokazuje go jako wybraną wartość z
+  oznaczeniem — ten sam wzorzec co ukryty instrument.
+- Nowy `IntervalsSection` w Ustawieniach (lista z reorder góra/dół, ukryj/pokaż dla wszystkich,
+  przemianuj/archiwizuj/przywróć tylko dla własnych, dodawanie nowych) — obok istniejącej sekcji
+  "Stany emocjonalne".
+
+**Przetestowane:**
+
+- Rust: **161 testów** przechodzi (`cargo test`), `cargo clippy -D warnings`/`cargo fmt --check`
+  czyste. Nowe testy: domena interwału (walidacja etykiety), repozytorium (seed 6 wbudowanych
+  widocznych/aktywnych, tworzenie własnego po wbudowanych, odrzucenie duplikatu etykiety,
+  ukrywanie wbudowanego nigdy nie usuwa, odrzucenie archiwizacji/przemianowania wbudowanego,
+  cykl archiwizuj-przywróć własnego, przemianowanie własnego, reorder), migracja (rejestracja
+  wersji 7, upgrade istniejącej bazy), integracyjny test `TradesService` potwierdzający, że
+  transakcja zamraża etykietę interwału i późniejsze przemianowanie w zarządzanej liście nie
+  zmienia już zapisanej historycznej wartości.
+- Frontend: `pnpm typecheck`/`eslint`/`prettier --check`/`test` (Vitest 13/13) czyste.
+- Zweryfikowane w przeglądarce (fałszywy most Tauri): ekran "Interwały" w Ustawieniach — 6
+  wbudowanych + 1 własny, przemianowanie własnego inline (edycja → zapisz), reorder przyciskami
+  góra/dół (potwierdzony nowy porządek), archiwizacja własnego (badge "zarchiwizowany",
+  przycisk zmienia się na "Przywróć") i przywrócenie. Formularz nowej transakcji: pole
+  "Interwał (opcjonalnie)" pokazuje `Select` z 6 wbudowanymi + własnym, wybór "M15" i zapis
+  transakcji poprawnie wysyła `interval_id: "i3"` w payloadzie `create_trade` (przechwycone i
+  zweryfikowane bezpośrednio) — bez żadnego pola `interval` (wolny tekst) w `TradeInput`.
+
+**Następny krok:** Faza 5 — uniwersalny Kosz (soft-delete dla kont, transakcji, strategii,
+własnych instrumentów/wersji, własnych interwałów, elementów zasad).
 
 ## Pozostałe cele Etapu 1
 

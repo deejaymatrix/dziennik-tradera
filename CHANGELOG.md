@@ -93,6 +93,9 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   Zasady wejścia oceniane jako Spełniona/Niespełniona/Nie dotyczy, zarządzania jako Wykonana/
   Niewykonana/Nie dotyczy - niespełniona wymagana zasada nie blokuje zapisu, tylko oznacza
   naruszenie planu.
+- Zarządzana lista interwałów (`domain::interval`) - sześć wbudowanych (M1/M5/M15/M30/H1/H4,
+  tylko ukrycie i reorder) + własne interwały użytkownika (dodanie, przemianowanie, ukrycie,
+  archiwizacja/przywrócenie). Ekran "Interwały" w Ustawieniach.
 
 ### Changed
 
@@ -107,6 +110,9 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
 - Status transakcji (Szkic/Otwarta/Zamknięta) nie jest już polem wybieranym przez użytkownika -
   wyliczany wyłącznie z obecności danych, identycznie przy zapisie i odczycie.
 - Precyzja czasu do sekund w polach otwarcia/zamknięcia transakcji (wcześniej tylko minuty).
+- Pole "Interwał" na transakcji zamienione z wolnego tekstu na wybór z zarządzanej listy -
+  transakcja przechowuje odniesienie (`interval_id`) + zamrożoną migawkę etykiety z momentu
+  zapisu, tym samym wzorcem co migawka instrumentu/strategii.
 
 ### Removed
 

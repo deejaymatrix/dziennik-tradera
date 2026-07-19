@@ -4,5 +4,6 @@ pub mod sqlite_account_repository;
 pub mod sqlite_cash_operation_repository;
 pub mod sqlite_emotional_state_repository;
 pub mod sqlite_instrument_repository;
+pub mod sqlite_interval_repository;
 pub mod sqlite_strategy_repository;
 pub mod sqlite_trade_repository;

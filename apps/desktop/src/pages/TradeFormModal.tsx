@@ -13,6 +13,7 @@ import {
 import type { TradeFormFields } from "../app/tradeForm";
 import type { EmotionalState } from "../app/types/emotional_state";
 import type { InstrumentListFilter, InstrumentWithDetails } from "../app/types/instrument";
+import type { Interval } from "../app/types/interval";
 import type { Strategy } from "../app/types/strategy";
 import type {
   MomentEmotion,
@@ -100,6 +101,7 @@ export function TradeFormModal({
     (InstrumentWithDetails & { isHidden?: boolean })[]
   >([]);
   const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [intervals, setIntervals] = useState<(Interval & { isHiddenOrArchived?: boolean })[]>([]);
   const [emotionalStates, setEmotionalStates] = useState<EmotionalState[]>([]);
   const [preview, setPreview] = useState<TradeCalculation | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -127,11 +129,16 @@ export function TradeFormModal({
           category: null,
           visibility: "visible",
         };
-        const [instrumentsData, strategiesData, emotionalStatesData] = await Promise.all([
-          invokeCommand<InstrumentWithDetails[]>("list_instruments", { filter: visibleFilter }),
-          invokeCommand<Strategy[]>("list_strategies", { includeArchived: false }),
-          invokeCommand<EmotionalState[]>("list_emotional_states", { includeHidden: false }),
-        ]);
+        const [instrumentsData, strategiesData, intervalsData, emotionalStatesData] =
+          await Promise.all([
+            invokeCommand<InstrumentWithDetails[]>("list_instruments", { filter: visibleFilter }),
+            invokeCommand<Strategy[]>("list_strategies", { includeArchived: false }),
+            invokeCommand<Interval[]>("list_intervals", {
+              includeHidden: false,
+              includeArchived: false,
+            }),
+            invokeCommand<EmotionalState[]>("list_emotional_states", { includeHidden: false }),
+          ]);
         // Jeżeli edytowana transakcja używa ukrytego instrumentu, pokaż go mimo to jako
         // aktualnie wybraną wartość z oznaczeniem "ukryty" (sekcja "Widoczność i wybór
         // instrumentów") - nigdy nie chowaj wyboru już zapisanej historycznej transakcji.
@@ -149,6 +156,22 @@ export function TradeFormModal({
           setInstruments(instrumentsData);
         }
         setStrategies(strategiesData);
+        // Ten sam wzorzec co ukryty instrument powyżej - jeśli edytowana transakcja używa
+        // interwału ukrytego/zarchiwizowanego od tego czasu, pokaż go mimo to jako aktualnie
+        // wybraną wartość z oznaczeniem.
+        const selectedIntervalId = trade?.interval_id;
+        if (selectedIntervalId && !intervalsData.some((i) => i.id === selectedIntervalId)) {
+          try {
+            const hidden = await invokeCommand<Interval>("get_interval", {
+              id: selectedIntervalId,
+            });
+            setIntervals([...intervalsData, { ...hidden, isHiddenOrArchived: true }]);
+          } catch {
+            setIntervals(intervalsData);
+          }
+        } else {
+          setIntervals(intervalsData);
+        }
         setEmotionalStates(emotionalStatesData);
       } catch {
         // Brak list nie blokuje formularza - pola instrumentu/strategii po prostu będą puste.
@@ -366,6 +389,13 @@ export function TradeFormModal({
     { value: "", label: "Brak" },
     ...strategies.map((s) => ({ value: s.id, label: s.name })),
   ];
+  const intervalOptions = [
+    { value: "", label: "Brak" },
+    ...intervals.map((i) => ({
+      value: i.id,
+      label: i.isHiddenOrArchived ? `${i.label} (ukryty/zarchiwizowany)` : i.label,
+    })),
+  ];
 
   const title = !isEdit
     ? "Nowa transakcja"
@@ -508,11 +538,11 @@ export function TradeFormModal({
         <TradePreviewCard calculation={preview} currency={accountCurrency} />
 
         <div className={styles.grid}>
-          <TextField
+          <Select
             label="Interwał (opcjonalnie)"
-            hint="Np. M15, H1, D1"
-            value={fields.interval}
-            onChange={(e) => setField("interval", e.target.value)}
+            value={fields.intervalId}
+            onChange={(e) => setField("intervalId", e.target.value)}
+            options={intervalOptions}
             disabled={readOnly}
           />
           <TextField

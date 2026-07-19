@@ -26,8 +26,8 @@ impl SqliteTradeRepository {
 
 const SELECT_COLUMNS: &str =
     "id, account_id, display_number, instrument_id, instrument_spec_snapshot,
-     strategy_id, strategy_snapshot, status, side, opened_at, closed_at, interval, session,
-     volume, entry_price, stop_loss, take_profit, exit_price, commission, swap, other_fees,
+     strategy_id, strategy_snapshot, status, side, opened_at, closed_at, interval, interval_id,
+     session, volume, entry_price, stop_loss, take_profit, exit_price, commission, swap, other_fees,
      conversion_rate, gross_pnl, net_pnl, pnl_points, pnl_percent, pnl_r, risk_amount, risk_percent,
      plan_before, management_notes, post_trade_summary, conclusion, tags, plan_adherence_rating,
      pnl_source, pnl_override_reason, emotions_json, checklist_json, created_at, updated_at,
@@ -122,6 +122,7 @@ fn map_row(row: &Row) -> rusqlite::Result<Trade> {
         side: TradeSide::from_db_str(&side_raw),
         opened_at,
         closed_at,
+        interval_id: row.get("interval_id")?,
         interval: row.get("interval")?,
         session: row.get("session")?,
         volume,
@@ -214,15 +215,15 @@ impl TradeRepository for SqliteTradeRepository {
             "INSERT INTO trades (
                 id, account_id, display_number, instrument_id, instrument_spec_snapshot,
                 strategy_id, strategy_snapshot, status, side, opened_at, closed_at, interval,
-                session, volume, entry_price, stop_loss, take_profit, exit_price, commission,
-                swap, other_fees, gross_pnl, net_pnl, pnl_points, pnl_percent, pnl_r,
+                interval_id, session, volume, entry_price, stop_loss, take_profit, exit_price,
+                commission, swap, other_fees, gross_pnl, net_pnl, pnl_points, pnl_percent, pnl_r,
                 risk_amount, risk_percent, plan_before, management_notes, post_trade_summary,
                 conclusion, tags, plan_adherence_rating, pnl_source, pnl_override_reason,
                 conversion_rate, emotions_json, checklist_json, created_at, updated_at, deleted_at
              ) VALUES (
                 ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
                 ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34,
-                ?35, ?36, ?37, ?38, ?39, ?40, ?40, NULL
+                ?35, ?36, ?37, ?38, ?39, ?40, ?41, ?41, NULL
              )",
             rusqlite::params![
                 id,
@@ -236,7 +237,8 @@ impl TradeRepository for SqliteTradeRepository {
                 write.input.side.as_db_str(),
                 opt_datetime(write.input.opened_at),
                 opt_datetime(write.input.closed_at),
-                write.input.interval,
+                write.interval_snapshot,
+                write.input.interval_id,
                 write.input.session,
                 opt_decimal_str(write.input.volume),
                 opt_decimal_str(write.input.entry_price),
@@ -340,15 +342,15 @@ impl TradeRepository for SqliteTradeRepository {
             "UPDATE trades SET
                 instrument_id = ?1, instrument_spec_snapshot = ?2, strategy_id = ?3,
                 strategy_snapshot = ?4, status = ?5, side = ?6, opened_at = ?7, closed_at = ?8,
-                interval = ?9, session = ?10, volume = ?11, entry_price = ?12, stop_loss = ?13,
-                take_profit = ?14, exit_price = ?15, commission = ?16, swap = ?17,
-                other_fees = ?18, gross_pnl = ?19, net_pnl = ?20, pnl_points = ?21,
-                pnl_percent = ?22, pnl_r = ?23, risk_amount = ?24, risk_percent = ?25,
-                plan_before = ?26, management_notes = ?27, post_trade_summary = ?28,
-                conclusion = ?29, plan_adherence_rating = ?30, pnl_source = ?31,
-                pnl_override_reason = ?32, conversion_rate = ?33, emotions_json = ?34,
-                checklist_json = ?35, updated_at = ?36
-             WHERE id = ?37 AND deleted_at IS NULL AND (?38 IS NULL OR updated_at = ?38)",
+                interval = ?9, interval_id = ?10, session = ?11, volume = ?12, entry_price = ?13,
+                stop_loss = ?14, take_profit = ?15, exit_price = ?16, commission = ?17,
+                swap = ?18, other_fees = ?19, gross_pnl = ?20, net_pnl = ?21, pnl_points = ?22,
+                pnl_percent = ?23, pnl_r = ?24, risk_amount = ?25, risk_percent = ?26,
+                plan_before = ?27, management_notes = ?28, post_trade_summary = ?29,
+                conclusion = ?30, plan_adherence_rating = ?31, pnl_source = ?32,
+                pnl_override_reason = ?33, conversion_rate = ?34, emotions_json = ?35,
+                checklist_json = ?36, updated_at = ?37
+             WHERE id = ?38 AND deleted_at IS NULL AND (?39 IS NULL OR updated_at = ?39)",
             rusqlite::params![
                 write.input.instrument_id,
                 json_opt(&write.instrument_snapshot),
@@ -358,7 +360,8 @@ impl TradeRepository for SqliteTradeRepository {
                 write.input.side.as_db_str(),
                 opt_datetime(write.input.opened_at),
                 opt_datetime(write.input.closed_at),
-                write.input.interval,
+                write.interval_snapshot,
+                write.input.interval_id,
                 write.input.session,
                 opt_decimal_str(write.input.volume),
                 opt_decimal_str(write.input.entry_price),
@@ -580,7 +583,7 @@ mod tests {
                 side: TradeSide::Buy,
                 opened_at: None,
                 closed_at: None,
-                interval: None,
+                interval_id: None,
                 session: None,
                 volume: None,
                 entry_price: None,
@@ -603,6 +606,7 @@ mod tests {
             calculation: TradeCalculation::default(),
             instrument_snapshot: None,
             strategy_snapshot: None,
+            interval_snapshot: None,
         }
     }
 

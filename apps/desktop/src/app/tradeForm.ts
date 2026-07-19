@@ -15,7 +15,7 @@ export interface TradeFormFields {
   side: TradeSide;
   openedAt: string;
   closedAt: string;
-  interval: string;
+  intervalId: string;
   session: string;
   volume: string;
   entryPrice: string;
@@ -45,7 +45,7 @@ export function blankTradeFormFields(): TradeFormFields {
     side: "buy",
     openedAt: "",
     closedAt: "",
-    interval: "",
+    intervalId: "",
     session: "",
     volume: "",
     entryPrice: "",
@@ -76,7 +76,7 @@ export function tradeToFormFields(trade: Trade): TradeFormFields {
     side: trade.side,
     openedAt: toDatetimeLocalValue(trade.opened_at),
     closedAt: toDatetimeLocalValue(trade.closed_at),
-    interval: trade.interval ?? "",
+    intervalId: trade.interval_id ?? "",
     session: trade.session ?? "",
     volume: trade.volume ?? "",
     entryPrice: trade.entry_price ?? "",
@@ -119,7 +119,7 @@ export function buildTradeInput(fields: TradeFormFields, accountId: string): Tra
     side: fields.side,
     opened_at: fromDatetimeLocalValue(fields.openedAt),
     closed_at: fromDatetimeLocalValue(fields.closedAt),
-    interval: fields.interval.trim() ? fields.interval : null,
+    interval_id: fields.intervalId || null,
     session: fields.session.trim() ? fields.session : null,
     volume: parseOptionalDecimal(fields.volume),
     entry_price: parseOptionalDecimal(fields.entryPrice),

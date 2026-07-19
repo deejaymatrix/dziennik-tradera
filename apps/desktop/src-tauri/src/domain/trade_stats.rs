@@ -270,6 +270,7 @@ mod tests {
             side: TradeSide::Buy,
             opened_at: None,
             closed_at: None,
+            interval_id: None,
             interval: None,
             session: None,
             volume: None,

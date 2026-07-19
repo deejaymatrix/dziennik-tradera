@@ -17,6 +17,7 @@ use application::backup::BackupService;
 use application::emotional_states::EmotionalStatesService;
 use application::export::ExportService;
 use application::instruments::InstrumentsService;
+use application::intervals::IntervalsService;
 use application::reports::ReportsService;
 use application::strategies::StrategiesService;
 use application::trades::TradesService;
@@ -24,6 +25,7 @@ use infrastructure::sqlite_account_repository::SqliteAccountRepository;
 use infrastructure::sqlite_cash_operation_repository::SqliteCashOperationRepository;
 use infrastructure::sqlite_emotional_state_repository::SqliteEmotionalStateRepository;
 use infrastructure::sqlite_instrument_repository::SqliteInstrumentRepository;
+use infrastructure::sqlite_interval_repository::SqliteIntervalRepository;
 use infrastructure::sqlite_strategy_repository::SqliteStrategyRepository;
 use infrastructure::sqlite_trade_repository::SqliteTradeRepository;
 use state::{AppState, DbState};
@@ -99,12 +101,16 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
     let strategies = Arc::new(StrategiesService::new(Arc::new(
         SqliteStrategyRepository::new(conn.clone()),
     )));
+    let intervals = Arc::new(IntervalsService::new(Arc::new(
+        SqliteIntervalRepository::new(conn.clone()),
+    )));
     let trades = TradesService::new(
         Arc::new(SqliteTradeRepository::new(conn.clone())),
         Arc::new(SqliteTradeRepository::new(conn.clone())),
         accounts.clone(),
         instruments.clone(),
         strategies.clone(),
+        intervals.clone(),
     );
     let reports = ReportsService::new(Arc::new(SqliteTradeRepository::new(conn.clone())));
     let export = ExportService::new(
@@ -121,6 +127,7 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
         accounts,
         instruments,
         strategies,
+        intervals,
         trades,
         reports,
         export,
@@ -168,6 +175,14 @@ pub fn run() {
             commands::instruments::reorder_instruments,
             commands::instruments::reset_instrument_visibility_to_default,
             commands::instruments::delete_instrument,
+            commands::intervals::create_interval,
+            commands::intervals::get_interval,
+            commands::intervals::list_intervals,
+            commands::intervals::update_interval_label,
+            commands::intervals::set_interval_hidden,
+            commands::intervals::archive_interval,
+            commands::intervals::restore_interval,
+            commands::intervals::reorder_intervals,
             commands::strategies::create_strategy,
             commands::strategies::get_strategy,
             commands::strategies::list_strategies,

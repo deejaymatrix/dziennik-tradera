@@ -117,6 +117,10 @@ export interface Trade {
   side: TradeSide;
   opened_at: string | null;
   closed_at: string | null;
+  interval_id: string | null;
+  /** Zamrożona etykieta interwału z momentu zapisu (np. "M15") - patrz doc-comment na
+   * Trade::interval w Rust. Późniejsza zmiana/archiwizacja interwału na zarządzanej liście nie
+   * zmienia już zapisanej historycznej etykiety. */
   interval: string | null;
   session: string | null;
   volume: string | null;
@@ -157,7 +161,7 @@ export interface TradeInput {
   side: TradeSide;
   opened_at: string | null;
   closed_at: string | null;
-  interval: string | null;
+  interval_id: string | null;
   session: string | null;
   volume: string | null;
   entry_price: string | null;
