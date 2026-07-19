@@ -104,6 +104,11 @@ export function TradeFormModal({
   const [preview, setPreview] = useState<TradeCalculation | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // "Edytuj" i "Zapisz zmiany" zajmują to samo miejsce w stopce (prawy, główny przycisk) -
+  // szybkie podwójne kliknięcie w "Edytuj" trafiałoby drugim kliknięciem już w nowo
+  // podstawiony przycisk "Zapisz zmiany", zapisując transakcję bez żadnej zmiany i bez szansy
+  // na edycję. Krótka blokada zapisu tuż po wejściu w tryb edycji temu zapobiega.
+  const [submitLocked, setSubmitLocked] = useState(false);
 
   // Id strategii, dla której `fields.checklist` została ostatnio zbudowana - pozwala odróżnić
   // "strategia się nie zmieniła, zachowaj checklistę" od "wybrano inną strategię, zbuduj świeżą
@@ -287,6 +292,11 @@ export function TradeFormModal({
       }
     }
     setMode("edit");
+    // Patrz komentarz przy stanie `submitLocked` - "Zapisz zmiany" podstawia się w miejscu
+    // "Edytuj", więc krótko po wejściu w tryb edycji ignorujemy zapis (chroni przed szybkim
+    // podwójnym kliknięciem, które trafiłoby drugim kliknięciem w nowy przycisk).
+    setSubmitLocked(true);
+    window.setTimeout(() => setSubmitLocked(false), 500);
   }
 
   function handleCancelEdit(): void {
@@ -304,6 +314,12 @@ export function TradeFormModal({
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    // Zabezpieczenie dodatkowe do `disabled` na przycisku - patrz komentarz przy stanie
+    // `submitLocked` (szybkie podwójne kliknięcie "Edytuj" trafiające w podstawiony w tym samym
+    // miejscu przycisk zapisu).
+    if (submitLocked) {
+      return;
+    }
     setFormError(null);
 
     const formatError = validateTradeFormFormat(fields);
@@ -626,7 +642,7 @@ export function TradeFormModal({
               >
                 Anuluj
               </Button>
-              <Button type="submit" variant="primary" disabled={submitting}>
+              <Button type="submit" variant="primary" disabled={submitting || submitLocked}>
                 {submitting ? "Zapisywanie..." : isEdit ? "Zapisz zmiany" : "Zapisz"}
               </Button>
             </>

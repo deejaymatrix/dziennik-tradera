@@ -123,6 +123,11 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
 
 ### Fixed
 
+- Przycisk "Edytuj" i "Zapisz zmiany" na karcie transakcji zajmowały to samo miejsce w stopce
+  (prawy, główny przycisk) - szybkie podwójne kliknięcie w "Edytuj" trafiało drugim kliknięciem
+  już w nowo podstawiony przycisk zapisu, zapisując transakcję natychmiast, bez żadnej realnej
+  zmiany i bez szansy na edycję. Naprawione krótką blokadą zapisu (500 ms) tuż po wejściu w
+  tryb edycji.
 - Lokalny szkic transakcji zapisany przed dodaniem nowego pola do formularza (np. emocji) mógł
   wywalić formularz przy pierwszym otwarciu po aktualizacji - wczytany szkic jest teraz zawsze
   scalany z pustym szablonem, więc brakujące pole dostaje poprawną pustą wartość zamiast `undefined`.
