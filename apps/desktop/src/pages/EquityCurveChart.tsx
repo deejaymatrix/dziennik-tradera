@@ -1,60 +1,87 @@
 import type { ReactElement } from "react";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { formatMoney } from "../app/decimal";
 import type { EquityPoint } from "../app/types/report";
 import styles from "./EquityCurveChart.module.css";
 
 export interface EquityCurveChartProps {
   points: EquityPoint[];
+  currency: string;
 }
 
-const WIDTH = 640;
-const HEIGHT = 220;
-const PADDING = 12;
+interface EquityChartDatum {
+  index: number;
+  value: number;
+  closedAt: string;
+}
 
 /**
- * Prosty własny wykres SVG krzywej kapitału - bez zewnętrznej biblioteki wykresów (projekt
- * celowo unika dodatkowych zależności dla pojedynczego wykresu liniowego). Same wartości są
- * już policzone w Rust (`cumulative_net_pnl`); tu tylko normalizujemy do współrzędnych ekranu.
+ * Krzywa kapitału (Recharts, Faza 9 - zastąpił dotychczasowy ręczny SVG z Celu 1.6). Wartości są
+ * już policzone w Rust (`cumulative_net_pnl`), tu tylko wizualizujemy.
  */
-export function EquityCurveChart({ points }: EquityCurveChartProps): ReactElement {
+export function EquityCurveChart({ points, currency }: EquityCurveChartProps): ReactElement {
   if (points.length === 0) {
     return <p className={styles.empty}>Brak zamkniętych transakcji do pokazania na wykresie.</p>;
   }
 
-  const values = points.map((p) => Number(p.cumulative_net_pnl));
-  const minValue = Math.min(0, ...values);
-  const maxValue = Math.max(0, ...values);
-  const valueRange = maxValue - minValue || 1;
-
-  const toX = (index: number): number =>
-    points.length === 1
-      ? WIDTH / 2
-      : PADDING + (index / (points.length - 1)) * (WIDTH - PADDING * 2);
-  const toY = (value: number): number =>
-    HEIGHT - PADDING - ((value - minValue) / valueRange) * (HEIGHT - PADDING * 2);
-
-  const linePath = values
-    .map((value, index) => `${index === 0 ? "M" : "L"} ${toX(index)} ${toY(value)}`)
-    .join(" ");
-  const zeroY = toY(0);
-  const finalValue = values[values.length - 1] ?? 0;
+  const data: EquityChartDatum[] = points.map((p, index) => ({
+    index,
+    value: Number(p.cumulative_net_pnl),
+    closedAt: p.closed_at,
+  }));
+  const finalValue = data[data.length - 1]?.value ?? 0;
   const lineColor = finalValue >= 0 ? "var(--color-profit)" : "var(--color-loss)";
 
   return (
-    <svg
-      className={styles.chart}
-      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-      role="img"
-      aria-label="Krzywa kapitału - skumulowany wynik netto w czasie"
-    >
-      <line
-        x1={PADDING}
-        y1={zeroY}
-        x2={WIDTH - PADDING}
-        y2={zeroY}
-        stroke="var(--color-border)"
-        strokeWidth={1}
-      />
-      <path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} />
-    </svg>
+    <ResponsiveContainer width="100%" height={220}>
+      <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+        <defs>
+          <linearGradient id="equityCurveFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={lineColor} stopOpacity={0.25} />
+            <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
+        <XAxis dataKey="index" hide />
+        <YAxis
+          width={72}
+          tick={{ fill: "var(--color-text-muted)", fontSize: 11 }}
+          tickFormatter={(value: number) => formatMoney(String(value))}
+        />
+        <ReferenceLine y={0} stroke="var(--color-border)" />
+        <Tooltip
+          formatter={(value) => formatMoney(String(value), currency)}
+          labelFormatter={(_, payload) => {
+            const point = payload[0]?.payload as EquityChartDatum | undefined;
+            return point ? new Date(point.closedAt).toLocaleString("pl-PL") : "";
+          }}
+          contentStyle={{
+            background: "var(--color-surface)",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-sm)",
+            color: "var(--color-text)",
+          }}
+        />
+        <Area
+          type="monotone"
+          dataKey="value"
+          name="Wynik skumulowany"
+          stroke={lineColor}
+          fill="url(#equityCurveFill)"
+          strokeWidth={2}
+          dot={false}
+          isAnimationActive={false}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
   );
 }

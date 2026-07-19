@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde::Serialize;
 
@@ -40,6 +40,11 @@ pub struct TradeStats {
     pub average_r: Option<Decimal>,
     pub best_trade: Option<Decimal>,
     pub worst_trade: Option<Decimal>,
+    /// Średni czas trwania zrealizowanej transakcji (zamknięcie minus otwarcie) w minutach.
+    pub average_trade_duration_minutes: Option<i64>,
+    /// Maksymalne obsunięcie kapitału (peak-to-trough) na krzywej skumulowanego wyniku netto,
+    /// w walucie konta - zawsze >= 0. `None` przy braku zrealizowanych transakcji.
+    pub max_drawdown: Option<Decimal>,
 }
 
 /// Statystyki dashboardu - liczone raz, w Rust, z Decimal (nigdy we frontendzie). `trades`
@@ -102,7 +107,37 @@ pub fn compute_stats(trades: &[Trade]) -> TradeStats {
         stats.average_r = Some(r_sum / Decimal::from(r_count));
     }
 
+    let durations: Vec<i64> = realized
+        .iter()
+        .filter_map(|t| match (t.opened_at, t.closed_at) {
+            (Some(opened), Some(closed)) => Some((closed - opened).num_minutes()),
+            _ => None,
+        })
+        .collect();
+    if !durations.is_empty() {
+        stats.average_trade_duration_minutes =
+            Some(durations.iter().sum::<i64>() / durations.len() as i64);
+    }
+
+    stats.max_drawdown = max_drawdown(trades);
+
     stats
+}
+
+/// Maksymalne obsunięcie (peak-to-trough) na krzywej skumulowanego wyniku netto, w kolejności
+/// zamykania transakcji - ten sam porządek co `compute_equity_curve`.
+fn max_drawdown(trades: &[Trade]) -> Option<Decimal> {
+    let curve = compute_equity_curve(trades);
+    if curve.is_empty() {
+        return None;
+    }
+    let mut peak = Decimal::ZERO;
+    let mut worst = Decimal::ZERO;
+    for point in &curve {
+        peak = peak.max(point.cumulative_net_pnl);
+        worst = worst.max(peak - point.cumulative_net_pnl);
+    }
+    Some(worst)
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -248,13 +283,102 @@ pub fn compute_instrument_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
     })
 }
 
+const MONTH_NAMES: [&str; 12] = [
+    "Styczeń",
+    "Luty",
+    "Marzec",
+    "Kwiecień",
+    "Maj",
+    "Czerwiec",
+    "Lipiec",
+    "Sierpień",
+    "Wrzesień",
+    "Październik",
+    "Listopad",
+    "Grudzień",
+];
+
+const WEEKDAY_NAMES: [&str; 7] = [
+    "Poniedziałek",
+    "Wtorek",
+    "Środa",
+    "Czwartek",
+    "Piątek",
+    "Sobota",
+    "Niedziela",
+];
+
+/// Rozbicie miesięczne (rok+miesiąc zamknięcia transakcji) - posortowane chronologicznie
+/// rosnąco (w odróżnieniu od `compute_breakdown`, które sortuje po wyniku).
+pub fn compute_monthly_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
+    let mut result = compute_breakdown(trades, |t| {
+        let closed_at = t.closed_at.expect("realized_trades gwarantuje closed_at");
+        let key = format!("{:04}-{:02}", closed_at.year(), closed_at.month());
+        let label = format!(
+            "{} {}",
+            MONTH_NAMES[(closed_at.month() - 1) as usize],
+            closed_at.year()
+        );
+        (key, label)
+    });
+    result.sort_by(|a, b| a.key.cmp(&b.key));
+    result
+}
+
+/// Rozbicie roczne (rok zamknięcia transakcji) - posortowane chronologicznie rosnąco.
+pub fn compute_yearly_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
+    let mut result = compute_breakdown(trades, |t| {
+        let year = t
+            .closed_at
+            .expect("realized_trades gwarantuje closed_at")
+            .year();
+        (year.to_string(), year.to_string())
+    });
+    result.sort_by(|a, b| a.key.cmp(&b.key));
+    result
+}
+
+/// Rozbicie po dniu tygodnia zamknięcia (Poniedziałek..Niedziela) - zawiera zawsze wszystkie 7
+/// dni w ustalonej kolejności, nawet bez ani jednej transakcji danego dnia (zerowy wynik).
+pub fn compute_day_of_week_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
+    let mut by_day = compute_breakdown(trades, |t| {
+        let weekday = t
+            .closed_at
+            .expect("realized_trades gwarantuje closed_at")
+            .weekday()
+            .num_days_from_monday();
+        (
+            weekday.to_string(),
+            WEEKDAY_NAMES[weekday as usize].to_string(),
+        )
+    });
+
+    let mut result = Vec::with_capacity(7);
+    for day in 0..7u32 {
+        let key = day.to_string();
+        match by_day.iter().position(|g| g.key == key) {
+            Some(pos) => result.push(by_day.remove(pos)),
+            None => result.push(GroupBreakdown {
+                key,
+                label: WEEKDAY_NAMES[day as usize].to_string(),
+                trade_count: 0,
+                win_count: 0,
+                loss_count: 0,
+                win_rate: None,
+                net_pnl: Decimal::ZERO,
+            }),
+        }
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::domain::instrument::InstrumentSnapshot;
     use crate::domain::strategy::StrategySnapshot;
     use crate::domain::trade::{PnlSource, TradeSide};
-    use chrono::Duration;
+    use chrono::{Duration, TimeZone};
     use rust_decimal_macros::dec;
 
     fn base_trade(id: &str) -> Trade {
@@ -459,5 +583,87 @@ mod tests {
         assert_eq!(breakdown.len(), 1);
         assert_eq!(breakdown[0].key, "instr-1");
         assert_eq!(breakdown[0].label, "EURUSD");
+    }
+
+    #[test]
+    fn average_trade_duration_is_mean_of_close_minus_open() {
+        let mut a = closed_trade("1", 1, dec!(10), None);
+        a.opened_at = Some(a.closed_at.unwrap() - Duration::minutes(30));
+        let mut b = closed_trade("2", 2, dec!(10), None);
+        b.opened_at = Some(b.closed_at.unwrap() - Duration::minutes(90));
+        let stats = compute_stats(&[a, b]);
+        assert_eq!(stats.average_trade_duration_minutes, Some(60));
+    }
+
+    #[test]
+    fn trades_without_opened_at_are_excluded_from_average_duration() {
+        let trade = closed_trade("1", 1, dec!(10), None);
+        let stats = compute_stats(&[trade]);
+        assert_eq!(stats.average_trade_duration_minutes, None);
+    }
+
+    #[test]
+    fn max_drawdown_is_the_largest_peak_to_trough_drop() {
+        let trades = vec![
+            closed_trade("1", 5, dec!(100), None),  // cumulative 100 (peak)
+            closed_trade("2", 4, dec!(-150), None), // cumulative -50 (drawdown 150 from peak)
+            closed_trade("3", 3, dec!(30), None),   // cumulative -20
+            closed_trade("4", 2, dec!(200), None),  // cumulative 180 (new peak)
+        ];
+        let stats = compute_stats(&trades);
+        assert_eq!(stats.max_drawdown, Some(dec!(150)));
+    }
+
+    #[test]
+    fn no_realized_trades_leaves_drawdown_and_duration_empty() {
+        let stats = compute_stats(&[base_trade("1")]);
+        assert_eq!(stats.max_drawdown, None);
+        assert_eq!(stats.average_trade_duration_minutes, None);
+    }
+
+    #[test]
+    fn monthly_breakdown_groups_by_year_and_month_sorted_chronologically() {
+        let mut jan = closed_trade("1", 0, dec!(100), None);
+        jan.closed_at = Some(Utc.with_ymd_and_hms(2026, 1, 15, 10, 0, 0).unwrap());
+        let mut mar = closed_trade("2", 0, dec!(-40), None);
+        mar.closed_at = Some(Utc.with_ymd_and_hms(2026, 3, 5, 10, 0, 0).unwrap());
+        let mut jan2 = closed_trade("3", 0, dec!(20), None);
+        jan2.closed_at = Some(Utc.with_ymd_and_hms(2026, 1, 20, 10, 0, 0).unwrap());
+
+        let breakdown = compute_monthly_breakdown(&[mar, jan, jan2]);
+        assert_eq!(breakdown.len(), 2);
+        assert_eq!(breakdown[0].label, "Styczeń 2026");
+        assert_eq!(breakdown[0].trade_count, 2);
+        assert_eq!(breakdown[0].net_pnl, dec!(120));
+        assert_eq!(breakdown[1].label, "Marzec 2026");
+        assert_eq!(breakdown[1].net_pnl, dec!(-40));
+    }
+
+    #[test]
+    fn yearly_breakdown_groups_by_year_sorted_chronologically() {
+        let mut y2025 = closed_trade("1", 0, dec!(50), None);
+        y2025.closed_at = Some(Utc.with_ymd_and_hms(2025, 6, 1, 0, 0, 0).unwrap());
+        let mut y2026 = closed_trade("2", 0, dec!(-10), None);
+        y2026.closed_at = Some(Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap());
+
+        let breakdown = compute_yearly_breakdown(&[y2026, y2025]);
+        assert_eq!(breakdown.len(), 2);
+        assert_eq!(breakdown[0].label, "2025");
+        assert_eq!(breakdown[1].label, "2026");
+    }
+
+    #[test]
+    fn day_of_week_breakdown_always_returns_all_seven_days_in_order() {
+        let mut monday = closed_trade("1", 0, dec!(50), None);
+        // 2026-01-05 to poniedziałek.
+        monday.closed_at = Some(Utc.with_ymd_and_hms(2026, 1, 5, 10, 0, 0).unwrap());
+
+        let breakdown = compute_day_of_week_breakdown(&[monday]);
+        assert_eq!(breakdown.len(), 7);
+        assert_eq!(breakdown[0].label, "Poniedziałek");
+        assert_eq!(breakdown[0].trade_count, 1);
+        assert_eq!(breakdown[1].label, "Wtorek");
+        assert_eq!(breakdown[1].trade_count, 0);
+        assert_eq!(breakdown[6].label, "Niedziela");
     }
 }

@@ -96,8 +96,16 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
 - Zarządzana lista interwałów (`domain::interval`) - sześć wbudowanych (M1/M5/M15/M30/H1/H4,
   tylko ukrycie i reorder) + własne interwały użytkownika (dodanie, przemianowanie, ukrycie,
   archiwizacja/przywrócenie). Ekran "Interwały" w Ustawieniach.
+- Zakładka "Raporty" z 5 podraportami (Miesięczny, Roczny, Porównanie kont, Instrument,
+  Strategia) i wspólnym, lepkim paskiem filtrów (konto/instrument/strategia/interwał/rok/
+  miesiąc/kierunek/"Wyczyść") - jeden silnik metryk (`get_filtered_report`) używany przez
+  wszystkie naraz. Nowe metryki w `domain::trade_stats`: średni czas trwania transakcji,
+  maksymalne obsunięcie kapitału (drawdown), rozbicie miesięczne/roczne/wg dnia tygodnia.
 
 ### Changed
+
+- Krzywa kapitału (Dashboard, Raporty) narysowana teraz przez Recharts (gradient, tooltip z
+  datą i wynikiem) zamiast dotychczasowego ręcznego SVG.
 
 - Waluta konta ograniczona do enuma USD/EUR/GBP (domyślnie USD) zamiast dowolnego trzyliterowego
   kodu — konta założone przed tym ograniczeniem zachowują swoją walutę bez cichej migracji,
@@ -139,6 +147,10 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   scalany z pustym szablonem, więc brakujące pole dostaje poprawną pustą wartość zamiast `undefined`.
 - Ręcznie liczone placeholdery SQL w zapytaniu wstawiającym wersję instrumentu (47 pól)
   rozjeżdżały się z listą kolumn - zastąpione programowym generowaniem listy placeholderów.
+- Słupki wykresów wyniku poniżej zera (Raporty) nie renderowały się wcale - własny `shape` na
+  `<Bar>` przekazywał Recharts-owi ujemną wysokość prosto do `<rect>`, a SVG odmawia narysowania
+  elementu z ujemną wysokością/szerokością. Naprawione normalizacją (`Math.abs` + przesunięcie
+  `y`) przed narysowaniem.
 
 - Zakleszczenie mutexa w `SqliteAccountRepository::create` (brakujące zwolnienie blokady przed
   wywołaniem `self.get()`).

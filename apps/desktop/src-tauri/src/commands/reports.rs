@@ -1,6 +1,8 @@
 use tauri::State;
 
-use crate::application::reports::{AccountReport, ReportsService};
+use crate::application::reports::{
+    AccountComparisonRow, AccountReport, FilteredReport, ReportFilter, ReportsService,
+};
 use crate::error::AppError;
 use crate::state::{AppState, DbState};
 
@@ -19,4 +21,20 @@ pub fn get_account_report(
     account_id: String,
 ) -> Result<AccountReport, AppError> {
     require_db(&state)?.get_account_report(&account_id)
+}
+
+#[tauri::command]
+pub fn get_filtered_report(
+    state: State<'_, AppState>,
+    filter: ReportFilter,
+) -> Result<FilteredReport, AppError> {
+    require_db(&state)?.get_filtered_report(filter)
+}
+
+#[tauri::command]
+pub fn compare_accounts_report(
+    state: State<'_, AppState>,
+    account_ids: Vec<String>,
+) -> Result<Vec<AccountComparisonRow>, AppError> {
+    require_db(&state)?.compare_accounts(account_ids)
 }

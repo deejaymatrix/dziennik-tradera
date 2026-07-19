@@ -1,6 +1,6 @@
 # Postęp prac
 
-Ostatnia aktualizacja: 2026-07-19 (Faza 4 ukończona: zarządzanie interwałami zamiast wolnego pola tekstowego)
+Ostatnia aktualizacja: 2026-07-20 (Faza 9 ukończona: Raporty z Recharts, 5 podraportów - wykonana przed Fazą 5-8 na prośbę użytkownika)
 
 ## Cel 1.1 — Repozytorium, standardy i uruchomiony podgląd — ✅ ukończony
 
@@ -785,7 +785,84 @@ archive/restore/reorder_intervals`.
   zweryfikowane bezpośrednio) — bez żadnego pola `interval` (wolny tekst) w `TradeInput`.
 
 **Następny krok:** Faza 5 — uniwersalny Kosz (soft-delete dla kont, transakcji, strategii,
-własnych instrumentów/wersji, własnych interwałów, elementów zasad).
+własnych instrumentów/wersji, własnych interwałów, elementów zasad). **Zmiana kolejności na
+wyraźną prośbę użytkownika:** zamiast Fazy 5 jako następnej, wykonana została najpierw Faza 9
+(Raporty) — patrz poniżej. Fazy 5-8 pozostają nierozpoczęte i czekają w pierwotnej kolejności.
+
+### Faza 9 — Raporty: jedna zakładka, 5 podraportów, prawdziwe wykresy — ✅ ukończona
+
+**Uwaga o kolejności:** ta faza została wykonana PRZED Fazą 5-8 na wyraźną prośbę użytkownika
+("chyba mi bardziej zależy żebyś najpierw z raportami zaczął się bawić"). Fazy 5-8 nie zostały
+usunięte z planu 12 faz — czekają w oryginalnej kolejności.
+
+**Co działa:**
+
+- **Recharts** (React, MIT, bez CDN) zamiast dotychczasowego ręcznego SVG z Celu 1.6 -
+  `EquityCurveChart` przepisany na `AreaChart` (gradient wypełnienia, tooltip z datą i wynikiem,
+  używany teraz też na Dashboardzie, nie tylko w Raportach), nowy `GroupBarChart` (słupkowy,
+  kolorowanie zysk/strata przez własny `shape` na `<Bar>` - `<Cell>` jest przestarzałe w
+  Recharts 3, więc słupki poniżej zera renderowane przez normalizację ujemnej wysokości
+  `<rect>`, bo SVG odmawia narysowania elementu z ujemną wysokością).
+- **Rozbudowany silnik metryk** (`domain::trade_stats`): `average_trade_duration_minutes`
+  (średni czas między otwarciem i zamknięciem), `max_drawdown` (największe obsunięcie
+  peak-to-trough na krzywej skumulowanego wyniku), `compute_monthly_breakdown`/
+  `compute_yearly_breakdown` (grupowanie po dacie zamknięcia, sortowane chronologicznie -
+  inaczej niż istniejące rozbicia wg strategii/instrumentu, które sortują po wyniku),
+  `compute_day_of_week_breakdown` (zawsze wszystkie 7 dni Poniedziałek-Niedziela, nawet bez
+  transakcji danego dnia). Wszystkie zwracają istniejący typ `GroupBreakdown` (bez nowych
+  struktur) - jeden kształt danych dla każdego rozbicia w całej aplikacji.
+- **`ReportFilter`/`get_filtered_report`** (`application::reports`) - wspólny, jeden silnik
+  filtrowania (konto/instrument/strategia/interwał/kierunek/rok/miesiąc) używany przez wszystkie
+  podraporty na raz, żeby liczby nigdy się nie rozjechały między KPI/wykresami/tabelami. Rok/
+  miesiąc filtrują po dacie zamknięcia - transakcje bez `closed_at` (szkice/otwarte) są
+  wykluczone tylko, gdy filtr okresu jest aktywny. Osobna komenda `compare_accounts_report`
+  (statystyki całościowe per konto, bez filtrów wymiarów - konta mogą mieć różne waluty).
+- **Jedna zakładka "Raporty" z 5 podzakładkami**: Miesięczny, Roczny, Porównanie kont,
+  Instrument, Strategia - wspólny, lepki pasek filtrów (`ReportFilterBar`: konto/instrument/
+  strategia/interwał/rok/miesiąc/kierunek/"Wyczyść") nad zakładkami. Lista lat do wyboru liczona
+  niezależnie od aktywnego filtru roku (osobna "sonda" `get_filtered_report` tylko z `account_id`
+  przy zmianie konta), żeby wybranie roku nie zwężało też opcji samej listy lat.
+  - **Miesięczny/Roczny**: KPI + `GroupBarChart` + tabela (`BreakdownTable`, nowy wspólny
+    komponent) rozbicia po okresie - respektują też pozostałe wymiary filtru (instrument/
+    strategia/interwał/kierunek), więc "wynik miesięczny dla EURUSD" działa bez dodatkowego kodu.
+  - **Instrument/Strategia** (`ReportDimensionTab`, jeden wspólny szablon dla obu): bez wybranej
+    wartości pokazuje ranking (wykres + klikalna tabela), po kliknięciu wiersza pokazuje
+    szczegółowy widok (KPI, krzywa kapitału, rozbicie wg dnia tygodnia) scopowany do tej jednej
+    wartości - `report` jest już przefiltrowany przez backend, front nic nie przelicza. Przycisk
+    "Wróć do rankingu" czyści filtr.
+  - **Porównanie kont**: tabela (nie wykres - różne konta mogą mieć różne waluty, jeden wspólny
+    wykres słupkowy mieszający kwoty w różnych walutach byłby wprowadzający w błąd), sortowana
+    po wyniku netto malejąco, każdy wiersz z walutą właściwą dla danego konta.
+  - Wspólne komponenty: `ChartCard` (wrapper karty wykresu/tabeli), `StatCard` (już istniejący,
+    pełni rolę "KpiCard" z dokumentu), `GroupBarChart`, `BreakdownTable` - reużyte we wszystkich
+    5 podraportach zamiast duplikowania.
+
+**Przetestowane:**
+
+- Rust: **172 testy** przechodzi (`cargo test`), `cargo clippy -D warnings`/`cargo fmt --check`
+  czyste. Nowe testy: silnik metryk (średni czas trwania z/bez `opened_at`, maksymalne
+  obsunięcie na krzywej z kilkoma szczytami, rozbicie miesięczne/roczne sortowane chronologicznie
+  nie po wyniku, rozbicie wg dnia tygodnia zawsze 7 dni w ustalonej kolejności), filtrowany
+  raport (brak filtrów = identyczny wynik jak stary `get_account_report`, zawężanie po kierunku,
+  zawężanie po roku+miesiącu), porównanie kont (jeden wiersz per konto).
+- Frontend: `pnpm typecheck`/`eslint --max-warnings=0`/`prettier --check`/`test` (Vitest 13/13)
+  czyste.
+- Zweryfikowane wizualnie w przeglądarce (fałszywy most Tauri, realistyczne dane 2 kont w
+  różnych walutach, 2 instrumentów, 2 strategii, 3 miesięcy): wszystkie 5 zakładek renderują się
+  poprawnie z prawdziwymi wykresami Recharts, filtr wspólny działa (wybór instrumentu w karcie
+  "Instrument" ustawia filtr widoczny też w pasku), drill-down → "Wróć do rankingu" poprawnie
+  czyści wybór, Porównanie kont pokazuje oba konta z właściwymi walutami.
+- **Znaleziony i naprawiony błąd przy tej weryfikacji:** własny `shape` renderujący słupki
+  wykresu jako `<rect>` nie obsługiwał wartości ujemnych - Recharts przekazuje im ujemną
+  `height`, a SVG z definicji odmawia narysowania elementu z ujemną wysokością/szerokością
+  (słupek po prostu nie był widoczny, bez błędu w konsoli). Naprawione normalizacją: `Math.abs`
+  na wysokości + przesunięcie `y` o różnicę, gdy wysokość była ujemna.
+- **Znaleziony i naprawiony błąd gramatyczny:** podpowiedź pod rankingiem Instrument/Strategia
+  składała "dla jednego {dopełniacz}u" przez konkatenację, co dla "instrumentu" dawało
+  "instrumentuu". Naprawione przez przekazanie całej, poprawnie odmienionej podpowiedzi z miejsca
+  wywołania (`pickHint`) zamiast składania jej ze słowa w dopełniaczu.
+
+**Następny krok:** powrót do pierwotnej kolejności - Faza 5 (uniwersalny Kosz).
 
 ## Pozostałe cele Etapu 1
 

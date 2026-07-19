@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { BarChart2, ListPlus, SlidersHorizontal, Wallet } from "lucide-react";
 import { useAccountReport } from "../app/useAccountReport";
 import { formatMoney } from "../app/decimal";
+import { formatNumber, formatPercent, formatR } from "../app/reportFormat";
 import { Button } from "../ui/components/Button/Button";
 import { EmptyState } from "../ui/components/EmptyState/EmptyState";
 import { ErrorState } from "../ui/components/ErrorState/ErrorState";
@@ -15,22 +16,6 @@ import { StatCard } from "./StatCard";
 import styles from "./DashboardPage.module.css";
 
 const CHECKLIST_DISMISSED_KEY = "dziennik-tradera.dashboard-checklist-dismissed";
-
-function formatNumber(value: string | null, digits = 2): string {
-  if (value === null) {
-    return "—";
-  }
-  const num = Number(value);
-  return Number.isNaN(num) ? value : num.toFixed(digits);
-}
-
-function formatPercent(value: string | null): string {
-  return value === null ? "—" : `${formatNumber(value)}%`;
-}
-
-function formatR(value: string | null): string {
-  return value === null ? "—" : `${formatNumber(value)}R`;
-}
 
 export function DashboardPage(): ReactElement {
   const [dismissed, setDismissed] = useState<boolean>(
@@ -193,7 +178,10 @@ export function DashboardPage(): ReactElement {
 
                   <div className={styles.chartSection}>
                     <h2 className={styles.sectionTitle}>Krzywa kapitału</h2>
-                    <EquityCurveChart points={report.equity_curve} />
+                    <EquityCurveChart
+                      points={report.equity_curve}
+                      currency={selectedAccount.currency}
+                    />
                   </div>
                 </>
               )}

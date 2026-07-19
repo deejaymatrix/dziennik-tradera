@@ -21,6 +21,8 @@ export interface TradeStats {
   average_r: string | null;
   best_trade: string | null;
   worst_trade: string | null;
+  average_trade_duration_minutes: number | null;
+  max_drawdown: string | null;
 }
 
 export interface EquityPoint {
@@ -52,4 +54,32 @@ export interface AccountReport {
   calendar: DailyPnl[];
   by_strategy: GroupBreakdown[];
   by_instrument: GroupBreakdown[];
+}
+
+/** Wspólny filtr wszystkich podraportów zakładki "Raporty" - patrz application::reports::
+ * ReportFilter. `null` na każdym polu poza `account_id` oznacza brak zawężenia po tym wymiarze. */
+export interface ReportFilter {
+  account_id: string;
+  instrument_id: string | null;
+  strategy_id: string | null;
+  interval_id: string | null;
+  side: "buy" | "sell" | null;
+  year: number | null;
+  month: number | null;
+}
+
+export interface FilteredReport {
+  stats: TradeStats;
+  equity_curve: EquityPoint[];
+  calendar: DailyPnl[];
+  by_strategy: GroupBreakdown[];
+  by_instrument: GroupBreakdown[];
+  monthly: GroupBreakdown[];
+  yearly: GroupBreakdown[];
+  by_day_of_week: GroupBreakdown[];
+}
+
+export interface AccountComparisonRow {
+  account_id: string;
+  stats: TradeStats;
 }

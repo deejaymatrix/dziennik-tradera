@@ -200,6 +200,8 @@ pub fn run() {
             commands::trades::get_trade_balance_context,
             commands::trades::list_trade_audit_log,
             commands::reports::get_account_report,
+            commands::reports::get_filtered_report,
+            commands::reports::compare_accounts_report,
             commands::export::export_trades_csv,
             commands::export::export_trades_xlsx,
             commands::export::export_trades_pdf,
