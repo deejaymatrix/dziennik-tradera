@@ -84,6 +84,15 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   natężenie 1-5, notatka i jawna flaga "Nie uzupełniono" dla każdego momentu osobno. Zarządzana
   lista stanów emocjonalnych (12 wbudowanych startowych) w Ustawieniach - wbudowane stany można
   tylko ukryć, własne stany użytkownika można też usunąć w całości.
+- Zasady wejścia i zarządzania pozycją strategii jako zarządzane listy (nazwa, opis, wymagana/
+  opcjonalna - tylko wejście, aktywna/archiwalna, kolejność) zamiast wolnego tekstu - dodawanie,
+  reorder, archiwizacja bez usuwania, trwałe usunięcie, odrzucenie zduplikowanych nazw wśród
+  aktywnych zasad.
+- Checklist zasad strategii na karcie transakcji - migawka budowana świeżo przy wyborze innej
+  strategii, zachowana bez zmian gdy strategia się nie zmienia (nawet po edycji jej definicji).
+  Zasady wejścia oceniane jako Spełniona/Niespełniona/Nie dotyczy, zarządzania jako Wykonana/
+  Niewykonana/Nie dotyczy - niespełniona wymagana zasada nie blokuje zapisu, tylko oznacza
+  naruszenie planu.
 
 ### Changed
 
@@ -108,6 +117,9 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   nich nie odwołuje).
 - Zakładka/pole Tagi z formularza transakcji, filtrów i wyszukiwania - dane tagów zapisane przed
   tą zmianą pozostają nietknięte na historycznych transakcjach.
+- Sekcja "Zasady wyjścia" z formularza i aktywnego modelu strategii - stary wolny tekst (razem
+  z zawartością zasad wejścia/zarządzania sprzed strukturalizacji) zachowany wyłącznie do
+  wglądu, nie w aktywnym UI.
 
 ### Fixed
 

@@ -1,6 +1,6 @@
 # Postęp prac
 
-Ostatnia aktualizacja: 2026-07-19 (Faza 2 ukończona: saldo, tryb odczytu/Edytuj, konflikt wersji, dziennik zmian, emocje w 3 momentach)
+Ostatnia aktualizacja: 2026-07-19 (Faza 3 ukończona: zasady strategii jako listy, usunięcie zasad wyjścia, checklist w transakcji)
 
 ## Cel 1.1 — Repozytorium, standardy i uruchomiony podgląd — ✅ ukończony
 
@@ -684,6 +684,48 @@ properties of undefined (reading 'before')`). Naprawione scalaniem wczytanego sz
 **Następny krok:** Faza 3 — przebudowa zasad strategii (zasady wejścia + nowa sekcja zasad
 zarządzania pozycją, usunięcie zasad wyjścia z aktywnego modelu, checklist w transakcji jako
 migawka zasad z momentu wyboru strategii).
+
+### Faza 3 — Przebudowa zasad strategii, checklist w transakcji — ✅ ukończona
+
+**Co działa:**
+
+- Zasady wejścia i zarządzania pozycją to teraz zarządzane listy zamiast wolnego tekstu
+  (`domain::strategy::EntryRule`/`ManagementRule`: nazwa, opis opcjonalny, `required` - tylko
+  zasady wejścia, `archived`, stabilne id, kolejność). Ekran edycji strategii ma osobny edytor
+  list (`RuleListEditor`) dla obu sekcji: dodawanie, reorder przyciskami góra/dół, archiwizacja
+  bez usuwania, trwałe usunięcie. Walidacja odrzuca puste nazwy i zduplikowane nazwy (po
+  normalizacji wielkości liter) wśród aktywnych zasad tej samej listy.
+- Sekcja "Zasady wyjścia" usunięta z aktywnego modelu i formularza strategii - stary wolny
+  tekst (razem z zawartością zasad wejścia/zarządzania sprzed strukturalizacji) zachowany
+  wyłącznie do wglądu (`legacy_entry_rules_text`/`legacy_management_rules_text`/
+  `legacy_exit_rules_text`), nowe kolumny `entry_rules_json`/`management_rules_json` niosą
+  strukturalne dane (migracja `0006_strategy_rules`).
+- **Checklist zasad strategii na karcie transakcji** (`domain::strategy_checklist`): migawka
+  budowana świeżo (wszystkie pozycje "Nie dotyczy") przy wyborze innej strategii, zachowana bez
+  zmian dopóki strategia się nie zmienia - nawet jeśli w międzyczasie zmieniono jej definicję
+  (checklist niesie nazwę/`required` wprost, nie tylko odniesienie po id). Zasady wejścia:
+  Spełniona/Niespełniona/Nie dotyczy (wymagane oznaczone gwiazdką); zarządzania: Wykonana/
+  Niewykonana/Nie dotyczy. Niespełniona wymagana zasada NIE blokuje zapisu - oznacza tylko
+  naruszenie planu.
+- Zmiany w checkliście trafiają też do lokalnego dziennika zmian (zwięzłe podsumowanie, nie
+  pełny zrzut JSON).
+
+**Przetestowane:**
+
+- Rust: 149 testów przechodzi (`cargo test`), `cargo clippy -D warnings`/`cargo fmt --check`
+  czyste. Nowe testy: walidacja zasad strategii (pusta nazwa, duplikaty aktywnych nazw
+  case-insensitive, zezwolenie na duplikat gdy jedna kopia archiwalna), repozytorium strategii
+  (round-trip zasad wejścia/zarządzania, zachowanie starego wolnego tekstu przy aktualizacji
+  nowych kolumn JSON).
+- Frontend: `pnpm typecheck`/`lint`/`format:check`/`test` (Vitest 13/13) czyste.
+- Zweryfikowane w przeglądarce (fałszywy most Tauri): edycja strategii z dwiema zasadami
+  wejścia (jedna wymagana, jedna opcjonalna) i jedną zasadą zarządzania - poprawne wartości
+  pól/checkboxów po otwarciu, poprawny payload zapisu (bez `exit_rules`); na nowej transakcji
+  wybór strategii generuje checklistę z poprawnymi etykietami statusu per sekcja i gwiazdką
+  przy wymaganej zasadzie, zmiana statusu i zapis niosą poprawny payload.
+
+**Następny krok:** Faza 4 — zarządzanie interwałami (lista wbudowanych M1/M5/M15/M30/H1/H4 +
+własne interwały użytkownika, zamiast wolnego pola tekstowego na transakcji).
 
 ## Pozostałe cele Etapu 1
 
