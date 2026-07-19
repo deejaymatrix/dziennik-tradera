@@ -5,9 +5,12 @@ import { invokeCommand } from "../app/invokeCommand";
 import type { AccountWithBalance, NewAccountInput, UpdateAccountInput } from "../app/types/account";
 import { Button } from "../ui/components/Button/Button";
 import { Modal } from "../ui/components/Modal/Modal";
+import { Select } from "../ui/components/Select/Select";
 import { TextField } from "../ui/components/TextField/TextField";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import styles from "./AccountFormModal.module.css";
+
+const SUPPORTED_CURRENCIES = ["USD", "EUR", "GBP"];
 
 export interface AccountFormModalProps {
   open: boolean;
@@ -34,6 +37,16 @@ export function AccountFormModal({
   const [description, setDescription] = useState(() => account?.description ?? "");
   const [accountType, setAccountType] = useState(() => account?.account_type ?? "");
   const [currency, setCurrency] = useState(() => account?.currency ?? "USD");
+  const isCurrencySupported = SUPPORTED_CURRENCIES.includes(currency);
+  const currencyOptions = isCurrencySupported
+    ? SUPPORTED_CURRENCIES.map((code) => ({ value: code, label: code }))
+    : [
+        { value: currency, label: `${currency} (nieobsługiwana — wybierz nową walutę)` },
+        ...SUPPORTED_CURRENCIES.map((code) => ({ value: code, label: code })),
+      ];
+  const currencyHint = isCurrencySupported
+    ? undefined
+    : "To konto ma walutę spoza obecnie obsługiwanych (USD/EUR/GBP). Wybierz nową walutę świadomie — zmiana nie jest wykonywana automatycznie.";
   const [initialBalance, setInitialBalance] = useState(() => account?.initial_balance ?? "0");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -103,13 +116,13 @@ export function AccountFormModal({
           value={accountType}
           onChange={(e) => setAccountType(e.target.value)}
         />
-        <TextField
+        <Select
           label="Waluta"
           required
-          maxLength={3}
           value={currency}
-          onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-          hint="Trzyliterowy kod, np. USD"
+          onChange={(e) => setCurrency(e.target.value)}
+          options={currencyOptions}
+          {...(currencyHint ? { hint: currencyHint } : {})}
         />
         {!isEdit && (
           <TextField

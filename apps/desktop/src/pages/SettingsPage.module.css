@@ -47,3 +47,22 @@
   font-size: var(--font-size-sm);
   margin: 0;
 }
+
+.updateCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.updateVersion {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.updateNotes {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  white-space: pre-wrap;
+}

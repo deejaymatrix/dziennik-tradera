@@ -7,6 +7,9 @@ export type { IconButtonProps } from "./components/IconButton/IconButton";
 export { TextField } from "./components/TextField/TextField";
 export type { TextFieldProps } from "./components/TextField/TextField";
 
+export { Textarea } from "./components/Textarea/Textarea";
+export type { TextareaProps } from "./components/Textarea/Textarea";
+
 export { Select } from "./components/Select/Select";
 export type { SelectProps, SelectOption } from "./components/Select/Select";
 

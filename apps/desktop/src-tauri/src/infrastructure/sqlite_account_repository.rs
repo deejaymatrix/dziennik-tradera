@@ -122,14 +122,21 @@ impl AccountRepository for SqliteAccountRepository {
     }
 
     fn update(&self, id: &str, input: &UpdateAccount) -> Result<Account, AppError> {
-        input.validate()?;
-
         let mut conn = self
             .conn
             .lock()
             .expect("mutex bazy danych zatruty (poprzedni panik)");
         let tx = conn.transaction()?;
         let now = Utc::now();
+
+        let existing_currency: String = tx
+            .query_row(
+                "SELECT currency FROM accounts WHERE id = ?1",
+                rusqlite::params![id],
+                |row| row.get(0),
+            )
+            .map_err(|_| AppError::NotFound(format!("Nie znaleziono konta o id {id}.")))?;
+        input.validate_with_existing_currency(&existing_currency)?;
 
         let affected = tx.execute(
             "UPDATE accounts SET name = ?1, description = ?2, account_type = ?3, currency = ?4, updated_at = ?5 WHERE id = ?6",
@@ -292,6 +299,57 @@ mod tests {
 
         let result = repo.update("nieistniejace-id", &update);
         assert!(matches!(result, Err(AppError::NotFound(_))));
+    }
+
+    fn insert_account_with_legacy_currency(
+        conn_arc: &Arc<Mutex<Connection>>,
+        currency: &str,
+    ) -> String {
+        let mut conn = conn_arc.lock().expect("lock");
+        let tx = conn.transaction().expect("begin tx");
+        let id = Uuid::now_v7().to_string();
+        let now = Utc::now();
+        tx.execute(
+            "INSERT INTO accounts (id, name, description, account_type, currency, initial_balance, created_at, updated_at, archived_at)
+             VALUES (?1, 'Konto sprzed migracji', NULL, NULL, ?2, '100', ?3, ?3, NULL)",
+            rusqlite::params![id, currency, now.to_rfc3339()],
+        )
+        .expect("insert legacy account");
+        tx.commit().expect("commit");
+        id
+    }
+
+    #[test]
+    fn update_preserves_unchanged_legacy_currency_without_forcing_migration() {
+        let (repo, conn_arc, _dir) = repo_with_fresh_db();
+        let id = insert_account_with_legacy_currency(&conn_arc, "PLN");
+
+        let update = UpdateAccount {
+            name: "Nowa nazwa".to_string(),
+            description: None,
+            account_type: None,
+            currency: "PLN".to_string(),
+        };
+        let updated = repo
+            .update(&id, &update)
+            .expect("update should not force a currency migration");
+        assert_eq!(updated.currency, "PLN");
+        assert_eq!(updated.name, "Nowa nazwa");
+    }
+
+    #[test]
+    fn update_rejects_changing_legacy_currency_to_another_unsupported_one() {
+        let (repo, conn_arc, _dir) = repo_with_fresh_db();
+        let id = insert_account_with_legacy_currency(&conn_arc, "PLN");
+
+        let update = UpdateAccount {
+            name: "Nowa nazwa".to_string(),
+            description: None,
+            account_type: None,
+            currency: "CHF".to_string(),
+        };
+        let result = repo.update(&id, &update);
+        assert!(matches!(result, Err(AppError::Validation(_))));
     }
 
     #[test]

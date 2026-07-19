@@ -13,10 +13,17 @@ use std::sync::{Arc, Mutex};
 use tauri::Manager;
 
 use application::accounts::AccountsService;
+use application::backup::BackupService;
+use application::export::ExportService;
 use application::instruments::InstrumentsService;
+use application::reports::ReportsService;
+use application::strategies::StrategiesService;
+use application::trades::TradesService;
 use infrastructure::sqlite_account_repository::SqliteAccountRepository;
 use infrastructure::sqlite_cash_operation_repository::SqliteCashOperationRepository;
 use infrastructure::sqlite_instrument_repository::SqliteInstrumentRepository;
+use infrastructure::sqlite_strategy_repository::SqliteStrategyRepository;
+use infrastructure::sqlite_trade_repository::SqliteTradeRepository;
 use state::{AppState, DbState};
 
 fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
@@ -30,6 +37,24 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
 
     let db_path = app_data_dir.join(db::APP_DB_FILENAME);
     let backup_dir = app_data_dir.join("backups");
+
+    match infrastructure::backup_archive::apply_pending_restore_if_present(
+        app_data_dir,
+        &db_path,
+        &backup_dir,
+        env!("CARGO_PKG_VERSION"),
+    ) {
+        Ok(true) => logging::log_info(
+            "db_init",
+            "zastosowano oczekujące przywrócenie kopii zapasowej z poprzedniej sesji",
+        ),
+        Ok(false) => {}
+        Err(err) => {
+            let reason = format!("przywrócenie kopii zapasowej nie powiodło się: {err}");
+            logging::log_error("db_init", &err);
+            return DbState::Failed { reason };
+        }
+    }
 
     let mut conn = match db::connection::open(&db_path) {
         Ok(conn) => conn,
@@ -61,25 +86,52 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
     }
 
     let conn = Arc::new(Mutex::new(conn));
-    let accounts = AccountsService::new(
+    let accounts = Arc::new(AccountsService::new(
         Arc::new(SqliteAccountRepository::new(conn.clone())),
         Arc::new(SqliteCashOperationRepository::new(conn.clone())),
+    ));
+    let instruments = Arc::new(InstrumentsService::new(Arc::new(
+        SqliteInstrumentRepository::new(conn.clone()),
+    )));
+    let strategies = Arc::new(StrategiesService::new(Arc::new(
+        SqliteStrategyRepository::new(conn.clone()),
+    )));
+    let trades = TradesService::new(
+        Arc::new(SqliteTradeRepository::new(conn.clone())),
+        accounts.clone(),
+        instruments.clone(),
+        strategies.clone(),
     );
-    let instruments =
-        InstrumentsService::new(Arc::new(SqliteInstrumentRepository::new(conn.clone())));
+    let reports = ReportsService::new(Arc::new(SqliteTradeRepository::new(conn.clone())));
+    let export = ExportService::new(
+        Arc::new(SqliteTradeRepository::new(conn.clone())),
+        accounts.clone(),
+    );
+    let backup = BackupService::new(conn.clone(), app_data_dir.to_path_buf());
 
     DbState::Ready {
         conn,
         db_path,
         accounts,
         instruments,
+        strategies,
+        trades,
+        reports,
+        export,
+        backup,
     }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
+            #[cfg(desktop)]
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
+
             let app_data_dir = app
                 .path()
                 .app_data_dir()
@@ -100,10 +152,35 @@ pub fn run() {
             commands::accounts::create_cash_operation,
             commands::accounts::list_cash_operations,
             commands::instruments::create_instrument,
+            commands::instruments::get_instrument,
             commands::instruments::list_instruments,
-            commands::instruments::update_instrument,
-            commands::instruments::deactivate_instrument,
-            commands::instruments::activate_instrument,
+            commands::instruments::update_instrument_version,
+            commands::instruments::reset_instrument_to_factory,
+            commands::instruments::set_instrument_visibility,
+            commands::instruments::set_instruments_visibility_bulk,
+            commands::instruments::reorder_instruments,
+            commands::instruments::reset_instrument_visibility_to_default,
+            commands::instruments::delete_instrument,
+            commands::strategies::create_strategy,
+            commands::strategies::get_strategy,
+            commands::strategies::list_strategies,
+            commands::strategies::update_strategy,
+            commands::strategies::duplicate_strategy,
+            commands::strategies::archive_strategy,
+            commands::strategies::restore_strategy,
+            commands::trades::preview_trade,
+            commands::trades::create_trade,
+            commands::trades::get_trade,
+            commands::trades::list_trades,
+            commands::trades::update_trade,
+            commands::trades::soft_delete_trade,
+            commands::trades::restore_trade,
+            commands::reports::get_account_report,
+            commands::export::export_trades_csv,
+            commands::export::export_trades_xlsx,
+            commands::export::export_trades_pdf,
+            commands::backup::create_backup,
+            commands::backup::prepare_backup_restore,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -19,6 +19,29 @@
   margin: 0;
 }
 
+.technicalInfo {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+
+.summary dt {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.summary dd {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
 .actions {
   display: flex;
   justify-content: flex-end;

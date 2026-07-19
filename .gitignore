@@ -43,5 +43,11 @@ Thumbs.db
 coverage/
 .vitest-cache/
 
+# Klucze podpisywania aktualizacji (Ed25519) - NIGDY nie commitować.
+# Prawdziwy klucz prywatny trzymany jest poza repozytorium (C:\Users\<user>\.tauri\), to
+# tylko dodatkowe zabezpieczenie na wypadek pomyłkowego wygenerowania go w repo.
+*.key
+*.key.pub
+
 # TypeScript incremental build info
 *.tsbuildinfo

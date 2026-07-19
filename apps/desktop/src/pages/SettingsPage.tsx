@@ -1,7 +1,9 @@
 import type { ReactElement } from "react";
 import { useTheme } from "../app/ThemeProvider";
 import { useTauriQuery, type TauriQueryState } from "../app/useTauriQuery";
+import { useUpdater } from "../app/useUpdater";
 import type { AppStatus, DatabaseStatus } from "../app/tauriTypes";
+import { Button } from "../ui/components/Button/Button";
 import { Switch } from "../ui/components/Switch/Switch";
 import styles from "./SettingsPage.module.css";
 
@@ -37,6 +39,92 @@ function renderDatabaseStatus(state: TauriQueryState<DatabaseStatus>): string {
     : `otwarta, ALE kontrola integralności nie powiodła się (${db.path})`;
 }
 
+function UpdateSection(): ReactElement {
+  const { state, checkForUpdates, downloadAndInstall, restartNow } = useUpdater();
+
+  return (
+    <section className={styles.section} aria-labelledby="settings-updates">
+      <h2 id="settings-updates" className={styles.sectionTitle}>
+        Aktualizacje
+      </h2>
+
+      {(state.kind === "idle" || state.kind === "error") && (
+        <div className={styles.row}>
+          <span className={styles.placeholderNote}>
+            {state.kind === "error"
+              ? `Błąd: ${state.message}`
+              : "Sprawdź, czy dostępna jest nowa wersja."}
+          </span>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              void checkForUpdates();
+            }}
+          >
+            Sprawdź aktualizacje
+          </Button>
+        </div>
+      )}
+
+      {state.kind === "checking" && <p className={styles.placeholderNote}>Sprawdzanie...</p>}
+
+      {state.kind === "up-to-date" && (
+        <div className={styles.row}>
+          <span className={styles.placeholderNote}>Masz najnowszą wersję.</span>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              void checkForUpdates();
+            }}
+          >
+            Sprawdź ponownie
+          </Button>
+        </div>
+      )}
+
+      {state.kind === "available" && (
+        <div className={styles.updateCard}>
+          <p className={styles.updateVersion}>
+            Dostępna wersja <strong>{state.update.version}</strong> (obecna:{" "}
+            {state.update.currentVersion})
+          </p>
+          {state.update.body && <p className={styles.updateNotes}>{state.update.body}</p>}
+          <Button
+            variant="primary"
+            onClick={() => {
+              void downloadAndInstall();
+            }}
+          >
+            Pobierz i zainstaluj
+          </Button>
+        </div>
+      )}
+
+      {state.kind === "downloading" && (
+        <p className={styles.placeholderNote}>
+          Pobieranie...{state.progress !== null ? ` ${state.progress}%` : ""}
+        </p>
+      )}
+
+      {state.kind === "ready-to-restart" && (
+        <div className={styles.row}>
+          <span className={styles.placeholderNote}>
+            Aktualizacja pobrana. Uruchom aplikację ponownie, aby ją zastosować.
+          </span>
+          <Button
+            variant="primary"
+            onClick={() => {
+              void restartNow();
+            }}
+          >
+            Uruchom ponownie
+          </Button>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function SettingsPage(): ReactElement {
   const { theme, toggleTheme } = useTheme();
   const { state: appStatus } = useTauriQuery<AppStatus>("get_app_status");
@@ -53,21 +141,7 @@ export function SettingsPage(): ReactElement {
         </div>
       </section>
 
-      <section className={styles.section} aria-labelledby="settings-data">
-        <h2 id="settings-data" className={styles.sectionTitle}>
-          Dane i kopie
-        </h2>
-        <p className={styles.placeholderNote}>Eksport i backup pojawią się w Celu 1.7.</p>
-      </section>
-
-      <section className={styles.section} aria-labelledby="settings-updates">
-        <h2 id="settings-updates" className={styles.sectionTitle}>
-          Aktualizacje
-        </h2>
-        <p className={styles.placeholderNote}>
-          Produkcyjna autoaktualizacja pojawi się w Celu 1.8.
-        </p>
-      </section>
+      <UpdateSection />
 
       <section className={styles.section} aria-labelledby="settings-diagnostics">
         <h2 id="settings-diagnostics" className={styles.sectionTitle}>

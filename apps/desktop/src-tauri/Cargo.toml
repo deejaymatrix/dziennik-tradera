@@ -27,7 +27,16 @@ uuid = { version = "1.24.0", features = ["v7", "serde"] }
 thiserror = "2.0.18"
 chrono = { version = "0.4.45", features = ["serde"] }
 sha2 = "0.11.0"
+csv = "1.4.0"
+rust_xlsxwriter = "0.96.0"
+zip = "8.6.0"
+tauri-plugin-dialog = "2.7.2"
+lopdf = "0.44.0"
+tempfile = "3.27.0"
+tauri-plugin-process = "2.3.1"
 
 [dev-dependencies]
 rust_decimal_macros = "1.40.0"
-tempfile = "3.27.0"
+
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-updater = "2.10.1"

@@ -8,10 +8,10 @@
 | 1.2 | Baza danych SQLite, migracje wersjonowane, repozytoria, WAL, kopia przed migracją    | ✅ ukończony |
 | 1.3 | Nowy system wizualny (tokeny, komponenty) i nawigacja                                | ✅ ukończony |
 | 1.4 | Konta, operacje finansowe (wpłaty/wypłaty/korekty), biblioteka instrumentów          | ✅ ukończony |
-| 1.5 | Strategie użytkownika (start pusty) i pełny formularz transakcji                     | ⬜           |
-| 1.6 | Historia transakcji, dashboard, kalendarz, podstawowe raporty                        | ⬜           |
-| 1.7 | Eksport CSV/XLSX/PDF, pełny backup `.dtjbackup` z weryfikacją i restore              | ⬜           |
-| 1.8 | Produkcyjna autoaktualizacja (Tauri updater, podpis Ed25519, GitHub Releases)        | ⬜           |
+| 1.5 | Strategie użytkownika (start pusty) i pełny formularz transakcji                     | ✅ ukończony |
+| 1.6 | Historia transakcji, dashboard, kalendarz, podstawowe raporty                        | ✅ ukończony |
+| 1.7 | Eksport CSV/XLSX/PDF, pełny backup `.dtjbackup` z weryfikacją i restore              | ✅ ukończony |
+| 1.8 | Produkcyjna autoaktualizacja (Tauri updater, podpis Ed25519, GitHub Releases)        | ✅ ukończony |
 | 1.9 | Instalator NSIS `.exe`, smoke test na czystym Windows 10/11                          | ⬜           |
 
 Etap 1 jest ukończony dopiero, gdy spełnione są **wszystkie** kryteria z sekcji 17

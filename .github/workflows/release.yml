@@ -1,0 +1,41 @@
+name: Release
+
+# Uruchamia się po wypchnięciu tagu w formacie "v1.2.3" (np. `git tag v1.0.0 && git push --tags`).
+# Buduje, PODPISUJE (klucz Ed25519 z sekretów repozytorium) i publikuje instalator Windows
+# jako wydanie robocze (draft) na GitHub Releases, razem z manifestem `latest.json`, którego
+# szuka wtyczka autoaktualizacji aplikacji (patrz docs/adr/0005-autoaktualizacja.md).
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Instalacja zależności
+        run: pnpm install --frozen-lockfile
+
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: "Dziennik Tradera ${{ github.ref_name }}"
+          releaseBody: "Zobacz CHANGELOG.md w repozytorium dla szczegółów tej wersji."
+          releaseDraft: true

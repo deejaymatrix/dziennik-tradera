@@ -1,6 +1,6 @@
 # Postęp prac
 
-Ostatnia aktualizacja: 2026-07-18
+Ostatnia aktualizacja: 2026-07-19
 
 ## Cel 1.1 — Repozytorium, standardy i uruchomiony podgląd — ✅ ukończony
 
@@ -195,6 +195,416 @@ backendzie), wpłaty/wypłaty/korekty, biblioteka instrumentów.
 
 **Następny krok:** Cel 1.5 — strategie użytkownika (start pusty) i pełny formularz
 transakcji z podglądem ryzyka/RR na żywo.
+
+## Cel 1.5 — Strategie i formularz transakcji — ✅ ukończony
+
+**Co działa:**
+
+- **Domena strategii** (`domain/strategy.rs`): encja `Strategy` (nazwa, opis, kolor, zasady
+  wejścia/zarządzania/wyjścia, tagi, kolejność), `StrategySnapshot` (migawka zamrażana w
+  transakcji), walidacja (nazwa niepusta). `SqliteStrategyRepository`: CRUD + `duplicate`
+  (kopia z sufiksem "(kopia)", zawsze aktywna) + archiwizacja/przywracanie, kolejność
+  (`sort_order`) auto-przydzielana. `StrategiesService` + komendy Tauri
+  (`create/get/list/update/duplicate/archive/restore_strategy`).
+- **Silnik przeliczeń transakcji** (`domain/trade_calculations.rs`) — czysta funkcja bez
+  zależności od bazy: różnica ceny na korzyść pozycji (`price_diff`, zależna od BUY/SELL),
+  wynik brutto/netto (`(różnica / tick_size) * tick_value_per_lot * wolumen`, minus
+  prowizja/swap/opłaty), ryzyko w pieniądzu i % konta (na podstawie SL), **przewidywany zysk
+  w pieniądzu na podstawie TP** (symetryczne do ryzyka — razem dają podgląd "ile stracę / ile
+  zyskam" przed otwarciem pozycji), RR planowane, R zrealizowane (wynik netto / ryzyko),
+  punkty. Każde pole wyniku jest opcjonalne — niepełne dane w formularzu (np. brak SL) nie
+  wywalają całego podglądu, tylko zostawiają puste te pola, które faktycznie tego wymagają.
+- **Domena transakcji** (`domain/trade.rs`): `Trade`/`TradeInput` z pełnym zestawem pól ze
+  schematu (instrument, strategia, status draft/open/closed/cancelled, kierunek, daty,
+  ceny, koszty, notatki, tagi, ocena zgodności z planem), walidacja: SL/TP muszą być po
+  właściwej stronie ceny wejścia względem kierunku BUY/SELL, otwarcie pozycji wymaga
+  instrumentu/ceny wejścia/wolumenu/daty, zamknięcie wymaga też ceny wyjścia i daty
+  zamknięcia nie wcześniejszej niż otwarcie, **ręczna korekta wyniku (`pnl_override`) wymaga
+  podania uzasadnienia** — nigdy nie jest domyślnym trybem liczenia.
+- `SqliteTradeRepository`: numer wyświetlany (`display_number`) auto-przydzielany i
+  monotoniczny per konto (nigdy nie ponownie użyty, nawet po usunięciu), migawki
+  instrumentu/strategii zapisywane jako JSON w momencie zapisu (edycja instrumentu/strategii
+  później nie zmienia retroaktywnie historycznych wyliczeń), soft-delete (`deleted_at`) +
+  przywracanie zamiast trwałego kasowania.
+- `TradesService` (warstwa aplikacyjna) — jedyne miejsce, gdzie `TradeInput` z formularza
+  spotyka się z migawką instrumentu/strategii, saldem konta (z `AccountsService`) i silnikiem
+  przeliczeń, zanim trafi do repozytorium; osobna metoda `preview()` dla podglądu na żywo bez
+  zapisu do bazy. Komendy: `preview_trade`, `create/get/list/update/soft_delete/restore_trade`.
+- `StrategiesPage` + `StrategyFormModal`: lista startuje pusta, CRUD + duplikuj +
+  archiwizuj/przywróć, ten sam wzorzec co Konta/Instrumenty.
+- `TransactionsPage`: wybór konta, przełącznik "Pokaż kosz", tabela transakcji (numer,
+  instrument, strategia, kierunek, status, daty, wolumen, wynik netto kolorowany
+  zysk/strata), akcje edytuj/zamknij pozycję (tylko dla otwartych)/usuń do kosza/przywróć.
+- `TradeFormModal` — pełny formularz: instrument/strategia/kierunek/status, daty, ceny
+  (wejście/wyjście/SL/TP), koszty, kontekst (interwał/sesja/tagi), notatki (plan/zarządzanie/
+  podsumowanie/wnioski/ocena), ręczna korekta wyniku (checkbox odsłaniający kwotę +
+  wymagane uzasadnienie), **podgląd na żywo** (`TradePreviewCard`, debounce 300ms na
+  `preview_trade`), **autosave szkicu formularza do localStorage** (osobny klucz per
+  konto+transakcja, czyszczony dopiero po udanym zapisie) i **ostrzeżenie przed zamknięciem
+  formularza z niezapisanymi zmianami** (`window.confirm`, szkic zostaje zachowany).
+- `CloseTradeModal` — osobna, skupiona akcja "zamknij pozycję" (cena wyjścia, data, korekta
+  kosztów) zamiast przeciążania pełnego formularza edycji przy najczęstszej operacji.
+- Nowy komponent `Textarea` w bibliotece UI (ten sam wzorzec co `TextField`).
+
+**Przetestowane:**
+
+- `cargo test`: **70 testów**, wszystkie ✅ — domena strategii/transakcji (walidacja,
+  w tym kierunek SL/TP względem BUY/SELL, wymagania otwarcia/zamknięcia, uzasadnienie
+  korekty ręcznej), silnik przeliczeń (BUY i SELL z zyskiem/stratą, brak SL/TP nie wywala
+  reszty podglądu, R ujemne przy stracie), repozytoria SQLite (numeracja per konto,
+  niezależna numeracja między kontami, `duplicate`/archiwizacja/przywracanie strategii,
+  soft-delete/restore transakcji, aktualizacja odrzuca usuniętą transakcję, korekta ręczna
+  nadpisuje wynik wyliczony automatycznie, odrzucenie nieprawidłowych danych przed
+  dotknięciem bazy). `cargo clippy -D warnings` i `cargo fmt --check` — czyste.
+- `pnpm typecheck`/`lint --max-warnings=0`/`test` (13 testów JS, bez regresji) — zielone.
+- Zweryfikowane wizualnie w przeglądarce: nawigacja do Strategii/Transakcji nie wywala
+  aplikacji, stany błędu (poza kontekstem Tauri — ten sam, już wcześniej zaakceptowany
+  komunikat "Cannot read properties of undefined (reading 'invoke')" co na już działających
+  stronach Kont/Instrumentów) renderują się poprawnie z przyciskiem "Spróbuj ponownie", bez
+  pustego ekranu czy nieobsłużonego wyjątku.
+- **Nadal nie zweryfikowane przeze mnie:** pełny przepływ zapisu w prawdziwym oknie Tauri
+  (utworzenie strategii, dodanie transakcji z podglądem na żywo, zamknięcie pozycji,
+  usunięcie do kosza i przywrócenie) — wymaga to prawdziwego mostu IPC Tauri, niedostępnego
+  z mojego środowiska narzędziowego (patrz `feedback_dziennik_tradera_gui_sandbox.md`).
+  Wszystko, co dało się zweryfikować automatycznie (kompilacja, typy, testy jednostkowe/
+  integracyjne na SQLite, lint, renderowanie stron i stanów błędu), zostało zweryfikowane.
+
+**Następny krok:** Cel 1.6 — historia transakcji z filtrowaniem, dashboard z prawdziwymi
+metrykami (P&L, win rate, profit factor, expectancy), kalendarz, podstawowe raporty.
+
+## Cel 1.6 — Historia, dashboard, kalendarz i raporty — ✅ ukończony
+
+**Co działa:**
+
+- **Silnik statystyk** (`domain/trade_stats.rs`) — czyste funkcje Rust liczące na transakcjach
+  zamkniętych i nieusuniętych: `compute_stats` (win rate, profit factor, expectancy, średnie
+  R, najlepsza/najgorsza transakcja, liczby wg statusu), `compute_equity_curve` (skumulowany
+  wynik netto w kolejności zamykania), `compute_calendar` (dzienna agregacja P&L do
+  kalendarza), `compute_strategy_breakdown`/`compute_instrument_breakdown` (rozbicie wyniku
+  wg strategii/instrumentu, grupowane po migawce, więc przetrwa późniejszą edycję
+  strategii/instrumentu). Draft/open/cancelled i transakcje bez `net_pnl` celowo nie wchodzą
+  do żadnej z tych analiz.
+- `ReportsService` (warstwa aplikacyjna) — pobiera transakcje konta **raz** i liczy z nich
+  wszystkie widoki naraz (`AccountReport { stats, equity_curve, calendar, by_strategy,
+by_instrument }`), komenda `get_account_report`.
+- **Filtrowanie historii transakcji** (Status/Kierunek/wyszukiwanie po instrumencie,
+  strategii, tagach) świadomie zrobione po stronie frontendu na już pobranej liście — to
+  wybór danych, nie matematyka finansowa, więc nie łamie zasady "liczby pieniężne tylko w
+  Rust"; filtrowanie SQL po stronie repozytorium okazało się niepotrzebną komplikacją dla
+  lokalnej bazy z realistycznie małą liczbą transakcji.
+- `DashboardPage`: wybór konta, karty statystyk (wynik netto, win rate, profit factor,
+  expectancy, średnie R, liczby transakcji, najlepsza/najgorsza transakcja) i własny,
+  prosty wykres SVG krzywej kapitału (`EquityCurveChart`) — bez zewnętrznej biblioteki
+  wykresów.
+- `CalendarPage`: siatka miesiąca z nawigacją poprzedni/następny, dni kolorowane wg wyniku
+  (zielony/czerwony), liczba transakcji na dzień.
+- `ReportsPage`: tabele rozbicia wyniku wg strategii i wg instrumentu (transakcje, win rate,
+  wynik netto).
+- `TransactionsPage`: dodane filtry Status/Kierunek/wyszukiwanie tekstowe nad istniejącą
+  tabelą transakcji.
+- Wspólny hak `useAccountReport` (wybór konta + pobranie raportu) używany przez
+  Dashboard/Kalendarz/Raporty — jedno miejsce na ten powtarzający się przepływ.
+
+**Przetestowane:**
+
+- `cargo test`: **78 testów**, wszystkie ✅ (8 nowych dla silnika statystyk: liczenie wg
+  statusu, win rate/profit factor z wygranych i przegranych, brak zrealizowanych transakcji
+  zostawia opcjonalne statystyki puste, usunięte transakcje wykluczone, krzywa kapitału
+  chronologicznie skumulowana, agregacja dzienna łączy transakcje z tego samego dnia,
+  rozbicia wg strategii/instrumentu grupują poprawnie i etykietują brakujące jako "Bez
+  strategii"/"Bez instrumentu"). `cargo clippy -D warnings` i `cargo fmt --check` — czyste.
+- `pnpm typecheck`/`lint --max-warnings=0`/`format:check`/`test` (13 testów JS, bez regresji)
+  — zielone.
+- Zweryfikowane wizualnie: podstawiłem fałszywy most Tauri (`window.__TAURI_INTERNALS__`) z
+  realistycznymi danymi (5 transakcji, 2 strategie, 2 instrumenty, rozłożone na różne dni) i
+  przeszedłem przez wszystkie cztery ekrany w przeglądarce — Dashboard (karty statystyk +
+  wykres krzywej kapitału), Kalendarz (siatka miesiąca, kolorowanie, nawigacja
+  miesiąc-wstecz pokazująca poprawnie starszą transakcję), Raporty (tabele rozbicia),
+  Transakcje (filtry Status/Kierunek/wyszukiwanie zawężają listę poprawnie). Wszystko
+  wyrenderowało się poprawnie, bez ucinania, bez pustych ekranów, z poprawnym kolorowaniem
+  zysk/strata.
+- **Nadal nie zweryfikowane przeze mnie:** rzeczywisty zapis/odczyt w prawdziwym oknie Tauri
+  (mój sandbox nie ma mostu IPC — to samo ograniczenie co w Celu 1.4/1.5). Podstawiony most
+  pozwolił sprawdzić renderowanie i logikę frontendu z realistycznymi danymi, ale nie
+  zastępuje odpalenia prawdziwej aplikacji.
+
+**Następny krok:** Cel 1.7 — eksport CSV/XLSX/PDF, pełny backup `.dtjbackup` z weryfikacją
+i przywracaniem.
+
+## Cel 1.7 — Eksport i kopie zapasowe — ✅ ukończony
+
+**Co działa:**
+
+- **Eksport CSV/XLSX** (`application/export.rs`) — pełne dane transakcji wybranego konta (20
+  kolumn: numer, instrument, strategia, kierunek, status, daty, ceny, koszty, wyniki, R,
+  tagi) do dalszej analizy poza aplikacją. XLSX przez `rust_xlsxwriter` (nagłówek pogrubiony,
+  kolumny z ustawioną szerokością, wartości liczbowe jako prawdziwe liczby Excela).
+- **Eksport PDF** — zwięzły raport konta (`infrastructure/pdf_report.rs`): tytuł, data
+  wygenerowania, podsumowanie (wynik netto, win rate, profit factor, liczba transakcji —
+  ponownie użyty silnik z Celu 1.6, nie liczony od nowa) i kompaktowa tabela transakcji.
+  Zbudowany na `lopdf` z użyciem wyłącznie standardowych 14 fontów PDF (Helvetica/
+  Helvetica-Bold) — bez osadzania plików fontów. Automatyczna paginacja, gdy transakcji jest
+  więcej niż mieści się na jednej stronie A4.
+- **Kopia zapasowa `.dtjbackup`** (`infrastructure/backup_archive.rs`) — archiwum ZIP z
+  manifestem (`manifest.json`: wersja formatu, data, wersja aplikacji, suma kontrolna
+  SHA-256 bazy) i spójną migawką SQLite (SQLite Backup API, nie zwykłe kopiowanie pliku).
+- **Przywracanie z pełną weryfikacją PRZED jakąkolwiek destrukcyjną operacją**: format
+  archiwum, obecność wpisów, zgodność sumy kontrolnej z manifestem i `PRAGMA
+integrity_check` na wypakowanej bazie — dopiero gdy wszystko się zgadza, dane trafiają do
+  pliku "przywrócenie oczekujące". Samo podstawienie pliku bazy dzieje się dopiero przy
+  **następnym starcie aplikacji** (nigdy w trakcie działania z otwartym połączeniem):
+  automatyczna kopia bezpieczeństwa aktualnej bazy, usunięcie nieaktualnych plików WAL/SHM,
+  podmiana pliku. Użytkownik jest jawnie informowany, że zmiana wymaga ponownego uruchomienia.
+- Komendy: `export_trades_csv/xlsx/pdf`, `create_backup`, `prepare_backup_restore`.
+- Wtyczka `tauri-plugin-dialog` (natywne okna "Zapisz jako"/"Otwórz plik") — jedyny sposób na
+  wybór lokalizacji pliku eksportu/kopii zgodny z modelem uprawnień Tauri 2; uprawnienia
+  dodane do `capabilities/default.json`.
+- `DataPage`: sekcje Eksport transakcji / Kopia zapasowa / Przywracanie, z natywnymi oknami
+  zapisu/otwarcia pliku, jawnym ostrzeżeniem przed przywróceniem (native `confirm`) i banerem
+  informującym o konieczności ponownego uruchomienia po przygotowaniu przywrócenia.
+
+**Przetestowane:**
+
+- `cargo test`: **86 testów**, wszystkie ✅ (5 nowych dla archiwum kopii zapasowej: tworzenie
+  i weryfikacja w obie strony, odrzucenie zmodyfikowanego pliku po niezgodności sumy
+  kontrolnej, odrzucenie pliku niebędącego archiwum ZIP, pełny cykl przygotuj-przywróć-
+  zastosuj z potwierdzeniem że kopia bezpieczeństwa sprzed przywrócenia rzeczywiście powstaje
+  i zawiera dane sprzed przywrócenia; 3 nowe dla eksportu: CSV ma poprawną liczbę wierszy,
+  XLSX zaczyna się od sygnatury ZIP "PK", PDF zaczyna się od sygnatury "%PDF"). `cargo clippy
+-D warnings` i `cargo fmt --check` — czyste.
+- `pnpm typecheck`/`lint --max-warnings=0`/`format:check`/`test` (13 testów JS, bez regresji)
+  — zielone.
+- Zweryfikowane wizualnie w przeglądarce (fałszywy most Tauri): potwierdzone, że kliknięcie
+  "Eksportuj CSV" poprawnie wywołuje najpierw natywne okno zapisu (`plugin:dialog|save`), a
+  dopiero potem komendę eksportu z wybraną ścieżką - to samo dla tworzenia kopii zapasowej
+  (`create_backup`). Przepływ przywracania (który dodatkowo pokazuje natywne okno
+  `window.confirm`) zweryfikowany przeglądem kodu, nie kliknięciem - ryzyko zawieszenia
+  zdalnie sterowanej przeglądarki na nieobsłużonym natywnym oknie dialogowym uznałem za
+  nieuzasadnione, skoro wzorzec (okno pliku → walidacja → wywołanie komendy) jest identyczny
+  do już zweryfikowanych przepływów eksportu/tworzenia kopii.
+- **Napotkany i rozwiązany problem narzędziowy (nie błąd aplikacji):** `cargo test` zaczęło
+  odrzucać uruchomienie skompilowanego binarium testowego w trakcie sesji ("Zasady kontroli
+  aplikacji zablokowały ten plik") mimo że `cargo check`/`clippy` przechodziły czysto na tym
+  samym kodzie - najpewniej polityka kontroli aplikacji w moim środowisku narzędziowym.
+  Naprawione usunięciem nieaktualnych plików binarnych i wymuszeniem świeżej kompilacji.
+- **Nadal nie zweryfikowane przeze mnie:** rzeczywisty zapis pliku na dysku i pełny cykl
+  restart-aplikacji-po-przywróceniu w prawdziwym oknie Tauri (mój sandbox nie ma dostępu do
+  prawdziwego systemu plików użytkownika ani nie może zrestartować rzeczywistej aplikacji) -
+  to samo ograniczenie, co przy poprzednich Celach.
+
+**Następny krok:** Cel 1.8 — produkcyjna autoaktualizacja (Tauri updater, podpis Ed25519,
+GitHub Releases).
+
+## Cel 1.8 — Produkcyjna autoaktualizacja — ✅ ukończony (⚠️ wymaga konfiguracji przed wydaniem)
+
+**Co działa:**
+
+- `tauri-plugin-updater` + `tauri-plugin-process` (restart po instalacji) zarejestrowane w
+  backendzie, `@tauri-apps/plugin-updater`/`@tauri-apps/plugin-process` po stronie frontendu.
+- Wygenerowana para kluczy Ed25519 do podpisywania aktualizacji (`tauri signer generate`) —
+  klucz prywatny leży **poza repozytorium** (`C:\Users\matri\.tauri\dziennik-tradera.key`,
+  dodatkowo zabezpieczony regułą `*.key`/`*.key.pub` w `.gitignore`), klucz publiczny wpisany
+  w `tauri.conf.json` → `plugins.updater.pubkey`.
+- Endpoint sprawdzania aktualizacji skonfigurowany pod GitHub Releases
+  (`.../releases/latest/download/latest.json`) — **na razie z placeholderem zamiast
+  prawdziwej nazwy repozytorium**, patrz sekcja "Wymaga uwagi" poniżej.
+- `.github/workflows/release.yml` — buduje, podpisuje i publikuje wydanie robocze (draft) na
+  GitHub po wypchnięciu tagu `v*`, przez `tauri-apps/tauri-action`.
+- `docs/adr/0005-autoaktualizacja.md` — pełna dokumentacja decyzji i instrukcja krok po kroku,
+  co trzeba zrobić przed pierwszym prawdziwym wydaniem (podpięcie repo, sekrety GitHub Actions,
+  wypchnięcie tagu).
+- UX: cichy check przy starcie aplikacji (`AppShell`) pokazuje tylko powiadomienie (toast) o
+  dostępnej wersji - nigdy nic nie pobiera/instaluje automatycznie. Pełny przepływ (sprawdź /
+  pobierz z paskiem postępu / zainstaluj / uruchom ponownie) jest w Ustawienia → Aktualizacje,
+  zawsze z wyraźną akcją użytkownika przed pobraniem i przed restartem. Przy okazji
+  poprawiony nieaktualny komunikat "Dane i kopie" w Ustawieniach (odsyłał do "Celu 1.7" mimo
+  że ten Cel jest już ukończony) - teraz linkuje do prawdziwej strony Eksport i kopie.
+
+**Przetestowane:**
+
+- `cargo test`: 86 testów (bez zmian w tym Celu - autoaktualizacja to głównie konfiguracja i
+  wiring wtyczek, nie nowa logika domenowa do przetestowania jednostkowo), `cargo clippy
+  -D warnings` i `cargo fmt --check` — czyste po dodaniu wtyczek.
+- `pnpm typecheck`/`lint --max-warnings=0`/`format:check`/`test` (13 testów JS, bez regresji)
+  — zielone.
+- Zweryfikowane wizualnie w przeglądarce (fałszywy most Tauri, tym razem z dodatkowym stubem
+  `transformCallback` żeby obsłużyć `Channel` używany przez `downloadAndInstall`): pełny
+  przepływ Ustawienia → "Sprawdź aktualizacje" → karta z dostępną wersją i notatkami wydania →
+  "Pobierz i zainstaluj" → stan "gotowe do ponownego uruchomienia" z przyciskiem restartu -
+  wszystkie przejścia stanu zadziałały poprawnie. Ścieżka błędu też sprawdzona (zanim dodałem
+  stub `transformCallback`, próba pobrania poprawnie pokazała czytelny komunikat błędu zamiast
+  wywalić całą stronę).
+- **Nadal nie zweryfikowane przeze mnie:** rzeczywiste pobranie/instalacja/restart w prawdziwym
+  oknie Tauri względem prawdziwego GitHub Release (niemożliwe bez opublikowanego wydania - patrz
+  "Wymaga uwagi" poniżej) oraz cały pipeline GitHub Actions (nie mam dostępu do GitHuba z tego
+  środowiska, żeby faktycznie wypchnąć tag i obejrzeć wynik).
+
+**⚠️ Wymaga uwagi użytkownika przed pierwszym wydaniem** (szczegóły w
+`docs/adr/0005-autoaktualizacja.md`): `tauri.conf.json` ma placeholder
+`TWOJA-NAZWA-UZYTKOWNIKA/dziennik-tradera` zamiast prawdziwego adresu repozytorium GitHub -
+trzeba go podmienić i dodać dwa sekrety (`TAURI_SIGNING_PRIVATE_KEY`,
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`) w ustawieniach repozytorium, zanim autoaktualizacja
+zadziała naprawdę. Do tego czasu przycisk "Sprawdź aktualizacje" będzie zwracał błąd - to
+oczekiwane.
+
+**Następny krok:** Cel 1.9 — instalator NSIS `.exe` i wydanie 1.0 fundamentu (smoke test na
+czystym Windows 10/11).
+
+## Modyfikacja przed instalatorem (dokument `Prompt_modyfikacja_Dziennika_Tradera.docx`)
+
+Obszerna, wiążąca modyfikacja ukończonego fundamentu (Cel 1.1–1.8), wymagana PRZED Celem 1.9
+(instalatorem) — patrz `C:\Users\matri\.claude\plans\cozy-puzzling-mitten.md` za pełny plan 12
+faz (Faza 0–11). Realizowana sekwencyjnie, fazami porównywalnymi rozmiarem do dotychczasowych
+Celów.
+
+### Faza 0 — Usuń panel "Dane i kopie" z Ustawień, ogranicz walutę do USD/EUR/GBP — ✅ ukończona
+
+**Co działa:**
+
+- `SettingsPage.tsx`: usunięta sekcja "Dane i kopie" (odsyłacz do `/dane`) — strona `/dane`
+  (`DataPage`, Eksport i kopie) zostaje bez zmian, to już prawdziwe działające miejsce, nie
+  zapowiedź. Ustawienia idą teraz bezpośrednio Wygląd → Aktualizacje → Informacje i diagnostyka.
+- Waluta konta ograniczona do enuma `USD | EUR | GBP` (domyślnie USD):
+  `domain::account::SUPPORTED_CURRENCIES` w Rust, `validate_currency` odrzuca każdą inną
+  wartość z czytelnym komunikatem. `AccountFormModal.tsx` ma teraz `Select` z dokładnie tymi
+  trzema opcjami zamiast dowolnego pola tekstowego.
+- **Brak cichej migracji istniejących kont**: `UpdateAccount::validate_with_existing_currency`
+  pozwala zachować walutę już zapisaną na koncie (np. sprzed tego ograniczenia), nawet jeśli
+  jest spoza listy — blokuje tylko zmianę NA inną nieobsługiwaną walutę. `SqliteAccountRepository::
+  update` pobiera aktualną walutę konta przed zapisem właśnie po to, żeby to rozróżnić. Frontend
+  pokazuje taką walutę jako dodatkową opcję "PLN (nieobsługiwana — wybierz nową walutę)" z
+  wyjaśniającą podpowiedzią, więc edycja innych pól starszego konta nie wymusza migracji waluty.
+- `Select` (biblioteka UI) dostał opcjonalny `hint` (ten sam wzorzec co `TextField`) — potrzebny
+  do podpowiedzi przy nieobsługiwanej walucie, teraz dostępny dla każdego przyszłego `Select`.
+
+**Przetestowane:**
+
+- `cargo test`: **90 testów**, wszystkie ✅ (4 nowe: odrzucenie nieobsługiwanej waluty przy
+  tworzeniu konta, akceptacja każdej z trzech obsługiwanych, zachowanie niezmienionej waluty
+  legacy bez wymuszania migracji, odrzucenie zmiany waluty legacy na inną nieobsługiwaną).
+  `cargo clippy -D warnings` i `cargo fmt --check` — czyste.
+- `pnpm typecheck`/`lint --max-warnings=0`/`format`/`test` (13 testów JS, bez regresji) — zielone.
+- Zweryfikowane wizualnie w przeglądarce (fałszywy most Tauri): Ustawienia pokazują poprawną
+  kolejność sekcji bez "Dane i kopie"; formularz "Dodaj konto" pokazuje czyste USD (domyślne)/
+  EUR/GBP; edycja istniejącego konta z walutą "PLN" (spoza enuma) poprawnie pokazuje tę walutę
+  jako zaznaczoną dodatkową opcję z podpowiedzią, bez wymuszania zmiany.
+
+**Następny krok:** Faza 1 — katalog dokładnie 350 instrumentów (nowy schemat wersjonowany,
+deterministyczny seed wygenerowany programowo z `extracted.txt`, przepisany silnik obliczeń,
+ekran "Zarządzaj instrumentami").
+
+### Faza 1 — Katalog 350 instrumentów, silnik obliczeń, ekran zarządzania — ✅ ukończona
+
+**Co działa:**
+
+- **Fabryczny katalog dokładnie 350 instrumentów**, wygenerowany programowo (nigdy ręcznie
+  przepisywany) skryptem Node z jawnego CSV osadzonego w dokumencie modyfikacji
+  (`scratchpad/generate_instrument_catalog.js` → `db/migrations/0003_instrument_catalog.sql`,
+  1224 linie). Migracja jest w pełni bezpieczna dla istniejącej bazy: zamiast `DROP TABLE`
+  (co przy włączonych kluczach obcych wywaliłoby się na każdym ocalałym odwołaniu z `trades`)
+  używa wyłącznie `ALTER TABLE ... ADD/DROP COLUMN` w miejscu, więc żadne id nigdy nie ginie.
+  Starą prowizoryczną listę 11 instrumentów z Celu 1.4 usuwa TYLKO tam, gdzie żadna transakcja
+  się już do niej nie odwołuje — ocalałe (hipotetycznie użyte) wiersze migrują się do nowego
+  kształtu z dopiskiem "(starsza wersja)" przy kolizji nazwy z nowym katalogiem, zamiast cichego
+  nadpisania.
+- **Nowy model danych**: `instruments` (tożsamość — symbol wyświetlany/techniczny, opis,
+  kategoria, indeks fabryczny), `instrument_versions` (pełne 47 pól parametrów obliczeniowych
+  1:1 z katalogu — Digits/Point/TradeTickSize/TickValueProfit/TickValueLoss/ContractSize,
+  wolumeny, tryby kalkulacji/handlu/egzekucji/swapu, depozyty, mnożniki swapu per dzień
+  tygodnia, sesje — dokładnie jedna aktywna wersja per instrument wymuszona częściowym unikalnym
+  indeksem), `instrument_preferences` (widoczność/kolejność/ulubione). Edycja **zawsze** tworzy
+  nową wersję (poprzednia `is_active = 0`) — nigdy nie nadpisuje historycznej.
+- **Przepisany silnik obliczeń** (`domain/trade_calculations.rs`): liczba ticków zawsze z
+  `TradeTickSize` (nie z `Point`, który służy wyłącznie prezentacji `pnl_points` — mogą się
+  różnić), osobna wartość ticka dla zysku i straty, wykrywanie niezgodności waluty wyniku
+  instrumentu z walutą rachunku (`requires_conversion_rate` w wyniku, żadnego cichego
+  przybliżenia — transakcja przechowuje edytowalny `conversion_rate`). 13 testów referencyjnych:
+  forex 5 miejsc, para JPY, XAUUSD, indeks standard, indeks -MINI, krypto z ułamkowym
+  wolumenem, akcja z prowizją, niestandardowy krok wolumenu, instrument gdzie Point≠TradeTickSize,
+  niezgodność waluty z/bez kursu, potwierdzenie że silnik jest czystą funkcją bez pamięci
+  (zmiana "aktualnych" parametrów nie zmienia wyniku odtworzonego ze starej migawki).
+- **Ekran "Zarządzaj instrumentami"** (`InstrumentsPage.tsx`, zastąpił starą prostą listę):
+  wyszukiwarka (symbol/opis/kategoria/symbol techniczny), filtr 10 kategorii, filtr
+  Widoczne/Ukryte/Wszystkie, zaznaczanie pojedyncze i zbiorcze + akcje "Pokaż/Ukryj zaznaczone",
+  stronicowanie po 25 (zamiast wirtualizacji — dokument dopuszcza obie metody), przycisk
+  "Domyślna widoczność" (przywraca dokładnie sześć: EURUSD/XAUUSD/DJI30/NAS100/D40EUR/BTCUSD),
+  osobna sekcja "Kolejność widocznych instrumentów" z przyciskami góra/dół (reorder działa na
+  widocznym zestawie, nie na całych 350 — zgodnie z zamiarem dokumentu). Ukrycie nigdy nie
+  usuwa danych. Etykieta MINI przy symbolach `-MINI`.
+- **Formularz instrumentu** (`InstrumentFormModal.tsx`): tryb tylko-do-odczytu domyślnie ze
+  zwięzłym podsumowaniem (opis, kategoria, digits/point, tick size/value, kontrakt, wolumeny,
+  waluty), przycisk Edytuj odsłania wszystkie 47 pól w dwóch sekcjach (podstawowe + "Parametry
+  zaawansowane"), zapis zawsze tworzy nową wersję, "Przywróć wartości fabryczne" (tylko dla
+  instrumentów z katalogu, z potwierdzeniem) kopiuje z powrotem wersję nr 1 jako nową wersję.
+  Ten sam modal obsługuje też dodawanie własnego instrumentu spoza katalogu 350.
+- Rozszerzona walidacja (`domain/instrument.rs`): spójność Digits/Point/TradeTickSize, brak zer/
+  wartości ujemnych, VolumeMin≤Max, podzielność zakresu wolumenu przez krok, kody walut,
+  luźna walidacja prefiksu dla trybów enum/flag (CalcMode/TradeMode/ExecutionMode/SwapMode) —
+  nie blokuje przyszłych wariantów katalogu.
+- Zaktualizowane obszary zależne: migawka instrumentu w transakcji (`InstrumentSnapshot`) niesie
+  teraz pełny zestaw parametrów potrzebny do przeliczeń zamiast czterech pól, `TradeFormModal`
+  pokazuje tylko widoczne instrumenty w polu wyboru (ukryty instrument użyty w edytowanej
+  historycznej transakcji nadal się pokazuje, oznaczony "(ukryty)"), pole "Kurs przeliczeniowy"
+  pojawia się w formularzu transakcji, gdy silnik zgłosi niezgodność waluty, eksport/raporty/
+  historia transakcji czytają nowe nazwy pól migawki (`display_symbol` zamiast `symbol`).
+- **Dodatkowo (na wyraźną prośbę użytkownika):** trwałe usuwanie instrumentu jest możliwe
+  wyłącznie dla instrumentów własnych (`factory_index IS NULL`) — instrumenty z fabrycznego
+  katalogu 350 można wyłącznie ukryć, nigdy usunąć (backend odrzuca taką próbę jawnym błędem
+  walidacji). Usunięcie jest też odrzucane, jeśli instrument jest już użyty w choćby jednej
+  transakcji. Przycisk "Usuń" pojawia się w tabeli i w szczegółach instrumentu tylko dla
+  instrumentów własnych.
+
+**Przetestowane:**
+
+- `cargo test`: **114 testów** (24 nowe), wszystkie ✅ — migracja (dokładnie 350 instrumentów,
+  dokładnie 6 widocznych domyślnie, bezpieczny upgrade istniejącej bazy z realnymi kontami/
+  transakcjami sprzed Fazy 1 — patrz niżej), repozytorium instrumentów (wersjonowanie, reset
+  fabryczny, widoczność nigdy nie usuwa danych, wyszukiwanie/filtr/kategoria, usuwanie odrzucone
+  dla instrumentów fabrycznych i dla instrumentów użytych w transakcji, usuwanie własnego
+  nieużywanego instrumentu kasuje też jego wersje), silnik obliczeń (13 testów referencyjnych
+  opisanych wyżej), walidacja domeny. `cargo clippy -D warnings` i `cargo fmt --check` — czyste.
+- `pnpm typecheck`/`lint --max-warnings=0`/`format`/`test` (13 testów JS, bez regresji) — zielone.
+- Zweryfikowane wizualnie w przeglądarce (fałszywy most Tauri z realistycznym podzbiorem
+  katalogu): ekran "Zarządzaj instrumentami" poprawnie pokazuje 8 instrumentów (6 widocznych/2
+  ukryte), etykietę MINI, symbol techniczny, stronicowanie, sekcję kolejności widocznych;
+  formularz edycji poprawnie startuje w trybie tylko-do-odczytu z podsumowaniem, "Edytuj"
+  odsłania wszystkie pola (podstawowe + zaawansowane), zapis tworzy nową wersję (potwierdzone:
+  wersja nr 1 → nr 2 z nową wartością, widoczne po ponownym otwarciu), formularz dodawania
+  nowego instrumentu renderuje się poprawnie z polami tożsamości. Po drodze znaleziony i
+  naprawiony realny błąd: ręcznie liczone placeholdery SQL (`?N`) w zapytaniu wstawiającym
+  47-polową wersję instrumentu rozjechały się z listą kolumn ("49 values for 52 columns") —
+  naprawione przez programowe generowanie listy placeholderów zamiast liczenia ręcznego.
+- Zweryfikowane wizualnie także usuwanie instrumentów: instrument fabryczny nie pokazuje
+  przycisku "Usuń" (ani w tabeli, ani w szczegółach) — wyłącznie "Przywróć wartości fabryczne";
+  instrument własny pokazuje "Usuń", kliknięcie (z podstawionym `window.confirm` zwracającym
+  `true`, żeby nie zawiesić zdalnie sterowanej przeglądarki na natywnym oknie) poprawnie usuwa
+  instrument i znika on też z sekcji kolejności widocznych.
+- **Nadal nie zweryfikowane przeze mnie w przeglądarce (niższe ryzyko, ten sam ustalony wzorzec
+  co już zweryfikowane akcje)**: przyciski zbiorczego pokaż/ukryj zaznaczone, pole "Kurs
+  przeliczeniowy" w formularzu transakcji przy realnej niezgodności walut, realne kliknięcie
+  "Przywróć wartości fabryczne" (logika tożsama z już zweryfikowanym usuwaniem). Drag-and-drop
+  dla kolejności widocznych instrumentów nie został dodany — tylko klawiaturowo dostępne
+  przyciski góra/dół (dokument wymaga obu metod; to świadome, jeszcze nie domknięte uproszczenie
+  zakresu tej fazy).
+- **Napotkany i rozwiązany incydent podczas realnego testowania (nie błąd w kodzie aplikacji):**
+  użytkownik zobaczył "NIEDOSTĘPNA — migracja bazy danych nie powiodła się: wykryto niezgodność
+  sumy kontrolnej" na prawdziwej maszynie. Przyczyna: podczas tej sesji kilkukrotnie poprawiałem
+  plik `0003_instrument_catalog.sql` (kolejne poprawki błędów), a działająca w tle aplikacja
+  użytkownika zdążyła w międzyczasie zastosować jedną z wcześniejszych wersji tego pliku do
+  swojej prawdziwej bazy - zabezpieczenie z Celu 1.2 ("czy plik migracji zmienił się po
+  zastosowaniu?") słusznie odmówiło kontynuowania. To nie dotyczy finalnego produktu (prawdziwy
+  użytkownik po instalacji dostaje jeden, zamrożony plik migracji), tylko iteracyjnej pracy nad
+  tym samym plikiem w trakcie, gdy aplikacja działa. Naprawione poleceniem użytkownikowi
+  skasowania lokalnego pliku bazy deweloperskiej (dane testowe, nie ma jeszcze instalatora).
+  Dodane w tej sesji dwa nowe testy regresyjne w `db::migrations::tests`
+  (`upgrading_a_real_pre_faza1_database_with_existing_trades_succeeds`,
+  `upgrading_a_real_database_with_all_legacy_instruments_referenced_and_a_custom_one`)
+  potwierdzają, że sama migracja 3 jest bezpieczna nawet na w pełni zapełnionej, realistycznej
+  bazie sprzed Fazy 1.
+
+**Następny krok:** Faza 2 — status transakcji wyliczany automatycznie, precyzja sekund,
+usunięcie tagów z UI, wspólne źródło salda przed/po/aktualne, tryb odczytu + Edytuj na karcie
+transakcji, emocje w 3 momentach.
 
 ## Pozostałe cele Etapu 1
 

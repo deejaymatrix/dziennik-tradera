@@ -12,6 +12,8 @@ pub enum AppError {
     NotFound(String),
     #[error("błąd bazy danych")]
     Database(String),
+    #[error("błąd wejścia/wyjścia")]
+    Io(String),
 }
 
 impl AppError {
@@ -20,6 +22,7 @@ impl AppError {
             AppError::Validation(_) => "validation",
             AppError::NotFound(_) => "not_found",
             AppError::Database(_) => "database",
+            AppError::Io(_) => "io",
         }
     }
 
@@ -29,6 +32,9 @@ impl AppError {
             AppError::Database(_) => {
                 "Wystąpił błąd bazy danych. Szczegóły zapisano w logu diagnostycznym.".to_string()
             }
+            AppError::Io(_) => "Wystąpił błąd zapisu/odczytu pliku. Sprawdź uprawnienia i miejsce \
+                 na dysku w wybranej lokalizacji - szczegóły zapisano w logu diagnostycznym."
+                .to_string(),
         }
     }
 }
@@ -56,5 +62,12 @@ impl From<crate::db::migrations::MigrationError> for AppError {
     fn from(err: crate::db::migrations::MigrationError) -> Self {
         crate::logging::log_error("migrations", &err);
         AppError::Database(err.to_string())
+    }
+}
+
+impl From<std::io::Error> for AppError {
+    fn from(err: std::io::Error) -> Self {
+        crate::logging::log_error("io", &err);
+        AppError::Io(err.to_string())
     }
 }

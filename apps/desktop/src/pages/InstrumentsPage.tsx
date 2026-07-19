@@ -1,72 +1,221 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
-import { Pencil, Plus, PowerOff, Power, SlidersHorizontal } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Eye,
+  EyeOff,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Search,
+  SlidersHorizontal,
+  Trash2,
+} from "lucide-react";
 import { invokeCommand } from "../app/invokeCommand";
-import type { Instrument } from "../app/types/instrument";
+import {
+  INSTRUMENT_CATEGORIES,
+  type InstrumentListFilter,
+  type InstrumentVisibilityFilter,
+  type InstrumentWithDetails,
+} from "../app/types/instrument";
 import { Badge } from "../ui/components/Badge/Badge";
 import { Button } from "../ui/components/Button/Button";
 import { EmptyState } from "../ui/components/EmptyState/EmptyState";
 import { ErrorState } from "../ui/components/ErrorState/ErrorState";
 import { IconButton } from "../ui/components/IconButton/IconButton";
+import { Select } from "../ui/components/Select/Select";
 import { Skeleton } from "../ui/components/Skeleton/Skeleton";
-import { Switch } from "../ui/components/Switch/Switch";
 import { Table, tableStyles } from "../ui/components/Table/Table";
+import { TextField } from "../ui/components/TextField/TextField";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import { InstrumentFormModal } from "./InstrumentFormModal";
 import styles from "./InstrumentsPage.module.css";
 
+const PAGE_SIZE = 25;
+
+const VISIBILITY_OPTIONS: { value: InstrumentVisibilityFilter; label: string }[] = [
+  { value: "all", label: "Wszystkie" },
+  { value: "visible", label: "Widoczne" },
+  { value: "hidden", label: "Ukryte" },
+];
+
+const CATEGORY_OPTIONS = [
+  { value: "", label: "Wszystkie kategorie" },
+  ...INSTRUMENT_CATEGORIES.map((c) => ({ value: c, label: c })),
+];
+
+function symbolLabel(instrument: InstrumentWithDetails): ReactElement {
+  const isMini = instrument.display_symbol.endsWith("-MINI");
+  return (
+    <span className={styles.symbolCell}>
+      {instrument.display_symbol}
+      {isMini && <Badge variant="neutral">MINI</Badge>}
+    </span>
+  );
+}
+
 export function InstrumentsPage(): ReactElement {
   const { showToast } = useToast();
-  const [includeInactive, setIncludeInactive] = useState(false);
-  const [instruments, setInstruments] = useState<Instrument[] | null>(null);
+
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("");
+  const [visibility, setVisibility] = useState<InstrumentVisibilityFilter>("all");
+  const [page, setPage] = useState(0);
+
+  const [instruments, setInstruments] = useState<InstrumentWithDetails[] | null>(null);
+  const [visibleOrder, setVisibleOrder] = useState<InstrumentWithDetails[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const [formOpen, setFormOpen] = useState(false);
-  const [editingInstrument, setEditingInstrument] = useState<Instrument | undefined>(undefined);
+  const [editingInstrument, setEditingInstrument] = useState<InstrumentWithDetails | undefined>(
+    undefined,
+  );
+
+  const filter: InstrumentListFilter = useMemo(
+    () => ({
+      search: search.trim() ? search.trim() : null,
+      category: category ? category : null,
+      visibility,
+    }),
+    [search, category, visibility],
+  );
 
   async function load(): Promise<void> {
     setError(null);
     try {
-      const data = await invokeCommand<Instrument[]>("list_instruments", { includeInactive });
-      setInstruments(data);
+      const [all, visible] = await Promise.all([
+        invokeCommand<InstrumentWithDetails[]>("list_instruments", { filter }),
+        invokeCommand<InstrumentWithDetails[]>("list_instruments", {
+          filter: {
+            search: null,
+            category: null,
+            visibility: "visible",
+          } satisfies InstrumentListFilter,
+        }),
+      ]);
+      setInstruments(all);
+      setVisibleOrder(visible);
+      setSelectedIds(new Set());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.");
     }
   }
 
   useEffect(() => {
-    // Wczytanie listy przy starcie i przy zmianie filtra jest zamierzonym efektem
-    // ubocznym (synchronizacja z backendem Tauri), nie renderowaniem pochodnym stanu.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- load reads includeInactive directly, this is the intended trigger.
-  }, [includeInactive]);
+    setPage(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load czyta filter bezpośrednio, to jest zamierzony trigger.
+  }, [filter]);
+
+  const pageCount = instruments ? Math.max(1, Math.ceil(instruments.length / PAGE_SIZE)) : 1;
+  const pageItems = instruments ? instruments.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) : [];
 
   function openCreateForm(): void {
     setEditingInstrument(undefined);
     setFormOpen(true);
   }
 
-  function openEditForm(instrument: Instrument): void {
+  function openEditForm(instrument: InstrumentWithDetails): void {
     setEditingInstrument(instrument);
     setFormOpen(true);
   }
 
-  async function handleDeactivate(instrument: Instrument): Promise<void> {
+  function toggleSelected(id: string): void {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function togglePageSelection(): void {
+    setSelectedIds((current) => {
+      const allSelected = pageItems.every((i) => current.has(i.id));
+      const next = new Set(current);
+      for (const item of pageItems) {
+        if (allSelected) {
+          next.delete(item.id);
+        } else {
+          next.add(item.id);
+        }
+      }
+      return next;
+    });
+  }
+
+  async function handleBulkVisibility(isVisible: boolean): Promise<void> {
     try {
-      await invokeCommand("deactivate_instrument", { id: instrument.id });
-      showToast("Instrument dezaktywowany.", "success");
+      await invokeCommand("set_instruments_visibility_bulk", {
+        ids: [...selectedIds],
+        isVisible,
+      });
+      showToast(
+        isVisible ? "Zaznaczone instrumenty pokazane." : "Zaznaczone instrumenty ukryte.",
+        "success",
+      );
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
     }
   }
 
-  async function handleActivate(instrument: Instrument): Promise<void> {
+  async function handleToggleVisibility(instrument: InstrumentWithDetails): Promise<void> {
     try {
-      await invokeCommand("activate_instrument", { id: instrument.id });
-      showToast("Instrument aktywowany.", "success");
+      await invokeCommand("set_instrument_visibility", {
+        id: instrument.id,
+        isVisible: !instrument.is_visible,
+      });
       await load();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    }
+  }
+
+  async function handleResetDefaultVisibility(): Promise<void> {
+    try {
+      await invokeCommand("reset_instrument_visibility_to_default");
+      showToast("Przywrócono domyślną widoczność sześciu instrumentów.", "success");
+      await load();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    }
+  }
+
+  async function handleDelete(instrument: InstrumentWithDetails): Promise<void> {
+    if (
+      !window.confirm(
+        `Trwale usunąć instrument ${instrument.display_symbol}? Tej operacji nie można cofnąć. Nie uda się, jeśli instrument jest już użyty w jakiejś transakcji.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await invokeCommand("delete_instrument", { id: instrument.id });
+      showToast(`Instrument ${instrument.display_symbol} usunięty.`, "success");
+      await load();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    }
+  }
+
+  async function handleMoveVisible(index: number, direction: -1 | 1): Promise<void> {
+    if (!visibleOrder) return;
+    const target = index + direction;
+    if (target < 0 || target >= visibleOrder.length) return;
+    const reordered = [...visibleOrder];
+    const [moved] = reordered.splice(index, 1);
+    if (!moved) return;
+    reordered.splice(target, 0, moved);
+    try {
+      await invokeCommand("reorder_instruments", { orderedIds: reordered.map((i) => i.id) });
+      setVisibleOrder(reordered);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
     }
@@ -76,15 +225,35 @@ export function InstrumentsPage(): ReactElement {
     <div className={styles.page}>
       <div className={styles.header}>
         <div className={styles.filters}>
-          <Switch
-            label="Pokaż nieaktywne"
-            checked={includeInactive}
-            onChange={(e) => setIncludeInactive(e.target.checked)}
+          <TextField
+            label="Szukaj"
+            icon={<Search size={16} />}
+            placeholder="Symbol, opis, kategoria, symbol techniczny..."
+            className={styles.searchInput}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <Select
+            label="Kategoria"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            options={CATEGORY_OPTIONS}
+          />
+          <Select
+            label="Widoczność"
+            value={visibility}
+            onChange={(e) => setVisibility(e.target.value as InstrumentVisibilityFilter)}
+            options={VISIBILITY_OPTIONS}
           />
         </div>
-        <Button variant="primary" onClick={openCreateForm}>
-          <Plus size={16} aria-hidden="true" /> Dodaj instrument
-        </Button>
+        <div className={styles.headerActions}>
+          <Button variant="secondary" onClick={() => void handleResetDefaultVisibility()}>
+            <RotateCcw size={16} aria-hidden="true" /> Domyślna widoczność
+          </Button>
+          <Button variant="primary" onClick={openCreateForm}>
+            <Plus size={16} aria-hidden="true" /> Dodaj instrument
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -109,72 +278,159 @@ export function InstrumentsPage(): ReactElement {
       {!error && instruments !== null && instruments.length === 0 && (
         <EmptyState
           icon={<SlidersHorizontal size={32} aria-hidden="true" />}
-          title="Brak instrumentów"
-          description="Dodaj własny instrument albo włącz podgląd nieaktywnych z biblioteki startowej."
-          action={
-            <Button variant="primary" onClick={openCreateForm}>
-              Dodaj instrument
-            </Button>
-          }
+          title="Brak instrumentów spełniających filtr"
+          description="Zmień wyszukiwanie, kategorię albo widoczność, żeby zobaczyć więcej instrumentów."
         />
       )}
 
       {!error && instruments !== null && instruments.length > 0 && (
-        <Table>
-          <thead>
-            <tr>
-              <th>Symbol</th>
-              <th>Nazwa</th>
-              <th>Kategoria</th>
-              <th>Waluta</th>
-              <th>Status</th>
-              <th aria-hidden="true" />
-            </tr>
-          </thead>
-          <tbody>
-            {instruments.map((instrument) => (
-              <tr key={instrument.id}>
-                <td>{instrument.symbol}</td>
-                <td>{instrument.name}</td>
-                <td>{instrument.category ?? "—"}</td>
-                <td>{instrument.quote_currency}</td>
-                <td>
-                  {instrument.is_active ? (
-                    <Badge variant="profit">Aktywny</Badge>
-                  ) : (
-                    <Badge variant="neutral">Nieaktywny</Badge>
-                  )}
-                </td>
-                <td>
-                  <div className={tableStyles.actions}>
-                    <IconButton
-                      icon={<Pencil size={16} />}
-                      aria-label={`Edytuj ${instrument.symbol}`}
-                      onClick={() => openEditForm(instrument)}
-                    />
-                    {instrument.is_active ? (
-                      <IconButton
-                        icon={<PowerOff size={16} />}
-                        aria-label={`Dezaktywuj ${instrument.symbol}`}
-                        onClick={() => {
-                          void handleDeactivate(instrument);
-                        }}
-                      />
-                    ) : (
-                      <IconButton
-                        icon={<Power size={16} />}
-                        aria-label={`Aktywuj ${instrument.symbol}`}
-                        onClick={() => {
-                          void handleActivate(instrument);
-                        }}
-                      />
-                    )}
-                  </div>
-                </td>
+        <>
+          {selectedIds.size > 0 && (
+            <div className={styles.bulkBar}>
+              <span>Zaznaczono: {selectedIds.size}</span>
+              <Button variant="secondary" onClick={() => void handleBulkVisibility(true)}>
+                Pokaż zaznaczone
+              </Button>
+              <Button variant="secondary" onClick={() => void handleBulkVisibility(false)}>
+                Ukryj zaznaczone
+              </Button>
+            </div>
+          )}
+
+          <p className={styles.counter}>
+            Widocznych łącznie: {instruments.filter((i) => i.is_visible).length} z{" "}
+            {instruments.length} pasujących do filtra
+          </p>
+
+          <Table>
+            <thead>
+              <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    aria-label="Zaznacz wszystkie na tej stronie"
+                    checked={pageItems.length > 0 && pageItems.every((i) => selectedIds.has(i.id))}
+                    onChange={togglePageSelection}
+                  />
+                </th>
+                <th>Symbol</th>
+                <th>Opis</th>
+                <th>Kategoria</th>
+                <th>Widoczność</th>
+                <th aria-hidden="true" />
               </tr>
+            </thead>
+            <tbody>
+              {pageItems.map((instrument) => (
+                <tr key={instrument.id}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      aria-label={`Zaznacz ${instrument.display_symbol}`}
+                      checked={selectedIds.has(instrument.id)}
+                      onChange={() => toggleSelected(instrument.id)}
+                    />
+                  </td>
+                  <td>{symbolLabel(instrument)}</td>
+                  <td>
+                    <div>{instrument.description}</div>
+                    <div className={styles.technicalSymbol}>{instrument.source_symbol}</div>
+                  </td>
+                  <td>{instrument.category}</td>
+                  <td>
+                    {instrument.is_visible ? (
+                      <Badge variant="profit">Widoczny</Badge>
+                    ) : (
+                      <Badge variant="neutral">Ukryty</Badge>
+                    )}
+                  </td>
+                  <td>
+                    <div className={tableStyles.actions}>
+                      <IconButton
+                        icon={instrument.is_visible ? <EyeOff size={16} /> : <Eye size={16} />}
+                        aria-label={
+                          instrument.is_visible
+                            ? `Ukryj ${instrument.display_symbol}`
+                            : `Pokaż ${instrument.display_symbol}`
+                        }
+                        onClick={() => {
+                          void handleToggleVisibility(instrument);
+                        }}
+                      />
+                      <IconButton
+                        icon={<Pencil size={16} />}
+                        aria-label={`Edytuj ${instrument.display_symbol}`}
+                        onClick={() => openEditForm(instrument)}
+                      />
+                      {instrument.factory_index === null && (
+                        <IconButton
+                          icon={<Trash2 size={16} />}
+                          aria-label={`Usuń ${instrument.display_symbol}`}
+                          onClick={() => {
+                            void handleDelete(instrument);
+                          }}
+                        />
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+
+          <div className={styles.pagination}>
+            <Button
+              variant="secondary"
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              Poprzednia
+            </Button>
+            <span>
+              Strona {page + 1} z {pageCount}
+            </span>
+            <Button
+              variant="secondary"
+              disabled={page >= pageCount - 1}
+              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+            >
+              Następna
+            </Button>
+          </div>
+        </>
+      )}
+
+      {visibleOrder && visibleOrder.length > 0 && (
+        <section className={styles.orderSection} aria-labelledby="instrument-order-heading">
+          <h2 id="instrument-order-heading" className={styles.orderHeading}>
+            Kolejność widocznych instrumentów
+          </h2>
+          <ul className={styles.orderList}>
+            {visibleOrder.map((instrument, index) => (
+              <li key={instrument.id} className={styles.orderItem}>
+                <span>{instrument.display_symbol}</span>
+                <div className={tableStyles.actions}>
+                  <IconButton
+                    icon={<ArrowUp size={16} />}
+                    aria-label={`Przesuń ${instrument.display_symbol} wyżej`}
+                    disabled={index === 0}
+                    onClick={() => {
+                      void handleMoveVisible(index, -1);
+                    }}
+                  />
+                  <IconButton
+                    icon={<ArrowDown size={16} />}
+                    aria-label={`Przesuń ${instrument.display_symbol} niżej`}
+                    disabled={index === visibleOrder.length - 1}
+                    onClick={() => {
+                      void handleMoveVisible(index, 1);
+                    }}
+                  />
+                </div>
+              </li>
             ))}
-          </tbody>
-        </Table>
+          </ul>
+        </section>
       )}
 
       <InstrumentFormModal

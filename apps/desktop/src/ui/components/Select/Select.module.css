@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  min-width: 0;
 }
 
 .label {
@@ -19,6 +20,8 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: var(--space-2) var(--space-3);
+  width: 100%;
+  min-width: 0;
   transition: border-color var(--motion-fast) var(--motion-easing);
 }
 
@@ -39,6 +42,11 @@
 
 .selectError {
   border-color: var(--color-loss);
+}
+
+.hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
 }
 
 .errorMessage {

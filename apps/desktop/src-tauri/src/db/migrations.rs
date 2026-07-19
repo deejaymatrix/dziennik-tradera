@@ -21,6 +21,16 @@ const MIGRATIONS: &[Migration] = &[
         name: "0002_seed_instruments",
         sql: include_str!("migrations/0002_seed_instruments.sql"),
     },
+    Migration {
+        version: 3,
+        name: "0003_instrument_catalog",
+        sql: include_str!("migrations/0003_instrument_catalog.sql"),
+    },
+    Migration {
+        version: 4,
+        name: "0004_automatic_trade_status",
+        sql: include_str!("migrations/0004_automatic_trade_status.sql"),
+    },
 ];
 
 #[derive(Debug, Error)]
@@ -220,7 +230,7 @@ mod tests {
 
         let report = run_migrations(&mut conn, &dir.path().join("backups")).expect("migrate");
 
-        assert_eq!(report.applied, vec![1, 2]);
+        assert_eq!(report.applied, vec![1, 2, 3, 4]);
         assert!(
             report.backup_path.is_none(),
             "świeża baza nie powinna być kopiowana"
@@ -234,6 +244,8 @@ mod tests {
             "cash_operations",
             "daily_notes",
             "instruments",
+            "instrument_versions",
+            "instrument_preferences",
             "schema_migrations",
             "strategies",
             "trade_executions",
@@ -248,9 +260,21 @@ mod tests {
         let instrument_count: i64 = conn
             .query_row("SELECT count(*) FROM instruments", [], |row| row.get(0))
             .expect("count instruments");
-        assert!(
-            instrument_count >= 10,
-            "oczekiwano startowej biblioteki instrumentów, jest {instrument_count}"
+        assert_eq!(
+            instrument_count, 350,
+            "fabryczny katalog musi mieć dokładnie 350 instrumentów"
+        );
+
+        let visible_count: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM instrument_preferences WHERE is_visible = 1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("count visible");
+        assert_eq!(
+            visible_count, 6,
+            "na starcie widocznych ma być dokładnie sześć instrumentów"
         );
     }
 
@@ -264,6 +288,120 @@ mod tests {
 
         assert!(second.applied.is_empty());
         assert!(second.backup_path.is_none());
+    }
+
+    #[test]
+    fn upgrading_a_real_pre_faza1_database_with_existing_trades_succeeds() {
+        // Odtwarza dokładnie sytuację realnego użytkownika: baza już ma zastosowane migracje
+        // 1+2 (Cel 1.2/1.4 - stary schemat + 11 fabrycznych instrumentów), użytkownik utworzył
+        // prawdziwe konto i transakcję odwołującą się do jednego z tych starych instrumentów,
+        // a DOPIERO POTEM aplikacja aktualizuje się do migracji 3 (Faza 1 - nowy katalog 350).
+        let dir = tempfile::tempdir().expect("tempdir");
+        let backup_dir = dir.path().join("backups");
+        let mut conn = connection::open(&dir.path().join("db.sqlite3")).expect("open");
+
+        run_migrations_against(&mut conn, &backup_dir, &MIGRATIONS[..2]).expect("apply v1+v2");
+
+        conn.execute(
+            "INSERT INTO accounts (id, name, currency, initial_balance, created_at, updated_at)
+             VALUES ('acc-real', 'Konto testowe', 'USD', '10000', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+            [],
+        )
+        .expect("insert account");
+        conn.execute(
+            "INSERT INTO trades (id, account_id, display_number, instrument_id, status, side, created_at, updated_at)
+             VALUES ('trade-real', 'acc-real', 1, '01978e6b-0001-7000-8000-000000000001', 'draft', 'buy', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+            [],
+        )
+        .expect("insert trade referencing legacy EURUSD seed instrument");
+
+        let report = run_migrations_against(&mut conn, &backup_dir, MIGRATIONS)
+            .expect("apply v3 on top of real prior data");
+        assert_eq!(report.applied, vec![3, 4]);
+
+        let instrument_count: i64 = conn
+            .query_row("SELECT count(*) FROM instruments", [], |row| row.get(0))
+            .expect("count instruments");
+        assert_eq!(
+            instrument_count, 351,
+            "350 fabrycznych + 1 ocalały (nadal używany przez transakcję) stary instrument"
+        );
+
+        let trade_instrument: String = conn
+            .query_row(
+                "SELECT instrument_id FROM trades WHERE id = 'trade-real'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read trade");
+        assert_eq!(trade_instrument, "01978e6b-0001-7000-8000-000000000001");
+    }
+
+    #[test]
+    fn upgrading_a_real_database_with_all_legacy_instruments_referenced_and_a_custom_one() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let backup_dir = dir.path().join("backups");
+        let mut conn = connection::open(&dir.path().join("db.sqlite3")).expect("open");
+
+        run_migrations_against(&mut conn, &backup_dir, &MIGRATIONS[..2]).expect("apply v1+v2");
+
+        conn.execute(
+            "INSERT INTO accounts (id, name, currency, initial_balance, created_at, updated_at)
+             VALUES ('acc-real', 'Konto testowe', 'USD', '10000', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+            [],
+        )
+        .expect("insert account");
+
+        // Instrument własny dodany ręcznie przez użytkownika w starym InstrumentFormModal
+        // (Cel 1.4), z dowolnym UUID spoza sztywnej listy 11 fabrycznych.
+        conn.execute(
+            "INSERT INTO instruments (id, symbol, name, category, decimal_places, tick_size, tick_value_per_lot, contract_size, pip_size, quote_currency, settlement_currency, min_lot, lot_step, is_active, created_at, updated_at)
+             VALUES ('custom-instr-1', 'MYOWN', 'Mój własny instrument', 'forex', 4, '0.0001', '10', '100000', '0.0001', 'USD', 'USD', '0.01', '0.01', 1, '2026-02-01T00:00:00Z', '2026-02-01T00:00:00Z')",
+            [],
+        )
+        .expect("insert custom instrument");
+
+        for (i, legacy_id) in [
+            "01978e6b-0001-7000-8000-000000000001",
+            "01978e6b-0001-7000-8000-000000000002",
+            "01978e6b-0001-7000-8000-000000000003",
+            "01978e6b-0001-7000-8000-000000000004",
+            "01978e6b-0001-7000-8000-000000000005",
+            "01978e6b-0001-7000-8000-000000000006",
+            "01978e6b-0001-7000-8000-000000000007",
+            "01978e6b-0001-7000-8000-000000000008",
+            "01978e6b-0001-7000-8000-000000000009",
+            "01978e6b-0001-7000-8000-000000000010",
+            "01978e6b-0001-7000-8000-000000000011",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            conn.execute(
+                &format!(
+                    "INSERT INTO trades (id, account_id, display_number, instrument_id, status, side, created_at, updated_at)
+                     VALUES ('trade-{i}', 'acc-real', {}, '{legacy_id}', 'draft', 'buy', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+                    i + 1
+                ),
+                [],
+            )
+            .unwrap_or_else(|e| panic!("insert trade for {legacy_id}: {e}"));
+        }
+        conn.execute(
+            "INSERT INTO trades (id, account_id, display_number, instrument_id, status, side, created_at, updated_at)
+             VALUES ('trade-custom', 'acc-real', 12, 'custom-instr-1', 'draft', 'buy', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+            [],
+        )
+        .expect("insert trade referencing custom instrument");
+
+        let report = run_migrations_against(&mut conn, &backup_dir, MIGRATIONS)
+            .unwrap_or_else(|e| panic!("migration 3 failed against realistic prior data: {e}"));
+        assert_eq!(report.applied, vec![3, 4]);
+
+        let instrument_count: i64 = conn
+            .query_row("SELECT count(*) FROM instruments", [], |row| row.get(0))
+            .expect("count instruments");
+        assert_eq!(instrument_count, 350 + 11 + 1);
     }
 
     #[test]

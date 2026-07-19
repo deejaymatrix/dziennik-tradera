@@ -1,0 +1,87 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.monthNav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.monthLabel {
+  min-width: 9rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-2);
+}
+
+.weekdayLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+  padding-bottom: var(--space-1);
+}
+
+.dayCellEmpty {
+  border-radius: var(--radius-sm);
+}
+
+.dayCell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: 4.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  background-color: var(--color-surface);
+}
+
+.dayNumber {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.dayPnl {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dayCount {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.profitDay {
+  border-color: color-mix(in srgb, var(--color-profit) 40%, var(--color-border));
+  background-color: color-mix(in srgb, var(--color-profit) 10%, var(--color-surface));
+}
+
+.profitDay .dayPnl {
+  color: var(--color-profit);
+}
+
+.lossDay {
+  border-color: color-mix(in srgb, var(--color-loss) 40%, var(--color-border));
+  background-color: color-mix(in srgb, var(--color-loss) 10%, var(--color-surface));
+}
+
+.lossDay .dayPnl {
+  color: var(--color-loss);
+}
