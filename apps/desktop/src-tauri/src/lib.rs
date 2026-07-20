@@ -21,6 +21,7 @@ use application::intervals::IntervalsService;
 use application::reports::ReportsService;
 use application::strategies::StrategiesService;
 use application::trades::TradesService;
+use application::trash::TrashService;
 use infrastructure::sqlite_account_repository::SqliteAccountRepository;
 use infrastructure::sqlite_cash_operation_repository::SqliteCashOperationRepository;
 use infrastructure::sqlite_emotional_state_repository::SqliteEmotionalStateRepository;
@@ -123,6 +124,13 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
     let backup = BackupService::new(conn.clone(), app_data_dir.to_path_buf());
     let emotional_states =
         EmotionalStatesService::new(Arc::new(SqliteEmotionalStateRepository::new(conn.clone())));
+    let trash = TrashService::new(
+        accounts.clone(),
+        strategies.clone(),
+        intervals.clone(),
+        Arc::new(SqliteTradeRepository::new(conn.clone())),
+        BackupService::new(conn.clone(), app_data_dir.to_path_buf()),
+    );
 
     DbState::Ready {
         conn,
@@ -136,6 +144,7 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
         export,
         backup,
         emotional_states,
+        trash,
     }
 }
 
@@ -214,6 +223,10 @@ pub fn run() {
             commands::emotional_states::list_emotional_states,
             commands::emotional_states::set_emotional_state_hidden,
             commands::emotional_states::delete_emotional_state,
+            commands::trash::list_trash_items,
+            commands::trash::restore_trash_item,
+            commands::trash::purge_trash_item,
+            commands::trash::empty_trash,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -28,6 +28,18 @@ impl BackupService {
         )
     }
 
+    /// Automatyczna kopia zapasowa przed nieodwracalną operacją zbiorczą (np. opróżnieniem
+    /// Kosza, Faza 5) - zapisywana bez okna wyboru pliku, w tym samym katalogu co bezpieczne
+    /// kopie "pre-restore" (`backup_archive::apply_pending_restore_if_present`), z analogiczną
+    /// konwencją nazywania.
+    pub fn create_automatic_backup(&self, label: &str) -> Result<BackupManifest, AppError> {
+        let backup_dir = self.app_data_dir.join("backups");
+        std::fs::create_dir_all(&backup_dir)?;
+        let timestamp = chrono::Utc::now().format("%Y%m%dT%H%M%S%.3fZ");
+        let destination = backup_dir.join(format!("pre-{label}-{timestamp}.dtjbackup"));
+        backup_archive::create_from_connection(&self.conn, &destination, env!("CARGO_PKG_VERSION"))
+    }
+
     pub fn prepare_restore(&self, archive_path: &str) -> Result<BackupManifest, AppError> {
         backup_archive::prepare_restore(&self.app_data_dir, Path::new(archive_path))
     }

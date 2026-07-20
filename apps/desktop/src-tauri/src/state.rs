@@ -12,6 +12,7 @@ use crate::application::intervals::IntervalsService;
 use crate::application::reports::ReportsService;
 use crate::application::strategies::StrategiesService;
 use crate::application::trades::TradesService;
+use crate::application::trash::TrashService;
 
 /// Stan bazy danych po próbie otwarcia przy starcie aplikacji. Rozmyślnie nie ma wariantu
 /// "prawdopodobnie gotowe" - albo baza jest otwarta i zmigrowana (`Ready`), albo nie (`Failed`
@@ -34,6 +35,7 @@ pub enum DbState {
         export: ExportService,
         backup: BackupService,
         emotional_states: EmotionalStatesService,
+        trash: TrashService,
     },
     Failed {
         reason: String,

@@ -382,6 +382,9 @@ pub trait TradeRepository {
     ) -> Result<Trade, AppError>;
     fn soft_delete(&self, id: &str) -> Result<Trade, AppError>;
     fn restore(&self, id: &str) -> Result<Trade, AppError>;
+    /// Trwałe usunięcie transakcji (uniwersalny Kosz, Faza 5) - dozwolone tylko dla już
+    /// usuniętej (miękko) transakcji. Kaskadowo usuwa jej wykonania i załączniki.
+    fn delete_permanently(&self, id: &str) -> Result<(), AppError>;
 }
 
 #[cfg(test)]

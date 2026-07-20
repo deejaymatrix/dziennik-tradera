@@ -258,6 +258,49 @@ impl StrategyRepository for SqliteStrategyRepository {
         }
         self.get(id)
     }
+
+    fn delete_permanently(&self, id: &str) -> Result<(), AppError> {
+        let mut conn = self
+            .conn
+            .lock()
+            .expect("mutex bazy danych zatruty (poprzedni panik)");
+        let tx = conn.transaction()?;
+
+        let archived_at: Option<String> = tx
+            .query_row(
+                "SELECT archived_at FROM strategies WHERE id = ?1",
+                [id],
+                |row| row.get(0),
+            )
+            .optional()?
+            .ok_or_else(|| AppError::NotFound(format!("Nie znaleziono strategii o id {id}.")))?;
+        if archived_at.is_none() {
+            return Err(AppError::Validation(
+                "Trwale usunąć można tylko zarchiwizowaną strategię - najpierw ją zarchiwizuj."
+                    .to_string(),
+            ));
+        }
+
+        let used_in_trades: i64 = tx.query_row(
+            "SELECT count(*) FROM trades WHERE strategy_id = ?1",
+            [id],
+            |row| row.get(0),
+        )?;
+        if used_in_trades > 0 {
+            return Err(AppError::Validation(format!(
+                "Nie można trwale usunąć strategii wykorzystanej w {used_in_trades} transakcjach."
+            )));
+        }
+
+        let affected = tx.execute("DELETE FROM strategies WHERE id = ?1", [id])?;
+        if affected == 0 {
+            return Err(AppError::NotFound(format!(
+                "Nie znaleziono strategii o id {id}."
+            )));
+        }
+        tx.commit()?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -369,6 +412,58 @@ mod tests {
         assert!(archived.archived_at.is_some());
         let restored = repo.restore(&created.id).expect("restore");
         assert!(restored.archived_at.is_none());
+    }
+
+    #[test]
+    fn delete_permanently_rejects_a_non_archived_strategy() {
+        let (repo, _dir) = repo_with_fresh_db();
+        let created = repo.create(&sample_input()).expect("create");
+
+        let result = repo.delete_permanently(&created.id);
+        assert!(matches!(result, Err(AppError::Validation(_))));
+    }
+
+    #[test]
+    fn delete_permanently_removes_an_archived_unused_strategy() {
+        let (repo, _dir) = repo_with_fresh_db();
+        let created = repo.create(&sample_input()).expect("create");
+        repo.archive(&created.id).expect("archive");
+
+        repo.delete_permanently(&created.id).expect("purge");
+
+        assert!(matches!(repo.get(&created.id), Err(AppError::NotFound(_))));
+    }
+
+    #[test]
+    fn delete_permanently_rejects_a_strategy_used_by_a_trade() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut raw_conn = connection::open(&dir.path().join("db.sqlite3")).expect("open");
+        migrations::run_migrations(&mut raw_conn, &dir.path().join("backups")).expect("migrate");
+        let conn = Arc::new(Mutex::new(raw_conn));
+        let repo = SqliteStrategyRepository::new(conn.clone());
+
+        let created = repo.create(&sample_input()).expect("create");
+        repo.archive(&created.id).expect("archive");
+
+        let locked = conn.lock().unwrap();
+        locked
+            .execute(
+                "INSERT INTO accounts (id, name, currency, initial_balance, created_at, updated_at)
+                 VALUES ('acc-1', 'Konto testowe', 'USD', '10000', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+                [],
+            )
+            .expect("seed account");
+        locked
+            .execute(
+                "INSERT INTO trades (id, account_id, display_number, strategy_id, status, side, created_at, updated_at)
+                 VALUES ('trade-1', 'acc-1', 1, ?1, 'draft', 'buy', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+                [&created.id],
+            )
+            .expect("seed trade");
+        drop(locked);
+
+        let result = repo.delete_permanently(&created.id);
+        assert!(matches!(result, Err(AppError::Validation(_))));
     }
 
     #[test]

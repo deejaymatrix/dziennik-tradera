@@ -7,6 +7,7 @@ import {
   SlidersHorizontal,
   BarChart3,
   DatabaseBackup,
+  Trash2,
   Settings,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -50,7 +51,10 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Dane",
-    items: [{ to: "/dane", label: "Eksport i kopie", icon: DatabaseBackup }],
+    items: [
+      { to: "/dane", label: "Eksport i kopie", icon: DatabaseBackup },
+      { to: "/kosz", label: "Kosz", icon: Trash2 },
+    ],
   },
   {
     label: "System",

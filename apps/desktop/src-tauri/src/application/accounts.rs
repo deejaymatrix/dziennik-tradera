@@ -78,6 +78,10 @@ impl AccountsService {
         self.with_balance(account)
     }
 
+    pub fn delete_permanently(&self, id: &str) -> Result<(), AppError> {
+        self.accounts.delete_permanently(id)
+    }
+
     pub fn add_cash_operation(&self, input: NewCashOperation) -> Result<CashOperation, AppError> {
         self.cash_operations.create(&input)
     }

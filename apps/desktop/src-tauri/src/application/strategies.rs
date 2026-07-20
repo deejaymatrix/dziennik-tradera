@@ -39,4 +39,8 @@ impl StrategiesService {
     pub fn restore(&self, id: &str) -> Result<Strategy, AppError> {
         self.repository.restore(id)
     }
+
+    pub fn delete_permanently(&self, id: &str) -> Result<(), AppError> {
+        self.repository.delete_permanently(id)
+    }
 }

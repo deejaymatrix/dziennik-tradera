@@ -201,6 +201,48 @@ impl AccountRepository for SqliteAccountRepository {
 
         self.get(id)
     }
+
+    fn delete_permanently(&self, id: &str) -> Result<(), AppError> {
+        let mut conn = self
+            .conn
+            .lock()
+            .expect("mutex bazy danych zatruty (poprzedni panik)");
+        let tx = conn.transaction()?;
+
+        let archived_at: Option<String> = tx
+            .query_row(
+                "SELECT archived_at FROM accounts WHERE id = ?1",
+                [id],
+                |row| row.get(0),
+            )
+            .optional()?
+            .ok_or_else(|| AppError::NotFound(format!("Nie znaleziono konta o id {id}.")))?;
+        if archived_at.is_none() {
+            return Err(AppError::Validation(
+                "Trwale usunąć można tylko zarchiwizowane konto - najpierw je zarchiwizuj."
+                    .to_string(),
+            ));
+        }
+
+        tx.execute(
+            "DELETE FROM attachments WHERE trade_id IN (SELECT id FROM trades WHERE account_id = ?1)",
+            [id],
+        )?;
+        tx.execute(
+            "DELETE FROM trade_executions WHERE trade_id IN (SELECT id FROM trades WHERE account_id = ?1)",
+            [id],
+        )?;
+        tx.execute("DELETE FROM trades WHERE account_id = ?1", [id])?;
+        tx.execute("DELETE FROM cash_operations WHERE account_id = ?1", [id])?;
+        let affected = tx.execute("DELETE FROM accounts WHERE id = ?1", [id])?;
+        if affected == 0 {
+            return Err(AppError::NotFound(format!(
+                "Nie znaleziono konta o id {id}."
+            )));
+        }
+        tx.commit()?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -285,6 +327,71 @@ mod tests {
 
         let result = repo.archive(&created.id);
         assert!(matches!(result, Err(AppError::NotFound(_))));
+    }
+
+    #[test]
+    fn delete_permanently_rejects_a_non_archived_account() {
+        let (repo, _conn, _dir) = repo_with_fresh_db();
+        let created = repo.create(&sample_input()).expect("create");
+
+        let result = repo.delete_permanently(&created.id);
+        assert!(matches!(result, Err(AppError::Validation(_))));
+        assert_eq!(repo.list(true).expect("list").len(), 1);
+    }
+
+    #[test]
+    fn delete_permanently_rejects_an_unknown_account() {
+        let (repo, _conn, _dir) = repo_with_fresh_db();
+        let result = repo.delete_permanently("nieistniejace-id");
+        assert!(matches!(result, Err(AppError::NotFound(_))));
+    }
+
+    fn insert_trade_for_account(conn_arc: &Arc<Mutex<Connection>>, account_id: &str) -> String {
+        let conn = conn_arc.lock().expect("lock");
+        let id = Uuid::now_v7().to_string();
+        let now = Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO trades (id, account_id, display_number, status, side, created_at, updated_at)
+             VALUES (?1, ?2, 1, 'draft', 'buy', ?3, ?3)",
+            rusqlite::params![id, account_id, now],
+        )
+        .expect("insert trade");
+        conn.execute(
+            "INSERT INTO trade_executions (id, trade_id, kind, price, volume, executed_at, created_at)
+             VALUES (?1, ?2, 'entry', '1', '1', ?3, ?3)",
+            rusqlite::params![Uuid::now_v7().to_string(), id, now],
+        )
+        .expect("insert trade execution");
+        id
+    }
+
+    #[test]
+    fn delete_permanently_removes_an_archived_account_with_its_trades_and_executions() {
+        let (repo, conn_arc, _dir) = repo_with_fresh_db();
+        let created = repo.create(&sample_input()).expect("create");
+        let trade_id = insert_trade_for_account(&conn_arc, &created.id);
+        repo.archive(&created.id).expect("archive");
+
+        repo.delete_permanently(&created.id).expect("purge");
+
+        assert!(matches!(repo.get(&created.id), Err(AppError::NotFound(_))));
+        let conn = conn_arc.lock().expect("lock");
+        let trade_count: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM trades WHERE id = ?1",
+                [&trade_id],
+                |row| row.get(0),
+            )
+            .expect("count trades");
+        assert_eq!(trade_count, 0);
+        let execution_count: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM trade_executions WHERE trade_id = ?1",
+                [&trade_id],
+                |row| row.get(0),
+            )
+            .expect("count executions");
+        assert_eq!(execution_count, 0);
     }
 
     #[test]

@@ -45,6 +45,10 @@ impl IntervalsService {
         self.repository.restore(id)
     }
 
+    pub fn delete_permanently(&self, id: &str) -> Result<(), AppError> {
+        self.repository.delete_permanently(id)
+    }
+
     pub fn reorder(&self, ordered_ids: Vec<String>) -> Result<(), AppError> {
         self.repository.reorder(&ordered_ids)
     }

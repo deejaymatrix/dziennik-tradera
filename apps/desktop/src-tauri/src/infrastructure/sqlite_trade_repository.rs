@@ -453,6 +453,32 @@ impl TradeRepository for SqliteTradeRepository {
         }
         self.get(id)
     }
+
+    fn delete_permanently(&self, id: &str) -> Result<(), AppError> {
+        let mut conn = self
+            .conn
+            .lock()
+            .expect("mutex bazy danych zatruty (poprzedni panik)");
+        let tx = conn.transaction()?;
+
+        let deleted_at: Option<String> = tx
+            .query_row("SELECT deleted_at FROM trades WHERE id = ?1", [id], |row| {
+                row.get(0)
+            })
+            .optional()?
+            .ok_or_else(|| AppError::NotFound(format!("Nie znaleziono transakcji o id {id}.")))?;
+        if deleted_at.is_none() {
+            return Err(AppError::Validation(
+                "Trwale usunąć można tylko usuniętą transakcję - najpierw ją usuń.".to_string(),
+            ));
+        }
+
+        tx.execute("DELETE FROM attachments WHERE trade_id = ?1", [id])?;
+        tx.execute("DELETE FROM trade_executions WHERE trade_id = ?1", [id])?;
+        tx.execute("DELETE FROM trades WHERE id = ?1", [id])?;
+        tx.commit()?;
+        Ok(())
+    }
 }
 
 /// Wpisy dziennika zmian transakcji dzielą tabelę `audit_log` z resztą encji (patrz
@@ -734,6 +760,46 @@ mod tests {
 
         let restored = repo.restore(&created.id).expect("restore");
         assert!(restored.deleted_at.is_none());
+    }
+
+    #[test]
+    fn delete_permanently_rejects_a_trade_that_is_not_soft_deleted() {
+        let (repo, conn, _dir) = repo_with_fresh_db();
+        seed_account(&conn, "acc-1");
+        let created = repo.create(&draft_write("acc-1")).expect("create");
+
+        let result = repo.delete_permanently(&created.id);
+        assert!(matches!(result, Err(AppError::Validation(_))));
+    }
+
+    #[test]
+    fn delete_permanently_removes_a_soft_deleted_trade_and_its_executions() {
+        let (repo, conn, _dir) = repo_with_fresh_db();
+        seed_account(&conn, "acc-1");
+        let created = repo.create(&draft_write("acc-1")).expect("create");
+        conn.lock()
+            .unwrap()
+            .execute(
+                "INSERT INTO trade_executions (id, trade_id, kind, price, volume, executed_at, created_at)
+                 VALUES ('exec-1', ?1, 'entry', '1', '1', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+                [&created.id],
+            )
+            .expect("insert execution");
+        repo.soft_delete(&created.id).expect("soft delete");
+
+        repo.delete_permanently(&created.id).expect("purge");
+
+        assert!(matches!(repo.get(&created.id), Err(AppError::NotFound(_))));
+        let execution_count: i64 = conn
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT count(*) FROM trade_executions WHERE trade_id = ?1",
+                [&created.id],
+                |row| row.get(0),
+            )
+            .expect("count executions");
+        assert_eq!(execution_count, 0);
     }
 
     #[test]

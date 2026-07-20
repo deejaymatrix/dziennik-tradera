@@ -49,6 +49,11 @@ pub trait IntervalRepository {
     fn archive(&self, id: &str) -> Result<Interval, AppError>;
     fn restore(&self, id: &str) -> Result<Interval, AppError>;
     fn reorder(&self, ordered_ids: &[String]) -> Result<(), AppError>;
+    /// Trwałe usunięcie interwału (uniwersalny Kosz, Faza 5) - dozwolone tylko dla już
+    /// zarchiwizowanego interwału (co samo w sobie wyklucza wbudowane - nie można ich
+    /// zarchiwizować). `interval_id` na transakcji nie ma żywego klucza obcego - zamrożona
+    /// migawka etykiety (`trades.interval`) przetrwa usunięcie bez zmian.
+    fn delete_permanently(&self, id: &str) -> Result<(), AppError>;
 }
 
 #[cfg(test)]

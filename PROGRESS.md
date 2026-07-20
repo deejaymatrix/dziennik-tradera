@@ -1,7 +1,7 @@
 # Postęp prac
 
-Ostatnia aktualizacja: 2026-07-20 (Faza 9 v2: przebudowa wszystkich raportów i dashboardu na wzór
-arkusza referencyjnego użytkownika - wykonana przed Fazą 5-8, patrz Faza 9 v2 poniżej)
+Ostatnia aktualizacja: 2026-07-20 (Faza 5: uniwersalny Kosz ukończona - powrót do pierwotnej
+kolejności faz po wcześniejszym, tymczasowym przeskoczeniu do Fazy 9, patrz Faza 5 poniżej)
 
 ## Cel 1.1 — Repozytorium, standardy i uruchomiony podgląd — ✅ ukończony
 
@@ -1049,6 +1049,81 @@ wraca do zwykłego widoku Dashboardu z jego saldem.
    nawet po wyczyszczeniu flagi ręcznego zamknięcia w localStorage; z zerem obu - wraca.
 
 **Następny krok:** powrót do pierwotnej kolejności - Faza 5 (uniwersalny Kosz).
+
+### Faza 5 — Uniwersalny Kosz (soft-delete dla kont, transakcji, strategii, interwałów) — ✅ ukończona
+
+**Co działa:**
+
+- Nowa metoda `delete_permanently` na czterech repozytoriach domenowych, które już miały stan
+  "zarchiwizowane/usunięte, ale nie zniknęło" i wcześniej NIE miały żadnego sposobu na trwałe
+  usunięcie: `AccountRepository` (kaskadowo usuwa `attachments`/`trade_executions`/`trades`/
+  `cash_operations` konta w jednej transakcji SQL), `TradeRepository` (kaskadowo usuwa
+  `attachments`/`trade_executions` transakcji), `StrategyRepository` (blokuje trwałe usunięcie,
+  jeśli JAKAKOLWIEK transakcja wciąż odwołuje się do strategii - ten sam wzorzec ochrony co
+  istniejące już usuwanie instrumentów), `IntervalRepository` (bez blokady - `trades.interval_id`
+  nigdy nie miało żywego klucza obcego, zamrożona migawka etykiety przetrwa bez zmian). Każda
+  metoda wymaga, żeby element był JUŻ zarchiwizowany/usunięty - nie da się trwale usunąć czegoś
+  wprost z aktywnego stanu, trzeba najpierw przejść przez istniejące archive/soft_delete.
+- Nowa warstwa aplikacyjna `application::trash::TrashService` - agreguje wszystkie cztery typy w
+  jedną listę (`TrashItem`: typ, id, etykieta, data usunięcia, opcjonalna notatka o zależnościach
+  typu "Konto ma 3 transakcji" albo "Używana w 2 transakcjach - trwałe usunięcie zablokowane").
+  `restore`/`delete_permanently` przyjmują `TrashEntityType` i dyspatchują do właściwej usługi.
+  `empty()` (Opróżnij kosz): najpierw twarda automatyczna kopia zapasowa przez nową
+  `BackupService::create_automatic_backup` (zapisywana bez okna wyboru pliku do
+  `backups/pre-kosz-{timestamp}.dtjbackup`, ten sam katalog co bezpieczne kopie przed
+  przywróceniem) - przerywa całą operację, jeśli kopia się nie uda; potem trwałe usunięcie każdego
+  elementu, z kontami zawsze na końcu (ich usunięcie kaskadowo zabiera też transakcje - gdyby
+  poszły pierwsze, próba osobnego usunięcia "ich" niezależnie usuniętych transakcji fałszywie
+  wyglądałaby jak błąd "already gone"). Pojedyncze niepowodzenia (np. żywa transakcja wciąż
+  odwołuje się do archiwizowanej strategii) nie przerywają reszty operacji - zbierane są do listy
+  `failed`, którą widzi użytkownik.
+- Cztery nowe komendy Tauri (`commands::trash`): `list_trash_items`, `restore_trash_item`,
+  `purge_trash_item`, `empty_trash`. Nowa pozycja nawigacji "Kosz" w grupie "Dane" (obok "Eksport
+  i kopie"), nowy ekran `KoszPage.tsx`: filtr typu, wyszukiwarka po nazwie, tabela z kolumnami
+  Typ (kolorowy `Badge`)/Nazwa/Usunięto/Zależności, akcje Przywróć/Usuń trwale (pojedynczo przez
+  ikony, zbiorczo przez zaznaczanie checkboxów), przycisk "Opróżnij kosz" (wariant `danger`,
+  potwierdzenie z liczbą elementów). Błędy trwałego usunięcia (np. zablokowana strategia) i wynik
+  zbiorczych operacji pokazywane przez istniejący system Toast.
+- **Świadomie POZA zakresem tej fazy** (udokumentowane, nie przeoczone): własne instrumenty -
+  mają już bezpieczne, natychmiastowe trwałe usuwanie (`delete_instrument`, blokowane dla
+  fabrycznych i używanych) bez potrzeby pośredniego stanu "w koszu"; wprowadzenie takiego stanu
+  wymagałoby nowej kolumny `archived_at` i zmiany istniejącego, już bezpiecznego przepływu usuwania
+  na ekranie Instrumentów - uznane za nieproporcjonalne do korzyści. Pojedyncze elementy zasad
+  strategii (`EntryRule`/`ManagementRule`) - to zagnieżdżone pola JSON wewnątrz wiersza strategii,
+  bez własnej sygnatury czasowej ani niezależnego id-adresowalnego wiersza w bazie; mają już
+  swój własny, nie-destrukcyjny przełącznik `archived: bool` zarządzany wprost na ekranie edycji
+  strategii - nie pasują do jednorodnego modelu "wiersz z `deleted_at`/`archived_at` do Kosza" bez
+  większej przebudowy schematu.
+
+**Przetestowane:**
+
+- Rust: **206 testów** przechodzi (`cargo test --lib`, +17 od ostatniej fazy), `cargo fmt --check`
+  i `cargo clippy --all-targets -- -D warnings` czyste poza tym samym, wcześniej zgłoszonym
+  ostrzeżeniem `large_enum_variant` na `DbState::Ready` (teraz 320 bajtów po dodaniu pola
+  `trash: TrashService` - narastające od Fazy 4, nadal świadomie odłożone jako `task_938ffe80`).
+  Nowe testy pokrywają: odrzucenie trwałego usunięcia nie-zarchiwizowanego/nie-usuniętego elementu,
+  odrzucenie dla nieistniejącego id, kaskadowe usunięcie konta z jego transakcjami i wykonaniami,
+  kaskadowe usunięcie transakcji z jej wykonaniami, blokadę trwałego usunięcia strategii używanej
+  w transakcji, agregację listy Kosza z poprawnymi notatkami o zależnościach, `restore`/
+  `delete_permanently` przez `TrashService` dyspatchujące do właściwej encji, `empty()` tworzące
+  dokładnie jedną kopię zapasową i poprawnie porządkujące usuwanie (transakcje przed ich własnym
+  kontem - zero fałszywych niepowodzeń), oraz `empty()` poprawnie raportujące pojedyncze
+  niepowodzenie bez przerywania reszty operacji.
+- Frontend: `pnpm typecheck`/`eslint` (0 błędów, te same 4 wcześniej istniejące ostrzeżenia)/
+  `prettier --check`/`test` (Vitest 13/13) czyste.
+- Zweryfikowane wizualnie w przeglądarce (fałszywy most Tauri, cztery przykładowe elementy - po
+  jednym z każdego typu, w tym jeden z notatką o zablokowanej zależności): pozycja nawigacji
+  "Kosz" widoczna i podświetlana poprawnie; filtr typu i wyszukiwarka poprawnie zawężają listę;
+  pojedyncze Przywróć/Usuń trwale wysyłają poprawną komendę z poprawnymi argumentami
+  (`entityType`/`id`) i poprawnie obsługują błąd (zablokowana strategia pokazuje komunikat, nie
+  crashuje); zaznaczanie checkboxów pokazuje pasek zbiorczy z poprawną liczbą, "Przywróć
+  zaznaczone" wysyła poprawną komendę; "Opróżnij kosz" wywołuje `empty_trash` i odświeża listę.
+  **Napotkana i obojście**: kliknięcia przez `ref`/współrzędne ekranu w tym konkretnym
+  środowisku testowym trafiały w złe miejsce (rozjazd skali między zrzutem ekranu 800px a
+  realnym viewportem 1024px) - zweryfikowane zamiast tego przez bezpośrednie `element.click()`
+  w JS (wciąż testuje prawdziwy kod aplikacji/React, tylko inny sposób wywołania kliknięcia).
+
+**Następny krok:** Faza 6 — załączniki (zdjęcia i linki) na transakcji.
 
 ## Pozostałe cele Etapu 1
 

@@ -121,6 +121,13 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   porównania kont (leaderboard, tabela, 4 wykresy) w miejsce zwykłych KPI jednego konta.
 - Lista startowa "Start pracy" na Dashboardzie chowa się automatycznie, gdy istnieje co najmniej
   jedna strategia i jedna transakcja - nie tylko po ręcznym zamknięciu.
+- Uniwersalny Kosz (nowa pozycja nawigacji "Kosz") - jedno miejsce z listą wszystkich
+  zarchiwizowanych kont, usuniętych transakcji, zarchiwizowanych strategii i własnych interwałów,
+  z filtrem typu, wyszukiwarką, notatkami o zależnościach (np. "Używana w 2 transakcjach"),
+  Przywróć/Usuń trwale (pojedynczo i zbiorczo) oraz "Opróżnij kosz" (automatyczna kopia zapasowa
+  przed trwałym czyszczeniem wszystkiego). Nowa metoda `delete_permanently` na czterech
+  repozytoriach domenowych (konta, transakcje, strategie, interwały), które wcześniej nie miały
+  żadnego sposobu na trwałe usunięcie - tylko archiwizację/miękkie usuwanie.
 
 ### Changed
 

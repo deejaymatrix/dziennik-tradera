@@ -7,3 +7,4 @@ pub mod intervals;
 pub mod reports;
 pub mod strategies;
 pub mod trades;
+pub mod trash;

@@ -96,6 +96,10 @@ pub trait AccountRepository {
     fn update(&self, id: &str, input: &UpdateAccount) -> Result<Account, AppError>;
     fn archive(&self, id: &str) -> Result<Account, AppError>;
     fn restore(&self, id: &str) -> Result<Account, AppError>;
+    /// Trwałe usunięcie konta (uniwersalny Kosz, Faza 5) - dozwolone tylko dla już
+    /// zarchiwizowanego konta. Kaskadowo usuwa jego transakcje (i ich wykonania) oraz operacje
+    /// finansowe, żeby nie zostawić osieroconych wierszy przy wymuszonych kluczach obcych.
+    fn delete_permanently(&self, id: &str) -> Result<(), AppError>;
 }
 
 #[cfg(test)]

@@ -150,6 +150,10 @@ pub trait StrategyRepository {
     fn duplicate(&self, id: &str) -> Result<Strategy, AppError>;
     fn archive(&self, id: &str) -> Result<Strategy, AppError>;
     fn restore(&self, id: &str) -> Result<Strategy, AppError>;
+    /// Trwałe usunięcie strategii (uniwersalny Kosz, Faza 5) - dozwolone tylko dla już
+    /// zarchiwizowanej strategii i tylko, gdy żadna transakcja się już do niej nie odwołuje
+    /// (ten sam wzorzec ochrony co przy usuwaniu instrumentów).
+    fn delete_permanently(&self, id: &str) -> Result<(), AppError>;
 }
 
 #[cfg(test)]

@@ -224,6 +224,36 @@ impl IntervalRepository for SqliteIntervalRepository {
         self.get(id)
     }
 
+    fn delete_permanently(&self, id: &str) -> Result<(), AppError> {
+        let conn = self
+            .conn
+            .lock()
+            .expect("mutex bazy danych zatruty (poprzedni panik)");
+        let archived_at: Option<String> = conn
+            .query_row(
+                "SELECT archived_at FROM intervals WHERE id = ?1",
+                [id],
+                |row| row.get(0),
+            )
+            .optional()?
+            .ok_or_else(|| AppError::NotFound(format!("Nie znaleziono interwału o id {id}.")))?;
+        if archived_at.is_none() {
+            return Err(AppError::Validation(
+                "Trwale usunąć można tylko zarchiwizowany interwał - najpierw go zarchiwizuj \
+                 (wbudowanych interwałów nie można archiwizować ani usuwać)."
+                    .to_string(),
+            ));
+        }
+        let affected = conn.execute("DELETE FROM intervals WHERE id = ?1", [id])?;
+        drop(conn);
+        if affected == 0 {
+            return Err(AppError::NotFound(format!(
+                "Nie znaleziono interwału o id {id}."
+            )));
+        }
+        Ok(())
+    }
+
     fn reorder(&self, ordered_ids: &[String]) -> Result<(), AppError> {
         let mut conn = self
             .conn
@@ -347,6 +377,44 @@ mod tests {
 
         let restored = repo.restore(&created.id).expect("restore");
         assert!(restored.archived_at.is_none());
+    }
+
+    #[test]
+    fn delete_permanently_rejects_a_non_archived_custom_interval() {
+        let (repo, _dir) = repo_with_fresh_db();
+        let created = repo
+            .create(&NewInterval {
+                label: "M20".to_string(),
+            })
+            .expect("create");
+
+        let result = repo.delete_permanently(&created.id);
+        assert!(matches!(result, Err(AppError::Validation(_))));
+    }
+
+    #[test]
+    fn delete_permanently_rejects_a_builtin_interval() {
+        let (repo, _dir) = repo_with_fresh_db();
+        let intervals = repo.list(true, true).expect("list");
+        let builtin = &intervals[0];
+
+        let result = repo.delete_permanently(&builtin.id);
+        assert!(matches!(result, Err(AppError::Validation(_))));
+    }
+
+    #[test]
+    fn delete_permanently_removes_an_archived_custom_interval() {
+        let (repo, _dir) = repo_with_fresh_db();
+        let created = repo
+            .create(&NewInterval {
+                label: "M20".to_string(),
+            })
+            .expect("create");
+        repo.archive(&created.id).expect("archive");
+
+        repo.delete_permanently(&created.id).expect("purge");
+
+        assert!(matches!(repo.get(&created.id), Err(AppError::NotFound(_))));
     }
 
     #[test]
