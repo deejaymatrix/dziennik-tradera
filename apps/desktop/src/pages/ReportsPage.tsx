@@ -42,6 +42,16 @@ export function ReportsPage(): ReactElement {
   const [activeTab, setActiveTab] = useState<TabId>("monthly");
   const [comparisonRows, setComparisonRows] = useState<AccountComparisonRow[] | null>(null);
 
+  function selectTab(tab: TabId): void {
+    setActiveTab(tab);
+    // Pole "Miesiąc" jest ukryte w Raporcie Rocznym (patrz ReportFilterBar), ale gdyby zostało
+    // ustawione na innej zakładce, po przełączeniu na Roczny zawężałoby raport do jednego
+    // miesiąca w tle, niewidocznie dla użytkownika - trzeba je tu jawnie wyczyścić.
+    if (tab === "yearly" && filter.month) {
+      setFilter({ ...filter, month: "" });
+    }
+  }
+
   useEffect(() => {
     // Porównanie kont ignoruje konto z filtru (to właśnie konta są tu porównywane), ale
     // respektuje resztę wymiarów (instrument/strategia/interwał/rok/miesiąc/kierunek).
@@ -87,6 +97,7 @@ export function ReportsPage(): ReactElement {
         strategies={strategies}
         intervals={intervals}
         availableYears={availableYears}
+        reportKind={activeTab}
       />
 
       <div className={styles.tabs} role="tablist" aria-label="Podraporty">
@@ -99,7 +110,7 @@ export function ReportsPage(): ReactElement {
             className={[styles.tab, activeTab === tab.id && styles.tabActive]
               .filter(Boolean)
               .join(" ")}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => selectTab(tab.id)}
           >
             {tab.label}
           </button>

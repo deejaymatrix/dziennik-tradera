@@ -949,12 +949,12 @@ tłoczny", opisy osi X wykresów słupkowych nieczytelne przy wielu kategoriach)
   jest kontenerem flex w układzie `column`, `flex-basis` zinterpretowany został jako WYSOKOŚĆ, nie
   szerokość - każdy select rozjeżdżał się do kwadratu 120×120px. Naprawione usunięciem `flex`,
   zostały tylko `min-width`/`max-width`/`width: 100%` (właściwości niezależne od osi flex).
-- `GroupBarChart`/`CumulativeLineChart`: dynamiczny interwał etykiet osi X (maks. ~12 widocznych,
-  równomiernie rozłożonych) zamiast wymuszania każdej etykiety - przy 31-dniowym wykresie
-  dziennym etykiety nakładały się w nieczytelną plamę. Nowy prop `fullWidth` na `ChartCard` dla
+- `GroupBarChart`/`CumulativeLineChart` (pierwsza wersja tej poprawki, **później skorygowana
+  poniżej** na wyraźną prośbę użytkownika): dynamiczny interwał etykiet osi X (maks. ~12
+  widocznych) zamiast wymuszania każdej etykiety. Nowy prop `fullWidth` na `ChartCard` dla
   wykresów z wieloma kategoriami (dzienny P&L w Raporcie Miesięcznym, miesięczne/kwartalne wykresy
   w Raporcie Rocznym i Strategii, liczba transakcji/miesiąc na Dashboardzie) - pełna szerokość
-  siatki zamiast wąskiej połowy.
+  siatki zamiast wąskiej połowy. To zostaje w mocy.
 - `GroupBarChart` dostał nowy prop `unit="count"` (formatowanie liczb całkowitych bez waluty,
   `allowDecimals={false}` na osi Y) - naprawia dwa realne błędy na wykresie "Liczba transakcji per
   miesiąc" na Dashboardzie: wcześniej pokazywał "5,00" (format pieniężny) dla liczby transakcji, a
@@ -963,6 +963,32 @@ tłoczny", opisy osi X wykresów słupkowych nieczytelne przy wielu kategoriach)
   (izolowane katalogi robocze zadań w tle, np. `spawn_task`) - `pnpm eslint` zaczął liczyć tysiące
   błędów typów z kopii kodu bez zainstalowanych zależności w takim katalogu. Dodano `"**/.claude/**"`
   do `ignores`.
+
+**Druga runda poprawek tego samego dnia (użytkownik: "nie każda jedna rzecz będzie ponumerowana
+żeby nie było wątpliwości czego dotyczy", "dopasuj dane filtry które będą pasować do danego
+raportu żeby nie mieszać użytkownikowi"):**
+
+- **Wycofane ograniczanie liczby etykiet osi X z poprzedniej rundy** - użytkownik chce WSZYSTKIE
+  etykiety widoczne (np. wszystkie 31 dni miesiąca ponumerowane po kolei, bez pomijania), żeby nie
+  było wątpliwości, którego dnia/miesiąca dotyczy słupek. `GroupBarChart`/`CumulativeLineChart`
+  renderują teraz `interval={0}` (zawsze) i zamiast pomijać etykiety, dynamicznie zwiększają obrót
+  (-25°/-35°/-60° w zależności od liczby kategorii) i zmniejszają czcionkę przy >20 kategoriach -
+  w połączeniu z `fullWidth` z poprzedniej rundy daje to wszystkie etykiety bez nakładania.
+  **Zweryfikowane pomiarem realnych `getBoundingClientRect()` elementów `<text>` na osi X** (nie
+  tylko wizualnie) przy prawdziwej minimalnej szerokości okna aplikacji (`tauri.conf.json`:
+  `minWidth: 1024`) - 0 nakładających się par etykiet dla 31-dniowego wykresu dziennego. Przy
+  sztucznie węższym viewporcie testowym Browser pane (~800px z panelem bocznym, węższym niż
+  realne minimalne okno aplikacji) etykiety faktycznie nieznacznie się nakładały (2-3px) - to nie
+  jest realny scenariusz użycia, więc nie wymaga dalszej poprawki.
+- **Pasek filtrów dopasowany do konkretnego podraportu** (`ReportFilterBar` dostał opcjonalny
+  prop `reportKind`, nieużywany na Dashboardzie - tam widoczne są wszystkie pola, bo to jeden
+  ogólny widok): pole "Miesiąc" ukryte w Raporcie Rocznym (zawężenie do jednego miesiąca byłoby
+  sprzeczne z samą ideą podsumowania rocznego i mogłoby dawać mylące liczby), pole "Konto" ukryte
+  w Porównaniu kont (ten raport z definicji zawsze porównuje WSZYSTKIE konta - zmiana konta w
+  filtrze nic by tam nie zmieniła, tylko sugerowałaby błędnie, że coś robi). Przełączenie na
+  zakładkę Roczny jawnie czyści `filter.month`, jeśli był ustawiony na innej zakładce - bez tego
+  ukryte pole nadal zawężałoby raport w tle, niewidocznie dla użytkownika (sprawdzone: bez
+  czyszczenia "P&L netto roku" pokazywałoby wynik samego marca, nie całego roku).
 
 **Następny krok:** powrót do pierwotnej kolejności - Faza 5 (uniwersalny Kosz).
 

@@ -124,10 +124,13 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
 - Pasek filtrów Raportów/Dashboardu (`ReportFilterBar`) skompaktowany i pogrupowany w dwa rzędy
   ("Zakres": konto/rok/miesiąc/"Wyczyść", "Filtry": instrument/strategia/interwał/kierunek) - nowy
   wariant `compact` komponentu `Select`, mniej zajmowanej wysokości ekranu.
-- Wykresy słupkowe/liniowe z wieloma kategoriami (np. 31 dni miesiąca, 12 miesięcy) ograniczają
-  liczbę widocznych etykiet osi X do ~12, równomiernie rozłożonych, i zajmują pełną szerokość
-  siatki (nowy prop `fullWidth` na `ChartCard`) zamiast wąskiej połowy - zamiast nakładających się,
-  nieczytelnych etykiet.
+- Wykresy słupkowe/liniowe z wieloma kategoriami (np. 31 dni miesiąca) zajmują pełną szerokość
+  siatki (nowy prop `fullWidth` na `ChartCard`) zamiast wąskiej połowy, żeby zmieściły się
+  wszystkie etykiety osi X naraz - każda kategoria ma swoją widoczną etykietę (żadna nie jest
+  pomijana/skracana), przy wielu kategoriach etykiety są tylko bardziej przekrzywione i mniejsze.
+- Pasek filtrów Raportów pokazuje tylko pola sensowne dla aktywnego podraportu: "Miesiąc" ukryty
+  w Raporcie Rocznym, "Konto" ukryty w Porównaniu kont (ten raport zawsze porównuje wszystkie
+  konta - pole nie miałoby żadnego efektu).
 - Krzywa kapitału (Dashboard, Raporty) narysowana teraz przez Recharts (gradient, tooltip z
   datą i wynikiem) zamiast dotychczasowego ręcznego SVG.
 

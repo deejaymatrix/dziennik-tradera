@@ -65,12 +65,14 @@ export function GroupBarChart({
     value: Number(row.net_pnl),
   }));
 
-  // Przy wielu kategoriach (np. 31 dni miesiąca) pokazanie każdej etykiety na wąskiej karcie
-  // wykresu robi z osi X nieczytelną, nakładającą się plamę tekstu - ograniczamy do maks. ~12
-  // widocznych etykiet, równomiernie rozłożonych, niezależnie od liczby słupków.
-  const MAX_VISIBLE_LABELS = 12;
-  const tickInterval =
-    data.length > MAX_VISIBLE_LABELS ? Math.ceil(data.length / MAX_VISIBLE_LABELS) - 1 : 0;
+  // Każda kategoria musi mieć widoczną etykietę - żadna nie jest pomijana/skracana, żeby nie
+  // było wątpliwości, którego dnia/miesiąca/elementu dotyczy dany słupek. Przy wielu kategoriach
+  // (np. 31 dni miesiąca) zamiast pomijać etykiety, przekrzywiamy je bardziej i zmniejszamy
+  // czcionkę, żeby wszystkie zmieściły się bez nakładania - karty z takimi wykresami są dodatkowo
+  // renderowane na całą szerokość siatki (`ChartCard fullWidth`), co daje na to miejsce.
+  const angle = data.length > 20 ? -60 : data.length > 10 ? -35 : -25;
+  const tickFontSize = data.length > 20 ? 10 : 11;
+  const axisHeight = data.length > 20 ? 62 : 50;
 
   return (
     <ResponsiveContainer width="100%" height={260}>
@@ -78,11 +80,11 @@ export function GroupBarChart({
         <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
         <XAxis
           dataKey="label"
-          interval={tickInterval}
-          angle={-25}
+          interval={0}
+          angle={angle}
           textAnchor="end"
-          height={50}
-          tick={{ fill: "var(--color-text-muted)", fontSize: 11 }}
+          height={axisHeight}
+          tick={{ fill: "var(--color-text-muted)", fontSize: tickFontSize }}
         />
         <YAxis
           width={72}

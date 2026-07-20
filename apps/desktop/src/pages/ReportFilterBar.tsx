@@ -51,6 +51,11 @@ const SIDE_OPTIONS: { value: "" | "buy" | "sell"; label: string }[] = [
   { value: "sell", label: "SELL" },
 ];
 
+/** Rodzaj widoku, w którym renderuje się pasek filtrów - determinuje, które pola mają sens
+ * (patrz `reportKind` poniżej). Dashboard nie podaje tej wartości - tam widoczne są wszystkie
+ * pola, bo to jeden ogólny widok, nie zestaw odrębnych, wąsko zdefiniowanych podraportów. */
+export type ReportKind = "monthly" | "yearly" | "compare" | "instrument" | "strategy";
+
 export interface ReportFilterBarProps {
   value: ReportFilterBarValue;
   onChange: (value: ReportFilterBarValue) => void;
@@ -59,12 +64,18 @@ export interface ReportFilterBarProps {
   strategies: Strategy[];
   intervals: Interval[];
   availableYears: string[];
+  reportKind?: ReportKind;
 }
 
 /**
  * Wspólny, lepki pasek filtrów dla wszystkich podraportów zakładki "Raporty" (Faza 9) - konto,
  * instrument, strategia, interwał, rok, miesiąc, kierunek + "Wyczyść". "Wyczyść" celowo nie
  * czyści konta - bez konta nie ma czego raportować, więc to jedyne pole, które zostaje.
+ *
+ * `reportKind` ukrywa pola, które dla danego podraportu nie mają sensu albo są mylące: "Miesiąc"
+ * w Raporcie Rocznym (zawężenie do jednego miesiąca sprzeczne z samą ideą rocznego podsumowania),
+ * "Konto" w Porównaniu kont (ten raport z definicji zawsze porównuje WSZYSTKIE konta - zmiana
+ * konta w filtrze nic by tam nie zmieniła, tylko sugerowałaby, że coś robi).
  */
 export function ReportFilterBar({
   value,
@@ -74,7 +85,10 @@ export function ReportFilterBar({
   strategies,
   intervals,
   availableYears,
+  reportKind,
 }: ReportFilterBarProps): ReactElement {
+  const showAccount = reportKind !== "compare";
+  const showMonth = reportKind !== "yearly";
   function set<K extends keyof ReportFilterBarValue>(key: K, next: ReportFilterBarValue[K]): void {
     onChange({ ...value, [key]: next });
   }
@@ -91,14 +105,16 @@ export function ReportFilterBar({
     <div className={styles.bar}>
       <div className={styles.row}>
         <span className={styles.rowLabel}>Zakres</span>
-        <Select
-          label="Konto"
-          compact
-          value={value.accountId}
-          onChange={(e) => set("accountId", e.target.value)}
-          options={accounts.map((a) => ({ value: a.id, label: `${a.name} (${a.currency})` }))}
-          className={styles.field}
-        />
+        {showAccount && (
+          <Select
+            label="Konto"
+            compact
+            value={value.accountId}
+            onChange={(e) => set("accountId", e.target.value)}
+            options={accounts.map((a) => ({ value: a.id, label: `${a.name} (${a.currency})` }))}
+            className={styles.field}
+          />
+        )}
         <Select
           label="Rok"
           compact
@@ -110,15 +126,17 @@ export function ReportFilterBar({
           ]}
           className={styles.field}
         />
-        <Select
-          label="Miesiąc"
-          compact
-          value={value.month}
-          onChange={(e) => set("month", e.target.value)}
-          options={MONTH_OPTIONS}
-          disabled={!value.year}
-          className={styles.field}
-        />
+        {showMonth && (
+          <Select
+            label="Miesiąc"
+            compact
+            value={value.month}
+            onChange={(e) => set("month", e.target.value)}
+            options={MONTH_OPTIONS}
+            disabled={!value.year}
+            className={styles.field}
+          />
+        )}
         <Button
           variant="secondary"
           size="sm"
