@@ -34,11 +34,24 @@ export function CumulativeLineChart({ rows, currency }: CumulativeLineChartProps
     value: rows.slice(0, index + 1).reduce((sum, r) => sum + Number(r.net_pnl), 0),
   }));
 
+  // Ta sama zasada co w GroupBarChart - przy wielu kategoriach (np. 12 pełnych nazw miesięcy)
+  // ograniczamy widoczne etykiety osi X do maks. ~12, równomiernie rozłożonych.
+  const MAX_VISIBLE_LABELS = 12;
+  const tickInterval =
+    data.length > MAX_VISIBLE_LABELS ? Math.ceil(data.length / MAX_VISIBLE_LABELS) - 1 : 0;
+
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+      <LineChart data={data} margin={{ top: 8, right: 8, bottom: 32, left: 0 }}>
         <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
-        <XAxis dataKey="label" tick={{ fill: "var(--color-text-muted)", fontSize: 11 }} />
+        <XAxis
+          dataKey="label"
+          interval={tickInterval}
+          angle={-25}
+          textAnchor="end"
+          height={50}
+          tick={{ fill: "var(--color-text-muted)", fontSize: 11 }}
+        />
         <YAxis
           width={72}
           tick={{ fill: "var(--color-text-muted)", fontSize: 11 }}

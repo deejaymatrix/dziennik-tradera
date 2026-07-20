@@ -144,7 +144,7 @@ export function ReportAccountComparisonTab({
             <tr>
               <th>Konto</th>
               <th className={tableStyles.numeric}>Transakcji</th>
-              <th className={tableStyles.numeric}>TPowne</th>
+              <th className={tableStyles.numeric}>Zyskowne</th>
               <th className={tableStyles.numeric}>Stratne</th>
               <th className={tableStyles.numeric}>Win rate</th>
               <th className={tableStyles.numeric}>P&L netto</th>

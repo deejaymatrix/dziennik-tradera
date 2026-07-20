@@ -8,6 +8,10 @@
   padding: var(--space-4);
 }
 
+.fullWidth {
+  grid-column: 1 / -1;
+}
+
 .title {
   font-size: var(--font-size-md);
   font-weight: 600;

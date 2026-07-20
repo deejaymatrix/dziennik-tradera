@@ -53,3 +53,16 @@
   font-size: var(--font-size-xs);
   color: var(--color-loss);
 }
+
+.field.sm {
+  gap: 2px;
+}
+
+.label.sm {
+  font-size: var(--font-size-xs);
+}
+
+.select.sm {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+}

@@ -120,6 +120,14 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
 
 ### Changed
 
+- Etykieta "TPowne" zmieniona na "Zyskowne" we wszystkich raportach.
+- Pasek filtrów Raportów/Dashboardu (`ReportFilterBar`) skompaktowany i pogrupowany w dwa rzędy
+  ("Zakres": konto/rok/miesiąc/"Wyczyść", "Filtry": instrument/strategia/interwał/kierunek) - nowy
+  wariant `compact` komponentu `Select`, mniej zajmowanej wysokości ekranu.
+- Wykresy słupkowe/liniowe z wieloma kategoriami (np. 31 dni miesiąca, 12 miesięcy) ograniczają
+  liczbę widocznych etykiet osi X do ~12, równomiernie rozłożonych, i zajmują pełną szerokość
+  siatki (nowy prop `fullWidth` na `ChartCard`) zamiast wąskiej połowy - zamiast nakładających się,
+  nieczytelnych etykiet.
 - Krzywa kapitału (Dashboard, Raporty) narysowana teraz przez Recharts (gradient, tooltip z
   datą i wynikiem) zamiast dotychczasowego ręcznego SVG.
 
@@ -169,6 +177,15 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   `y`) przed narysowaniem.
 - Karty "Najlepszy dzień"/"Najgorszy dzień" w Raporcie Miesięcznym pokazywały surową datę ISO
   ("2026-03-05") zamiast czytelnego formatu polskiego.
+- Pasek filtrów Raportów: dodanie `flex-basis` do klasy pola trafiało na sam `<select>`, którego
+  rodzicem jest kolumnowy kontener flex (wrapper etykiety+pola) - `flex-basis` zinterpretowany
+  jako wysokość, nie szerokość, rozjeżdżał każdy select do kwadratu 120×120px.
+- Wykres "Liczba transakcji per miesiąc" (Dashboard) formatował liczbę transakcji jako kwotę
+  pieniężną ("5,00" zamiast "5"), a automatyczne tyki osi Y potrafiły wygenerować wartości
+  dziesiętne (np. "2,25") dla wielkości, która z definicji jest liczbą całkowitą.
+- `pnpm eslint` liczył tysiące błędów typów z izolowanego katalogu roboczego zadania w tle
+  (`.claude/worktrees/**`, bez zainstalowanych zależności) - dodano go do `ignores` w
+  `eslint.config.js`.
 
 - Zakleszczenie mutexa w `SqliteAccountRepository::create` (brakujące zwolnienie blokady przed
   wywołaniem `self.get()`).

@@ -99,7 +99,7 @@ export function ReportStrategyTab({
         <ChartCard title="Wynik wg interwału">
           <GroupBarChart rows={report.by_interval} currency={currency} />
         </ChartCard>
-        <ChartCard title="P&L wg miesiąca">
+        <ChartCard title="P&L wg miesiąca" fullWidth>
           <GroupBarChart rows={report.calendar_months} currency={currency} />
         </ChartCard>
       </div>

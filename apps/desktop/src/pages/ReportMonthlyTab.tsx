@@ -82,7 +82,7 @@ export function ReportMonthlyTab({
 
       <div className={styles.statsGrid}>
         <StatCard label="Liczba transakcji" value={String(report.stats.closed_trades)} />
-        <StatCard label="TPowne" value={String(report.stats.win_count)} tone="profit" />
+        <StatCard label="Zyskowne" value={String(report.stats.win_count)} tone="profit" />
         <StatCard label="Stratne" value={String(report.stats.loss_count)} tone="loss" />
         <StatCard label="Win rate" value={formatPercent(report.stats.win_rate)} />
         <StatCard
@@ -148,7 +148,7 @@ export function ReportMonthlyTab({
       </div>
 
       <div className={styles.chartsGrid}>
-        <ChartCard title="Dzienny P&L netto">
+        <ChartCard title="Dzienny P&L netto" fullWidth>
           <GroupBarChart
             rows={days.map((d) => ({
               key: d.date,
@@ -171,7 +171,7 @@ export function ReportMonthlyTab({
         <ChartCard title="Zysk / Strata">
           <SimplePieChart
             slices={[
-              { label: "TPowne", value: report.stats.win_count, color: "var(--color-profit)" },
+              { label: "Zyskowne", value: report.stats.win_count, color: "var(--color-profit)" },
               { label: "Stratne", value: report.stats.loss_count, color: "var(--color-loss)" },
               {
                 label: "Bez wyniku",

@@ -36,7 +36,7 @@ export function MonthCalendarTable({ days, currency }: MonthCalendarTableProps):
           <th>Data</th>
           <th>Dzień tyg.</th>
           <th className={tableStyles.numeric}>Transakcje</th>
-          <th className={tableStyles.numeric}>TPowne</th>
+          <th className={tableStyles.numeric}>Zyskowne</th>
           <th className={tableStyles.numeric}>Stratne</th>
           <th className={tableStyles.numeric}>P&L netto</th>
           <th className={tableStyles.numeric}>Skum. P&L</th>

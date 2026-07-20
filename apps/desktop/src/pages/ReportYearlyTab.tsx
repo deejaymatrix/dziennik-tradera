@@ -134,13 +134,13 @@ export function ReportYearlyTab({ report, currency, year }: ReportYearlyTabProps
       </div>
 
       <div className={styles.chartsGrid}>
-        <ChartCard title="Miesięczny P&L netto">
+        <ChartCard title="Miesięczny P&L netto" fullWidth>
           <GroupBarChart rows={months} currency={currency} />
         </ChartCard>
-        <ChartCard title="Skumulowany P&L roku">
+        <ChartCard title="Skumulowany P&L roku" fullWidth>
           <CumulativeLineChart rows={months} currency={currency} />
         </ChartCard>
-        <ChartCard title="Win rate per miesiąc">
+        <ChartCard title="Win rate per miesiąc" fullWidth>
           <GroupBarChart
             rows={months.map((m) => ({ ...m, net_pnl: m.win_rate ?? "0" }))}
             currency="%"
@@ -199,7 +199,7 @@ export function ReportYearlyTab({ report, currency, year }: ReportYearlyTabProps
             <tr>
               <th>Miesiąc</th>
               <th className={tableStyles.numeric}>Transakcje</th>
-              <th className={tableStyles.numeric}>TPowne</th>
+              <th className={tableStyles.numeric}>Zyskowne</th>
               <th className={tableStyles.numeric}>Stratne</th>
               <th className={tableStyles.numeric}>Win rate</th>
               <th className={tableStyles.numeric}>P&L netto</th>

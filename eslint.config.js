@@ -15,6 +15,7 @@ export default tseslint.config(
       "**/node_modules/**",
       "**/src-tauri/gen/**",
       "**/*.gen.ts",
+      "**/.claude/**",
     ],
   },
   js.configs.recommended,

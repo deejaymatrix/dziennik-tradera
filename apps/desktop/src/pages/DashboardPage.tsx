@@ -202,13 +202,15 @@ export function DashboardPage(): ReactElement {
                   </div>
 
                   <div className={reportStyles.chartsGrid}>
-                    <ChartCard title="Liczba transakcji per miesiąc">
+                    <ChartCard title="Liczba transakcji per miesiąc" fullWidth>
                       <GroupBarChart
                         rows={report.calendar_months.map((m) => ({
                           ...m,
                           net_pnl: String(m.trade_count),
                         }))}
                         currency=""
+                        unit="count"
+                        valueLabel="Liczba transakcji"
                       />
                     </ChartCard>
                     <ChartCard title="P&L netto wg dnia tygodnia">

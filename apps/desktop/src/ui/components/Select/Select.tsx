@@ -12,20 +12,22 @@ export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement
   options: SelectOption[];
   hint?: string;
   error?: string;
+  compact?: boolean;
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { label, options, hint, error, required, className, ...rest },
+  { label, options, hint, error, required, className, compact = false, ...rest },
   ref,
 ): ReactElement {
   const id = useId();
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
+  const sizeClass = compact ? styles.sm : undefined;
 
   return (
-    <div className={styles.field}>
-      <label htmlFor={id} className={styles.label}>
+    <div className={[styles.field, sizeClass].filter(Boolean).join(" ")}>
+      <label htmlFor={id} className={[styles.label, sizeClass].filter(Boolean).join(" ")}>
         {label}
       </label>
       <select
@@ -34,7 +36,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         required={required}
         aria-invalid={Boolean(error) || undefined}
         aria-describedby={describedBy}
-        className={[styles.select, error && styles.selectError, className]
+        className={[styles.select, sizeClass, error && styles.selectError, className]
           .filter(Boolean)
           .join(" ")}
         {...rest}

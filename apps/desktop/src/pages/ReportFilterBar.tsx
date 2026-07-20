@@ -89,75 +89,90 @@ export function ReportFilterBar({
 
   return (
     <div className={styles.bar}>
-      <Select
-        label="Konto"
-        value={value.accountId}
-        onChange={(e) => set("accountId", e.target.value)}
-        options={accounts.map((a) => ({ value: a.id, label: `${a.name} (${a.currency})` }))}
-        className={styles.field}
-      />
-      <Select
-        label="Instrument"
-        value={value.instrumentId}
-        onChange={(e) => set("instrumentId", e.target.value)}
-        options={[
-          { value: "", label: "Wszystkie instrumenty" },
-          ...instruments.map((i) => ({ value: i.id, label: i.display_symbol })),
-        ]}
-        className={styles.field}
-      />
-      <Select
-        label="Strategia"
-        value={value.strategyId}
-        onChange={(e) => set("strategyId", e.target.value)}
-        options={[
-          { value: "", label: "Wszystkie strategie" },
-          ...strategies.map((s) => ({ value: s.id, label: s.name })),
-        ]}
-        className={styles.field}
-      />
-      <Select
-        label="Interwał"
-        value={value.intervalId}
-        onChange={(e) => set("intervalId", e.target.value)}
-        options={[
-          { value: "", label: "Wszystkie interwały" },
-          ...intervals.map((i) => ({ value: i.id, label: i.label })),
-        ]}
-        className={styles.field}
-      />
-      <Select
-        label="Rok"
-        value={value.year}
-        onChange={(e) => set("year", e.target.value)}
-        options={[
-          { value: "", label: "Wszystkie lata" },
-          ...availableYears.map((y) => ({ value: y, label: y })),
-        ]}
-        className={styles.field}
-      />
-      <Select
-        label="Miesiąc"
-        value={value.month}
-        onChange={(e) => set("month", e.target.value)}
-        options={MONTH_OPTIONS}
-        disabled={!value.year}
-        className={styles.field}
-      />
-      <Select
-        label="Kierunek"
-        value={value.side}
-        onChange={(e) => set("side", e.target.value as ReportFilterBarValue["side"])}
-        options={SIDE_OPTIONS}
-        className={styles.field}
-      />
-      <Button
-        variant="secondary"
-        disabled={isCleared}
-        onClick={() => onChange(blankReportFilter(value.accountId))}
-      >
-        Wyczyść
-      </Button>
+      <div className={styles.row}>
+        <span className={styles.rowLabel}>Zakres</span>
+        <Select
+          label="Konto"
+          compact
+          value={value.accountId}
+          onChange={(e) => set("accountId", e.target.value)}
+          options={accounts.map((a) => ({ value: a.id, label: `${a.name} (${a.currency})` }))}
+          className={styles.field}
+        />
+        <Select
+          label="Rok"
+          compact
+          value={value.year}
+          onChange={(e) => set("year", e.target.value)}
+          options={[
+            { value: "", label: "Wszystkie lata" },
+            ...availableYears.map((y) => ({ value: y, label: y })),
+          ]}
+          className={styles.field}
+        />
+        <Select
+          label="Miesiąc"
+          compact
+          value={value.month}
+          onChange={(e) => set("month", e.target.value)}
+          options={MONTH_OPTIONS}
+          disabled={!value.year}
+          className={styles.field}
+        />
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={isCleared}
+          onClick={() => onChange(blankReportFilter(value.accountId))}
+          className={styles.clearButton}
+        >
+          Wyczyść
+        </Button>
+      </div>
+      <div className={styles.row}>
+        <span className={styles.rowLabel}>Filtry</span>
+        <Select
+          label="Instrument"
+          compact
+          value={value.instrumentId}
+          onChange={(e) => set("instrumentId", e.target.value)}
+          options={[
+            { value: "", label: "Wszystkie instrumenty" },
+            ...instruments.map((i) => ({ value: i.id, label: i.display_symbol })),
+          ]}
+          className={styles.field}
+        />
+        <Select
+          label="Strategia"
+          compact
+          value={value.strategyId}
+          onChange={(e) => set("strategyId", e.target.value)}
+          options={[
+            { value: "", label: "Wszystkie strategie" },
+            ...strategies.map((s) => ({ value: s.id, label: s.name })),
+          ]}
+          className={styles.field}
+        />
+        <Select
+          label="Interwał"
+          compact
+          value={value.intervalId}
+          onChange={(e) => set("intervalId", e.target.value)}
+          options={[
+            { value: "", label: "Wszystkie interwały" },
+            ...intervals.map((i) => ({ value: i.id, label: i.label })),
+          ]}
+          className={styles.field}
+        />
+        <Select
+          label="Kierunek"
+          compact
+          value={value.side}
+          onChange={(e) => set("side", e.target.value as ReportFilterBarValue["side"])}
+          options={SIDE_OPTIONS}
+          className={styles.field}
+        />
+      </div>
     </div>
   );
 }

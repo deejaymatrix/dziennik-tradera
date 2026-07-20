@@ -936,6 +936,34 @@ siatka komórek).
   pokazywały surową datę ISO ("2026-03-05") zamiast czytelnego formatu - naprawione funkcją
   `formatDayLabel` (formatowanie `pl-PL`, strefa UTC, żeby nie przesuwało dnia).
 
+**Poprawki wizualne tego samego dnia (na wyraźną prośbę użytkownika - pasek filtrów "zbyt
+tłoczny", opisy osi X wykresów słupkowych nieczytelne przy wielu kategoriach):**
+
+- Etykieta "TPowne" zmieniona na "Zyskowne" we wszystkich raportach (KPI, tabele, wykres kołowy).
+- Pasek filtrów (`ReportFilterBar`) przebudowany na dwa skompaktowane, pogrupowane rzędy: "Zakres"
+  (Konto/Rok/Miesiąc + "Wyczyść") i "Filtry" (Instrument/Strategia/Interwał/Kierunek) - nowy
+  wariant `compact` na `Select` (mniejszy padding/font) zamiast dotychczasowego jednego,
+  rozlanego rzędu 7 pól. Realny błąd znaleziony przy weryfikacji: dodanie `flex: 1 1 7.5rem` do
+  klasy filtra wylądowało na samym `<select>` (className z `ReportFilterBar` trafia na element
+  `<select>`, nie na jego wrapper), a ponieważ RODZIC tego `<select>` (wewnętrzny wrapper `Select`)
+  jest kontenerem flex w układzie `column`, `flex-basis` zinterpretowany został jako WYSOKOŚĆ, nie
+  szerokość - każdy select rozjeżdżał się do kwadratu 120×120px. Naprawione usunięciem `flex`,
+  zostały tylko `min-width`/`max-width`/`width: 100%` (właściwości niezależne od osi flex).
+- `GroupBarChart`/`CumulativeLineChart`: dynamiczny interwał etykiet osi X (maks. ~12 widocznych,
+  równomiernie rozłożonych) zamiast wymuszania każdej etykiety - przy 31-dniowym wykresie
+  dziennym etykiety nakładały się w nieczytelną plamę. Nowy prop `fullWidth` na `ChartCard` dla
+  wykresów z wieloma kategoriami (dzienny P&L w Raporcie Miesięcznym, miesięczne/kwartalne wykresy
+  w Raporcie Rocznym i Strategii, liczba transakcji/miesiąc na Dashboardzie) - pełna szerokość
+  siatki zamiast wąskiej połowy.
+- `GroupBarChart` dostał nowy prop `unit="count"` (formatowanie liczb całkowitych bez waluty,
+  `allowDecimals={false}` na osi Y) - naprawia dwa realne błędy na wykresie "Liczba transakcji per
+  miesiąc" na Dashboardzie: wcześniej pokazywał "5,00" (format pieniężny) dla liczby transakcji, a
+  automatyczne tyki osi Y potrafiły wygenerować wartości typu "2,25" (nie ma 2,25 transakcji).
+- **Poza zakresem, ale naprawione po drodze:** `eslint.config.js` nie wykluczał `.claude/worktrees/**`
+  (izolowane katalogi robocze zadań w tle, np. `spawn_task`) - `pnpm eslint` zaczął liczyć tysiące
+  błędów typów z kopii kodu bez zainstalowanych zależności w takim katalogu. Dodano `"**/.claude/**"`
+  do `ignores`.
+
 **Następny krok:** powrót do pierwotnej kolejności - Faza 5 (uniwersalny Kosz).
 
 ## Pozostałe cele Etapu 1
