@@ -17,6 +17,10 @@ export interface ReportFilterBarValue {
   month: string;
 }
 
+/** Sentinel w polu "Konto" oznaczający porównanie wszystkich kont naraz, zamiast jednego
+ * wybranego - patrz `allowAllAccounts` w `ReportFilterBarProps`. */
+export const ALL_ACCOUNTS_VALUE = "__all__";
+
 export function blankReportFilter(accountId: string): ReportFilterBarValue {
   return {
     accountId,
@@ -65,6 +69,9 @@ export interface ReportFilterBarProps {
   intervals: Interval[];
   availableYears: string[];
   reportKind?: ReportKind;
+  /** Dodaje do pola "Konto" opcję "Wszystkie konta (porównanie)" - używane tylko na Dashboardzie,
+   * który (w odróżnieniu od zakładki Raporty) nie ma osobnej zakładki "Porównanie kont". */
+  allowAllAccounts?: boolean;
 }
 
 /**
@@ -86,6 +93,7 @@ export function ReportFilterBar({
   intervals,
   availableYears,
   reportKind,
+  allowAllAccounts,
 }: ReportFilterBarProps): ReactElement {
   const showAccount = reportKind !== "compare";
   const showMonth = reportKind !== "yearly";
@@ -111,7 +119,12 @@ export function ReportFilterBar({
             compact
             value={value.accountId}
             onChange={(e) => set("accountId", e.target.value)}
-            options={accounts.map((a) => ({ value: a.id, label: `${a.name} (${a.currency})` }))}
+            options={[
+              ...accounts.map((a) => ({ value: a.id, label: `${a.name} (${a.currency})` })),
+              ...(allowAllAccounts
+                ? [{ value: ALL_ACCOUNTS_VALUE, label: "Wszystkie konta (porównanie)" }]
+                : []),
+            ]}
             className={styles.field}
           />
         )}

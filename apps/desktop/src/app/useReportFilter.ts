@@ -5,7 +5,7 @@ import type { InstrumentWithDetails } from "./types/instrument";
 import type { Interval } from "./types/interval";
 import type { AccountComparisonFilter, FilteredReport, ReportFilter } from "./types/report";
 import type { Strategy } from "./types/strategy";
-import { blankReportFilter } from "../pages/ReportFilterBar";
+import { ALL_ACCOUNTS_VALUE, blankReportFilter } from "../pages/ReportFilterBar";
 import type { ReportFilterBarValue } from "../pages/ReportFilterBar";
 
 export function toReportFilter(f: ReportFilterBarValue): ReportFilter {
@@ -136,13 +136,19 @@ export function useReportFilter(): UseReportFilterResult {
   }
 
   useEffect(() => {
-    if (filter.accountId) {
+    // Przy "Wszystkie konta" nie ma jednego konta do zapytania o dostępne lata - używamy
+    // pierwszego konta jako reprezentanta (ten sam kompromis co już istniejąca zakładka
+    // "Porównanie kont", gdzie lista lat też pochodzi z aktualnie wybranego konta, nie unii
+    // wszystkich kont).
+    const probeAccountId =
+      filter.accountId === ALL_ACCOUNTS_VALUE ? accounts?.[0]?.id : filter.accountId;
+    if (probeAccountId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      void loadAvailableYears(filter.accountId);
+      void loadAvailableYears(probeAccountId);
     } else {
       setAvailableYears([]);
     }
-  }, [filter.accountId]);
+  }, [filter.accountId, accounts]);
 
   async function loadReport(currentFilter: ReportFilterBarValue): Promise<void> {
     setReportError(null);
@@ -157,7 +163,7 @@ export function useReportFilter(): UseReportFilterResult {
   }
 
   useEffect(() => {
-    if (filter.accountId) {
+    if (filter.accountId && filter.accountId !== ALL_ACCOUNTS_VALUE) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       void loadReport(filter);
     } else {

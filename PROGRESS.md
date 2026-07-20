@@ -990,6 +990,21 @@ raportu żeby nie mieszać użytkownikowi"):**
   ukryte pole nadal zawężałoby raport w tle, niewidocznie dla użytkownika (sprawdzone: bez
   czyszczenia "P&L netto roku" pokazywałoby wynik samego marca, nie całego roku).
 
+**Trzecia poprawka tego samego dnia** ("przy wyborze konta umożliw porównanie wszystkich kont"):
+Dashboard (jedyne miejsce bez osobnej zakładki "Porównanie kont") dostał opcję "Wszystkie konta
+(porównanie)" w polu "Konto" - nowy sentinel `ALL_ACCOUNTS_VALUE` w `ReportFilterBar`, prop
+`allowAllAccounts` (używany tylko przez Dashboard - zakładka Raporty ma już dedykowaną zakładkę
+"Porównanie kont", więc dodawanie tej samej opcji tam byłoby zbędną duplikacją, zwłaszcza że
+akurat na tamtej zakładce pole "Konto" jest już ukryte). Wybranie tej opcji podstawia w miejsce
+zwykłych KPI/wykresów jednego konta ten sam komponent `ReportAccountComparisonTab`, który już
+zasila zakładkę Porównania kont w Raportach - zero duplikacji logiki/UI. `useReportFilter`
+przestaje odpytywać `get_filtered_report` o nieistniejące "konto" `__all__` (zwracałoby błąd) -
+lista dostępnych lat w tym trybie pochodzi z pierwszego prawdziwego konta jako reprezentanta (ten
+sam kompromis, jaki już miała istniejąca zakładka Porównania kont). Zweryfikowane w przeglądarce:
+przełączenie Konto → "Wszystkie konta" pokazuje leaderboard + tabelę + 4 wykresy porównawcze z
+poprawnymi, różnymi danymi DEMO/LIVE; przełączenie z powrotem na konkretne konto poprawnie
+wraca do zwykłego widoku Dashboardu z jego saldem.
+
 **Następny krok:** powrót do pierwotnej kolejności - Faza 5 (uniwersalny Kosz).
 
 ## Pozostałe cele Etapu 1

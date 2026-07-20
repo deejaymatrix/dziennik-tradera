@@ -16,7 +16,8 @@ import { ChartCard } from "./ChartCard";
 import { EquityCurveChart } from "./EquityCurveChart";
 import { GroupBarChart } from "./GroupBarChart";
 import { HeatmapTable } from "./HeatmapTable";
-import { ReportFilterBar } from "./ReportFilterBar";
+import { ReportAccountComparisonTab } from "./ReportAccountComparisonTab";
+import { ALL_ACCOUNTS_VALUE, ReportFilterBar } from "./ReportFilterBar";
 import type { ReportFilterBarValue } from "./ReportFilterBar";
 import { StatCard } from "./StatCard";
 import reportStyles from "./ReportsPage.module.css";
@@ -43,6 +44,7 @@ export function DashboardPage(): ReactElement {
     selectedAccount,
   } = useReportFilter();
   const [accountRankingRows, setAccountRankingRows] = useState<AccountComparisonRow[] | null>(null);
+  const isAllAccounts = filter.accountId === ALL_ACCOUNTS_VALUE;
 
   const dismiss = (): void => {
     localStorage.setItem(CHECKLIST_DISMISSED_KEY, "true");
@@ -131,9 +133,14 @@ export function DashboardPage(): ReactElement {
             strategies={strategies}
             intervals={intervals}
             availableYears={availableYears}
+            allowAllAccounts
           />
 
-          {selectedAccount && (
+          {isAllAccounts && (
+            <ReportAccountComparisonTab rows={accountRankingRows} accounts={accounts} />
+          )}
+
+          {!isAllAccounts && selectedAccount && (
             <div className={styles.statsGrid}>
               <StatCard
                 label="Aktualne saldo"
@@ -142,13 +149,13 @@ export function DashboardPage(): ReactElement {
             </div>
           )}
 
-          {reportError && (
+          {!isAllAccounts && reportError && (
             <ErrorState title="Nie udało się wczytać podsumowania" description={reportError} />
           )}
 
-          {!reportError && report === null && <Skeleton height="8rem" />}
+          {!isAllAccounts && !reportError && report === null && <Skeleton height="8rem" />}
 
-          {!reportError && report !== null && selectedAccount && (
+          {!isAllAccounts && !reportError && report !== null && selectedAccount && (
             <>
               {report.stats.closed_trades === 0 ? (
                 <EmptyState

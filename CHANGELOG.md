@@ -117,6 +117,9 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
 - Nowe komponenty wykresów/tabel: `SimplePieChart`, `CumulativeLineChart`, `MonthCalendarTable`,
   `TopTradesTable`, `HeatmapTable`; wspólny hook `useReportFilter` wydzielony z logiki Raportów i
   reużyty przez Dashboard.
+- Opcja "Wszystkie konta (porównanie)" w polu "Konto" na Dashboardzie - podstawia pełny widok
+  porównania kont (leaderboard, tabela, 4 wykresy - ten sam komponent co zakładka "Porównanie
+  kont" w Raportach) w miejsce zwykłych KPI jednego konta.
 
 ### Changed
 
