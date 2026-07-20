@@ -112,7 +112,10 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
         strategies.clone(),
         intervals.clone(),
     );
-    let reports = ReportsService::new(Arc::new(SqliteTradeRepository::new(conn.clone())));
+    let reports = ReportsService::new(
+        Arc::new(SqliteTradeRepository::new(conn.clone())),
+        accounts.clone(),
+    );
     let export = ExportService::new(
         Arc::new(SqliteTradeRepository::new(conn.clone())),
         accounts.clone(),

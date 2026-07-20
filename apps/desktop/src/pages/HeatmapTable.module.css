@@ -1,0 +1,23 @@
+.cell {
+  position: relative;
+}
+
+.profit {
+  background-color: color-mix(
+    in srgb,
+    var(--color-profit) calc(var(--cell-opacity) * 100%),
+    transparent
+  );
+  color: var(--color-profit);
+  font-weight: 600;
+}
+
+.loss {
+  background-color: color-mix(
+    in srgb,
+    var(--color-loss) calc(var(--cell-opacity) * 100%),
+    transparent
+  );
+  color: var(--color-loss);
+  font-weight: 600;
+}

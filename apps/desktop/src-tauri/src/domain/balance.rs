@@ -8,6 +8,7 @@ struct TimelineEvent<'a> {
     at: DateTime<Utc>,
     id: &'a str,
     delta: Decimal,
+    is_cash_operation: bool,
 }
 
 fn timeline<'a>(
@@ -20,6 +21,7 @@ fn timeline<'a>(
             at: op.occurred_at,
             id: op.id.as_str(),
             delta: op.signed_amount(),
+            is_cash_operation: true,
         })
         .collect();
     events.extend(closed_trades.iter().filter_map(|t| {
@@ -32,6 +34,7 @@ fn timeline<'a>(
             at: closed_at,
             id: t.id.as_str(),
             delta: net_pnl,
+            is_cash_operation: false,
         })
     }));
     events.sort_by(|a, b| a.at.cmp(&b.at).then_with(|| a.id.cmp(b.id)));
@@ -72,6 +75,93 @@ pub fn balance_before_after_trade(
         }
     }
     (running, running)
+}
+
+/// Saldo i przepływy gotówkowe w okresie (miesiąc/rok/cały czas) - sekcja "Saldo początkowe/
+/// końcowe"/"Wpłaty/wypłaty"/"Zwrot"/"Max drawdown %" w raportach miesięcznym/rocznym/kont.
+#[derive(Debug, Clone)]
+pub struct PeriodBalanceSummary {
+    /// Saldo w momencie rozpoczęcia okresu (albo `initial_balance` konta, gdy `period_start`
+    /// to `None` - czyli okres "od zawsze").
+    pub starting_balance: Decimal,
+    /// Saldo w momencie zakończenia okresu (albo aktualne saldo konta, gdy `period_end` to
+    /// `None`).
+    pub ending_balance: Decimal,
+    /// Suma wpłat/wypłat/korekt w okresie (bez wyniku transakcji) - jedna, netto wartość.
+    pub net_cash_flow: Decimal,
+    /// (`ending_balance - starting_balance`) / `starting_balance` * 100. `None`, gdy saldo
+    /// startowe wynosi zero (dzielenie przez zero nie ma sensu).
+    pub return_percent: Option<Decimal>,
+    /// Maksymalne obsunięcie (peak-to-trough) salda W TRAKCIE okresu - w walucie konta.
+    pub max_drawdown: Decimal,
+    /// `max_drawdown` jako % salda startowego okresu. `None`, gdy saldo startowe wynosi zero.
+    pub max_drawdown_percent: Option<Decimal>,
+}
+
+/// Liczy saldo/przepływy dla okresu wyznaczonego przez `[period_start, period_end)` na
+/// wspólnej osi czasu operacji gotówkowych i zamknięć transakcji (ta sama `timeline()` co
+/// `compute_current_balance`/`balance_before_after_trade`). `None` na obu końcach = "cały
+/// czas" (od `initial_balance` do teraz). `operations`/`closed_trades` powinny być PEŁNymi,
+/// niezawężonymi listami konta - to ta funkcja wyznacza, co należy do okresu, a nie wywołujący.
+pub fn compute_period_balance(
+    initial_balance: Decimal,
+    operations: &[CashOperation],
+    closed_trades: &[Trade],
+    period_start: Option<DateTime<Utc>>,
+    period_end: Option<DateTime<Utc>>,
+) -> PeriodBalanceSummary {
+    let events = timeline(operations, closed_trades);
+
+    let mut running = initial_balance;
+    let mut starting_balance = initial_balance;
+    let mut net_cash_flow = Decimal::ZERO;
+    let mut peak = initial_balance;
+    let mut max_drawdown = Decimal::ZERO;
+    let mut captured_start = period_start.is_none();
+    if captured_start {
+        peak = running;
+    }
+
+    for event in &events {
+        if period_start.is_some_and(|start| event.at < start) {
+            running += event.delta;
+            continue;
+        }
+        if period_end.is_some_and(|end| event.at >= end) {
+            break;
+        }
+        if !captured_start {
+            starting_balance = running;
+            peak = running;
+            captured_start = true;
+        }
+        running += event.delta;
+        if event.is_cash_operation {
+            net_cash_flow += event.delta;
+        }
+        peak = peak.max(running);
+        max_drawdown = max_drawdown.max(peak - running);
+    }
+    if !captured_start {
+        // Żadne zdarzenie nie sięgnęło jeszcze początku okresu (np. okres w przyszłości/bez
+        // zdarzeń) - saldo startowe i końcowe to to samo, ostatnie znane saldo.
+        starting_balance = running;
+    }
+    let ending_balance = running;
+
+    let return_percent = (!starting_balance.is_zero())
+        .then(|| (ending_balance - starting_balance) / starting_balance * Decimal::ONE_HUNDRED);
+    let max_drawdown_percent = (!starting_balance.is_zero())
+        .then(|| max_drawdown / starting_balance * Decimal::ONE_HUNDRED);
+
+    PeriodBalanceSummary {
+        starting_balance,
+        ending_balance,
+        net_cash_flow,
+        return_percent,
+        max_drawdown,
+        max_drawdown_percent,
+    }
 }
 
 #[cfg(test)]
@@ -225,5 +315,80 @@ mod tests {
         let (before_b, after_b) = balance_before_after_trade(dec!(0), &[], &trades, "b");
         assert_eq!(before_b, dec!(20));
         assert_eq!(after_b, dec!(30));
+    }
+
+    #[test]
+    fn period_balance_with_no_bounds_covers_entire_history() {
+        let operations = vec![
+            op(
+                "op-1",
+                CashOperationKind::Deposit,
+                dec!(1000),
+                "2026-01-01T00:00:00Z",
+            ),
+            op(
+                "op-2",
+                CashOperationKind::Withdrawal,
+                dec!(200),
+                "2026-01-05T00:00:00Z",
+            ),
+        ];
+        let trades = vec![closed_trade("t-1", dec!(150), "2026-01-03T00:00:00Z")];
+
+        let summary = compute_period_balance(dec!(500), &operations, &trades, None, None);
+        assert_eq!(summary.starting_balance, dec!(500));
+        assert_eq!(summary.ending_balance, dec!(1450)); // 500 + 1000 - 200 + 150
+        assert_eq!(summary.net_cash_flow, dec!(800)); // 1000 - 200, wynik transakcji nie wchodzi
+    }
+
+    #[test]
+    fn period_balance_scopes_starting_balance_to_period_start() {
+        let operations = vec![op(
+            "op-1",
+            CashOperationKind::Deposit,
+            dec!(1000),
+            "2026-01-01T00:00:00Z",
+        )];
+        let trades = vec![
+            closed_trade("t-1", dec!(100), "2026-01-15T00:00:00Z"), // przed lutym
+            closed_trade("t-2", dec!(50), "2026-02-10T00:00:00Z"),  // w lutym
+        ];
+
+        let feb_start = "2026-02-01T00:00:00Z".parse().unwrap();
+        let mar_start = "2026-03-01T00:00:00Z".parse().unwrap();
+        let summary = compute_period_balance(
+            dec!(0),
+            &operations,
+            &trades,
+            Some(feb_start),
+            Some(mar_start),
+        );
+        // Depozyt + transakcja ze stycznia wliczają się do salda startowego lutego, nie do
+        // przepływu lutego.
+        assert_eq!(summary.starting_balance, dec!(1100));
+        assert_eq!(summary.ending_balance, dec!(1150));
+        assert_eq!(summary.net_cash_flow, dec!(0));
+    }
+
+    #[test]
+    fn period_balance_computes_return_and_drawdown_percent() {
+        let trades = vec![
+            closed_trade("t-1", dec!(-50), "2026-01-05T00:00:00Z"), // obsunięcie 50 od startu 1000
+            closed_trade("t-2", dec!(200), "2026-01-10T00:00:00Z"),
+        ];
+        let summary = compute_period_balance(dec!(1000), &[], &trades, None, None);
+        assert_eq!(summary.starting_balance, dec!(1000));
+        assert_eq!(summary.ending_balance, dec!(1150));
+        assert_eq!(summary.max_drawdown, dec!(50));
+        assert_eq!(summary.return_percent, Some(dec!(15))); // 150/1000*100
+        assert_eq!(summary.max_drawdown_percent, Some(dec!(5))); // 50/1000*100
+    }
+
+    #[test]
+    fn period_balance_with_zero_starting_balance_leaves_percentages_none() {
+        let trades = vec![closed_trade("t-1", dec!(100), "2026-01-05T00:00:00Z")];
+        let summary = compute_period_balance(dec!(0), &[], &trades, None, None);
+        assert_eq!(summary.return_percent, None);
+        assert_eq!(summary.max_drawdown_percent, None);
     }
 }

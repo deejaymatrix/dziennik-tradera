@@ -101,6 +101,22 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   miesiąc/kierunek/"Wyczyść") - jeden silnik metryk (`get_filtered_report`) używany przez
   wszystkie naraz. Nowe metryki w `domain::trade_stats`: średni czas trwania transakcji,
   maksymalne obsunięcie kapitału (drawdown), rozbicie miesięczne/roczne/wg dnia tygodnia.
+- Nowe metryki w `domain::trade_stats`: łączna prowizja, rozbicie wg 4-godzinnych przedziałów/
+  kierunku (BUY/SELL)/kwartału/miesiąca kalendarzowego (zawsze 12, zero-fill)/interwału,
+  kalendarz konkretnego miesiąca dzień po dniu, TOP-N najlepszych/najgorszych transakcji,
+  histogram rozkładu wyniku netto (6 przedziałów).
+- `compute_period_balance` (`domain::balance`) - saldo początkowe/końcowe, wpłaty/wypłaty netto,
+  zwrot % i maksymalne obsunięcie dla dowolnego okresu (miesiąc/rok/cały czas), względem salda
+  początkowego tego okresu.
+- Przebudowane raporty Roczny i Miesięczny (18 KPI każdy, po 5 wykresów, leaderboard najlepszych/
+  najgorszych elementów, kalendarz miesiąca dzień po dniu, TOP-5 najlepszych/najgorszych
+  transakcji), Porównanie kont (leaderboard + tabela z wierszem "Łącznie" + 4 wykresy), Raport
+  Symbolu i Raport Strategii jako dedykowane zakładki (zastąpiły wspólny szablon) oraz Dashboard
+  (pełny pasek filtrów, 8 KPI, 5 wykresów, rankingi TOP-5, dwie mapy cieplne dzień/godzina, tabela
+  rozkładu wyniku) - wszystko na jednym, współdzielonym silniku `FilteredReport`.
+- Nowe komponenty wykresów/tabel: `SimplePieChart`, `CumulativeLineChart`, `MonthCalendarTable`,
+  `TopTradesTable`, `HeatmapTable`; wspólny hook `useReportFilter` wydzielony z logiki Raportów i
+  reużyty przez Dashboard.
 
 ### Changed
 
@@ -151,6 +167,8 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   `<Bar>` przekazywał Recharts-owi ujemną wysokość prosto do `<rect>`, a SVG odmawia narysowania
   elementu z ujemną wysokością/szerokością. Naprawione normalizacją (`Math.abs` + przesunięcie
   `y`) przed narysowaniem.
+- Karty "Najlepszy dzień"/"Najgorszy dzień" w Raporcie Miesięcznym pokazywały surową datę ISO
+  ("2026-03-05") zamiast czytelnego formatu polskiego.
 
 - Zakleszczenie mutexa w `SqliteAccountRepository::create` (brakujące zwolnienie blokady przed
   wywołaniem `self.get()`).

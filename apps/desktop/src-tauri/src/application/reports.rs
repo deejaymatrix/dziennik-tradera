@@ -1,11 +1,18 @@
 use std::sync::Arc;
 
-use chrono::Datelike;
+use chrono::{DateTime, Datelike, TimeZone, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
+use crate::application::accounts::AccountsService;
+use crate::domain::balance::{compute_period_balance, PeriodBalanceSummary};
 use crate::domain::trade::{Trade, TradeRepository, TradeSide};
-use crate::domain::trade_stats::{self, DailyPnl, EquityPoint, GroupBreakdown, TradeStats};
+use crate::domain::trade_stats::{
+    self, DailyPnl, EquityPoint, GroupBreakdown, PnlDistributionBucket, TopTradeRow, TradeStats,
+};
 use crate::error::AppError;
+
+const TOP_TRADES_COUNT: usize = 5;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AccountReport {
@@ -16,10 +23,81 @@ pub struct AccountReport {
     pub by_instrument: Vec<GroupBreakdown>,
 }
 
+fn matches_dimensions(
+    trade: &Trade,
+    instrument_id: Option<&str>,
+    strategy_id: Option<&str>,
+    interval_id: Option<&str>,
+    side: Option<TradeSide>,
+    year: Option<i32>,
+    month: Option<u32>,
+) -> bool {
+    if let Some(instrument_id) = instrument_id {
+        if trade.instrument_id.as_deref() != Some(instrument_id) {
+            return false;
+        }
+    }
+    if let Some(strategy_id) = strategy_id {
+        if trade.strategy_id.as_deref() != Some(strategy_id) {
+            return false;
+        }
+    }
+    if let Some(interval_id) = interval_id {
+        if trade.interval_id.as_deref() != Some(interval_id) {
+            return false;
+        }
+    }
+    if let Some(side) = side {
+        if trade.side != side {
+            return false;
+        }
+    }
+    if let Some(year) = year {
+        let Some(closed_at) = trade.closed_at else {
+            return false;
+        };
+        if closed_at.year() != year {
+            return false;
+        }
+        if let Some(month) = month {
+            if closed_at.month() != month {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+/// `[start, end)` wyznaczony przez rok/miesiąc filtru - używany do zawężania transakcji ORAZ do
+/// wyznaczenia okresu dla `compute_period_balance`. `(None, None)` = brak zawężenia okresu
+/// (cały czas).
+fn period_bounds(
+    year: Option<i32>,
+    month: Option<u32>,
+) -> (Option<DateTime<Utc>>, Option<DateTime<Utc>>) {
+    match (year, month) {
+        (Some(year), Some(month)) => {
+            let start = Utc.with_ymd_and_hms(year, month, 1, 0, 0, 0).unwrap();
+            let end = if month == 12 {
+                Utc.with_ymd_and_hms(year + 1, 1, 1, 0, 0, 0).unwrap()
+            } else {
+                Utc.with_ymd_and_hms(year, month + 1, 1, 0, 0, 0).unwrap()
+            };
+            (Some(start), Some(end))
+        }
+        (Some(year), None) => {
+            let start = Utc.with_ymd_and_hms(year, 1, 1, 0, 0, 0).unwrap();
+            let end = Utc.with_ymd_and_hms(year + 1, 1, 1, 0, 0, 0).unwrap();
+            (Some(start), Some(end))
+        }
+        _ => (None, None),
+    }
+}
+
 /// Filtr wspólny dla wszystkich podraportów zakładki "Raporty" (sekcja "Wspólny lepki pasek
 /// filtrów"). `account_id` jest wymagane - każdy raport (poza "Porównaniem kont", które ma
-/// osobną komendę operującą na wielu kontach naraz) dotyczy jednego konta. Pozostałe pola
-/// zawężają dalej: `None` = brak zawężenia po tym wymiarze.
+/// osobny filtr bez konta) dotyczy jednego konta. Pozostałe pola zawężają dalej: `None` = brak
+/// zawężenia po tym wymiarze.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ReportFilter {
     pub account_id: String,
@@ -34,46 +112,22 @@ pub struct ReportFilter {
     pub month: Option<u32>,
 }
 
-fn matches_filter(trade: &Trade, filter: &ReportFilter) -> bool {
-    if let Some(instrument_id) = &filter.instrument_id {
-        if trade.instrument_id.as_deref() != Some(instrument_id.as_str()) {
-            return false;
-        }
-    }
-    if let Some(strategy_id) = &filter.strategy_id {
-        if trade.strategy_id.as_deref() != Some(strategy_id.as_str()) {
-            return false;
-        }
-    }
-    if let Some(interval_id) = &filter.interval_id {
-        if trade.interval_id.as_deref() != Some(interval_id.as_str()) {
-            return false;
-        }
-    }
-    if let Some(side) = filter.side {
-        if trade.side != side {
-            return false;
-        }
-    }
-    if let Some(year) = filter.year {
-        let Some(closed_at) = trade.closed_at else {
-            return false;
-        };
-        if closed_at.year() != year {
-            return false;
-        }
-        if let Some(month) = filter.month {
-            if closed_at.month() != month {
-                return false;
-            }
-        }
-    }
-    true
+/// Ten sam zestaw wymiarów co `ReportFilter`, ale bez konta - podraport "Porównanie kont"
+/// zawęża wszystkie konta na raz tym samym filtrem, licząc dla każdego z nich osobny wiersz.
+#[derive(Debug, Clone, Deserialize)]
+pub struct AccountComparisonFilter {
+    pub instrument_id: Option<String>,
+    pub strategy_id: Option<String>,
+    pub interval_id: Option<String>,
+    pub side: Option<TradeSide>,
+    pub year: Option<i32>,
+    pub month: Option<u32>,
 }
 
-/// Rozszerzony raport dla zakładki "Raporty" (Faza 9) - jeden silnik metryk (`domain::
-/// trade_stats`) użyty przez wszystkie podraporty (Miesięczny/Roczny/Instrument/Strategia), żeby
-/// liczby nigdy się nie rozjechały między KPI/wykresami/tabelami.
+/// Rozszerzony raport dla zakładki "Raporty" - jeden silnik metryk (`domain::trade_stats`/
+/// `domain::balance`) użyty przez wszystkie podraporty, żeby liczby nigdy się nie rozjechały
+/// między KPI/wykresami/tabelami. `month_calendar` jest pusta, jeśli filtr nie ma ustawionych
+/// jednocześnie `year` i `month` (kalendarz ma sens tylko dla jednego konkretnego miesiąca).
 #[derive(Debug, Clone, Serialize)]
 pub struct FilteredReport {
     pub stats: TradeStats,
@@ -81,29 +135,72 @@ pub struct FilteredReport {
     pub calendar: Vec<DailyPnl>,
     pub by_strategy: Vec<GroupBreakdown>,
     pub by_instrument: Vec<GroupBreakdown>,
+    pub by_interval: Vec<GroupBreakdown>,
     pub monthly: Vec<GroupBreakdown>,
     pub yearly: Vec<GroupBreakdown>,
+    pub quarterly: Vec<GroupBreakdown>,
+    pub calendar_months: Vec<GroupBreakdown>,
     pub by_day_of_week: Vec<GroupBreakdown>,
+    pub by_four_hour: Vec<GroupBreakdown>,
+    pub by_side: Vec<GroupBreakdown>,
+    pub top_best_trades: Vec<TopTradeRow>,
+    pub top_worst_trades: Vec<TopTradeRow>,
+    pub pnl_distribution: Vec<PnlDistributionBucket>,
+    pub month_calendar: Vec<DailyPnl>,
+    pub period_balance: PeriodBalanceSummaryDto,
 }
 
-/// Jeden wiersz podraportu "Porównanie kont" - statystyki policzone niezależnie dla każdego
-/// konta (frontend już ma listę kont z nazwą/walutą, dołącza je po `account_id`).
+/// Kopia `domain::balance::PeriodBalanceSummary` z `Serialize` - `PeriodBalanceSummary` samo
+/// nie serializuje się, żeby domena nie musiała znać serde (podobnie jak reszta `domain::balance`).
+#[derive(Debug, Clone, Serialize)]
+pub struct PeriodBalanceSummaryDto {
+    pub starting_balance: Decimal,
+    pub ending_balance: Decimal,
+    pub net_cash_flow: Decimal,
+    pub return_percent: Option<Decimal>,
+    pub max_drawdown: Decimal,
+    pub max_drawdown_percent: Option<Decimal>,
+}
+
+impl From<PeriodBalanceSummary> for PeriodBalanceSummaryDto {
+    fn from(value: PeriodBalanceSummary) -> Self {
+        Self {
+            starting_balance: value.starting_balance,
+            ending_balance: value.ending_balance,
+            net_cash_flow: value.net_cash_flow,
+            return_percent: value.return_percent,
+            max_drawdown: value.max_drawdown,
+            max_drawdown_percent: value.max_drawdown_percent,
+        }
+    }
+}
+
+/// Jeden wiersz podraportu "Porównanie kont" - statystyki i saldo policzone niezależnie dla
+/// każdego konta (frontend już ma listę kont z nazwą/walutą, dołącza je po `account_id`).
 #[derive(Debug, Clone, Serialize)]
 pub struct AccountComparisonRow {
     pub account_id: String,
     pub stats: TradeStats,
+    pub period_balance: PeriodBalanceSummaryDto,
 }
 
 /// Warstwa aplikacyjna raportów: pobiera transakcje konta RAZ i liczy z nich wszystkie
 /// widoki naraz (dashboard, kalendarz, rozbicia) - unika wielokrotnych zapytań do bazy dla
-/// jednego ekranu. Same przeliczenia są czystymi funkcjami w `domain::trade_stats`.
+/// jednego ekranu. Same przeliczenia są czystymi funkcjami w `domain::trade_stats`/
+/// `domain::balance`. `accounts` daje dostęp do salda początkowego konta i operacji
+/// gotówkowych (potrzebne do salda/zwrotu/wpłat-wypłat w okresie) - bez tego serwis miałby
+/// tylko transakcje, a saldo to więcej niż tylko wynik transakcji.
 pub struct ReportsService {
     trades: Arc<dyn TradeRepository + Send + Sync>,
+    accounts: Arc<AccountsService>,
 }
 
 impl ReportsService {
-    pub fn new(trades: Arc<dyn TradeRepository + Send + Sync>) -> Self {
-        Self { trades }
+    pub fn new(
+        trades: Arc<dyn TradeRepository + Send + Sync>,
+        accounts: Arc<AccountsService>,
+    ) -> Self {
+        Self { trades, accounts }
     }
 
     pub fn get_account_report(&self, account_id: &str) -> Result<AccountReport, AppError> {
@@ -117,35 +214,111 @@ impl ReportsService {
         })
     }
 
+    fn period_balance_for_account(
+        &self,
+        account_id: &str,
+        year: Option<i32>,
+        month: Option<u32>,
+        all_trades: &[Trade],
+    ) -> Result<PeriodBalanceSummaryDto, AppError> {
+        let account = self.accounts.get(account_id)?;
+        let operations = self.accounts.list_cash_operations(account_id)?;
+        let (period_start, period_end) = period_bounds(year, month);
+        Ok(compute_period_balance(
+            account.account.initial_balance,
+            &operations,
+            all_trades,
+            period_start,
+            period_end,
+        )
+        .into())
+    }
+
     pub fn get_filtered_report(&self, filter: ReportFilter) -> Result<FilteredReport, AppError> {
         let all_trades = self.trades.list(&filter.account_id, false)?;
         let trades: Vec<Trade> = all_trades
-            .into_iter()
-            .filter(|t| matches_filter(t, &filter))
+            .iter()
+            .filter(|t| {
+                matches_dimensions(
+                    t,
+                    filter.instrument_id.as_deref(),
+                    filter.strategy_id.as_deref(),
+                    filter.interval_id.as_deref(),
+                    filter.side,
+                    filter.year,
+                    filter.month,
+                )
+            })
+            .cloned()
             .collect();
+
+        let month_calendar = match (filter.year, filter.month) {
+            (Some(year), Some(month)) => trade_stats::compute_month_calendar(&trades, year, month),
+            _ => Vec::new(),
+        };
+        let period_balance = self.period_balance_for_account(
+            &filter.account_id,
+            filter.year,
+            filter.month,
+            &all_trades,
+        )?;
+
         Ok(FilteredReport {
             stats: trade_stats::compute_stats(&trades),
             equity_curve: trade_stats::compute_equity_curve(&trades),
             calendar: trade_stats::compute_calendar(&trades),
             by_strategy: trade_stats::compute_strategy_breakdown(&trades),
             by_instrument: trade_stats::compute_instrument_breakdown(&trades),
+            by_interval: trade_stats::compute_interval_breakdown(&trades),
             monthly: trade_stats::compute_monthly_breakdown(&trades),
             yearly: trade_stats::compute_yearly_breakdown(&trades),
+            quarterly: trade_stats::compute_quarterly_breakdown(&trades),
+            calendar_months: trade_stats::compute_calendar_month_breakdown(&trades),
             by_day_of_week: trade_stats::compute_day_of_week_breakdown(&trades),
+            by_four_hour: trade_stats::compute_four_hour_breakdown(&trades),
+            by_side: trade_stats::compute_side_breakdown(&trades),
+            top_best_trades: trade_stats::compute_top_trades(&trades, TOP_TRADES_COUNT, true),
+            top_worst_trades: trade_stats::compute_top_trades(&trades, TOP_TRADES_COUNT, false),
+            pnl_distribution: trade_stats::compute_pnl_distribution(&trades),
+            month_calendar,
+            period_balance,
         })
     }
 
     pub fn compare_accounts(
         &self,
         account_ids: Vec<String>,
+        filter: AccountComparisonFilter,
     ) -> Result<Vec<AccountComparisonRow>, AppError> {
         account_ids
             .into_iter()
             .map(|account_id| {
-                let trades = self.trades.list(&account_id, false)?;
+                let all_trades = self.trades.list(&account_id, false)?;
+                let trades: Vec<Trade> = all_trades
+                    .iter()
+                    .filter(|t| {
+                        matches_dimensions(
+                            t,
+                            filter.instrument_id.as_deref(),
+                            filter.strategy_id.as_deref(),
+                            filter.interval_id.as_deref(),
+                            filter.side,
+                            filter.year,
+                            filter.month,
+                        )
+                    })
+                    .cloned()
+                    .collect();
+                let period_balance = self.period_balance_for_account(
+                    &account_id,
+                    filter.year,
+                    filter.month,
+                    &all_trades,
+                )?;
                 Ok(AccountComparisonRow {
                     account_id,
                     stats: trade_stats::compute_stats(&trades),
+                    period_balance,
                 })
             })
             .collect()
@@ -155,9 +328,13 @@ impl ReportsService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::application::accounts::AccountsService;
     use crate::db::{connection, migrations};
+    use crate::domain::account::NewAccount;
     use crate::domain::trade::{TradeInput, TradeWrite};
     use crate::domain::trade_calculations::TradeCalculation;
+    use crate::infrastructure::sqlite_account_repository::SqliteAccountRepository;
+    use crate::infrastructure::sqlite_cash_operation_repository::SqliteCashOperationRepository;
     use crate::infrastructure::sqlite_trade_repository::SqliteTradeRepository;
     use rust_decimal_macros::dec;
     use std::sync::Mutex;
@@ -166,12 +343,6 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let mut conn = connection::open(&dir.path().join("db.sqlite3")).expect("open");
         migrations::run_migrations(&mut conn, &dir.path().join("backups")).expect("migrate");
-        conn.execute(
-            "INSERT INTO accounts (id, name, currency, initial_balance, created_at, updated_at)
-             VALUES ('acc-1', 'Konto 1', 'USD', '1000', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
-            [],
-        )
-        .expect("insert account");
         let instrument_id: String = conn
             .query_row(
                 "SELECT id FROM instruments WHERE display_symbol = 'EURUSD'",
@@ -180,12 +351,33 @@ mod tests {
             )
             .expect("EURUSD musi istnieć w fabrycznym katalogu");
         let conn = Arc::new(Mutex::new(conn));
-        let repo = SqliteTradeRepository::new(conn.clone());
 
+        let accounts_service = Arc::new(AccountsService::new(
+            Arc::new(SqliteAccountRepository::new(conn.clone())),
+            Arc::new(SqliteCashOperationRepository::new(conn.clone())),
+            Arc::new(SqliteTradeRepository::new(conn.clone())),
+        ));
+        accounts_service
+            .create(NewAccount {
+                name: "Konto 1".to_string(),
+                description: None,
+                account_type: None,
+                currency: "USD".to_string(),
+                initial_balance: dec!(1000),
+            })
+            .expect("create account");
+        // Konto testowe zawsze dostaje id "acc-1" z inicjalizacji wyżej? Nie - id jest
+        // generowane przez repozytorium, więc pobieramy je z listy kont.
+        let account_id = accounts_service.list(false).expect("list accounts")[0]
+            .account
+            .id
+            .clone();
+
+        let repo = SqliteTradeRepository::new(conn.clone());
         let write = |net_pnl_override: rust_decimal::Decimal, closed_at: &str, side: TradeSide| {
             TradeWrite {
                 input: TradeInput {
-                    account_id: "acc-1".to_string(),
+                    account_id: account_id.clone(),
                     instrument_id: Some(instrument_id.clone()),
                     strategy_id: None,
                     side,
@@ -227,18 +419,31 @@ mod tests {
             .expect("create sell");
 
         (
-            ReportsService::new(Arc::new(SqliteTradeRepository::new(conn))),
+            ReportsService::new(
+                Arc::new(SqliteTradeRepository::new(conn.clone())),
+                accounts_service,
+            ),
             dir,
         )
+    }
+
+    fn account_id_of(service: &ReportsService) -> String {
+        service.accounts.list(false).expect("list accounts")[0]
+            .account
+            .id
+            .clone()
     }
 
     #[test]
     fn filtered_report_with_no_filters_matches_full_account_report() {
         let (service, _dir) = service_with_fresh_db();
-        let full = service.get_account_report("acc-1").expect("account report");
+        let account_id = account_id_of(&service);
+        let full = service
+            .get_account_report(&account_id)
+            .expect("account report");
         let filtered = service
             .get_filtered_report(ReportFilter {
-                account_id: "acc-1".to_string(),
+                account_id: account_id.clone(),
                 instrument_id: None,
                 strategy_id: None,
                 interval_id: None,
@@ -251,15 +456,23 @@ mod tests {
         assert_eq!(filtered.stats.net_pnl, full.stats.net_pnl);
         assert_eq!(filtered.monthly.len(), 2);
         assert_eq!(filtered.yearly.len(), 1);
+        assert_eq!(filtered.quarterly.len(), 4);
         assert_eq!(filtered.by_day_of_week.len(), 7);
+        assert_eq!(filtered.by_four_hour.len(), 6);
+        assert_eq!(filtered.by_side.len(), 2);
+        assert_eq!(filtered.top_best_trades.len(), 2);
+        assert!(filtered.month_calendar.is_empty()); // brak filtru roku+miesiąca
+        assert_eq!(filtered.period_balance.starting_balance, dec!(1000));
+        assert_eq!(filtered.period_balance.ending_balance, dec!(1060));
     }
 
     #[test]
     fn filtered_report_narrows_by_side() {
         let (service, _dir) = service_with_fresh_db();
+        let account_id = account_id_of(&service);
         let filtered = service
             .get_filtered_report(ReportFilter {
-                account_id: "acc-1".to_string(),
+                account_id,
                 instrument_id: None,
                 strategy_id: None,
                 interval_id: None,
@@ -273,11 +486,12 @@ mod tests {
     }
 
     #[test]
-    fn filtered_report_narrows_by_year_and_month() {
+    fn filtered_report_narrows_by_year_and_month_and_fills_month_calendar() {
         let (service, _dir) = service_with_fresh_db();
+        let account_id = account_id_of(&service);
         let filtered = service
             .get_filtered_report(ReportFilter {
-                account_id: "acc-1".to_string(),
+                account_id: account_id.clone(),
                 instrument_id: None,
                 strategy_id: None,
                 interval_id: None,
@@ -288,16 +502,33 @@ mod tests {
             .expect("filtered report");
         assert_eq!(filtered.stats.closed_trades, 1);
         assert_eq!(filtered.stats.net_pnl, dec!(-40));
+        assert_eq!(filtered.month_calendar.len(), 28); // luty 2026
+                                                       // Saldo startowe lutego wliczyło już transakcję ze stycznia (+100).
+        assert_eq!(filtered.period_balance.starting_balance, dec!(1100));
+        assert_eq!(filtered.period_balance.ending_balance, dec!(1060));
     }
 
     #[test]
-    fn compare_accounts_returns_one_row_per_account() {
+    fn compare_accounts_returns_one_row_per_account_with_period_balance() {
         let (service, _dir) = service_with_fresh_db();
+        let account_id = account_id_of(&service);
         let rows = service
-            .compare_accounts(vec!["acc-1".to_string()])
+            .compare_accounts(
+                vec![account_id.clone()],
+                AccountComparisonFilter {
+                    instrument_id: None,
+                    strategy_id: None,
+                    interval_id: None,
+                    side: None,
+                    year: None,
+                    month: None,
+                },
+            )
             .expect("compare accounts");
         assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].account_id, "acc-1");
+        assert_eq!(rows[0].account_id, account_id);
         assert_eq!(rows[0].stats.net_pnl, dec!(60));
+        assert_eq!(rows[0].period_balance.starting_balance, dec!(1000));
+        assert_eq!(rows[0].period_balance.ending_balance, dec!(1060));
     }
 }

@@ -1,6 +1,7 @@
 # Postęp prac
 
-Ostatnia aktualizacja: 2026-07-20 (Faza 9 ukończona: Raporty z Recharts, 5 podraportów - wykonana przed Fazą 5-8 na prośbę użytkownika)
+Ostatnia aktualizacja: 2026-07-20 (Faza 9 v2: przebudowa wszystkich raportów i dashboardu na wzór
+arkusza referencyjnego użytkownika - wykonana przed Fazą 5-8, patrz Faza 9 v2 poniżej)
 
 ## Cel 1.1 — Repozytorium, standardy i uruchomiony podgląd — ✅ ukończony
 
@@ -861,6 +862,79 @@ usunięte z planu 12 faz — czekają w oryginalnej kolejności.
   składała "dla jednego {dopełniacz}u" przez konkatenację, co dla "instrumentu" dawało
   "instrumentuu". Naprawione przez przekazanie całej, poprawnie odmienionej podpowiedzi z miejsca
   wywołania (`pickHint`) zamiast składania jej ze słowa w dopełniaczu.
+
+**Następny krok:** powrót do pierwotnej kolejności - Faza 5 (uniwersalny Kosz).
+
+### Faza 9 v2 — Przebudowa wszystkich raportów i dashboardu na wzór arkusza referencyjnego — ✅ ukończona
+
+**Uwaga o kolejności/zakresie:** użytkownik przesłał 9 zrzutów ekranu własnego arkusza Google Sheets
+"Dziennik Tradingowy" (Raport Symbolu, Raport Strategii, Raport Kont, Raport Roczny, Raport
+Miesięczny, Dashboard) z prośbą o przebudowę wszystkich 5 podraportów i dashboardu na podobną
+zawartość informacyjną - z jawnym pozostawieniem swobody co do warstwy wizualnej ("sformatuj tak
+jak uważasz że będzie najlepiej pasować"). Zdecydowano: zachować ciemny motyw i komponenty
+aplikacji (StatCard/Table/GroupBarChart), nie kopiować wyglądu arkusza kalkulacyjnego (biały tło,
+siatka komórek).
+
+**Co działa:**
+
+- **Nowe metryki w `domain::trade_stats`**: `total_commission` w `TradeStats`; `win_count`/
+  `loss_count` per dzień w `DailyPnl`; `compute_four_hour_breakdown` (6 przedziałów 00-03..20-23
+  wg godziny UTC zamknięcia), `compute_side_breakdown` (BUY/SELL), `compute_quarterly_breakdown`
+  (Q1-Q4), `compute_calendar_month_breakdown` (12 miesięcy Sty-Gru, zawsze wszystkie, nawet bez
+  transakcji), `compute_interval_breakdown` (grupowanie po zamrożonej migawce interwału);
+  `compute_month_calendar` (każdy dzień KONKRETNEGO miesiąca, w odróżnieniu od `compute_calendar`
+  które zwraca tylko dni z transakcjami); `compute_top_trades` (TOP-N najlepszych/najgorszych
+  transakcji); `compute_pnl_distribution` (histogram 6 przedziałów wyniku netto, czysta arytmetyka
+  Decimal, bez konwersji na float).
+- **`compute_period_balance`** (`domain::balance`) - saldo początkowe/końcowe, wpłaty/wypłaty netto,
+  zwrot % i maksymalne obsunięcie (względem salda początkowego OKRESU, nie szczytu życia konta) dla
+  dowolnego okresu (miesiąc/rok/cały czas) - reużywa istniejącej chronologicznej linii czasu salda,
+  rozszerzonej o flagę `is_cash_operation` do rozdzielenia przepływów gotówkowych od wyniku transakcji.
+- **`ReportsService` zależny teraz też od `AccountsService`** (obliczenia salda okresowego per konto)
+  - `FilteredReport` wzbogacony o wszystkie powyższe rozbicia + `period_balance`, `month_calendar`
+    (liczony tylko gdy rok+miesiąc oba ustawione); `AccountComparisonRow` dostał też `period_balance`.
+- **Przebudowane wszystkie 5 podraportów + Dashboard** (ten sam silnik `FilteredReport`, żadnych
+  nowych komend poza jednym reużyciem `compare_accounts_report` w Raporcie Strategii do wykresu
+  "Wynik wg konta"):
+  - **Raport Symbolu/Strategii** (`ReportSymbolTab`/`ReportStrategyTab`, zastąpiły wspólny
+    `ReportDimensionTab`) - dedykowane, bo różne wymiary porównania (Symbol: strategia/kierunek/
+    dzień tygodnia/interwał; Strategia: instrument/konto/interwał/miesiąc).
+  - **Raport Roczny** - 18 KPI (w tym saldo początkowe/końcowe roku, zwrot roczny, max drawdown
+    roku), 5 wykresów (miesięczny, skumulowany, win rate/miesiąc, kwartalny, kołowy dodatnie/
+    ujemne miesiące), "Liderzy roku" (najlepsza/najgorsza strategia/instrument, najaktywniejszy/
+    najspokojniejszy miesiąc), tabele miesięcy i kwartałów z wierszem "Łącznie".
+  - **Raport Miesięczny** - 18 KPI, 5 wykresów (dzienny, skumulowany w miesiącu, wg strategii,
+    kołowy zysk/strata, wg instrumentu), kalendarz dnia po dniu (`MonthCalendarTable`),
+    "Podsumowanie jakościowe" (najlepszy/najgorszy dzień/strategia/instrument), dwie tabele TOP-5
+    transakcji (`TopTradesTable`).
+  - **Porównanie kont** - leaderboard (najlepsze konto wg P&L/win rate/prowizji/drawdownu/
+    aktywności/oczekiwanej wartości), pełna tabela porównawcza z wierszem "Łącznie", 4 wykresy
+    (P&L/win rate/zwrot/max DD per konto) - ostrzeżenie w karcie P&L gdy konta mają różne waluty.
+  - **Dashboard** - pełny pasek filtrów (`useReportFilter`, wspólny hook wydzielony z logiki
+    Raportów), 8 KPI, 5 wykresów, rankingi TOP-5 (instrument/strategia/konto), dwie mapy
+    cieplne (`HeatmapTable` - dzień tygodnia × wynik, godzina × wynik) i tabela rozkładu wyniku.
+  - Nowe komponenty wykresów: `SimplePieChart`, `CumulativeLineChart`, `MonthCalendarTable`,
+    `TopTradesTable`, `HeatmapTable`.
+
+**Przetestowane:**
+
+- Rust: **189 testów** przechodzi (`cargo test --lib`), `cargo fmt --check` i
+  `cargo clippy --all-targets -- -D warnings` czyste poza jednym, wcześniej istniejącym
+  ostrzeżeniem `large_enum_variant` na `DbState::Ready` (narastające od Fazy 4, nie wprowadzone
+  przez tę pracę - zgłoszone jako osobne zadanie w tle, nie naprawiane teraz, bo wymagałoby
+  dotknięcia każdej komendy).
+- Frontend: `pnpm typecheck`/`eslint` (0 błędów, tylko 4 wcześniej istniejące ostrzeżenia
+  `react-refresh/only-export-components`)/`prettier --check`/`test` (Vitest 13/13) czyste.
+- Zweryfikowane wizualnie w przeglądarce (fałszywy most Tauri, realistyczne dane: 2 konta w różnych
+  walutach, 2 instrumenty, 2 strategie, 2 interwały, pełny miesiąc marzec 2026, 12 miesięcy,
+  4 kwartały, 7 dni tygodnia, 6 przedziałów 4-godzinnych, histogram wyniku) - Dashboard i wszystkie
+  5 podraportów (Miesięczny, Roczny, Porównanie kont, Instrument, Strategia) renderują się
+  poprawnie: KPI, wykresy (słupkowe, kołowe, liniowe, obszarowe) z prawidłowymi kolorami i legendą,
+  mapy cieplne, tabele z wierszami "Łącznie", leaderboardy, kalendarz miesiąca z prawidłowym
+  wyliczeniem dni tygodnia.
+- **Znaleziony i naprawiony błąd:** karty "Najlepszy dzień"/"Najgorszy dzień" w Raporcie Miesięcznym
+  pokazywały surową datę ISO ("2026-03-05") zamiast czytelnego formatu - naprawione funkcją
+  `formatDayLabel` (formatowanie `pl-PL`, strefa UTC, żeby nie przesuwało dnia).
 
 **Następny krok:** powrót do pierwotnej kolejności - Faza 5 (uniwersalny Kosz).
 

@@ -1,21 +1,29 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { Link } from "react-router";
 import { BarChart2, ListPlus, SlidersHorizontal, Wallet } from "lucide-react";
-import { useAccountReport } from "../app/useAccountReport";
 import { formatMoney } from "../app/decimal";
+import { invokeCommand } from "../app/invokeCommand";
 import { formatNumber, formatPercent, formatR } from "../app/reportFormat";
-import { Button } from "../ui/components/Button/Button";
+import { toAccountComparisonFilter, useReportFilter } from "../app/useReportFilter";
+import type { AccountComparisonRow } from "../app/types/report";
 import { EmptyState } from "../ui/components/EmptyState/EmptyState";
 import { ErrorState } from "../ui/components/ErrorState/ErrorState";
 import { IconButton } from "../ui/components/IconButton/IconButton";
-import { Select } from "../ui/components/Select/Select";
 import { Skeleton } from "../ui/components/Skeleton/Skeleton";
+import { Table, tableStyles } from "../ui/components/Table/Table";
+import { ChartCard } from "./ChartCard";
 import { EquityCurveChart } from "./EquityCurveChart";
+import { GroupBarChart } from "./GroupBarChart";
+import { HeatmapTable } from "./HeatmapTable";
+import { ReportFilterBar } from "./ReportFilterBar";
+import type { ReportFilterBarValue } from "./ReportFilterBar";
 import { StatCard } from "./StatCard";
+import reportStyles from "./ReportsPage.module.css";
 import styles from "./DashboardPage.module.css";
 
 const CHECKLIST_DISMISSED_KEY = "dziennik-tradera.dashboard-checklist-dismissed";
+const RANKING_SIZE = 5;
 
 export function DashboardPage(): ReactElement {
   const [dismissed, setDismissed] = useState<boolean>(
@@ -24,19 +32,49 @@ export function DashboardPage(): ReactElement {
   const {
     accounts,
     accountsError,
-    reloadAccounts,
-    selectedAccountId,
-    setSelectedAccountId,
-    selectedAccount,
+    instruments,
+    strategies,
+    intervals,
+    filter,
+    setFilter,
+    availableYears,
     report,
     reportError,
-    reloadReport,
-  } = useAccountReport();
+    selectedAccount,
+  } = useReportFilter();
+  const [accountRankingRows, setAccountRankingRows] = useState<AccountComparisonRow[] | null>(null);
 
   const dismiss = (): void => {
     localStorage.setItem(CHECKLIST_DISMISSED_KEY, "true");
     setDismissed(true);
   };
+
+  async function loadAccountRanking(
+    accountIds: string[],
+    currentFilter: ReportFilterBarValue,
+  ): Promise<void> {
+    try {
+      const rows = await invokeCommand<AccountComparisonRow[]>("compare_accounts_report", {
+        accountIds,
+        filter: toAccountComparisonFilter(currentFilter),
+      });
+      setAccountRankingRows(rows);
+    } catch {
+      setAccountRankingRows([]);
+    }
+  }
+
+  useEffect(() => {
+    if (accounts && accounts.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void loadAccountRanking(
+        accounts.map((a) => a.id),
+        filter,
+      );
+    } else {
+      setAccountRankingRows(null);
+    }
+  }, [accounts, filter]);
 
   return (
     <div className={styles.page}>
@@ -70,20 +108,7 @@ export function DashboardPage(): ReactElement {
       )}
 
       {accountsError && (
-        <ErrorState
-          title="Nie udało się wczytać kont"
-          description={accountsError}
-          action={
-            <Button
-              variant="secondary"
-              onClick={() => {
-                void reloadAccounts();
-              }}
-            >
-              Spróbuj ponownie
-            </Button>
-          }
-        />
+        <ErrorState title="Nie udało się wczytać kont" description={accountsError} />
       )}
 
       {!accountsError && accounts === null && <Skeleton height="2.5rem" />}
@@ -98,11 +123,14 @@ export function DashboardPage(): ReactElement {
 
       {!accountsError && accounts !== null && accounts.length > 0 && (
         <>
-          <Select
-            label="Konto"
-            value={selectedAccountId}
-            onChange={(e) => setSelectedAccountId(e.target.value)}
-            options={accounts.map((a) => ({ value: a.id, label: `${a.name} (${a.currency})` }))}
+          <ReportFilterBar
+            value={filter}
+            onChange={setFilter}
+            accounts={accounts}
+            instruments={instruments}
+            strategies={strategies}
+            intervals={intervals}
+            availableYears={availableYears}
           />
 
           {selectedAccount && (
@@ -115,20 +143,7 @@ export function DashboardPage(): ReactElement {
           )}
 
           {reportError && (
-            <ErrorState
-              title="Nie udało się wczytać podsumowania"
-              description={reportError}
-              action={
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    void reloadReport();
-                  }}
-                >
-                  Spróbuj ponownie
-                </Button>
-              }
-            />
+            <ErrorState title="Nie udało się wczytać podsumowania" description={reportError} />
           )}
 
           {!reportError && report === null && <Skeleton height="8rem" />}
@@ -139,15 +154,19 @@ export function DashboardPage(): ReactElement {
                 <EmptyState
                   icon={<BarChart2 size={32} aria-hidden="true" />}
                   title="Brak zamkniętych transakcji"
-                  description="Statystyki pojawią się, gdy zamkniesz pierwszą pozycję na tym koncie."
+                  description="Statystyki pojawią się, gdy zamkniesz pierwszą pozycję na tym koncie (albo dopasuj filtry powyżej)."
                 />
               ) : (
                 <>
                   <div className={styles.statsGrid}>
                     <StatCard
-                      label="Wynik netto"
+                      label="P&L netto"
                       value={formatMoney(report.stats.net_pnl, selectedAccount.currency)}
                       tone={Number(report.stats.net_pnl) >= 0 ? "profit" : "loss"}
+                    />
+                    <StatCard
+                      label="Liczba transakcji"
+                      value={String(report.stats.closed_trades)}
                     />
                     <StatCard label="Win rate" value={formatPercent(report.stats.win_rate)} />
                     <StatCard
@@ -155,24 +174,22 @@ export function DashboardPage(): ReactElement {
                       value={formatNumber(report.stats.profit_factor)}
                     />
                     <StatCard
-                      label="Expectancy"
-                      value={formatMoney(report.stats.expectancy ?? "0", selectedAccount.currency)}
-                    />
-                    <StatCard label="Śr. R" value={formatR(report.stats.average_r)} />
-                    <StatCard
-                      label="Zamknięte transakcje"
-                      value={String(report.stats.closed_trades)}
-                    />
-                    <StatCard label="Otwarte pozycje" value={String(report.stats.open_trades)} />
-                    <StatCard
-                      label="Najlepsza transakcja"
-                      value={formatMoney(report.stats.best_trade ?? "0", selectedAccount.currency)}
+                      label="Średni zysk"
+                      value={formatMoney(report.stats.average_win ?? "0", selectedAccount.currency)}
                       tone="profit"
                     />
                     <StatCard
-                      label="Najgorsza transakcja"
-                      value={formatMoney(report.stats.worst_trade ?? "0", selectedAccount.currency)}
+                      label="Średnia strata"
+                      value={formatMoney(
+                        report.stats.average_loss ?? "0",
+                        selectedAccount.currency,
+                      )}
                       tone="loss"
+                    />
+                    <StatCard label="Śr. RR" value={formatR(report.stats.average_r)} />
+                    <StatCard
+                      label="Max drawdown %"
+                      value={formatPercent(report.period_balance.max_drawdown_percent)}
                     />
                   </div>
 
@@ -183,6 +200,167 @@ export function DashboardPage(): ReactElement {
                       currency={selectedAccount.currency}
                     />
                   </div>
+
+                  <div className={reportStyles.chartsGrid}>
+                    <ChartCard title="Liczba transakcji per miesiąc">
+                      <GroupBarChart
+                        rows={report.calendar_months.map((m) => ({
+                          ...m,
+                          net_pnl: String(m.trade_count),
+                        }))}
+                        currency=""
+                      />
+                    </ChartCard>
+                    <ChartCard title="P&L netto wg dnia tygodnia">
+                      <GroupBarChart
+                        rows={report.by_day_of_week}
+                        currency={selectedAccount.currency}
+                      />
+                    </ChartCard>
+                    <ChartCard title="Wynik wg instrumentu">
+                      <GroupBarChart
+                        rows={report.by_instrument}
+                        currency={selectedAccount.currency}
+                      />
+                    </ChartCard>
+                    <ChartCard title="Wynik wg strategii">
+                      <GroupBarChart
+                        rows={report.by_strategy}
+                        currency={selectedAccount.currency}
+                      />
+                    </ChartCard>
+                    <ChartCard title="P&L netto wg godzin">
+                      <GroupBarChart
+                        rows={report.by_four_hour}
+                        currency={selectedAccount.currency}
+                      />
+                    </ChartCard>
+                  </div>
+
+                  <ChartCard title="Rankingi">
+                    <div className={reportStyles.chartsGrid}>
+                      <div>
+                        <p className={styles.rankingTitle}>Instrument</p>
+                        <Table>
+                          <thead>
+                            <tr>
+                              <th>Instrument</th>
+                              <th className={tableStyles.numeric}>P&L netto</th>
+                              <th className={tableStyles.numeric}>Transakcje</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {report.by_instrument.slice(0, RANKING_SIZE).map((row) => (
+                              <tr key={row.key}>
+                                <td>{row.label}</td>
+                                <td className={tableStyles.numeric}>
+                                  {formatMoney(row.net_pnl, selectedAccount.currency)}
+                                </td>
+                                <td className={tableStyles.numeric}>{row.trade_count}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </Table>
+                      </div>
+                      <div>
+                        <p className={styles.rankingTitle}>Strategia</p>
+                        <Table>
+                          <thead>
+                            <tr>
+                              <th>Strategia</th>
+                              <th className={tableStyles.numeric}>P&L netto</th>
+                              <th className={tableStyles.numeric}>Transakcje</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {report.by_strategy.slice(0, RANKING_SIZE).map((row) => (
+                              <tr key={row.key}>
+                                <td>{row.label}</td>
+                                <td className={tableStyles.numeric}>
+                                  {formatMoney(row.net_pnl, selectedAccount.currency)}
+                                </td>
+                                <td className={tableStyles.numeric}>{row.trade_count}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </Table>
+                      </div>
+                      <div>
+                        <p className={styles.rankingTitle}>Konto</p>
+                        {accountRankingRows === null ? (
+                          <Skeleton height="4rem" />
+                        ) : (
+                          <Table>
+                            <thead>
+                              <tr>
+                                <th>Konto</th>
+                                <th className={tableStyles.numeric}>P&L netto</th>
+                                <th className={tableStyles.numeric}>Transakcje</th>
+                                <th className={tableStyles.numeric}>Max DD %</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {accountRankingRows.map((row) => {
+                                const account = accounts.find((a) => a.id === row.account_id);
+                                return (
+                                  <tr key={row.account_id}>
+                                    <td>{account?.name ?? row.account_id}</td>
+                                    <td className={tableStyles.numeric}>
+                                      {formatMoney(row.stats.net_pnl, account?.currency)}
+                                    </td>
+                                    <td className={tableStyles.numeric}>
+                                      {row.stats.closed_trades}
+                                    </td>
+                                    <td className={tableStyles.numeric}>
+                                      {formatPercent(row.period_balance.max_drawdown_percent)}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </Table>
+                        )}
+                      </div>
+                    </div>
+                  </ChartCard>
+
+                  <ChartCard title="Heatmapy">
+                    <div className={reportStyles.chartsGrid}>
+                      <div>
+                        <p className={styles.rankingTitle}>Dzień</p>
+                        <HeatmapTable
+                          rows={report.by_day_of_week}
+                          currency={selectedAccount.currency}
+                        />
+                      </div>
+                      <div>
+                        <p className={styles.rankingTitle}>Godziny</p>
+                        <HeatmapTable
+                          rows={report.by_four_hour}
+                          currency={selectedAccount.currency}
+                        />
+                      </div>
+                      <div>
+                        <p className={styles.rankingTitle}>Rozkład wyników</p>
+                        <Table>
+                          <thead>
+                            <tr>
+                              <th>Wynik</th>
+                              <th className={tableStyles.numeric}>Liczba</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {report.pnl_distribution.map((bucket) => (
+                              <tr key={bucket.range_label}>
+                                <td>{bucket.range_label}</td>
+                                <td className={tableStyles.numeric}>{bucket.count}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </Table>
+                      </div>
+                    </div>
+                  </ChartCard>
                 </>
               )}
             </>

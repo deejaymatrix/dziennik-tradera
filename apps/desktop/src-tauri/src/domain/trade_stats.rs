@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 
-use chrono::{DateTime, Datelike, NaiveDate, Utc};
+use chrono::{DateTime, Datelike, NaiveDate, Timelike, Utc};
 use rust_decimal::Decimal;
 use serde::Serialize;
 
-use super::trade::{Trade, TradeStatus};
+use super::trade::{Trade, TradeSide, TradeStatus};
 
 /// Zamknięta, nieusunięta transakcja z policzonym wynikiem netto - jedyny kształt, na którym
 /// liczą się statystyki/krzywa kapitału/kalendarz/rozbicia poniżej. Draft/open oraz transakcje
@@ -45,6 +45,10 @@ pub struct TradeStats {
     /// Maksymalne obsunięcie kapitału (peak-to-trough) na krzywej skumulowanego wyniku netto,
     /// w walucie konta - zawsze >= 0. `None` przy braku zrealizowanych transakcji.
     pub max_drawdown: Option<Decimal>,
+    /// Suma prowizji wszystkich zrealizowanych transakcji - "Śr. wynik/trade" z raportów to
+    /// już istniejące `expectancy` (ten sam wzór, `net_pnl / closed_trades`), więc nie ma
+    /// osobnego pola na to samo.
+    pub total_commission: Decimal,
 }
 
 /// Statystyki dashboardu - liczone raz, w Rust, z Decimal (nigdy we frontendzie). `trades`
@@ -69,6 +73,7 @@ pub fn compute_stats(trades: &[Trade]) -> TradeStats {
     for trade in &realized {
         let net_pnl = trade.net_pnl.expect("realized_trades gwarantuje Some");
         stats.net_pnl += net_pnl;
+        stats.total_commission += trade.commission;
         if net_pnl.is_sign_positive() && !net_pnl.is_zero() {
             stats.win_count += 1;
             stats.gross_profit += net_pnl;
@@ -173,12 +178,22 @@ pub struct DailyPnl {
     pub date: NaiveDate,
     pub net_pnl: Decimal,
     pub trade_count: i64,
+    pub win_count: i64,
+    pub loss_count: i64,
+}
+
+#[derive(Default)]
+struct DayAccumulator {
+    net_pnl: Decimal,
+    trade_count: i64,
+    win_count: i64,
+    loss_count: i64,
 }
 
 /// Agregacja dzienna do widoku kalendarza - jeden wpis na dzień, w którym zamknięto choć jedną
 /// transakcję, posortowane rosnąco po dacie (`BTreeMap` daje to za darmo).
 pub fn compute_calendar(trades: &[Trade]) -> Vec<DailyPnl> {
-    let mut by_day: BTreeMap<NaiveDate, (Decimal, i64)> = BTreeMap::new();
+    let mut by_day: BTreeMap<NaiveDate, DayAccumulator> = BTreeMap::new();
 
     for trade in realized_trades(trades) {
         let Some(closed_at) = trade.closed_at else {
@@ -188,16 +203,58 @@ pub fn compute_calendar(trades: &[Trade]) -> Vec<DailyPnl> {
             continue;
         };
         let entry = by_day.entry(closed_at.date_naive()).or_default();
-        entry.0 += net_pnl;
-        entry.1 += 1;
+        entry.net_pnl += net_pnl;
+        entry.trade_count += 1;
+        if net_pnl.is_sign_positive() && !net_pnl.is_zero() {
+            entry.win_count += 1;
+        } else if net_pnl.is_sign_negative() {
+            entry.loss_count += 1;
+        }
     }
 
     by_day
         .into_iter()
-        .map(|(date, (net_pnl, trade_count))| DailyPnl {
+        .map(|(date, acc)| DailyPnl {
             date,
-            net_pnl,
-            trade_count,
+            net_pnl: acc.net_pnl,
+            trade_count: acc.trade_count,
+            win_count: acc.win_count,
+            loss_count: acc.loss_count,
+        })
+        .collect()
+}
+
+fn days_in_month(year: i32, month: u32) -> i64 {
+    let this_month_first = NaiveDate::from_ymd_opt(year, month, 1).expect("poprawna data");
+    let next_month_first = if month == 12 {
+        NaiveDate::from_ymd_opt(year + 1, 1, 1)
+    } else {
+        NaiveDate::from_ymd_opt(year, month + 1, 1)
+    }
+    .expect("poprawna data");
+    (next_month_first - this_month_first).num_days()
+}
+
+/// Kalendarz jednego miesiąca - w odróżnieniu od `compute_calendar` zawiera KAŻDY dzień
+/// miesiąca (zerowy wynik dla dni bez zamkniętych transakcji), żeby tabela "Kalendarz
+/// miesiąca" w raporcie miesięcznym nigdy nie miała dziur. `trades` powinno być już zawężone
+/// do tego miesiąca (przez wspólny filtr raportów) - ta funkcja tylko dopełnia brakujące dni.
+pub fn compute_month_calendar(trades: &[Trade], year: i32, month: u32) -> Vec<DailyPnl> {
+    let mut by_day: HashMap<NaiveDate, DailyPnl> = compute_calendar(trades)
+        .into_iter()
+        .map(|d| (d.date, d))
+        .collect();
+
+    (1..=days_in_month(year, month))
+        .filter_map(|day| NaiveDate::from_ymd_opt(year, month, day as u32))
+        .map(|date| {
+            by_day.remove(&date).unwrap_or(DailyPnl {
+                date,
+                net_pnl: Decimal::ZERO,
+                trade_count: 0,
+                win_count: 0,
+                loss_count: 0,
+            })
         })
         .collect()
 }
@@ -283,6 +340,15 @@ pub fn compute_instrument_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
     })
 }
 
+/// Rozbicie po interwale - grupuje po `interval_id`, etykietuje zamrożoną migawką `interval`
+/// (ten sam wzorzec co migawka instrumentu/strategii - patrz `Trade::interval`).
+pub fn compute_interval_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
+    compute_breakdown(trades, |t| match (&t.interval_id, &t.interval) {
+        (Some(id), Some(label)) => (id.clone(), label.clone()),
+        _ => ("none".to_string(), "Bez interwału".to_string()),
+    })
+}
+
 const MONTH_NAMES: [&str; 12] = [
     "Styczeń",
     "Luty",
@@ -322,6 +388,41 @@ pub fn compute_monthly_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
         (key, label)
     });
     result.sort_by(|a, b| a.key.cmp(&b.key));
+    result
+}
+
+/// Rozbicie po miesiącu kalendarzowym (Styczeń..Grudzień), bez roku - zawsze wszystkie 12
+/// miesięcy w kolejności. Znaczenie zależy od tego, czy `trades` jest już zawężone do jednego
+/// roku przez wspólny filtr: jeśli tak, to "miesiące TEGO roku" (raport roczny); jeśli nie, to
+/// "wszystkie miesiące zsumowane po latach" (np. wykres na Dashboardzie).
+pub fn compute_calendar_month_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
+    let mut by_month = compute_breakdown(trades, |t| {
+        let month = t
+            .closed_at
+            .expect("realized_trades gwarantuje closed_at")
+            .month();
+        (
+            (month - 1).to_string(),
+            MONTH_NAMES[(month - 1) as usize].to_string(),
+        )
+    });
+
+    let mut result = Vec::with_capacity(12);
+    for (index, label) in MONTH_NAMES.iter().enumerate() {
+        let key = index.to_string();
+        match by_month.iter().position(|g| g.key == key) {
+            Some(pos) => result.push(by_month.remove(pos)),
+            None => result.push(GroupBreakdown {
+                key,
+                label: label.to_string(),
+                trade_count: 0,
+                win_count: 0,
+                loss_count: 0,
+                win_rate: None,
+                net_pnl: Decimal::ZERO,
+            }),
+        }
+    }
     result
 }
 
@@ -370,6 +471,208 @@ pub fn compute_day_of_week_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
         }
     }
     result
+}
+
+const FOUR_HOUR_LABELS: [&str; 6] = ["00-03", "04-07", "08-11", "12-15", "16-19", "20-23"];
+
+/// Rozbicie po 4-godzinnym przedziale zamknięcia. Liczone na UTC (ten sam wzorzec co
+/// `.weekday()` powyżej), bez przeliczania na strefę lokalną, bo aplikacja nie ma ustawienia
+/// strefy czasowej użytkownika. Zawsze wszystkie 6 przedziałów w ustalonej kolejności.
+pub fn compute_four_hour_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
+    let mut by_bucket = compute_breakdown(trades, |t| {
+        let hour = t
+            .closed_at
+            .expect("realized_trades gwarantuje closed_at")
+            .hour();
+        let bucket = (hour / 4) as usize;
+        (bucket.to_string(), FOUR_HOUR_LABELS[bucket].to_string())
+    });
+
+    let mut result = Vec::with_capacity(6);
+    for (bucket, label) in FOUR_HOUR_LABELS.iter().enumerate() {
+        let key = bucket.to_string();
+        match by_bucket.iter().position(|g| g.key == key) {
+            Some(pos) => result.push(by_bucket.remove(pos)),
+            None => result.push(GroupBreakdown {
+                key,
+                label: label.to_string(),
+                trade_count: 0,
+                win_count: 0,
+                loss_count: 0,
+                win_rate: None,
+                net_pnl: Decimal::ZERO,
+            }),
+        }
+    }
+    result
+}
+
+/// Rozbicie BUY/SELL - zawsze oba kierunki w tej kolejności, nawet bez transakcji jednego z nich.
+pub fn compute_side_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
+    let mut by_side = compute_breakdown(trades, |t| {
+        (
+            t.side.as_db_str().to_string(),
+            match t.side {
+                TradeSide::Buy => "BUY".to_string(),
+                TradeSide::Sell => "SELL".to_string(),
+            },
+        )
+    });
+
+    ["buy", "sell"]
+        .into_iter()
+        .map(|key| {
+            by_side
+                .iter()
+                .position(|g| g.key == key)
+                .map(|pos| by_side.remove(pos))
+                .unwrap_or_else(|| GroupBreakdown {
+                    key: key.to_string(),
+                    label: if key == "buy" { "BUY" } else { "SELL" }.to_string(),
+                    trade_count: 0,
+                    win_count: 0,
+                    loss_count: 0,
+                    win_rate: None,
+                    net_pnl: Decimal::ZERO,
+                })
+        })
+        .collect()
+}
+
+const QUARTER_LABELS: [&str; 4] = ["Q1", "Q2", "Q3", "Q4"];
+
+/// Rozbicie kwartalne (kwartał zamknięcia) - zawsze wszystkie 4 kwartały w kolejności Q1-Q4.
+pub fn compute_quarterly_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
+    let mut by_quarter = compute_breakdown(trades, |t| {
+        let month = t
+            .closed_at
+            .expect("realized_trades gwarantuje closed_at")
+            .month();
+        let quarter = ((month - 1) / 3) as usize;
+        (quarter.to_string(), QUARTER_LABELS[quarter].to_string())
+    });
+
+    let mut result = Vec::with_capacity(4);
+    for (quarter, label) in QUARTER_LABELS.iter().enumerate() {
+        let key = quarter.to_string();
+        match by_quarter.iter().position(|g| g.key == key) {
+            Some(pos) => result.push(by_quarter.remove(pos)),
+            None => result.push(GroupBreakdown {
+                key,
+                label: label.to_string(),
+                trade_count: 0,
+                win_count: 0,
+                loss_count: 0,
+                win_rate: None,
+                net_pnl: Decimal::ZERO,
+            }),
+        }
+    }
+    result
+}
+
+/// Jeden wiersz listy TOP N transakcji (sekcja "TOP 5" w raporcie miesięcznym) - niesie już
+/// gotowe etykiety instrumentu/strategii (z migawek), żeby frontend nic nie musiał doszukiwać.
+#[derive(Debug, Clone, Serialize)]
+pub struct TopTradeRow {
+    pub trade_id: String,
+    pub display_number: i64,
+    pub opened_at: Option<DateTime<Utc>>,
+    pub instrument_label: String,
+    pub strategy_label: String,
+    pub side: TradeSide,
+    pub net_pnl: Decimal,
+}
+
+/// `n` najlepszych (`best = true`) albo najgorszych zrealizowanych transakcji po wyniku netto.
+pub fn compute_top_trades(trades: &[Trade], n: usize, best: bool) -> Vec<TopTradeRow> {
+    let mut realized = realized_trades(trades);
+    realized.sort_by_key(|t| t.net_pnl.expect("realized_trades gwarantuje Some"));
+    if best {
+        realized.reverse();
+    }
+    realized
+        .into_iter()
+        .take(n)
+        .map(|t| TopTradeRow {
+            trade_id: t.id.clone(),
+            display_number: t.display_number,
+            opened_at: t.opened_at,
+            instrument_label: t
+                .instrument_spec_snapshot
+                .as_ref()
+                .map(|s| s.display_symbol.clone())
+                .unwrap_or_else(|| "Bez instrumentu".to_string()),
+            strategy_label: t
+                .strategy_snapshot
+                .as_ref()
+                .map(|s| s.name.clone())
+                .unwrap_or_else(|| "Bez strategii".to_string()),
+            side: t.side,
+            net_pnl: t.net_pnl.expect("realized_trades gwarantuje Some"),
+        })
+        .collect()
+}
+
+/// Jeden przedział histogramu wyniku netto (sekcja "Rozkład wyników" na Dashboardzie).
+#[derive(Debug, Clone, Serialize)]
+pub struct PnlDistributionBucket {
+    pub range_label: String,
+    pub count: i64,
+}
+
+const PNL_DISTRIBUTION_BUCKET_COUNT: i64 = 6;
+
+fn format_pnl_range(from: Decimal, to: Decimal) -> String {
+    format!("{} … {}", from.round_dp(2), to.round_dp(2))
+}
+
+/// Histogram wyniku netto zrealizowanych transakcji - dzieli zakres [min, max] na 6 równych
+/// przedziałów i liczy transakcje w każdym. Pusta lista przy braku zrealizowanych transakcji;
+/// jeden przedział, gdy wszystkie transakcje mają identyczny wynik (zakres o szerokości zero).
+pub fn compute_pnl_distribution(trades: &[Trade]) -> Vec<PnlDistributionBucket> {
+    let realized = realized_trades(trades);
+    let values: Vec<Decimal> = realized
+        .iter()
+        .map(|t| t.net_pnl.expect("realized_trades gwarantuje Some"))
+        .collect();
+    let Some(min) = values.iter().min().copied() else {
+        return Vec::new();
+    };
+    let max = values.iter().max().copied().expect("niepusta lista");
+    if min == max {
+        return vec![PnlDistributionBucket {
+            range_label: format_pnl_range(min, max),
+            count: values.len() as i64,
+        }];
+    }
+
+    let bucket_count = PNL_DISTRIBUTION_BUCKET_COUNT;
+    let width = (max - min) / Decimal::from(bucket_count);
+    let boundaries: Vec<Decimal> = (0..=bucket_count)
+        .map(|i| min + width * Decimal::from(i))
+        .collect();
+
+    let mut counts = vec![0i64; bucket_count as usize];
+    for value in &values {
+        let mut bucket = (bucket_count - 1) as usize;
+        for i in 0..bucket_count as usize {
+            if *value < boundaries[i + 1] {
+                bucket = i;
+                break;
+            }
+        }
+        counts[bucket] += 1;
+    }
+
+    boundaries
+        .windows(2)
+        .zip(counts)
+        .map(|(bounds, count)| PnlDistributionBucket {
+            range_label: format_pnl_range(bounds[0], bounds[1]),
+            count,
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -665,5 +968,173 @@ mod tests {
         assert_eq!(breakdown[1].label, "Wtorek");
         assert_eq!(breakdown[1].trade_count, 0);
         assert_eq!(breakdown[6].label, "Niedziela");
+    }
+
+    #[test]
+    fn four_hour_breakdown_groups_by_bucket_and_returns_all_six() {
+        let mut early = closed_trade("1", 0, dec!(50), None);
+        early.closed_at = Some(Utc.with_ymd_and_hms(2026, 1, 5, 2, 0, 0).unwrap());
+        let mut mid = closed_trade("2", 0, dec!(-20), None);
+        mid.closed_at = Some(Utc.with_ymd_and_hms(2026, 1, 6, 9, 0, 0).unwrap());
+
+        let breakdown = compute_four_hour_breakdown(&[early, mid]);
+        assert_eq!(breakdown.len(), 6);
+        assert_eq!(breakdown[0].label, "00-03");
+        assert_eq!(breakdown[0].net_pnl, dec!(50));
+        assert_eq!(breakdown[2].label, "08-11");
+        assert_eq!(breakdown[2].net_pnl, dec!(-20));
+        assert_eq!(breakdown[1].trade_count, 0);
+    }
+
+    #[test]
+    fn side_breakdown_returns_both_sides_even_without_trades() {
+        let mut buy = closed_trade("1", 0, dec!(100), None);
+        buy.side = TradeSide::Buy;
+        buy.closed_at = Some(Utc.with_ymd_and_hms(2026, 1, 5, 10, 0, 0).unwrap());
+
+        let breakdown = compute_side_breakdown(&[buy]);
+        assert_eq!(breakdown.len(), 2);
+        assert_eq!(breakdown[0].label, "BUY");
+        assert_eq!(breakdown[0].net_pnl, dec!(100));
+        assert_eq!(breakdown[1].label, "SELL");
+        assert_eq!(breakdown[1].trade_count, 0);
+    }
+
+    #[test]
+    fn quarterly_breakdown_returns_all_four_quarters_in_order() {
+        let mut q1 = closed_trade("1", 0, dec!(30), None);
+        q1.closed_at = Some(Utc.with_ymd_and_hms(2026, 2, 1, 10, 0, 0).unwrap());
+        let mut q3 = closed_trade("2", 0, dec!(-10), None);
+        q3.closed_at = Some(Utc.with_ymd_and_hms(2026, 8, 1, 10, 0, 0).unwrap());
+
+        let breakdown = compute_quarterly_breakdown(&[q3, q1]);
+        assert_eq!(breakdown.len(), 4);
+        assert_eq!(breakdown[0].label, "Q1");
+        assert_eq!(breakdown[0].net_pnl, dec!(30));
+        assert_eq!(breakdown[1].trade_count, 0);
+        assert_eq!(breakdown[2].label, "Q3");
+        assert_eq!(breakdown[2].net_pnl, dec!(-10));
+    }
+
+    #[test]
+    fn top_trades_returns_best_n_sorted_descending() {
+        let trades = vec![
+            closed_trade("1", 0, dec!(50), None),
+            closed_trade("2", 0, dec!(200), None),
+            closed_trade("3", 0, dec!(-30), None),
+        ];
+        let best = compute_top_trades(&trades, 2, true);
+        assert_eq!(best.len(), 2);
+        assert_eq!(best[0].net_pnl, dec!(200));
+        assert_eq!(best[1].net_pnl, dec!(50));
+    }
+
+    #[test]
+    fn top_trades_returns_worst_n_sorted_ascending() {
+        let trades = vec![
+            closed_trade("1", 0, dec!(50), None),
+            closed_trade("2", 0, dec!(200), None),
+            closed_trade("3", 0, dec!(-30), None),
+        ];
+        let worst = compute_top_trades(&trades, 2, false);
+        assert_eq!(worst.len(), 2);
+        assert_eq!(worst[0].net_pnl, dec!(-30));
+        assert_eq!(worst[1].net_pnl, dec!(50));
+    }
+
+    #[test]
+    fn top_trades_labels_use_snapshot_or_fall_back_to_none_label() {
+        let mut trade = closed_trade("1", 0, dec!(100), None);
+        trade.instrument_spec_snapshot = None;
+        trade.strategy_snapshot = None;
+        let rows = compute_top_trades(&[trade], 1, true);
+        assert_eq!(rows[0].instrument_label, "Bez instrumentu");
+        assert_eq!(rows[0].strategy_label, "Bez strategii");
+    }
+
+    #[test]
+    fn month_calendar_zero_fills_every_day_of_the_month() {
+        let mut trade = closed_trade("1", 0, dec!(100), None);
+        trade.closed_at = Some(Utc.with_ymd_and_hms(2026, 2, 10, 10, 0, 0).unwrap());
+
+        let calendar = compute_month_calendar(&[trade], 2026, 2);
+        assert_eq!(calendar.len(), 28); // luty 2026 nie jest przestępny
+        assert_eq!(calendar[9].net_pnl, dec!(100)); // 10. dzień = indeks 9
+        assert_eq!(calendar[9].trade_count, 1);
+        assert_eq!(calendar[0].trade_count, 0);
+        assert_eq!(calendar[0].net_pnl, dec!(0));
+    }
+
+    #[test]
+    fn total_commission_sums_only_realized_trades() {
+        let mut a = closed_trade("1", 0, dec!(100), None);
+        a.commission = dec!(5);
+        let mut b = base_trade("2");
+        b.commission = dec!(999); // draft - nie powinien wliczyć się do sumy
+        let stats = compute_stats(&[a, b]);
+        assert_eq!(stats.total_commission, dec!(5));
+    }
+
+    #[test]
+    fn interval_breakdown_groups_by_frozen_label_and_labels_missing_as_none() {
+        let mut with_interval = closed_trade("1", 1, dec!(100), None);
+        with_interval.interval_id = Some("iv-1".to_string());
+        with_interval.interval = Some("M15".to_string());
+        let without_interval = closed_trade("2", 1, dec!(-20), None);
+
+        let breakdown = compute_interval_breakdown(&[with_interval, without_interval]);
+        assert_eq!(breakdown.len(), 2);
+        assert_eq!(breakdown[0].label, "M15");
+        assert_eq!(breakdown[0].net_pnl, dec!(100));
+        assert_eq!(breakdown[1].label, "Bez interwału");
+        assert_eq!(breakdown[1].net_pnl, dec!(-20));
+    }
+
+    #[test]
+    fn calendar_month_breakdown_always_returns_twelve_months_regardless_of_year() {
+        let mut jan_2025 = closed_trade("1", 0, dec!(50), None);
+        jan_2025.closed_at = Some(Utc.with_ymd_and_hms(2025, 1, 10, 10, 0, 0).unwrap());
+        let mut jan_2026 = closed_trade("2", 0, dec!(30), None);
+        jan_2026.closed_at = Some(Utc.with_ymd_and_hms(2026, 1, 20, 10, 0, 0).unwrap());
+
+        let breakdown = compute_calendar_month_breakdown(&[jan_2025, jan_2026]);
+        assert_eq!(breakdown.len(), 12);
+        assert_eq!(breakdown[0].label, "Styczeń");
+        assert_eq!(breakdown[0].trade_count, 2); // sumuje styczeń obu lat
+        assert_eq!(breakdown[0].net_pnl, dec!(80));
+        assert_eq!(breakdown[1].label, "Luty");
+        assert_eq!(breakdown[1].trade_count, 0);
+    }
+
+    #[test]
+    fn pnl_distribution_buckets_values_into_six_equal_ranges() {
+        let trades = vec![
+            closed_trade("1", 0, dec!(0), None),
+            closed_trade("2", 0, dec!(60), None),
+            closed_trade("3", 0, dec!(60), None),
+        ];
+        let buckets = compute_pnl_distribution(&trades);
+        assert_eq!(buckets.len(), 6);
+        let total: i64 = buckets.iter().map(|b| b.count).sum();
+        assert_eq!(total, 3);
+        assert_eq!(buckets[0].count, 1); // wartość 0 trafia do pierwszego przedziału
+        assert_eq!(buckets[5].count, 2); // wartość max (60) trafia do ostatniego przedziału
+    }
+
+    #[test]
+    fn pnl_distribution_with_identical_values_returns_one_bucket() {
+        let trades = vec![
+            closed_trade("1", 0, dec!(100), None),
+            closed_trade("2", 0, dec!(100), None),
+        ];
+        let buckets = compute_pnl_distribution(&trades);
+        assert_eq!(buckets.len(), 1);
+        assert_eq!(buckets[0].count, 2);
+    }
+
+    #[test]
+    fn pnl_distribution_is_empty_without_realized_trades() {
+        let buckets = compute_pnl_distribution(&[base_trade("1")]);
+        assert!(buckets.is_empty());
     }
 }
