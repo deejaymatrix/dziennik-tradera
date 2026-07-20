@@ -993,9 +993,9 @@ raportu żeby nie mieszać użytkownikowi"):**
 **Trzecia poprawka tego samego dnia** ("przy wyborze konta umożliw porównanie wszystkich kont"):
 Dashboard (jedyne miejsce bez osobnej zakładki "Porównanie kont") dostał opcję "Wszystkie konta
 (porównanie)" w polu "Konto" - nowy sentinel `ALL_ACCOUNTS_VALUE` w `ReportFilterBar`, prop
-`allowAllAccounts` (używany tylko przez Dashboard - zakładka Raporty ma już dedykowaną zakładkę
-"Porównanie kont", więc dodawanie tej samej opcji tam byłoby zbędną duplikacją, zwłaszcza że
-akurat na tamtej zakładce pole "Konto" jest już ukryte). Wybranie tej opcji podstawia w miejsce
+`allowAllAccounts` (na tym etapie używany tylko przez Dashboard - **później tego samego dnia
+użytkownik poprosił o to samo w Raportach, patrz czwarta poprawka poniżej**, więc ten osąd o
+zbędnej duplikacji się nie utrzymał). Wybranie tej opcji podstawia w miejsce
 zwykłych KPI/wykresów jednego konta ten sam komponent `ReportAccountComparisonTab`, który już
 zasila zakładkę Porównania kont w Raportach - zero duplikacji logiki/UI. `useReportFilter`
 przestaje odpytywać `get_filtered_report` o nieistniejące "konto" `__all__` (zwracałoby błąd) -
@@ -1004,6 +1004,38 @@ sam kompromis, jaki już miała istniejąca zakładka Porównania kont). Zweryfi
 przełączenie Konto → "Wszystkie konta" pokazuje leaderboard + tabelę + 4 wykresy porównawcze z
 poprawnymi, różnymi danymi DEMO/LIVE; przełączenie z powrotem na konkretne konto poprawnie
 wraca do zwykłego widoku Dashboardu z jego saldem.
+
+**Czwarta poprawka tego samego dnia** - dwa niezależne zgłoszenia użytkownika:
+
+1. **Realny błąd: krzywa kapitału obcinała etykiety osi Y przy dużych kwotach** (zrzut ekranu
+   użytkownika pokazywał same "000 000,00" powtórzone na każdym poziomie osi, tylko jeden punkt
+   bez linii). Przyczyna: Recharts NIE mierzy szerokości etykiet osi Y automatycznie - domyślna/
+   dotychczasowa szerokość (`width={72}` albo domyślne 60px biblioteki) jest sztywną liczbą
+   pikseli niezależną od treści, więc długa sformatowana liczba (miliony) po prostu wychodziła
+   poza lewy kraniec SVG (tekst rośnie w lewo od punktu zakotwiczenia `text-anchor="end"`, a SVG
+   nie ma czegoś w rodzaju "auto-width") - widoczne wyłącznie były ostatnie ~10 znaków. Naprawione
+   nowym wspólnym helperem `pages/chartAxis.ts::estimateYAxisWidth(values, formatValue)` (szacuje
+   potrzebną szerokość z najdłuższej sformatowanej etykiety + zapas na "zaokrąglone" tyki),
+   użytym w `EquityCurveChart`, `GroupBarChart` i `CumulativeLineChart` (wszystkie trzy miejsca ze
+   sztywną szerokością osi Y w całej aplikacji - sprawdzone `grep`em). Sam "jeden punkt bez linii"
+   z zrzutu ekranu nie był osobnym błędem - to normalna konsekwencja posiadania tylko jednego
+   punktu danych (linii/obszaru nie da się narysować przez jeden punkt) - po dodaniu kilku
+   punktów z dramatycznym wzrostem (10 000 → 5 210 000) krzywa renderuje się poprawnie, ostro
+   rosnąc i płaszcząc się, zgodnie z oczekiwaniem. Zweryfikowane pomiarem realnych
+   `getBoundingClientRect()` wszystkich 22 etykiet osi Y widocznych na stronie - 0 z lewym
+   krańcem poniżej x=0 (czyli 0 obciętych), nie tylko wizualnie na zrzucie ekranu.
+2. **"Wszystkie konta (porównanie)" trafiło też do zakładki Raporty** (wcześniej tylko Dashboard) -
+   ta sama opcja w polu "Konto", teraz zsynchronizowana dwustronnie z zakładką "Porównanie kont":
+   wybranie jej na KAŻDEJ zakładce automatycznie przełącza na "Porównanie kont"
+   (`ReportsPage.handleFilterChange`), a wybranie konkretnego konta podczas przeglądania
+   "Porównanie kont" automatycznie przełącza na "Miesięczny" (te zakładki potrzebują jednego,
+   prawdziwego konta, żeby cokolwiek policzyć). Kliknięcie samej zakładki "Porównanie kont" też
+   ustawia sentinel w Koncie (i odwrotnie) - `ReportsPage.selectTab`. Opcja jest teraz zawsze na
+   szczycie listy pola "Konto" (przeniesiona logika porządkowania do samego `ReportFilterBar`,
+   więc Dashboard automatycznie też ma ją na szczycie, bez zmian w `DashboardPage.tsx`).
+   Zweryfikowane w przeglądarce: wybór "Wszystkie konta" na Raportach przełącza na "Porównanie
+   kont" i pokazuje poprawny leaderboard/tabelę; wybór konkretnego konta z powrotem przełącza na
+   "Miesięczny" z poprawnie wybranym kontem.
 
 **Następny krok:** powrót do pierwotnej kolejności - Faza 5 (uniwersalny Kosz).
 

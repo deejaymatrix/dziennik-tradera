@@ -117,9 +117,11 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
 - Nowe komponenty wykresów/tabel: `SimplePieChart`, `CumulativeLineChart`, `MonthCalendarTable`,
   `TopTradesTable`, `HeatmapTable`; wspólny hook `useReportFilter` wydzielony z logiki Raportów i
   reużyty przez Dashboard.
-- Opcja "Wszystkie konta (porównanie)" w polu "Konto" na Dashboardzie - podstawia pełny widok
-  porównania kont (leaderboard, tabela, 4 wykresy - ten sam komponent co zakładka "Porównanie
-  kont" w Raportach) w miejsce zwykłych KPI jednego konta.
+- Opcja "Wszystkie konta (porównanie)" w polu "Konto" na Dashboardzie i w Raportach (na szczycie
+  listy) - na Dashboardzie podstawia pełny widok porównania kont (leaderboard, tabela, 4 wykresy)
+  w miejsce zwykłych KPI jednego konta; w Raportach jest dwustronnie zsynchronizowana z zakładką
+  "Porównanie kont" (wybranie opcji przełącza tam automatycznie, wybranie konkretnego konta na
+  tej zakładce przełącza na "Miesięczny").
 
 ### Changed
 
@@ -192,6 +194,10 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
 - `pnpm eslint` liczył tysiące błędów typów z izolowanego katalogu roboczego zadania w tle
   (`.claude/worktrees/**`, bez zainstalowanych zależności) - dodano go do `ignores` w
   `eslint.config.js`.
+- Etykiety osi Y na krzywej kapitału i wykresach słupkowych/liniowych obcinały się przy dużych
+  kwotach (widoczne było tylko np. "000 000,00" z całej liczby) - sztywna szerokość osi Y nie
+  skalowała się z długością sformatowanej treści. Naprawione dynamicznym szacowaniem szerokości
+  na podstawie najdłuższej etykiety w danych (`pages/chartAxis.ts`).
 
 - Zakleszczenie mutexa w `SqliteAccountRepository::create` (brakujące zwolnienie blokady przed
   wywołaniem `self.get()`).

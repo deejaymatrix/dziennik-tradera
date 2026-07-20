@@ -69,8 +69,10 @@ export interface ReportFilterBarProps {
   intervals: Interval[];
   availableYears: string[];
   reportKind?: ReportKind;
-  /** Dodaje do pola "Konto" opcję "Wszystkie konta (porównanie)" - używane tylko na Dashboardzie,
-   * który (w odróżnieniu od zakładki Raporty) nie ma osobnej zakładki "Porównanie kont". */
+  /** Dodaje na szczycie pola "Konto" opcję "Wszystkie konta (porównanie)" - używane przez
+   * Dashboard (jedyny sposób na porównanie kont, bo nie ma tam zakładek) i przez Raporty
+   * (dodatkowy, zsynchronizowany z zakładką "Porównanie kont" sposób na to samo - patrz
+   * `ReportsPage.selectTab`/`handleFilterChange`). */
   allowAllAccounts?: boolean;
 }
 
@@ -80,9 +82,9 @@ export interface ReportFilterBarProps {
  * czyści konta - bez konta nie ma czego raportować, więc to jedyne pole, które zostaje.
  *
  * `reportKind` ukrywa pola, które dla danego podraportu nie mają sensu albo są mylące: "Miesiąc"
- * w Raporcie Rocznym (zawężenie do jednego miesiąca sprzeczne z samą ideą rocznego podsumowania),
- * "Konto" w Porównaniu kont (ten raport z definicji zawsze porównuje WSZYSTKIE konta - zmiana
- * konta w filtrze nic by tam nie zmieniła, tylko sugerowałaby, że coś robi).
+ * w Raporcie Rocznym (zawężenie do jednego miesiąca sprzeczne z samą ideą rocznego podsumowania).
+ * "Konto" jest widoczne zawsze - z opcją "Wszystkie konta (porównanie)" na samym szczycie listy
+ * (gdy `allowAllAccounts`), zsynchronizowaną z zakładką "Porównanie kont" (patrz `ReportsPage`).
  */
 export function ReportFilterBar({
   value,
@@ -95,7 +97,6 @@ export function ReportFilterBar({
   reportKind,
   allowAllAccounts,
 }: ReportFilterBarProps): ReactElement {
-  const showAccount = reportKind !== "compare";
   const showMonth = reportKind !== "yearly";
   function set<K extends keyof ReportFilterBarValue>(key: K, next: ReportFilterBarValue[K]): void {
     onChange({ ...value, [key]: next });
@@ -113,21 +114,19 @@ export function ReportFilterBar({
     <div className={styles.bar}>
       <div className={styles.row}>
         <span className={styles.rowLabel}>Zakres</span>
-        {showAccount && (
-          <Select
-            label="Konto"
-            compact
-            value={value.accountId}
-            onChange={(e) => set("accountId", e.target.value)}
-            options={[
-              ...accounts.map((a) => ({ value: a.id, label: `${a.name} (${a.currency})` })),
-              ...(allowAllAccounts
-                ? [{ value: ALL_ACCOUNTS_VALUE, label: "Wszystkie konta (porównanie)" }]
-                : []),
-            ]}
-            className={styles.field}
-          />
-        )}
+        <Select
+          label="Konto"
+          compact
+          value={value.accountId}
+          onChange={(e) => set("accountId", e.target.value)}
+          options={[
+            ...(allowAllAccounts
+              ? [{ value: ALL_ACCOUNTS_VALUE, label: "Wszystkie konta (porównanie)" }]
+              : []),
+            ...accounts.map((a) => ({ value: a.id, label: `${a.name} (${a.currency})` })),
+          ]}
+          className={styles.field}
+        />
         <Select
           label="Rok"
           compact

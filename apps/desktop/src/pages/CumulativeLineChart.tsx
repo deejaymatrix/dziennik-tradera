@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { formatMoney } from "../app/decimal";
 import type { GroupBreakdown } from "../app/types/report";
+import { estimateYAxisWidth } from "./chartAxis";
 import styles from "./GroupBarChart.module.css";
 
 export interface CumulativeLineChartProps {
@@ -39,6 +40,11 @@ export function CumulativeLineChart({ rows, currency }: CumulativeLineChartProps
   const angle = data.length > 20 ? -60 : data.length > 10 ? -35 : -25;
   const tickFontSize = data.length > 20 ? 10 : 11;
   const axisHeight = data.length > 20 ? 62 : 50;
+  const formatAxisValue = (value: number): string => formatMoney(String(value));
+  const axisWidth = estimateYAxisWidth(
+    data.map((d) => d.value),
+    formatAxisValue,
+  );
 
   return (
     <ResponsiveContainer width="100%" height={220}>
@@ -53,9 +59,9 @@ export function CumulativeLineChart({ rows, currency }: CumulativeLineChartProps
           tick={{ fill: "var(--color-text-muted)", fontSize: tickFontSize }}
         />
         <YAxis
-          width={72}
+          width={axisWidth}
           tick={{ fill: "var(--color-text-muted)", fontSize: 11 }}
-          tickFormatter={(value: number) => formatMoney(String(value))}
+          tickFormatter={formatAxisValue}
         />
         <ReferenceLine y={0} stroke="var(--color-border)" />
         <Tooltip

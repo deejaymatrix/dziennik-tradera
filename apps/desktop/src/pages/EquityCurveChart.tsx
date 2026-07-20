@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { formatMoney } from "../app/decimal";
 import type { EquityPoint } from "../app/types/report";
+import { estimateYAxisWidth } from "./chartAxis";
 import styles from "./EquityCurveChart.module.css";
 
 export interface EquityCurveChartProps {
@@ -40,6 +41,11 @@ export function EquityCurveChart({ points, currency }: EquityCurveChartProps): R
   }));
   const finalValue = data[data.length - 1]?.value ?? 0;
   const lineColor = finalValue >= 0 ? "var(--color-profit)" : "var(--color-loss)";
+  const formatAxisValue = (value: number): string => formatMoney(String(value));
+  const axisWidth = estimateYAxisWidth(
+    data.map((d) => d.value),
+    formatAxisValue,
+  );
 
   return (
     <ResponsiveContainer width="100%" height={220}>
@@ -53,9 +59,9 @@ export function EquityCurveChart({ points, currency }: EquityCurveChartProps): R
         <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
         <XAxis dataKey="index" hide />
         <YAxis
-          width={72}
+          width={axisWidth}
           tick={{ fill: "var(--color-text-muted)", fontSize: 11 }}
-          tickFormatter={(value: number) => formatMoney(String(value))}
+          tickFormatter={formatAxisValue}
         />
         <ReferenceLine y={0} stroke="var(--color-border)" />
         <Tooltip
