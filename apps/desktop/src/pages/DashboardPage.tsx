@@ -45,6 +45,12 @@ export function DashboardPage(): ReactElement {
   } = useReportFilter();
   const [accountRankingRows, setAccountRankingRows] = useState<AccountComparisonRow[] | null>(null);
   const isAllAccounts = filter.accountId === ALL_ACCOUNTS_VALUE;
+  // Konto i instrumenty zawsze istnieją, gdy Dashboard się renderuje (konto jest wymagane do
+  // wejścia tutaj, a fabryczny katalog 350 instrumentów jest zawsze dostępny) - jedyne realne
+  // "zrobiłem to" do wykrycia to pierwsza własna strategia i pierwsza transakcja. Lista startowa
+  // chowa się automatycznie, gdy obie te rzeczy istnieją, niezależnie od ręcznego "×".
+  const hasOnboardingProgress =
+    strategies.length > 0 && report !== null && report.stats.total_trades > 0;
 
   const dismiss = (): void => {
     localStorage.setItem(CHECKLIST_DISMISSED_KEY, "true");
@@ -80,7 +86,7 @@ export function DashboardPage(): ReactElement {
 
   return (
     <div className={styles.page}>
-      {!dismissed && (
+      {!dismissed && !hasOnboardingProgress && (
         <section className={styles.checklist} aria-label="Lista startowa">
           <div className={styles.checklistHeader}>
             <p className={styles.checklistTitle}>Start pracy</p>

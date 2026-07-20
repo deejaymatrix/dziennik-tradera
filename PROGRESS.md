@@ -1025,17 +1025,28 @@ wraca do zwykłego widoku Dashboardu z jego saldem.
    `getBoundingClientRect()` wszystkich 22 etykiet osi Y widocznych na stronie - 0 z lewym
    krańcem poniżej x=0 (czyli 0 obciętych), nie tylko wizualnie na zrzucie ekranu.
 2. **"Wszystkie konta (porównanie)" trafiło też do zakładki Raporty** (wcześniej tylko Dashboard) -
-   ta sama opcja w polu "Konto", teraz zsynchronizowana dwustronnie z zakładką "Porównanie kont":
-   wybranie jej na KAŻDEJ zakładce automatycznie przełącza na "Porównanie kont"
-   (`ReportsPage.handleFilterChange`), a wybranie konkretnego konta podczas przeglądania
-   "Porównanie kont" automatycznie przełącza na "Miesięczny" (te zakładki potrzebują jednego,
-   prawdziwego konta, żeby cokolwiek policzyć). Kliknięcie samej zakładki "Porównanie kont" też
-   ustawia sentinel w Koncie (i odwrotnie) - `ReportsPage.selectTab`. Opcja jest teraz zawsze na
-   szczycie listy pola "Konto" (przeniesiona logika porządkowania do samego `ReportFilterBar`,
-   więc Dashboard automatycznie też ma ją na szczycie, bez zmian w `DashboardPage.tsx`).
-   Zweryfikowane w przeglądarce: wybór "Wszystkie konta" na Raportach przełącza na "Porównanie
-   kont" i pokazuje poprawny leaderboard/tabelę; wybór konkretnego konta z powrotem przełącza na
-   "Miesięczny" z poprawnie wybranym kontem.
+   ta sama opcja w polu "Konto", zsynchronizowana dwustronnie z zakładką "Porównanie kont".
+   **Superseded - patrz piąta poprawka poniżej: użytkownik uznał to za błędny pomysł tego samego
+   dnia i poprosił o wycofanie z Raportów** (zostało tylko na Dashboardzie).
+
+**Piąta poprawka tego samego dnia** - dwa kolejne zgłoszenia użytkownika:
+
+1. **Wycofano "Wszystkie konta (porównanie)" z zakładki Raporty** ("to był jednak zły pomysł") -
+   `ReportsPage` wraca do stanu sprzed czwartej poprawki: `onChange={setFilter}` bez
+   `handleFilterChange`, `selectTab` bez synchronizacji Konto↔zakładka, brak propa
+   `allowAllAccounts` na `<ReportFilterBar>`. `ReportFilterBar` przywraca `showAccount =
+   reportKind !== "compare"` (pole "Konto" znowu ukryte na zakładce "Porównanie kont", bo tam
+   nie miałoby żadnego efektu). Opcja **zostaje na Dashboardzie** - tam się sprawdziła, bo
+   Dashboard nie ma zakładek, więc to jedyny sposób na porównanie kont w tym widoku.
+2. **Lista startowa "Start pracy" na Dashboardzie chowa się teraz automatycznie**, gdy użytkownik
+   zrobił realny postęp - nie tylko po ręcznym kliknięciu "×". Warunek: istnieje co najmniej
+   jedna własna strategia ORAZ co najmniej jedna transakcja (`strategies.length > 0 && report !==
+   null && report.stats.total_trades > 0`). Konto i instrumenty NIE są częścią tego warunku -
+   konto musi już istnieć, żeby Dashboard się w ogóle wyrenderował, a fabryczny katalog 350
+   instrumentów istnieje zawsze od instalacji, więc nie ma tam żadnego "zrobiłem to" do wykrycia
+   (samo sprawdzenie strony Instrumenty nie jest mierzalnym stanem danych). Zweryfikowane w
+   przeglądarce w obie strony: z co najmniej jedną strategią i transakcją panel jest niewidoczny
+   nawet po wyczyszczeniu flagi ręcznego zamknięcia w localStorage; z zerem obu - wraca.
 
 **Następny krok:** powrót do pierwotnej kolejności - Faza 5 (uniwersalny Kosz).
 

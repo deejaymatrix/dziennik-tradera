@@ -117,11 +117,10 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
 - Nowe komponenty wykresów/tabel: `SimplePieChart`, `CumulativeLineChart`, `MonthCalendarTable`,
   `TopTradesTable`, `HeatmapTable`; wspólny hook `useReportFilter` wydzielony z logiki Raportów i
   reużyty przez Dashboard.
-- Opcja "Wszystkie konta (porównanie)" w polu "Konto" na Dashboardzie i w Raportach (na szczycie
-  listy) - na Dashboardzie podstawia pełny widok porównania kont (leaderboard, tabela, 4 wykresy)
-  w miejsce zwykłych KPI jednego konta; w Raportach jest dwustronnie zsynchronizowana z zakładką
-  "Porównanie kont" (wybranie opcji przełącza tam automatycznie, wybranie konkretnego konta na
-  tej zakładce przełącza na "Miesięczny").
+- Opcja "Wszystkie konta (porównanie)" w polu "Konto" na Dashboardzie - podstawia pełny widok
+  porównania kont (leaderboard, tabela, 4 wykresy) w miejsce zwykłych KPI jednego konta.
+- Lista startowa "Start pracy" na Dashboardzie chowa się automatycznie, gdy istnieje co najmniej
+  jedna strategia i jedna transakcja - nie tylko po ręcznym zamknięciu.
 
 ### Changed
 

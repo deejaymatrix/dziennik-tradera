@@ -8,8 +8,7 @@ import { EmptyState } from "../ui/components/EmptyState/EmptyState";
 import { ErrorState } from "../ui/components/ErrorState/ErrorState";
 import { Skeleton } from "../ui/components/Skeleton/Skeleton";
 import { ReportAccountComparisonTab } from "./ReportAccountComparisonTab";
-import { ALL_ACCOUNTS_VALUE, ReportFilterBar } from "./ReportFilterBar";
-import type { ReportFilterBarValue } from "./ReportFilterBar";
+import { ReportFilterBar } from "./ReportFilterBar";
 import { ReportMonthlyTab } from "./ReportMonthlyTab";
 import { ReportStrategyTab } from "./ReportStrategyTab";
 import { ReportSymbolTab } from "./ReportSymbolTab";
@@ -50,24 +49,6 @@ export function ReportsPage(): ReactElement {
     // miesiąca w tle, niewidocznie dla użytkownika - trzeba je tu jawnie wyczyścić.
     if (tab === "yearly" && filter.month) {
       setFilter({ ...filter, month: "" });
-    }
-    // "Konto" i aktywna zakładka są dwustronnie zsynchronizowane: wejście na "Porównanie kont"
-    // ustawia sentinel "Wszystkie konta", zejście z niej (przy wciąż ustawionym sentinelu)
-    // wraca do pierwszego prawdziwego konta - inne zakładki potrzebują jednego, prawdziwego
-    // konta, żeby cokolwiek policzyć.
-    if (tab === "compare" && filter.accountId !== ALL_ACCOUNTS_VALUE) {
-      setFilter({ ...filter, accountId: ALL_ACCOUNTS_VALUE });
-    } else if (tab !== "compare" && filter.accountId === ALL_ACCOUNTS_VALUE) {
-      setFilter({ ...filter, accountId: accounts?.[0]?.id ?? "" });
-    }
-  }
-
-  function handleFilterChange(next: ReportFilterBarValue): void {
-    setFilter(next);
-    if (next.accountId === ALL_ACCOUNTS_VALUE && activeTab !== "compare") {
-      setActiveTab("compare");
-    } else if (next.accountId !== ALL_ACCOUNTS_VALUE && activeTab === "compare") {
-      setActiveTab("monthly");
     }
   }
 
@@ -110,14 +91,13 @@ export function ReportsPage(): ReactElement {
     <div className={styles.page}>
       <ReportFilterBar
         value={filter}
-        onChange={handleFilterChange}
+        onChange={setFilter}
         accounts={accounts}
         instruments={instruments}
         strategies={strategies}
         intervals={intervals}
         availableYears={availableYears}
         reportKind={activeTab}
-        allowAllAccounts
       />
 
       <div className={styles.tabs} role="tablist" aria-label="Podraporty">
