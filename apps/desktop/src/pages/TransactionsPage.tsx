@@ -370,7 +370,7 @@ export function TransactionsPage(): ReactElement {
 
       {selectedAccount && (
         <TradeFormModal
-          key={formOpen ? (editingTrade?.id ?? "new") : "closed"}
+          key={formOpen ? (editingTrade?.id ?? "new") : "form-closed"}
           open={formOpen}
           onClose={() => setFormOpen(false)}
           onSaved={() => {
@@ -384,7 +384,7 @@ export function TransactionsPage(): ReactElement {
       )}
       {selectedAccount && (
         <CloseTradeModal
-          key={closingTrade?.id ?? "closed"}
+          key={closingTrade?.id ?? "close-modal-closed"}
           open={closingTrade !== null}
           onClose={() => setClosingTrade(null)}
           onClosed={() => {
