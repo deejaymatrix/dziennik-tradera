@@ -33,6 +33,7 @@ import { TextField } from "../ui/components/TextField/TextField";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import { EmotionMomentEditor } from "./EmotionMomentEditor";
 import { StrategyChecklistEditor } from "./StrategyChecklistEditor";
+import { TradeAttachments } from "./TradeAttachments";
 import { TradeAuditLog } from "./TradeAuditLog";
 import { TradeBalanceCard } from "./TradeBalanceCard";
 import { TradePreviewCard } from "./TradePreviewCard";
@@ -644,6 +645,8 @@ export function TradeFormModal({
             disabled={readOnly}
           />
         </div>
+
+        {isEdit && trade && <TradeAttachments tradeId={trade.id} />}
 
         {isEdit && <TradeAuditLog entries={auditLog} />}
 

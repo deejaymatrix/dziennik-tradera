@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::application::accounts::AccountsService;
+use crate::application::attachments::AttachmentsService;
 use crate::application::backup::BackupService;
 use crate::application::intervals::IntervalsService;
 use crate::application::strategies::StrategiesService;
@@ -58,6 +59,7 @@ pub struct TrashService {
     strategies: Arc<StrategiesService>,
     intervals: Arc<IntervalsService>,
     trades: Arc<dyn TradeRepository + Send + Sync>,
+    attachments: Arc<AttachmentsService>,
     backup: BackupService,
 }
 
@@ -67,6 +69,7 @@ impl TrashService {
         strategies: Arc<StrategiesService>,
         intervals: Arc<IntervalsService>,
         trades: Arc<dyn TradeRepository + Send + Sync>,
+        attachments: Arc<AttachmentsService>,
         backup: BackupService,
     ) -> Self {
         Self {
@@ -74,8 +77,29 @@ impl TrashService {
             strategies,
             intervals,
             trades,
+            attachments,
             backup,
         }
+    }
+
+    /// Nazwy plików zdjęć załączonych do jednej transakcji - zbierane PRZED trwałym usunięciem
+    /// (które kaskadowo skasuje wiersze `attachments` w bazie), żeby fizyczne pliki dało się
+    /// usunąć PO potwierdzonym sukcesie tamtej operacji (patrz `delete_permanently` poniżej).
+    fn screenshot_files_for_trade(&self, trade_id: &str) -> Result<Vec<String>, AppError> {
+        Ok(self
+            .attachments
+            .list_for_trade(trade_id)?
+            .into_iter()
+            .filter_map(|a| a.file_path)
+            .collect())
+    }
+
+    fn screenshot_files_for_account(&self, account_id: &str) -> Result<Vec<String>, AppError> {
+        let mut files = Vec::new();
+        for trade in self.trades.list(account_id, true)? {
+            files.extend(self.screenshot_files_for_trade(&trade.id)?);
+        }
+        Ok(files)
     }
 
     /// Wszystkie transakcje na wszystkich kontach (aktywnych i zarchiwizowanych), usunięte i
@@ -189,14 +213,27 @@ impl TrashService {
         }
     }
 
+    /// Fizyczne pliki zdjęć są usuwane z dysku dopiero PO potwierdzonym sukcesie trwałego
+    /// usunięcia konta/transakcji w bazie - nigdy przed, żeby nieudana operacja na bazie nie
+    /// zostawiła wiersza wskazującego na już nieistniejący plik.
     pub fn delete_permanently(
         &self,
         entity_type: TrashEntityType,
         id: &str,
     ) -> Result<(), AppError> {
         match entity_type {
-            TrashEntityType::Account => self.accounts.delete_permanently(id),
-            TrashEntityType::Trade => self.trades.delete_permanently(id),
+            TrashEntityType::Account => {
+                let files = self.screenshot_files_for_account(id)?;
+                self.accounts.delete_permanently(id)?;
+                self.attachments.purge_physical_files(files);
+                Ok(())
+            }
+            TrashEntityType::Trade => {
+                let files = self.screenshot_files_for_trade(id)?;
+                self.trades.delete_permanently(id)?;
+                self.attachments.purge_physical_files(files);
+                Ok(())
+            }
             TrashEntityType::Strategy => self.strategies.delete_permanently(id),
             TrashEntityType::Interval => self.intervals.delete_permanently(id),
         }
@@ -238,6 +275,7 @@ mod tests {
     use crate::domain::strategy::{StrategyInput, StrategyRepository};
     use crate::domain::trade::{TradeInput, TradeSide};
     use crate::infrastructure::sqlite_account_repository::SqliteAccountRepository;
+    use crate::infrastructure::sqlite_attachment_repository::SqliteAttachmentRepository;
     use crate::infrastructure::sqlite_cash_operation_repository::SqliteCashOperationRepository;
     use crate::infrastructure::sqlite_interval_repository::SqliteIntervalRepository;
     use crate::infrastructure::sqlite_strategy_repository::SqliteStrategyRepository;
@@ -264,9 +302,20 @@ mod tests {
         )));
         let trades: Arc<dyn TradeRepository + Send + Sync> =
             Arc::new(SqliteTradeRepository::new(conn.clone()));
+        let attachments = Arc::new(AttachmentsService::new(
+            Arc::new(SqliteAttachmentRepository::new(conn.clone())),
+            dir.path().to_path_buf(),
+        ));
         let backup = BackupService::new(conn.clone(), dir.path().to_path_buf());
 
-        let trash = TrashService::new(accounts.clone(), strategies, intervals, trades, backup);
+        let trash = TrashService::new(
+            accounts.clone(),
+            strategies,
+            intervals,
+            trades,
+            attachments,
+            backup,
+        );
 
         (trash, accounts, dir)
     }
@@ -450,5 +499,84 @@ mod tests {
         assert_eq!(result.purged, 0);
         assert_eq!(result.failed.len(), 1);
         assert_eq!(result.failed[0].label, "Breakout");
+    }
+
+    const PNG_TEST_BYTES: &[u8] = &[
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
+    ];
+
+    #[test]
+    fn delete_permanently_removes_the_physical_screenshot_file_for_a_trade() {
+        let (trash, accounts, dir) = setup();
+        let account_id = create_account(&accounts, "Konto");
+
+        let conn = Arc::new(Mutex::new(
+            connection::open(&dir.path().join("db.sqlite3")).expect("reopen"),
+        ));
+        conn.lock()
+            .unwrap()
+            .execute(
+                "INSERT INTO trades (id, account_id, display_number, status, side, deleted_at, created_at, updated_at)
+                 VALUES ('trade-1', ?1, 1, 'draft', 'buy', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+                [&account_id],
+            )
+            .expect("seed soft-deleted trade");
+
+        let attachments = AttachmentsService::new(
+            Arc::new(SqliteAttachmentRepository::new(conn.clone())),
+            dir.path().to_path_buf(),
+        );
+        let created = attachments
+            .add_screenshot_from_bytes("trade-1", PNG_TEST_BYTES.to_vec(), None)
+            .expect("store screenshot");
+        let file_path = dir
+            .path()
+            .join("attachments")
+            .join(created.file_path.as_ref().unwrap());
+        assert!(file_path.exists());
+
+        trash
+            .delete_permanently(TrashEntityType::Trade, "trade-1")
+            .expect("purge trade");
+
+        assert!(!file_path.exists());
+    }
+
+    #[test]
+    fn delete_permanently_removes_screenshot_files_owned_by_a_purged_account() {
+        let (trash, accounts, dir) = setup();
+        let account_id = create_account(&accounts, "Konto do usunięcia");
+
+        let conn = Arc::new(Mutex::new(
+            connection::open(&dir.path().join("db.sqlite3")).expect("reopen"),
+        ));
+        conn.lock()
+            .unwrap()
+            .execute(
+                "INSERT INTO trades (id, account_id, display_number, status, side, created_at, updated_at)
+                 VALUES ('trade-1', ?1, 1, 'draft', 'buy', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+                [&account_id],
+            )
+            .expect("seed live trade under the account");
+
+        let attachments = AttachmentsService::new(
+            Arc::new(SqliteAttachmentRepository::new(conn.clone())),
+            dir.path().to_path_buf(),
+        );
+        let created = attachments
+            .add_screenshot_from_bytes("trade-1", PNG_TEST_BYTES.to_vec(), None)
+            .expect("store screenshot");
+        let file_path = dir
+            .path()
+            .join("attachments")
+            .join(created.file_path.as_ref().unwrap());
+        assert!(file_path.exists());
+
+        accounts.archive(&account_id).expect("archive account");
+        trash
+            .delete_permanently(TrashEntityType::Account, &account_id)
+            .expect("purge account");
+
+        assert!(!file_path.exists());
     }
 }

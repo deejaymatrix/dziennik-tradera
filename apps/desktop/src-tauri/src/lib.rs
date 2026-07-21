@@ -13,6 +13,7 @@ use std::sync::{Arc, Mutex};
 use tauri::Manager;
 
 use application::accounts::AccountsService;
+use application::attachments::AttachmentsService;
 use application::backup::BackupService;
 use application::emotional_states::EmotionalStatesService;
 use application::export::ExportService;
@@ -23,6 +24,7 @@ use application::strategies::StrategiesService;
 use application::trades::TradesService;
 use application::trash::TrashService;
 use infrastructure::sqlite_account_repository::SqliteAccountRepository;
+use infrastructure::sqlite_attachment_repository::SqliteAttachmentRepository;
 use infrastructure::sqlite_cash_operation_repository::SqliteCashOperationRepository;
 use infrastructure::sqlite_emotional_state_repository::SqliteEmotionalStateRepository;
 use infrastructure::sqlite_instrument_repository::SqliteInstrumentRepository;
@@ -124,11 +126,16 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
     let backup = BackupService::new(conn.clone(), app_data_dir.to_path_buf());
     let emotional_states =
         EmotionalStatesService::new(Arc::new(SqliteEmotionalStateRepository::new(conn.clone())));
+    let attachments = Arc::new(AttachmentsService::new(
+        Arc::new(SqliteAttachmentRepository::new(conn.clone())),
+        app_data_dir.to_path_buf(),
+    ));
     let trash = TrashService::new(
         accounts.clone(),
         strategies.clone(),
         intervals.clone(),
         Arc::new(SqliteTradeRepository::new(conn.clone())),
+        attachments.clone(),
         BackupService::new(conn.clone(), app_data_dir.to_path_buf()),
     );
 
@@ -144,6 +151,7 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
         export,
         backup,
         emotional_states,
+        attachments,
         trash,
     }
 }
@@ -153,6 +161,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             #[cfg(desktop)]
             app.handle()
@@ -227,6 +236,14 @@ pub fn run() {
             commands::trash::restore_trash_item,
             commands::trash::purge_trash_item,
             commands::trash::empty_trash,
+            commands::attachments::list_attachments,
+            commands::attachments::add_screenshot_attachment_from_path,
+            commands::attachments::add_screenshot_attachment_from_bytes,
+            commands::attachments::add_link_attachment,
+            commands::attachments::update_attachment_label,
+            commands::attachments::reorder_attachments,
+            commands::attachments::delete_attachment,
+            commands::attachments::read_attachment_image,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

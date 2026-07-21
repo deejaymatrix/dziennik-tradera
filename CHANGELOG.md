@@ -128,6 +128,15 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   przed trwałym czyszczeniem wszystkiego). Nowa metoda `delete_permanently` na czterech
   repozytoriach domenowych (konta, transakcje, strategie, interwały), które wcześniej nie miały
   żadnego sposobu na trwałe usunięcie - tylko archiwizację/miękkie usuwanie.
+- Załączniki na transakcji - nowa sekcja "Wykres i załączniki" na karcie transakcji: wiele zdjęć
+  wykresu (wybór z dysku, przeciągnij-i-upuść, wklejenie ze schowka) z miniaturami, pełnym
+  podglądem, edytowalnym opisem i zmianą kolejności, oraz linki (nazwa + adres, wyłącznie
+  `https://`, otwierane w zewnętrznej przeglądarce po potwierdzeniu). Bezpieczeństwo: format
+  obrazu rozpoznawany z rzeczywistej zawartości pliku (nie rozszerzenia), limit 15 MB, ochrona
+  przed dowiązaniami symbolicznymi i path traversal (pliki kopiowane do zarządzanego katalogu
+  pod nazwą UUID + SHA-256 w bazie). Kopia zapasowa `.dtjbackup` zawiera teraz też zdjęcia
+  (weryfikacja sumy każdego pliku przed przywróceniem); trwałe usunięcie transakcji/konta/
+  załącznika czyści fizyczne pliki dopiero po udanej operacji na bazie.
 
 ### Changed
 

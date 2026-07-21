@@ -1,7 +1,7 @@
 # Postęp prac
 
-Ostatnia aktualizacja: 2026-07-20 (Faza 5: uniwersalny Kosz ukończona - powrót do pierwotnej
-kolejności faz po wcześniejszym, tymczasowym przeskoczeniu do Fazy 9, patrz Faza 5 poniżej)
+Ostatnia aktualizacja: 2026-07-21 (Faza 6: załączniki - zdjęcia i linki na transakcji - ukończona,
+patrz Faza 6 poniżej)
 
 ## Cel 1.1 — Repozytorium, standardy i uruchomiony podgląd — ✅ ukończony
 
@@ -1124,6 +1124,65 @@ wraca do zwykłego widoku Dashboardu z jego saldem.
   w JS (wciąż testuje prawdziwy kod aplikacji/React, tylko inny sposób wywołania kliknięcia).
 
 **Następny krok:** Faza 6 — załączniki (zdjęcia i linki) na transakcji.
+
+### Faza 6 — Załączniki (zdjęcia i linki) na transakcji — ✅ ukończona
+
+**Co działa:**
+
+- **Migracja `0008_attachments`**: tabela `attachments` (istniejąca od 0001_init, dotąd pusta)
+  dostała w miejscu (`ALTER TABLE`) kolumny `label` (opis zdjęcia / nazwa linku) i `sort_order`
+  + indeks `(trade_id, sort_order)`.
+- **`domain::attachment`**: `Attachment`/`AttachmentWrite`/`AttachmentKind` (screenshot|link),
+  trait `AttachmentRepository` (create/get/list_for_trade/update_label/reorder/delete) i walidator
+  `is_valid_https_url` - linki wyłącznie `https://` (odrzuca `http:`, `javascript:`, `data:`,
+  białe znaki), otwierane w zewnętrznej przeglądarce dopiero po potwierdzeniu przez użytkownika
+  (`tauri-plugin-shell`, uprawnienie `shell:allow-open`).
+- **`AttachmentsService`** (jedyne miejsce dotykające plików - repozytorium zna tylko wiersze bazy):
+  - format obrazu rozpoznawany z **rzeczywistych bajtów pliku** (magic numbers PNG/JPEG/GIF/WEBP/
+    BMP), nigdy z rozszerzenia nazwy - plik wykonywalny przemianowany na `.png` jest odrzucany;
+  - limit rozmiaru 15 MB, źródłowe dowiązania symboliczne odrzucane;
+  - zdjęcie kopiowane do zarządzanego katalogu `app_data_dir/attachments/` pod własną nazwą
+    (UUID + rozszerzenie z rozpoznanego formatu) + SHA-256 w bazie - baza nigdy nie przechowuje
+    ścieżki/nazwy od użytkownika, więc nie ma path traversal przy odczycie;
+  - odczyt zdjęcia dla frontendu wyłącznie jako `data:` URI (frontend nigdy nie widzi ścieżek);
+  - trzy drogi dodania zdjęcia: okno wyboru pliku, przeciągnij-i-upuść, wklejenie ze schowka.
+- **Trwałe usuwanie czyści też pliki**: usunięcie pojedynczego załącznika, trwałe usunięcie
+  transakcji i trwałe usunięcie konta (Kosz) usuwają fizyczne pliki zdjęć - zawsze dopiero PO
+  potwierdzonym sukcesie operacji na bazie, nigdy przed.
+- **Backup/restore obejmuje zdjęcia**: `.dtjbackup` zawiera teraz katalog `attachments/`;
+  weryfikacja przywracania sprawdza obecność i sumę SHA-256 **każdego** zdjęcia wymienionego w
+  bazie kopii zanim cokolwiek zostanie ruszone; przywrócenie podmienia katalog załączników na
+  stan z kopii (staging `attachments-pending/` + podmiana przy starcie, przed bazą).
+- **4+8 komend Tauri** (`commands/attachments.rs`): list/add-from-path/add-from-bytes(base64)/
+  add-link/update-label/reorder/delete/read-image.
+- **Frontend - sekcja "Wykres i załączniki" na karcie transakcji** (`TradeAttachments` +
+  `useAttachments`): miniatury zdjęć (klik = pełny podgląd w modalu), karty linków (klik =
+  potwierdzenie + otwarcie w przeglądarce), opis/nazwa edytowalne inline (zapis przy opuszczeniu
+  pola), reorder strzałkami, usuwanie z potwierdzeniem, dropzone (drag&drop), "Wklej ze schowka"
+  (Web Clipboard API), "Dodaj zdjęcie" (natywne okno wyboru pliku). Każda akcja to osobna,
+  natychmiast zapisywana komenda - sekcja działa też w trybie tylko-do-odczytu karty.
+
+**Przetestowane:**
+
+- Rust: **233 testy** przechodzą (`cargo test --lib`, +27 od Fazy 5), `cargo fmt --check` czyste,
+  `cargo clippy --all-targets -- -D warnings` czyste poza wcześniej istniejącym, śledzonym osobno
+  ostrzeżeniem `large_enum_variant` na `DbState::Ready`. Nowe testy: walidacja URL (10),
+  repozytorium SQLite (6), serwis (8 - w tym odrzucenie nie-obrazu, limitu rozmiaru, symlinka,
+  round-trip data-URI, fizyczne usunięcie pliku), Kosz z plikami (2), backup z załącznikami (2 -
+  w tym pełny round-trip przywracania z podmianą katalogu).
+- Frontend: `pnpm typecheck`/`eslint` (0 błędów, 4 wcześniej istniejące ostrzeżenia)/`prettier`/
+  `test` (Vitest 13/13) czyste.
+- Zweryfikowane na żywo w przeglądarce (fałszywy most Tauri): sekcja renderuje się na karcie
+  transakcji, miniatura + podgląd w modalu, dodanie linku (poprawne argumenty komendy), reorder
+  (poprawna nowa kolejność), usunięcie z potwierdzeniem, lista odświeża się po każdej akcji.
+- **Znaleziony i naprawiony realny błąd (dzięki weryfikacji w przeglądarce):** formularz "Dodaj
+  link" był `<form>` zagnieżdżonym w `<form>` karty transakcji - HTML tego zabrania, React
+  zgłaszał błąd w konsoli, a wysłanie formularza potrafiło przeładować całą stronę. Naprawione:
+  edytor linku to teraz zwykły `<div>`, zatwierdzenie przyciskiem albo Enterem (z `preventDefault`,
+  żeby Enter nie trafił do zewnętrznego formularza karty).
+
+**Następny krok:** Faza 8 — nowa zakładka "Zasady handlu" (Faza 7 - lokalny asystent AI - jawnie
+odroczona przez użytkownika na osobną aktualizację po instalatorze v1.0).
 
 ## Pozostałe cele Etapu 1
 

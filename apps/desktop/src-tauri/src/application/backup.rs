@@ -20,11 +20,16 @@ impl BackupService {
         Self { conn, app_data_dir }
     }
 
+    fn attachments_dir(&self) -> PathBuf {
+        self.app_data_dir.join("attachments")
+    }
+
     pub fn create_backup(&self, destination: &str) -> Result<BackupManifest, AppError> {
         backup_archive::create_from_connection(
             &self.conn,
             Path::new(destination),
             env!("CARGO_PKG_VERSION"),
+            &self.attachments_dir(),
         )
     }
 
@@ -37,7 +42,12 @@ impl BackupService {
         std::fs::create_dir_all(&backup_dir)?;
         let timestamp = chrono::Utc::now().format("%Y%m%dT%H%M%S%.3fZ");
         let destination = backup_dir.join(format!("pre-{label}-{timestamp}.dtjbackup"));
-        backup_archive::create_from_connection(&self.conn, &destination, env!("CARGO_PKG_VERSION"))
+        backup_archive::create_from_connection(
+            &self.conn,
+            &destination,
+            env!("CARGO_PKG_VERSION"),
+            &self.attachments_dir(),
+        )
     }
 
     pub fn prepare_restore(&self, archive_path: &str) -> Result<BackupManifest, AppError> {

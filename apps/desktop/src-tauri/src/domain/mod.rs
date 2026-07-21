@@ -1,4 +1,5 @@
 pub mod account;
+pub mod attachment;
 pub mod backup;
 pub mod balance;
 pub mod cash_operation;

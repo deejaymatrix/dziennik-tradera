@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use rusqlite::Connection;
 
 use crate::application::accounts::AccountsService;
+use crate::application::attachments::AttachmentsService;
 use crate::application::backup::BackupService;
 use crate::application::emotional_states::EmotionalStatesService;
 use crate::application::export::ExportService;
@@ -35,6 +36,7 @@ pub enum DbState {
         export: ExportService,
         backup: BackupService,
         emotional_states: EmotionalStatesService,
+        attachments: Arc<AttachmentsService>,
         trash: TrashService,
     },
     Failed {
