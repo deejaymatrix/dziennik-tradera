@@ -1181,6 +1181,17 @@ wraca do zwykłego widoku Dashboardu z jego saldem.
   edytor linku to teraz zwykły `<div>`, zatwierdzenie przyciskiem albo Enterem (z `preventDefault`,
   żeby Enter nie trafił do zewnętrznego formularza karty).
 
+**Uzupełnienie (2026-07-21, na prośbę użytkownika):** załączniki działają też przy TWORZENIU
+nowej transakcji, nie tylko na zapisanej. Nowa transakcja nie ma jeszcze id, więc sekcja działa
+wtedy w trybie oczekującym: zdjęcia/linki zbierane są lokalnie w formularzu (podgląd z pamięci,
+edycja opisu/kolejności/usuwanie bez żadnych komend) i wysyłane na serwer dopiero po udanym
+`create_trade` - pojedyncze niepowodzenie wysyłki nie cofa zapisanej transakcji, tylko jest
+zgłaszane. Nowa komenda `read_screenshot_candidate` (odczyt + pełna walidacja zdjęcia z dysku BEZ
+zapisywania - dla podglądu przed utworzeniem transakcji; 235 testów Rust, +2). Zamknięcie
+formularza z oczekującymi załącznikami pyta o potwierdzenie (nie trafiają do szkicu localStorage
+- za duże). Zweryfikowane na żywo w przeglądarce: dodanie linku lokalnie nie woła żadnej komendy,
+po "Zapisz" leci `create_trade` + `add_link_attachment` z id nowej transakcji.
+
 **Następny krok:** Faza 8 — nowa zakładka "Zasady handlu" (Faza 7 - lokalny asystent AI - jawnie
 odroczona przez użytkownika na osobną aktualizację po instalatorze v1.0).
 

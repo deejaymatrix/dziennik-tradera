@@ -1,7 +1,7 @@
 use base64::Engine;
 use tauri::State;
 
-use crate::application::attachments::AttachmentsService;
+use crate::application::attachments::{AttachmentsService, ScreenshotCandidate};
 use crate::domain::attachment::{Attachment, NewLinkAttachment};
 use crate::error::AppError;
 use crate::state::{AppState, DbState};
@@ -98,4 +98,14 @@ pub fn delete_attachment(state: State<'_, AppState>, id: String) -> Result<(), A
 #[tauri::command]
 pub fn read_attachment_image(state: State<'_, AppState>, id: String) -> Result<String, AppError> {
     require_db(&state)?.read_screenshot_data_uri(&id)
+}
+
+/// Odczytuje i waliduje zdjęcie z dysku BEZ zapisywania - dla nowej, jeszcze niezapisanej
+/// transakcji (frontend trzyma je jako "oczekujące" i zapisuje dopiero po utworzeniu transakcji).
+#[tauri::command]
+pub fn read_screenshot_candidate(
+    state: State<'_, AppState>,
+    source_path: String,
+) -> Result<ScreenshotCandidate, AppError> {
+    require_db(&state)?.read_screenshot_candidate(std::path::Path::new(&source_path))
 }

@@ -16,3 +16,22 @@ export interface Attachment {
   sort_order: number;
   created_at: string;
 }
+
+/** Odpowiedź komendy `read_screenshot_candidate` - zwalidowane zdjęcie z dysku, jeszcze nigdzie
+ * nie zapisane (dla nowej transakcji bez id). */
+export interface ScreenshotCandidate {
+  bytes_base64: string;
+  mime: string;
+}
+
+/** Załącznik nowej, jeszcze niezapisanej transakcji - trzymany lokalnie w formularzu i wysyłany
+ * na serwer dopiero po udanym `create_trade` (transakcja musi najpierw dostać id). Zdjęcia jako
+ * base64 (podgląd budowany z `mime`), linki jako adres+nazwa. */
+export interface PendingAttachment {
+  id: string;
+  kind: AttachmentKind;
+  bytesBase64?: string;
+  mime?: string;
+  url?: string;
+  label: string | null;
+}

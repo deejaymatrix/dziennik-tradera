@@ -54,6 +54,14 @@ fn mime_for_extension(extension: &str) -> &'static str {
     }
 }
 
+/// Zwalidowany kandydat na zdjęcie-załącznik nowej, jeszcze niezapisanej transakcji - patrz
+/// `AttachmentsService::read_screenshot_candidate`.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ScreenshotCandidate {
+    pub bytes_base64: String,
+    pub mime: String,
+}
+
 fn trim_to_none(label: Option<String>) -> Option<String> {
     label.and_then(|value| {
         let trimmed = value.trim();
@@ -104,14 +112,48 @@ impl AttachmentsService {
         source_path: &Path,
         label: Option<String>,
     ) -> Result<Attachment, AppError> {
+        let bytes = Self::read_validated_source_file(source_path)?;
+        self.store_screenshot_bytes(trade_id, bytes, label)
+    }
+
+    /// Odczytuje i waliduje kandydata na zdjęcie BEZ zapisywania czegokolwiek - używane przy
+    /// tworzeniu NOWEJ transakcji (nie ma jeszcze jej id, więc załącznik nie może trafić do
+    /// bazy): frontend dostaje bajty + typ MIME do podglądu i trzyma je jako "oczekujące",
+    /// a właściwy zapis (`add_screenshot_from_bytes`, z pełną ponowną walidacją) następuje
+    /// dopiero po udanym utworzeniu transakcji.
+    pub fn read_screenshot_candidate(
+        &self,
+        source_path: &Path,
+    ) -> Result<ScreenshotCandidate, AppError> {
+        let bytes = Self::read_validated_source_file(source_path)?;
+        if bytes.len() > MAX_SCREENSHOT_BYTES {
+            return Err(AppError::Validation(format!(
+                "Plik jest zbyt duży ({} MB) - limit to {} MB.",
+                bytes.len() / (1024 * 1024),
+                MAX_SCREENSHOT_BYTES / (1024 * 1024)
+            )));
+        }
+        let extension = sniff_image_extension(&bytes).ok_or_else(|| {
+            AppError::Validation(
+                "Plik nie jest rozpoznawalnym obrazem (PNG/JPEG/GIF/WEBP/BMP) - sprawdzana jest \
+                 rzeczywista zawartość pliku, nie rozszerzenie nazwy."
+                    .to_string(),
+            )
+        })?;
+        Ok(ScreenshotCandidate {
+            bytes_base64: base64::engine::general_purpose::STANDARD.encode(&bytes),
+            mime: mime_for_extension(extension).to_string(),
+        })
+    }
+
+    fn read_validated_source_file(source_path: &Path) -> Result<Vec<u8>, AppError> {
         let metadata = std::fs::symlink_metadata(source_path)?;
         if metadata.file_type().is_symlink() {
             return Err(AppError::Validation(
                 "Odczyt z dowiązania symbolicznego nie jest dozwolony.".to_string(),
             ));
         }
-        let bytes = std::fs::read(source_path)?;
-        self.store_screenshot_bytes(trade_id, bytes, label)
+        Ok(std::fs::read(source_path)?)
     }
 
     /// Dodaje zdjęcie z surowych bajtów - używane przy wklejeniu obrazu ze schowka (frontend
@@ -356,6 +398,37 @@ mod tests {
             service.read_screenshot_data_uri(&created.id),
             Err(AppError::NotFound(_))
         ));
+    }
+
+    #[test]
+    fn read_screenshot_candidate_returns_base64_and_mime_without_persisting_anything() {
+        let (service, dir) = service_with_fresh_db();
+        let source = dir.path().join("wykres.png");
+        std::fs::write(&source, PNG_BYTES).expect("write source file");
+
+        let candidate = service
+            .read_screenshot_candidate(&source)
+            .expect("read candidate");
+
+        assert_eq!(candidate.mime, "image/png");
+        use base64::Engine;
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(&candidate.bytes_base64)
+            .expect("decode");
+        assert_eq!(decoded, PNG_BYTES);
+        // Nic nie zostało zapisane - ani wiersz w bazie, ani plik w zarządzanym katalogu.
+        assert!(service.list_for_trade("trade-1").expect("list").is_empty());
+        assert!(!dir.path().join("attachments").exists());
+    }
+
+    #[test]
+    fn read_screenshot_candidate_rejects_a_file_that_is_not_an_image() {
+        let (service, dir) = service_with_fresh_db();
+        let source = dir.path().join("nie-obraz.png");
+        std::fs::write(&source, b"MZ to nie jest obraz").expect("write source file");
+
+        let result = service.read_screenshot_candidate(&source);
+        assert!(matches!(result, Err(AppError::Validation(_))));
     }
 
     #[test]

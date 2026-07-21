@@ -17,13 +17,18 @@ export interface UseAttachmentsResult {
 
 /** Zarządza załącznikami jednej transakcji (Faza 6) - w odróżnieniu od pól samej transakcji,
  * każda akcja tutaj to niezależna, natychmiast zapisywana komenda (nie część "Zapisz zmiany"
- * formularza), więc sekcja działa też w trybie tylko-do-odczytu karty transakcji. */
+ * formularza), więc sekcja działa też w trybie tylko-do-odczytu karty transakcji.
+ * Puste `tradeId` = nowa, jeszcze niezapisana transakcja (tryb oczekujący w `TradeAttachments`)
+ * - hook wtedy nic nie pobiera i nie wywołuje żadnych komend. */
 export function useAttachments(tradeId: string): UseAttachmentsResult {
   const [attachments, setAttachments] = useState<Attachment[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [imagesByAttachmentId, setImagesByAttachmentId] = useState<Record<string, string>>({});
 
   async function load(id: string): Promise<void> {
+    if (!id) {
+      return;
+    }
     setError(null);
     try {
       const data = await invokeCommand<Attachment[]>("list_attachments", { tradeId: id });

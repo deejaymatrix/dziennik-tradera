@@ -244,6 +244,7 @@ pub fn run() {
             commands::attachments::reorder_attachments,
             commands::attachments::delete_attachment,
             commands::attachments::read_attachment_image,
+            commands::attachments::read_screenshot_candidate,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

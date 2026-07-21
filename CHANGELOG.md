@@ -137,6 +137,10 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   pod nazwą UUID + SHA-256 w bazie). Kopia zapasowa `.dtjbackup` zawiera teraz też zdjęcia
   (weryfikacja sumy każdego pliku przed przywróceniem); trwałe usunięcie transakcji/konta/
   załącznika czyści fizyczne pliki dopiero po udanej operacji na bazie.
+- Załączniki można dodawać już przy TWORZENIU nowej transakcji (nie tylko na zapisanej) -
+  zbierane lokalnie w formularzu z podglądem i pełną edycją, zapisywane automatycznie razem
+  z transakcją po kliknięciu "Zapisz"; zamknięcie formularza z niezapisanymi załącznikami
+  wymaga potwierdzenia.
 
 ### Changed
 

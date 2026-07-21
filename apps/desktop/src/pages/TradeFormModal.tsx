@@ -11,6 +11,7 @@ import {
   validateTradeFormFormat,
 } from "../app/tradeForm";
 import type { TradeFormFields } from "../app/tradeForm";
+import type { PendingAttachment } from "../app/types/attachment";
 import type { EmotionalState } from "../app/types/emotional_state";
 import type { InstrumentListFilter, InstrumentWithDetails } from "../app/types/instrument";
 import type { Interval } from "../app/types/interval";
@@ -97,6 +98,11 @@ export function TradeFormModal({
     return loadTradeDraft(accountId, undefined) ?? blankTradeFormFields();
   });
   const initialSnapshot = useRef(JSON.stringify(fields));
+
+  // Załączniki NOWEJ transakcji - zbierane lokalnie (transakcja nie ma jeszcze id), wysyłane
+  // na serwer po udanym create_trade. Świadomie poza autosave'em szkicu (localStorage nie
+  // pomieści zdjęć); przed utratą chroni pytanie przy zamykaniu (patrz requestClose).
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
 
   const [instruments, setInstruments] = useState<
     (InstrumentWithDetails & { isHidden?: boolean })[]
@@ -290,11 +296,14 @@ export function TradeFormModal({
   }
 
   function requestClose(): void {
-    const isDirty = JSON.stringify(fields) !== initialSnapshot.current;
+    // Oczekujące załączniki nowej transakcji też liczą się jako niezapisane zmiany - w
+    // odróżnieniu od pól NIE przetrwają zamknięcia (szkic w localStorage nie mieści zdjęć).
+    const isDirty =
+      JSON.stringify(fields) !== initialSnapshot.current || pendingAttachments.length > 0;
     if (
       isDirty &&
       !window.confirm(
-        "Masz niezapisane zmiany w tej transakcji. Zamknąć formularz bez zapisywania? (szkic zostanie zachowany do następnego razu)",
+        "Masz niezapisane zmiany w tej transakcji. Zamknąć formularz bez zapisywania? (szkic pól zostanie zachowany do następnego razu, ale niezapisane załączniki przepadną)",
       )
     ) {
       return;
@@ -336,6 +345,33 @@ export function TradeFormModal({
     requestClose();
   }
 
+  /** Wysyła lokalnie zebrane załączniki nowej transakcji już PO jej utworzeniu (dopiero wtedy
+   * istnieje `tradeId`). Pojedyncze niepowodzenie nie przerywa reszty - transakcja jest już
+   * zapisana, więc zgłaszamy tylko, których załączników zabrakło. */
+  async function savePendingAttachments(tradeId: string): Promise<string[]> {
+    const failures: string[] = [];
+    for (const attachment of pendingAttachments) {
+      try {
+        if (attachment.kind === "screenshot") {
+          await invokeCommand("add_screenshot_attachment_from_bytes", {
+            tradeId,
+            bytesBase64: attachment.bytesBase64,
+            label: attachment.label,
+          });
+        } else {
+          await invokeCommand("add_link_attachment", {
+            tradeId,
+            url: attachment.url,
+            label: attachment.label,
+          });
+        }
+      } catch (error) {
+        failures.push(error instanceof Error ? error.message : "nieoczekiwany błąd");
+      }
+    }
+    return failures;
+  }
+
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     // Zabezpieczenie dodatkowe do `disabled` na przycisku - patrz komentarz przy stanie
@@ -364,8 +400,17 @@ export function TradeFormModal({
         });
         showToast("Transakcja zaktualizowana.", "success");
       } else {
-        await invokeCommand("create_trade", { input });
-        showToast("Transakcja zapisana.", "success");
+        const created = await invokeCommand<Trade>("create_trade", { input });
+        const attachmentFailures = await savePendingAttachments(created.id);
+        setPendingAttachments([]);
+        if (attachmentFailures.length > 0) {
+          showToast(
+            `Transakcja zapisana, ale ${attachmentFailures.length} załączników się nie udało: ${attachmentFailures[0] ?? ""}`,
+            "error",
+          );
+        } else {
+          showToast("Transakcja zapisana.", "success");
+        }
       }
       clearTradeDraft(accountId, trade?.id);
       onSaved();
@@ -646,7 +691,11 @@ export function TradeFormModal({
           />
         </div>
 
-        {isEdit && trade && <TradeAttachments tradeId={trade.id} />}
+        {isEdit && trade ? (
+          <TradeAttachments tradeId={trade.id} />
+        ) : (
+          <TradeAttachments pending={pendingAttachments} onPendingChange={setPendingAttachments} />
+        )}
 
         {isEdit && <TradeAuditLog entries={auditLog} />}
 

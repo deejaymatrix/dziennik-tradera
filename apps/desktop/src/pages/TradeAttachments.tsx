@@ -2,7 +2,9 @@ import { ArrowDown, ArrowUp, ExternalLink, Link2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { DragEvent, KeyboardEvent, ReactElement } from "react";
 import { blobToBase64 } from "../app/blobToBase64";
+import { invokeCommand } from "../app/invokeCommand";
 import { MAX_SCREENSHOT_BYTES } from "../app/types/attachment";
+import type { PendingAttachment, ScreenshotCandidate } from "../app/types/attachment";
 import { useAttachments } from "../app/useAttachments";
 import { Button } from "../ui/components/Button/Button";
 import { IconButton } from "../ui/components/IconButton/IconButton";
@@ -12,15 +14,35 @@ import { useToast } from "../ui/components/Toast/ToastProvider";
 import styles from "./TradeAttachments.module.css";
 
 export interface TradeAttachmentsProps {
-  tradeId: string;
+  /** Id ZAPISANEJ transakcji - każda akcja jest wtedy osobną, natychmiast zapisywaną komendą.
+   * Brak = tryb oczekujący dla NOWEJ transakcji: załączniki żyją lokalnie w `pending` i trafiają
+   * na serwer dopiero po udanym `create_trade` (patrz TradeFormModal.handleSubmit). */
+  tradeId?: string;
+  pending?: PendingAttachment[];
+  onPendingChange?: (pending: PendingAttachment[]) => void;
+}
+
+/** Jeden wiersz listy niezależnie od trybu - zapisany załącznik albo oczekujący lokalny. */
+interface ViewItem {
+  id: string;
+  kind: "screenshot" | "link";
+  previewUri: string | null;
+  url: string | null;
+  label: string | null;
 }
 
 /**
- * Sekcja "Wykres i załączniki" (Faza 6) - w odróżnieniu od pól transakcji powyżej, każda akcja
- * tu jest osobną, natychmiast zapisywaną komendą (nie częścią "Zapisz zmiany"), więc sekcja
- * działa niezależnie od tego, czy karta transakcji jest w trybie odczytu czy edycji.
+ * Sekcja "Wykres i załączniki" (Faza 6) na karcie transakcji. Dla zapisanej transakcji działa
+ * też w trybie tylko-do-odczytu karty (akcje są niezależne od "Zapisz zmiany"); dla nowej
+ * transakcji zbiera załączniki lokalnie, zanim transakcja dostanie id.
  */
-export function TradeAttachments({ tradeId }: TradeAttachmentsProps): ReactElement {
+export function TradeAttachments({
+  tradeId,
+  pending,
+  onPendingChange,
+}: TradeAttachmentsProps): ReactElement {
+  const isPendingMode = tradeId === undefined;
+  const pendingItems = pending ?? [];
   const {
     attachments,
     error,
@@ -31,7 +53,7 @@ export function TradeAttachments({ tradeId }: TradeAttachmentsProps): ReactEleme
     updateLabel,
     reorder,
     remove,
-  } = useAttachments(tradeId);
+  } = useAttachments(tradeId ?? "");
   const { showToast } = useToast();
   const [busy, setBusy] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -39,6 +61,30 @@ export function TradeAttachments({ tradeId }: TradeAttachmentsProps): ReactEleme
   const [addingLink, setAddingLink] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [linkLabel, setLinkLabel] = useState("");
+
+  const items: ViewItem[] = isPendingMode
+    ? pendingItems.map((p) => ({
+        id: p.id,
+        kind: p.kind,
+        previewUri:
+          p.kind === "screenshot" && p.bytesBase64
+            ? `data:${p.mime ?? "image/png"};base64,${p.bytesBase64}`
+            : null,
+        url: p.url ?? null,
+        label: p.label,
+      }))
+    : (attachments ?? []).map((a) => ({
+        id: a.id,
+        kind: a.kind,
+        previewUri: imagesByAttachmentId[a.id] ?? null,
+        url: a.url,
+        label: a.label,
+      }));
+  const loading = !isPendingMode && attachments === null;
+
+  function appendPending(item: PendingAttachment): void {
+    onPendingChange?.([...pendingItems, item]);
+  }
 
   async function addImageBlob(blob: Blob): Promise<void> {
     if (blob.size > MAX_SCREENSHOT_BYTES) {
@@ -49,6 +95,16 @@ export function TradeAttachments({ tradeId }: TradeAttachmentsProps): ReactEleme
       return;
     }
     const bytesBase64 = await blobToBase64(blob);
+    if (isPendingMode) {
+      appendPending({
+        id: crypto.randomUUID(),
+        kind: "screenshot",
+        bytesBase64,
+        mime: blob.type || "image/png",
+        label: null,
+      });
+      return;
+    }
     await addFromBytes(bytesBase64, null);
   }
 
@@ -73,7 +129,24 @@ export function TradeAttachments({ tradeId }: TradeAttachmentsProps): ReactEleme
     if (!path || Array.isArray(path)) {
       return;
     }
-    await withBusy(() => addFromPath(path, null));
+    await withBusy(async () => {
+      if (isPendingMode) {
+        // Nowa transakcja nie ma jeszcze id - backend tylko waliduje plik i oddaje bajty,
+        // właściwy zapis nastąpi po utworzeniu transakcji.
+        const candidate = await invokeCommand<ScreenshotCandidate>("read_screenshot_candidate", {
+          sourcePath: path,
+        });
+        appendPending({
+          id: crypto.randomUUID(),
+          kind: "screenshot",
+          bytesBase64: candidate.bytes_base64,
+          mime: candidate.mime,
+          label: null,
+        });
+        return;
+      }
+      await addFromPath(path, null);
+    });
   }
 
   async function handlePasteFromClipboard(): Promise<void> {
@@ -114,6 +187,24 @@ export function TradeAttachments({ tradeId }: TradeAttachmentsProps): ReactEleme
     if (!url) {
       return;
     }
+    if (isPendingMode) {
+      // Ta sama reguła co w backendzie (domain::attachment::is_valid_https_url) - walidacja tu
+      // tylko dla natychmiastowej informacji zwrotnej, autorytatywna jest ta przy zapisie.
+      if (!/^https:\/\/\S+$/i.test(url)) {
+        showToast("Link musi być prawidłowym adresem zaczynającym się od https://.", "error");
+        return;
+      }
+      appendPending({
+        id: crypto.randomUUID(),
+        kind: "link",
+        url,
+        label: linkLabel.trim() || null,
+      });
+      setLinkUrl("");
+      setLinkLabel("");
+      setAddingLink(false);
+      return;
+    }
     void withBusy(async () => {
       await addLink(url, linkLabel.trim() || null);
       setLinkUrl("");
@@ -139,6 +230,10 @@ export function TradeAttachments({ tradeId }: TradeAttachmentsProps): ReactEleme
   }
 
   function handleDelete(id: string, label: string): void {
+    if (isPendingMode) {
+      onPendingChange?.(pendingItems.filter((p) => p.id !== id));
+      return;
+    }
     if (!window.confirm(`Usunąć załącznik "${label}"? Tej operacji nie można odwrócić.`)) {
       return;
     }
@@ -146,14 +241,20 @@ export function TradeAttachments({ tradeId }: TradeAttachmentsProps): ReactEleme
   }
 
   function handleMove(index: number, direction: -1 | 1): void {
-    if (!attachments) {
-      return;
-    }
     const target = index + direction;
-    if (target < 0 || target >= attachments.length) {
+    if (target < 0 || target >= items.length) {
       return;
     }
-    const ids = attachments.map((a) => a.id);
+    if (isPendingMode) {
+      const next = [...pendingItems];
+      const [moved] = next.splice(index, 1);
+      if (moved !== undefined) {
+        next.splice(target, 0, moved);
+      }
+      onPendingChange?.(next);
+      return;
+    }
+    const ids = items.map((a) => a.id);
     const [moved] = ids.splice(index, 1);
     if (moved !== undefined) {
       ids.splice(target, 0, moved);
@@ -163,10 +264,17 @@ export function TradeAttachments({ tradeId }: TradeAttachmentsProps): ReactEleme
 
   function handleLabelBlur(id: string, currentLabel: string | null, nextValue: string): void {
     const next = nextValue.trim();
-    if (next !== (currentLabel ?? "")) {
-      void withBusy(() => updateLabel(id, next || null));
+    if (next === (currentLabel ?? "")) {
+      return;
     }
+    if (isPendingMode) {
+      onPendingChange?.(pendingItems.map((p) => (p.id === id ? { ...p, label: next || null } : p)));
+      return;
+    }
+    void withBusy(() => updateLabel(id, next || null));
   }
+
+  const previewItem = previewId ? (items.find((i) => i.id === previewId) ?? null) : null;
 
   return (
     <div className={styles.section}>
@@ -199,7 +307,13 @@ export function TradeAttachments({ tradeId }: TradeAttachmentsProps): ReactEleme
         </div>
       </div>
 
-      {error && (
+      {isPendingMode && pendingItems.length > 0 && (
+        <p className={styles.hint}>
+          Załączniki zostaną zapisane razem z transakcją po kliknięciu "Zapisz".
+        </p>
+      )}
+
+      {!isPendingMode && error && (
         <p role="alert" className={styles.error}>
           {error}
         </p>
@@ -249,29 +363,25 @@ export function TradeAttachments({ tradeId }: TradeAttachmentsProps): ReactEleme
         onDragLeave={() => setIsDragOver(false)}
         onDrop={handleDrop}
       >
-        {!attachments && <p className={styles.hint}>Wczytywanie...</p>}
-        {attachments?.length === 0 && (
+        {loading && <p className={styles.hint}>Wczytywanie...</p>}
+        {!loading && items.length === 0 && (
           <p className={styles.hint}>
             Brak załączników - dodaj zdjęcie wykresu albo upuść je tutaj.
           </p>
         )}
-        {attachments && attachments.length > 0 && (
+        {items.length > 0 && (
           <ul className={styles.list}>
-            {attachments.map((attachment, index) => (
-              <li key={attachment.id} className={styles.item}>
-                {attachment.kind === "screenshot" ? (
+            {items.map((item, index) => (
+              <li key={item.id} className={styles.item}>
+                {item.kind === "screenshot" ? (
                   <button
                     type="button"
                     className={styles.thumbnailButton}
-                    onClick={() => setPreviewId(attachment.id)}
-                    aria-label={`Podgląd: ${attachment.label ?? "zdjęcie"}`}
+                    onClick={() => setPreviewId(item.id)}
+                    aria-label={`Podgląd: ${item.label ?? "zdjęcie"}`}
                   >
-                    {imagesByAttachmentId[attachment.id] ? (
-                      <img
-                        src={imagesByAttachmentId[attachment.id]}
-                        alt=""
-                        className={styles.thumbnail}
-                      />
+                    {item.previewUri ? (
+                      <img src={item.previewUri} alt="" className={styles.thumbnail} />
                     ) : (
                       <span className={styles.thumbnailPlaceholder} />
                     )}
@@ -281,19 +391,19 @@ export function TradeAttachments({ tradeId }: TradeAttachmentsProps): ReactEleme
                     type="button"
                     className={styles.linkRow}
                     onClick={() => {
-                      void handleOpenLink(attachment.url ?? "");
+                      void handleOpenLink(item.url ?? "");
                     }}
                   >
                     <Link2 size={16} />
-                    <span className={styles.linkText}>{attachment.label ?? attachment.url}</span>
+                    <span className={styles.linkText}>{item.label ?? item.url}</span>
                     <ExternalLink size={14} />
                   </button>
                 )}
                 <input
                   className={styles.labelInput}
-                  placeholder={attachment.kind === "link" ? "Nazwa linku" : "Opis zdjęcia"}
-                  defaultValue={attachment.label ?? ""}
-                  onBlur={(e) => handleLabelBlur(attachment.id, attachment.label, e.target.value)}
+                  placeholder={item.kind === "link" ? "Nazwa linku" : "Opis zdjęcia"}
+                  defaultValue={item.label ?? ""}
+                  onBlur={(e) => handleLabelBlur(item.id, item.label, e.target.value)}
                 />
                 <div className={styles.itemActions}>
                   <IconButton
@@ -305,7 +415,7 @@ export function TradeAttachments({ tradeId }: TradeAttachmentsProps): ReactEleme
                   <IconButton
                     icon={<ArrowDown size={14} />}
                     aria-label="Przesuń niżej"
-                    disabled={index === attachments.length - 1}
+                    disabled={index === items.length - 1}
                     onClick={() => handleMove(index, 1)}
                   />
                   <IconButton
@@ -313,8 +423,8 @@ export function TradeAttachments({ tradeId }: TradeAttachmentsProps): ReactEleme
                     aria-label="Usuń załącznik"
                     onClick={() =>
                       handleDelete(
-                        attachment.id,
-                        attachment.label ?? (attachment.kind === "link" ? "link" : "zdjęcie"),
+                        item.id,
+                        item.label ?? (item.kind === "link" ? "link" : "zdjęcie"),
                       )
                     }
                   />
@@ -325,9 +435,9 @@ export function TradeAttachments({ tradeId }: TradeAttachmentsProps): ReactEleme
         )}
       </div>
 
-      <Modal open={previewId !== null} title="Podgląd zdjęcia" onClose={() => setPreviewId(null)}>
-        {previewId && imagesByAttachmentId[previewId] && (
-          <img src={imagesByAttachmentId[previewId]} alt="" className={styles.previewImage} />
+      <Modal open={previewItem !== null} title="Podgląd zdjęcia" onClose={() => setPreviewId(null)}>
+        {previewItem?.previewUri && (
+          <img src={previewItem.previewUri} alt="" className={styles.previewImage} />
         )}
       </Modal>
     </div>
