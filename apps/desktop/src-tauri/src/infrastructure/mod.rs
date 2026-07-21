@@ -2,6 +2,7 @@ pub mod backup_archive;
 pub mod pdf_report;
 pub mod sqlite_account_repository;
 pub mod sqlite_attachment_repository;
+pub mod sqlite_broker_template_repository;
 pub mod sqlite_cash_operation_repository;
 pub mod sqlite_emotional_state_repository;
 pub mod sqlite_instrument_repository;
