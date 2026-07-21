@@ -256,9 +256,15 @@ impl InstrumentRepository for SqliteInstrumentRepository {
         let now_str = now.to_rfc3339();
 
         let instrument_id = Uuid::now_v7().to_string();
+        // B1 (szablony brokerów): każdy instrument należy do szablonu, a unikalność symboli
+        // działa per szablon. Do czasu przewleczenia jawnego kontekstu szablonu przez UI (B2)
+        // nowe instrumenty użytkownika trafiają do domyślnego (najstarszego aktywnego) szablonu
+        // - dokładnie tam, gdzie migracja 0010 umieściła cały dotychczasowy katalog.
         tx.execute(
-            "INSERT INTO instruments (id, display_symbol, source_symbol, description, category, factory_index, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?6)",
+            "INSERT INTO instruments (id, display_symbol, source_symbol, description, category, factory_index, created_at, updated_at, template_id, canonical_symbol, variant, origin)
+             VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?6,
+                     (SELECT id FROM broker_instrument_templates WHERE archived_at IS NULL ORDER BY created_at LIMIT 1),
+                     ?2, 'STANDARD', 'user_created')",
             rusqlite::params![
                 instrument_id,
                 input.display_symbol.trim(),
