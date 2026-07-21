@@ -1,7 +1,7 @@
 # Postęp prac
 
-Ostatnia aktualizacja: 2026-07-21 (Faza 6: załączniki - zdjęcia i linki na transakcji - ukończona,
-patrz Faza 6 poniżej)
+Ostatnia aktualizacja: 2026-07-21 (Faza 8: zakładka "Zasady handlu" ukończona, patrz Faza 8
+poniżej)
 
 ## Cel 1.1 — Repozytorium, standardy i uruchomiony podgląd — ✅ ukończony
 
@@ -1194,6 +1194,44 @@ po "Zapisz" leci `create_trade` + `add_link_attachment` z id nowej transakcji.
 
 **Następny krok:** Faza 8 — nowa zakładka "Zasady handlu" (Faza 7 - lokalny asystent AI - jawnie
 odroczona przez użytkownika na osobną aktualizację po instalatorze v1.0).
+
+### Faza 8 — Nowa zakładka "Zasady handlu" — ✅ ukończona
+
+**Co działa:**
+
+- **Migracja `0009_trading_rules`**: tabele `trading_rule_categories` + `trading_rules`, seed
+  6 wbudowanych kategorii i 40 pytań-szablonów WYGENEROWANY PROGRAMOWO ze specyfikacji
+  (`scratchpad/generate_trading_rules_seed.js` - nigdy ręczne przepisywanie). Zgodnie ze
+  specyfikacją zero fabrycznych odpowiedzi - pytania to edytowalne szablony, odpowiedzi puste;
+  `template_question` przechowuje oryginał do "Przywróć szablon".
+- **Backend**: `domain::trading_rules` (walidacja, `normalize_question` do duplikatów),
+  `SqliteTradingRulesRepository` (transakcyjny zapis zbiorczy całej zakładki; autorytatywna
+  blokada dwóch pytań o identycznej znormalizowanej treści w jednej kategorii; `restore_templates`
+  odtwarza treść/obecność pytań wbudowanych NIGDY nie dotykając odpowiedzi ani pytań własnych),
+  `TradingRulesService`, komendy `get_trading_rules`/`save_trading_rules`/
+  `restore_trading_rule_templates`.
+- **Kosz rozszerzony o pytania** (`TrashEntityType::TradingRule`): archiwizacja pytania w trybie
+  edycji wysyła je do uniwersalnego Kosza (przywracanie + trwałe usunięcie tylko stamtąd; zapis
+  zbiorczy NIGDY nie kasuje pytań zarchiwizowanych). Pytania z szablonu mają w Koszu notatkę, że
+  "Przywróć szablon" też je odtworzy.
+- **Frontend**: nowa pozycja nawigacji "Zasady handlu" (grupa Konfiguracja) + `ZasadyHandluPage`:
+  zwijane karty kategorii (pytanie+odpowiedź), tryb odczytu do naciśnięcia "Edytuj" (wzorzec z
+  karty transakcji), "Zapisz zmiany"/"Anuluj", ostrzeżenie przed opuszczeniem zakładki z
+  niezapisanymi zmianami (react-router `useBlocker`), dodawanie własnych kategorii/pytań, zmiana
+  kolejności (kategorie i pytania), ukrywanie pytań (+przełącznik "Pokaż ukryte"), archiwizacja
+  do Kosza, wykrywanie duplikatów po normalizacji (identyczne: blokada z ostrzeżeniem; bardzo
+  podobne: propozycja scalenia zamiast automatycznej blokady - odpowiedzi nigdy nie łączone bez
+  potwierdzenia), "Przywróć szablon" z potwierdzeniem.
+- Backup/restore obejmuje zasady automatycznie (SQLite); integracja z eksportem CSV/XLSX zostaje
+  na przekrojową Fazę 11, zgodnie z planem.
+
+**Przetestowane:** 248 testów Rust (+13: domain 4, repozytorium 8, Kosz 1), fmt/clippy czyste
+(poza śledzonym `large_enum_variant`), frontend typecheck/eslint/prettier/vitest czyste,
+weryfikacja na żywo w przeglądarce: odczyt (kategorie/odpowiedzi/podpowiedź pustej odpowiedzi),
+edycja (uzupełnienie odpowiedzi, nowa kategoria z pytaniem, blokada duplikatu "w jakich GODZINACH
+handluję?", archiwizacja pytania), zapis zbiorczy i powrót do trybu odczytu z poprawnym stanem.
+
+**Następny krok:** Faza 10 — wspólne komponenty i pełny audyt wizualny (Faza 7 odroczona).
 
 ## Pozostałe cele Etapu 1
 

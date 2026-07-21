@@ -22,6 +22,7 @@ use application::intervals::IntervalsService;
 use application::reports::ReportsService;
 use application::strategies::StrategiesService;
 use application::trades::TradesService;
+use application::trading_rules::TradingRulesService;
 use application::trash::TrashService;
 use infrastructure::sqlite_account_repository::SqliteAccountRepository;
 use infrastructure::sqlite_attachment_repository::SqliteAttachmentRepository;
@@ -31,6 +32,7 @@ use infrastructure::sqlite_instrument_repository::SqliteInstrumentRepository;
 use infrastructure::sqlite_interval_repository::SqliteIntervalRepository;
 use infrastructure::sqlite_strategy_repository::SqliteStrategyRepository;
 use infrastructure::sqlite_trade_repository::SqliteTradeRepository;
+use infrastructure::sqlite_trading_rules_repository::SqliteTradingRulesRepository;
 use state::{AppState, DbState};
 
 fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
@@ -130,12 +132,16 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
         Arc::new(SqliteAttachmentRepository::new(conn.clone())),
         app_data_dir.to_path_buf(),
     ));
+    let trading_rules = Arc::new(TradingRulesService::new(Arc::new(
+        SqliteTradingRulesRepository::new(conn.clone()),
+    )));
     let trash = TrashService::new(
         accounts.clone(),
         strategies.clone(),
         intervals.clone(),
         Arc::new(SqliteTradeRepository::new(conn.clone())),
         attachments.clone(),
+        trading_rules.clone(),
         BackupService::new(conn.clone(), app_data_dir.to_path_buf()),
     );
 
@@ -152,6 +158,7 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
         backup,
         emotional_states,
         attachments,
+        trading_rules,
         trash,
     }
 }
@@ -245,6 +252,9 @@ pub fn run() {
             commands::attachments::delete_attachment,
             commands::attachments::read_attachment_image,
             commands::attachments::read_screenshot_candidate,
+            commands::trading_rules::get_trading_rules,
+            commands::trading_rules::save_trading_rules,
+            commands::trading_rules::restore_trading_rule_templates,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

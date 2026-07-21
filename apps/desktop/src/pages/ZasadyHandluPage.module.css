@@ -1,0 +1,132 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+}
+
+.subtitle {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.editBar {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.category {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2) var(--space-3);
+}
+
+.categorySummary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  list-style-position: inside;
+  padding: var(--space-1) 0;
+}
+
+.categoryName {
+  font-weight: 600;
+}
+
+.categoryCount {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.categoryActions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-1);
+}
+
+.rules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0 var(--space-1);
+}
+
+.emptyHint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.ruleCard {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ruleHeader {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.questionField {
+  flex: 1;
+}
+
+.ruleActions {
+  display: flex;
+  gap: var(--space-1);
+  padding-bottom: var(--space-1);
+}
+
+.question {
+  margin: 0;
+  font-weight: 600;
+}
+
+.hiddenRule {
+  opacity: 0.55;
+}
+
+.hiddenBadge {
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.answer {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.answerEmpty {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-style: italic;
+  font-size: var(--font-size-sm);
+}

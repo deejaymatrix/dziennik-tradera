@@ -8,15 +8,17 @@ use crate::application::attachments::AttachmentsService;
 use crate::application::backup::BackupService;
 use crate::application::intervals::IntervalsService;
 use crate::application::strategies::StrategiesService;
+use crate::application::trading_rules::TradingRulesService;
 use crate::domain::trade::{Trade, TradeRepository};
 use crate::error::AppError;
 
-/// Rodzaj encji w uniwersalnym Koszu (Faza 5) - dokładnie te cztery, które mają już własny
-/// stan "zarchiwizowane/usunięte, ale nie znikło": konta, transakcje, strategie, własne
-/// interwały. Własne instrumenty i pojedyncze elementy zasad strategii świadomie zostają poza
-/// tym zakresem (patrz PROGRESS.md) - pierwsze mają już bezpieczne, natychmiastowe usuwanie
-/// blokowane dla używanych instrumentów, drugie są zagnieżdżonymi polami bez własnej sygnatury
-/// czasowej, zarządzanymi wprost na ekranie edycji strategii.
+/// Rodzaj encji w uniwersalnym Koszu (Faza 5, rozszerzony w Fazie 8) - encje z własnym stanem
+/// "zarchiwizowane/usunięte, ale nie znikło": konta, transakcje, strategie, własne interwały
+/// oraz pytania z zakładki "Zasady handlu". Własne instrumenty i pojedyncze elementy zasad
+/// strategii świadomie zostają poza tym zakresem (patrz PROGRESS.md) - pierwsze mają już
+/// bezpieczne, natychmiastowe usuwanie blokowane dla używanych instrumentów, drugie są
+/// zagnieżdżonymi polami bez własnej sygnatury czasowej, zarządzanymi wprost na ekranie
+/// edycji strategii.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TrashEntityType {
@@ -24,6 +26,7 @@ pub enum TrashEntityType {
     Trade,
     Strategy,
     Interval,
+    TradingRule,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -60,6 +63,7 @@ pub struct TrashService {
     intervals: Arc<IntervalsService>,
     trades: Arc<dyn TradeRepository + Send + Sync>,
     attachments: Arc<AttachmentsService>,
+    trading_rules: Arc<TradingRulesService>,
     backup: BackupService,
 }
 
@@ -70,6 +74,7 @@ impl TrashService {
         intervals: Arc<IntervalsService>,
         trades: Arc<dyn TradeRepository + Send + Sync>,
         attachments: Arc<AttachmentsService>,
+        trading_rules: Arc<TradingRulesService>,
         backup: BackupService,
     ) -> Self {
         Self {
@@ -78,6 +83,7 @@ impl TrashService {
             intervals,
             trades,
             attachments,
+            trading_rules,
             backup,
         }
     }
@@ -200,6 +206,21 @@ impl TrashService {
             });
         }
 
+        for rule in self.trading_rules.get()?.rules {
+            let Some(deleted_at) = rule.archived_at else {
+                continue;
+            };
+            items.push(TrashItem {
+                entity_type: TrashEntityType::TradingRule,
+                id: rule.id,
+                label: rule.question,
+                deleted_at,
+                dependency_note: rule.is_builtin.then(|| {
+                    "Pytanie z szablonu - \"Przywróć szablon\" na zakładce Zasady handlu też może je odtworzyć.".to_string()
+                }),
+            });
+        }
+
         items.sort_by_key(|item| std::cmp::Reverse(item.deleted_at));
         Ok(items)
     }
@@ -210,6 +231,7 @@ impl TrashService {
             TrashEntityType::Trade => self.trades.restore(id).map(|_| ()),
             TrashEntityType::Strategy => self.strategies.restore(id).map(|_| ()),
             TrashEntityType::Interval => self.intervals.restore(id).map(|_| ()),
+            TrashEntityType::TradingRule => self.trading_rules.restore_rule(id),
         }
     }
 
@@ -236,6 +258,7 @@ impl TrashService {
             }
             TrashEntityType::Strategy => self.strategies.delete_permanently(id),
             TrashEntityType::Interval => self.intervals.delete_permanently(id),
+            TrashEntityType::TradingRule => self.trading_rules.delete_rule_permanently(id),
         }
     }
 
@@ -280,6 +303,7 @@ mod tests {
     use crate::infrastructure::sqlite_interval_repository::SqliteIntervalRepository;
     use crate::infrastructure::sqlite_strategy_repository::SqliteStrategyRepository;
     use crate::infrastructure::sqlite_trade_repository::SqliteTradeRepository;
+    use crate::infrastructure::sqlite_trading_rules_repository::SqliteTradingRulesRepository;
     use rust_decimal_macros::dec;
     use std::sync::Mutex;
 
@@ -306,6 +330,9 @@ mod tests {
             Arc::new(SqliteAttachmentRepository::new(conn.clone())),
             dir.path().to_path_buf(),
         ));
+        let trading_rules = Arc::new(TradingRulesService::new(Arc::new(
+            SqliteTradingRulesRepository::new(conn.clone()),
+        )));
         let backup = BackupService::new(conn.clone(), dir.path().to_path_buf());
 
         let trash = TrashService::new(
@@ -314,6 +341,7 @@ mod tests {
             intervals,
             trades,
             attachments,
+            trading_rules,
             backup,
         );
 
@@ -504,6 +532,68 @@ mod tests {
     const PNG_TEST_BYTES: &[u8] = &[
         0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
     ];
+
+    #[test]
+    fn an_archived_trading_rule_shows_up_in_trash_and_can_be_restored_and_purged() {
+        let (trash, _accounts, dir) = setup();
+
+        // Zarchiwizuj jedno pytanie wprost w bazie (ta sama ścieżka, którą zapisałby bulk save).
+        let conn = connection::open(&dir.path().join("db.sqlite3")).expect("reopen");
+        conn.execute(
+            "UPDATE trading_rules SET archived_at = '2026-07-21T10:00:00Z'
+             WHERE question = 'W jakich godzinach handluję?'",
+            [],
+        )
+        .expect("archive rule");
+        let rule_id: String = conn
+            .query_row(
+                "SELECT id FROM trading_rules WHERE question = 'W jakich godzinach handluję?'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("rule id");
+        drop(conn);
+
+        let items = trash.list().expect("list");
+        let item = items
+            .iter()
+            .find(|i| i.entity_type == TrashEntityType::TradingRule)
+            .expect("pytanie w Koszu");
+        assert_eq!(item.label, "W jakich godzinach handluję?");
+        assert!(
+            item.dependency_note.is_some(),
+            "szablon ma notatkę o przywracaniu"
+        );
+
+        trash
+            .restore(TrashEntityType::TradingRule, &rule_id)
+            .expect("restore");
+        assert!(trash
+            .list()
+            .expect("list")
+            .iter()
+            .all(|i| i.entity_type != TrashEntityType::TradingRule));
+
+        let conn = connection::open(&dir.path().join("db.sqlite3")).expect("reopen");
+        conn.execute(
+            "UPDATE trading_rules SET archived_at = '2026-07-21T10:00:00Z' WHERE id = ?1",
+            [&rule_id],
+        )
+        .expect("archive again");
+        drop(conn);
+        trash
+            .delete_permanently(TrashEntityType::TradingRule, &rule_id)
+            .expect("purge");
+        let conn = connection::open(&dir.path().join("db.sqlite3")).expect("reopen");
+        let count: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM trading_rules WHERE id = ?1",
+                [&rule_id],
+                |r| r.get(0),
+            )
+            .expect("count");
+        assert_eq!(count, 0);
+    }
 
     #[test]
     fn delete_permanently_removes_the_physical_screenshot_file_for_a_trade() {

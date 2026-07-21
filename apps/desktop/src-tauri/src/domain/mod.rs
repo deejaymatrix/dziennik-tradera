@@ -13,3 +13,4 @@ pub mod trade_audit;
 pub mod trade_calculations;
 pub mod trade_emotions;
 pub mod trade_stats;
+pub mod trading_rules;

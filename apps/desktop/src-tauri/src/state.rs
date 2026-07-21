@@ -13,6 +13,7 @@ use crate::application::intervals::IntervalsService;
 use crate::application::reports::ReportsService;
 use crate::application::strategies::StrategiesService;
 use crate::application::trades::TradesService;
+use crate::application::trading_rules::TradingRulesService;
 use crate::application::trash::TrashService;
 
 /// Stan bazy danych po próbie otwarcia przy starcie aplikacji. Rozmyślnie nie ma wariantu
@@ -37,6 +38,7 @@ pub enum DbState {
         backup: BackupService,
         emotional_states: EmotionalStatesService,
         attachments: Arc<AttachmentsService>,
+        trading_rules: Arc<TradingRulesService>,
         trash: TrashService,
     },
     Failed {

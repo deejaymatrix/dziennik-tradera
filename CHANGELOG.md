@@ -137,6 +137,12 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   pod nazwą UUID + SHA-256 w bazie). Kopia zapasowa `.dtjbackup` zawiera teraz też zdjęcia
   (weryfikacja sumy każdego pliku przed przywróceniem); trwałe usunięcie transakcji/konta/
   załącznika czyści fizyczne pliki dopiero po udanej operacji na bazie.
+- Nowa zakładka "Zasady handlu" - osobisty regulamin tradera, niezależny od zasad konkretnej
+  strategii: 6 startowych kategorii z 40 pytaniami-szablonami (odpowiedzi zawsze puste na
+  starcie), zwijane karty kategorii, tryb odczytu z przyciskiem "Edytuj", dodawanie własnych
+  kategorii i pytań, zmiana kolejności, ukrywanie, archiwizacja pytań do Kosza, wykrywanie
+  duplikatów po normalizacji tekstu (z propozycją scalenia zamiast blokady dla bardzo
+  podobnych) oraz "Przywróć szablon" nienaruszający odpowiedzi ani własnych pytań.
 - Załączniki można dodawać już przy TWORZENIU nowej transakcji (nie tylko na zapisanej) -
   zbierane lokalnie w formularzu z podglądem i pełną edycją, zapisywane automatycznie razem
   z transakcją po kliknięciu "Zapisz"; zamknięcie formularza z niezapisanymi załącznikami

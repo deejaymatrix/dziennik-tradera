@@ -1,10 +1,11 @@
-export type TrashEntityType = "account" | "trade" | "strategy" | "interval";
+export type TrashEntityType = "account" | "trade" | "strategy" | "interval" | "trading_rule";
 
 export const TRASH_ENTITY_LABELS: Record<TrashEntityType, string> = {
   account: "Konto",
   trade: "Transakcja",
   strategy: "Strategia",
   interval: "Interwał",
+  trading_rule: "Pytanie (Zasady handlu)",
 };
 
 export interface TrashItem {

@@ -51,6 +51,11 @@ const MIGRATIONS: &[Migration] = &[
         name: "0008_attachments",
         sql: include_str!("migrations/0008_attachments.sql"),
     },
+    Migration {
+        version: 9,
+        name: "0009_trading_rules",
+        sql: include_str!("migrations/0009_trading_rules.sql"),
+    },
 ];
 
 #[derive(Debug, Error)]
@@ -250,7 +255,7 @@ mod tests {
 
         let report = run_migrations(&mut conn, &dir.path().join("backups")).expect("migrate");
 
-        assert_eq!(report.applied, vec![1, 2, 3, 4, 5, 6, 7, 8]);
+        assert_eq!(report.applied, vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
         assert!(
             report.backup_path.is_none(),
             "świeża baza nie powinna być kopiowana"
@@ -339,7 +344,7 @@ mod tests {
 
         let report = run_migrations_against(&mut conn, &backup_dir, MIGRATIONS)
             .expect("apply v3 on top of real prior data");
-        assert_eq!(report.applied, vec![3, 4, 5, 6, 7, 8]);
+        assert_eq!(report.applied, vec![3, 4, 5, 6, 7, 8, 9]);
 
         let instrument_count: i64 = conn
             .query_row("SELECT count(*) FROM instruments", [], |row| row.get(0))
@@ -418,7 +423,7 @@ mod tests {
 
         let report = run_migrations_against(&mut conn, &backup_dir, MIGRATIONS)
             .unwrap_or_else(|e| panic!("migration 3 failed against realistic prior data: {e}"));
-        assert_eq!(report.applied, vec![3, 4, 5, 6, 7, 8]);
+        assert_eq!(report.applied, vec![3, 4, 5, 6, 7, 8, 9]);
 
         let instrument_count: i64 = conn
             .query_row("SELECT count(*) FROM instruments", [], |row| row.get(0))

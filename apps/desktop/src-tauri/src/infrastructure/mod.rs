@@ -8,3 +8,4 @@ pub mod sqlite_instrument_repository;
 pub mod sqlite_interval_repository;
 pub mod sqlite_strategy_repository;
 pub mod sqlite_trade_repository;
+pub mod sqlite_trading_rules_repository;

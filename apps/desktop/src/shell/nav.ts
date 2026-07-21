@@ -4,6 +4,7 @@ import {
   CalendarDays,
   Wallet,
   BookMarked,
+  ScrollText,
   SlidersHorizontal,
   BarChart3,
   DatabaseBackup,
@@ -24,9 +25,10 @@ export interface NavGroup {
 }
 
 /**
- * Grupy nawigacji wg sekcji 11.3 specyfikacji. Celowo pominięte: "Zasady" i "Psychologia"
- * (Etap 2, §2.2/§2.3) - nie mają jeszcze żadnej realnej funkcji za sobą, więc się nie
- * pokazuje ich jako martwych/"wkrótce" pozycji, tylko po prostu ukrywa do czasu Etapu 2.
+ * Grupy nawigacji wg sekcji 11.3 specyfikacji. Celowo pominięta: "Psychologia" (Etap 2, §2.3)
+ * - nie ma jeszcze żadnej realnej funkcji za sobą, więc się jej nie pokazuje jako martwej/
+ * "wkrótce" pozycji, tylko po prostu ukrywa do czasu Etapu 2. "Zasady handlu" (Faza 8
+ * modyfikacji) to osobisty regulamin użytkownika - patrz ZasadyHandluPage.
  */
 export const NAV_GROUPS: NavGroup[] = [
   {
@@ -42,6 +44,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/konta", label: "Konta", icon: Wallet },
       { to: "/strategie", label: "Strategie", icon: BookMarked },
+      { to: "/zasady-handlu", label: "Zasady handlu", icon: ScrollText },
       { to: "/instrumenty", label: "Instrumenty", icon: SlidersHorizontal },
     ],
   },
