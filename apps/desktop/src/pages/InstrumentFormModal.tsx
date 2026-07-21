@@ -13,6 +13,7 @@ import { Checkbox } from "../ui/components/Checkbox/Checkbox";
 import { Modal } from "../ui/components/Modal/Modal";
 import { Select } from "../ui/components/Select/Select";
 import { TextField } from "../ui/components/TextField/TextField";
+import { useConfirm } from "../ui/components/ConfirmDialog/ConfirmDialog";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import styles from "./InstrumentFormModal.module.css";
 
@@ -326,6 +327,7 @@ export function InstrumentFormModal({
 }: InstrumentFormModalProps): ReactElement {
   const isEdit = Boolean(instrument);
   const { showToast } = useToast();
+  const confirm = useConfirm();
 
   const [identity, setIdentity] = useState<IdentityFields>(() =>
     instrument ? toIdentityFields(instrument) : BLANK_IDENTITY,
@@ -400,9 +402,9 @@ export function InstrumentFormModal({
   async function handleResetToFactory(): Promise<void> {
     if (!instrument) return;
     if (
-      !window.confirm(
+      !(await confirm(
         `Przywrócić fabryczne wartości parametrów dla ${instrument.display_symbol}? Utworzy to nową wersję z oryginalnymi danymi katalogu - obecna wersja zostanie zachowana w historii.`,
-      )
+      ))
     ) {
       return;
     }
@@ -422,9 +424,10 @@ export function InstrumentFormModal({
   async function handleDelete(): Promise<void> {
     if (!instrument) return;
     if (
-      !window.confirm(
-        `Trwale usunąć instrument ${instrument.display_symbol}? Tej operacji nie można cofnąć. Nie uda się, jeśli instrument jest już użyty w jakiejś transakcji.`,
-      )
+      !(await confirm({
+        message: `Trwale usunąć instrument ${instrument.display_symbol}? Tej operacji nie można cofnąć. Nie uda się, jeśli instrument jest już użyty w jakiejś transakcji.`,
+        danger: true,
+      }))
     ) {
       return;
     }

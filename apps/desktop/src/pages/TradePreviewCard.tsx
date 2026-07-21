@@ -1,6 +1,9 @@
 import type { ReactElement } from "react";
 import { formatMoney } from "../app/decimal";
 import type { TradeCalculation } from "../app/types/trade";
+import { ReadOnlyField } from "../ui/components/ReadOnlyField/ReadOnlyField";
+import type { ReadOnlyFieldRow } from "../ui/components/ReadOnlyField/ReadOnlyField";
+import { SectionCard } from "../ui/components/SectionCard/SectionCard";
 import styles from "./TradePreviewCard.module.css";
 
 export interface TradePreviewCardProps {
@@ -21,15 +24,15 @@ function formatDecimalNumber(value: string | null, digits = 2): string {
 export function TradePreviewCard({ calculation, currency }: TradePreviewCardProps): ReactElement {
   if (!calculation) {
     return (
-      <div className={styles.card}>
+      <SectionCard surface="alt" padding="sm">
         <p className={styles.empty}>
           Uzupełnij instrument, cenę wejścia i wolumen, żeby zobaczyć podgląd wyniku.
         </p>
-      </div>
+      </SectionCard>
     );
   }
 
-  const rows: { label: string; value: string; tone?: "profit" | "loss" }[] = [
+  const rows: ReadOnlyFieldRow[] = [
     {
       label: "Ryzyko (SL)",
       value:
@@ -72,25 +75,8 @@ export function TradePreviewCard({ calculation, currency }: TradePreviewCardProp
   ];
 
   return (
-    <div className={styles.card}>
-      <div className={styles.grid}>
-        {rows.map((row) => (
-          <div key={row.label} className={styles.row}>
-            <span className={styles.label}>{row.label}</span>
-            <span
-              className={[
-                styles.value,
-                row.tone === "profit" && styles.profit,
-                row.tone === "loss" && styles.loss,
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              {row.value}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
+    <SectionCard surface="alt" padding="sm">
+      <ReadOnlyField rows={rows} />
+    </SectionCard>
   );
 }

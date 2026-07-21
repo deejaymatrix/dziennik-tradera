@@ -1,6 +1,8 @@
 import type { ReactElement } from "react";
 import { formatMoney } from "../app/decimal";
 import type { TradeBalanceContext } from "../app/types/trade";
+import { ReadOnlyField } from "../ui/components/ReadOnlyField/ReadOnlyField";
+import { SectionCard } from "../ui/components/SectionCard/SectionCard";
 import styles from "./TradeBalanceCard.module.css";
 
 export interface TradeBalanceCardProps {
@@ -22,39 +24,31 @@ export function TradeBalanceCard({
 }: TradeBalanceCardProps): ReactElement {
   if (!isEdit) {
     return (
-      <div className={styles.card}>
-        <div className={styles.row}>
-          <span className={styles.label}>Aktualne saldo konta</span>
-          <span className={styles.value}>{formatMoney(currentBalance, currency)}</span>
-        </div>
-      </div>
+      <SectionCard surface="alt" padding="sm">
+        <ReadOnlyField
+          rows={[{ label: "Aktualne saldo konta", value: formatMoney(currentBalance, currency) }]}
+        />
+      </SectionCard>
     );
   }
 
   if (!context) {
     return (
-      <div className={styles.card}>
+      <SectionCard surface="alt" padding="sm">
         <p className={styles.empty}>Wczytywanie salda...</p>
-      </div>
+      </SectionCard>
     );
   }
 
-  const rows: { label: string; value: string }[] = [
-    { label: "Saldo przed transakcją", value: context.balance_before },
-    { label: "Saldo po transakcji", value: context.balance_after },
-    { label: "Aktualne saldo konta", value: context.current_balance },
-  ];
-
   return (
-    <div className={styles.card}>
-      <div className={styles.grid}>
-        {rows.map((row) => (
-          <div key={row.label} className={styles.row}>
-            <span className={styles.label}>{row.label}</span>
-            <span className={styles.value}>{formatMoney(row.value, currency)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
+    <SectionCard surface="alt" padding="sm">
+      <ReadOnlyField
+        rows={[
+          { label: "Saldo przed transakcją", value: formatMoney(context.balance_before, currency) },
+          { label: "Saldo po transakcji", value: formatMoney(context.balance_after, currency) },
+          { label: "Aktualne saldo konta", value: formatMoney(context.current_balance, currency) },
+        ]}
+      />
+    </SectionCard>
   );
 }

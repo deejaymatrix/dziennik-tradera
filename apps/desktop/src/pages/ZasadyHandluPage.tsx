@@ -7,6 +7,8 @@ import { normalizeQuestion } from "../app/types/trading_rules";
 import type { TradingRulesState, TradingRulesWrite } from "../app/types/trading_rules";
 import { Button } from "../ui/components/Button/Button";
 import { Checkbox } from "../ui/components/Checkbox/Checkbox";
+import { useConfirm } from "../ui/components/ConfirmDialog/ConfirmDialog";
+import { EditModeActions } from "../ui/components/EditModeActions/EditModeActions";
 import { ErrorState } from "../ui/components/ErrorState/ErrorState";
 import { IconButton } from "../ui/components/IconButton/IconButton";
 import { Skeleton } from "../ui/components/Skeleton/Skeleton";
@@ -87,6 +89,7 @@ function move<T>(list: T[], index: number, direction: -1 | 1): T[] {
  */
 export function ZasadyHandluPage(): ReactElement {
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const [state, setState] = useState<TradingRulesState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -112,17 +115,18 @@ export function ZasadyHandluPage(): ReactElement {
   const blocker = useBlocker(editing);
   useEffect(() => {
     if (blocker.state === "blocked") {
-      if (
-        window.confirm(
+      void (async () => {
+        const proceed = await confirm(
           "Masz niezapisane zmiany w zasadach handlu. Opuścić zakładkę bez zapisywania?",
-        )
-      ) {
-        blocker.proceed();
-      } else {
-        blocker.reset();
-      }
+        );
+        if (proceed) {
+          blocker.proceed();
+        } else {
+          blocker.reset();
+        }
+      })();
     }
-  }, [blocker]);
+  }, [blocker, confirm]);
 
   function startEditing(): void {
     if (!state) {
@@ -140,11 +144,11 @@ export function ZasadyHandluPage(): ReactElement {
   /** Wykrywanie duplikatów przy dodawaniu pytania (sekcja "Usuwanie powtórzeń"): identyczna
    * znormalizowana treść blokuje z ostrzeżeniem; bardzo podobna (jedna zawiera drugą) proponuje
    * scalenie zamiast automatycznej blokady - odpowiedzi nigdy nie są łączone bez potwierdzenia. */
-  function checkDuplicate(
+  async function checkDuplicate(
     categoryIndex: number,
     question: string,
     ruleIndex: number | null,
-  ): boolean {
+  ): Promise<boolean> {
     const normalized = normalizeQuestion(question);
     if (!normalized) {
       return true;
@@ -168,7 +172,7 @@ export function ZasadyHandluPage(): ReactElement {
         normalized.length > 4 &&
         (other.includes(normalized) || normalized.includes(other))
       ) {
-        const merge = window.confirm(
+        const merge = await confirm(
           `Bardzo podobne pytanie już istnieje: "${rule.question}".\n\nPołączyć je (zachować istniejące) zamiast dodawać nowe?`,
         );
         if (merge) {
@@ -179,12 +183,12 @@ export function ZasadyHandluPage(): ReactElement {
     return true;
   }
 
-  function addQuestion(categoryIndex: number): void {
+  async function addQuestion(categoryIndex: number): Promise<void> {
     const question = window.prompt("Treść nowego pytania:");
     if (!question?.trim()) {
       return;
     }
-    if (!checkDuplicate(categoryIndex, question, null)) {
+    if (!(await checkDuplicate(categoryIndex, question, null))) {
       return;
     }
     setDraft((current) =>
@@ -255,9 +259,11 @@ export function ZasadyHandluPage(): ReactElement {
 
   async function handleRestoreTemplates(): Promise<void> {
     if (
-      !window.confirm(
-        "Przywrócić szablon pytań? Treść pytań wbudowanych wróci do oryginału, ukryte i zarchiwizowane pytania wbudowane wrócą na listę. Twoje odpowiedzi i własne pytania pozostaną nietknięte.",
-      )
+      !(await confirm({
+        message:
+          "Przywrócić szablon pytań? Treść pytań wbudowanych wróci do oryginału, ukryte i zarchiwizowane pytania wbudowane wrócą na listę. Twoje odpowiedzi i własne pytania pozostaną nietknięte.",
+        confirmLabel: "Przywróć szablon",
+      }))
     ) {
       return;
     }
@@ -310,25 +316,25 @@ export function ZasadyHandluPage(): ReactElement {
             checked={showHidden}
             onChange={(e) => setShowHidden(e.target.checked)}
           />
-          {editing ? (
-            <>
-              <Button variant="secondary" onClick={cancelEditing} disabled={saving}>
-                Anuluj
-              </Button>
-              <Button variant="primary" onClick={() => void handleSave()} disabled={saving}>
-                {saving ? "Zapisywanie..." : "Zapisz zmiany"}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="secondary" onClick={() => void handleRestoreTemplates()}>
+          <EditModeActions
+            editing={editing}
+            saving={saving}
+            onEdit={startEditing}
+            onCancel={cancelEditing}
+            onSave={() => {
+              void handleSave();
+            }}
+            readOnlyExtra={
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  void handleRestoreTemplates();
+                }}
+              >
                 Przywróć szablon
               </Button>
-              <Button variant="primary" onClick={startEditing}>
-                Edytuj
-              </Button>
-            </>
-          )}
+            }
+          />
         </div>
       </div>
 
@@ -366,7 +372,9 @@ export function ZasadyHandluPage(): ReactElement {
                   <IconButton
                     icon={<Plus size={14} />}
                     aria-label={`Dodaj pytanie: ${category.name}`}
-                    onClick={() => addQuestion(categoryIndex)}
+                    onClick={() => {
+                      void addQuestion(categoryIndex);
+                    }}
                   />
                 </span>
               )}
@@ -387,7 +395,7 @@ export function ZasadyHandluPage(): ReactElement {
                             updateRule(categoryIndex, ruleIndex, { question: e.target.value })
                           }
                           onBlur={(e) => {
-                            checkDuplicate(categoryIndex, e.target.value, ruleIndex);
+                            void checkDuplicate(categoryIndex, e.target.value, ruleIndex);
                           }}
                           className={styles.questionField}
                         />
@@ -424,11 +432,13 @@ export function ZasadyHandluPage(): ReactElement {
                             icon={<Trash2 size={14} />}
                             aria-label={`Do kosza: ${rule.question}`}
                             onClick={() => {
-                              if (
-                                window.confirm(`Przenieść pytanie "${rule.question}" do kosza?`)
-                              ) {
-                                updateRule(categoryIndex, ruleIndex, { archived: true });
-                              }
+                              void (async () => {
+                                if (
+                                  await confirm(`Przenieść pytanie "${rule.question}" do kosza?`)
+                                ) {
+                                  updateRule(categoryIndex, ruleIndex, { archived: true });
+                                }
+                              })();
                             }}
                           />
                         </div>

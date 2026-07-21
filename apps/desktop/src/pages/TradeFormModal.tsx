@@ -27,6 +27,8 @@ import type {
 import { blankStrategyChecklist } from "../app/types/trade";
 import { Button } from "../ui/components/Button/Button";
 import { Checkbox } from "../ui/components/Checkbox/Checkbox";
+import { useConfirm } from "../ui/components/ConfirmDialog/ConfirmDialog";
+import { EditModeActions } from "../ui/components/EditModeActions/EditModeActions";
 import { Modal } from "../ui/components/Modal/Modal";
 import { Select } from "../ui/components/Select/Select";
 import { Textarea } from "../ui/components/Textarea/Textarea";
@@ -81,6 +83,7 @@ export function TradeFormModal({
 }: TradeFormModalProps): ReactElement {
   const isEdit = Boolean(trade);
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const [balanceContext, setBalanceContext] = useState<TradeBalanceContext | null>(null);
   const [auditLog, setAuditLog] = useState<TradeAuditEntry[] | null>(null);
 
@@ -295,28 +298,28 @@ export function TradeFormModal({
     setChecklistStrategyId(newStrategyId);
   }
 
-  function requestClose(): void {
+  async function requestClose(): Promise<void> {
     // Oczekujące załączniki nowej transakcji też liczą się jako niezapisane zmiany - w
     // odróżnieniu od pól NIE przetrwają zamknięcia (szkic w localStorage nie mieści zdjęć).
     const isDirty =
       JSON.stringify(fields) !== initialSnapshot.current || pendingAttachments.length > 0;
     if (
       isDirty &&
-      !window.confirm(
+      !(await confirm(
         "Masz niezapisane zmiany w tej transakcji. Zamknąć formularz bez zapisywania? (szkic pól zostanie zachowany do następnego razu, ale niezapisane załączniki przepadną)",
-      )
+      ))
     ) {
       return;
     }
     onClose();
   }
 
-  function handleStartEdit(): void {
+  async function handleStartEdit(): Promise<void> {
     if (trade) {
       const draft = loadTradeDraft(accountId, trade.id);
       const trueFields = tradeToFormFields(trade);
       if (draft && JSON.stringify(draft) !== JSON.stringify(trueFields)) {
-        const useDraft = window.confirm(
+        const useDraft = await confirm(
           "Znaleziono niezapisany szkic tej transakcji z poprzedniej sesji. Wczytać go zamiast aktualnie zapisanych danych?",
         );
         if (useDraft) {
@@ -342,7 +345,7 @@ export function TradeFormModal({
       setMode("view");
       return;
     }
-    requestClose();
+    void requestClose();
   }
 
   /** Wysyła lokalnie zebrane załączniki nowej transakcji już PO jej utworzeniu (dopiero wtedy
@@ -450,7 +453,13 @@ export function TradeFormModal({
       : `Transakcja #${trade?.display_number}`;
 
   return (
-    <Modal open={open} onClose={requestClose} title={title}>
+    <Modal
+      open={open}
+      onClose={() => {
+        void requestClose();
+      }}
+      title={title}
+    >
       <form
         className={styles.form}
         onSubmit={(event) => {
@@ -705,30 +714,28 @@ export function TradeFormModal({
           </p>
         )}
         <div className={styles.actions}>
-          {readOnly ? (
-            <>
-              <Button type="button" variant="secondary" onClick={requestClose}>
-                Zamknij
-              </Button>
-              <Button type="button" variant="primary" onClick={handleStartEdit}>
-                Edytuj
-              </Button>
-            </>
-          ) : (
-            <>
+          <EditModeActions
+            editing={!readOnly}
+            saving={submitting}
+            disabled={submitLocked}
+            saveButtonType="submit"
+            saveLabel={isEdit ? "Zapisz zmiany" : "Zapisz"}
+            onEdit={() => {
+              void handleStartEdit();
+            }}
+            onCancel={handleCancelEdit}
+            readOnlyExtra={
               <Button
                 type="button"
                 variant="secondary"
-                onClick={handleCancelEdit}
-                disabled={submitting}
+                onClick={() => {
+                  void requestClose();
+                }}
               >
-                Anuluj
+                Zamknij
               </Button>
-              <Button type="submit" variant="primary" disabled={submitting || submitLocked}>
-                {submitting ? "Zapisywanie..." : isEdit ? "Zapisz zmiany" : "Zapisz"}
-              </Button>
-            </>
-          )}
+            }
+          />
         </div>
       </form>
     </Modal>

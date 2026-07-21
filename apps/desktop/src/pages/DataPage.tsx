@@ -9,6 +9,7 @@ import { EmptyState } from "../ui/components/EmptyState/EmptyState";
 import { ErrorState } from "../ui/components/ErrorState/ErrorState";
 import { Select } from "../ui/components/Select/Select";
 import { Skeleton } from "../ui/components/Skeleton/Skeleton";
+import { useConfirm } from "../ui/components/ConfirmDialog/ConfirmDialog";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import styles from "./DataPage.module.css";
 
@@ -22,6 +23,7 @@ function formatManifestDate(iso: string): string {
 
 export function DataPage(): ReactElement {
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const [accounts, setAccounts] = useState<AccountWithBalance[] | null>(null);
   const [accountsError, setAccountsError] = useState<string | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState("");
@@ -124,12 +126,15 @@ export function DataPage(): ReactElement {
       if (!archivePath || Array.isArray(archivePath)) {
         return;
       }
-      const confirmed = window.confirm(
-        "Przywrócenie kopii zapasowej ZASTĄPI wszystkie obecne dane w aplikacji (konta, " +
+      const confirmed = await confirm({
+        message:
+          "Przywrócenie kopii zapasowej ZASTĄPI wszystkie obecne dane w aplikacji (konta, " +
           "transakcje, strategie, instrumenty). Aktualna baza zostanie najpierw automatycznie " +
           "zapisana jako kopia bezpieczeństwa, ale zmiana zacznie obowiązywać dopiero po " +
           "ponownym uruchomieniu aplikacji.\n\nCzy na pewno chcesz kontynuować?",
-      );
+        danger: true,
+        confirmLabel: "Przywróć",
+      });
       if (!confirmed) {
         return;
       }

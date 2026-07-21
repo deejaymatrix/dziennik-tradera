@@ -8,6 +8,7 @@ import { Button } from "../ui/components/Button/Button";
 import { IconButton } from "../ui/components/IconButton/IconButton";
 import { Skeleton } from "../ui/components/Skeleton/Skeleton";
 import { TextField } from "../ui/components/TextField/TextField";
+import { useConfirm } from "../ui/components/ConfirmDialog/ConfirmDialog";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import styles from "./EmotionalStatesSection.module.css";
 import settingsStyles from "./SettingsPage.module.css";
@@ -16,6 +17,7 @@ import settingsStyles from "./SettingsPage.module.css";
  * momentach") - wbudowane stany można tylko ukryć, własne można też usunąć w całości. */
 export function EmotionalStatesSection(): ReactElement {
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const [states, setStates] = useState<EmotionalState[] | null>(null);
   const [newName, setNewName] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -47,7 +49,7 @@ export function EmotionalStatesSection(): ReactElement {
   }
 
   async function handleDelete(state: EmotionalState): Promise<void> {
-    if (!window.confirm(`Usunąć stan emocjonalny "${state.name}"?`)) {
+    if (!(await confirm(`Usunąć stan emocjonalny "${state.name}"?`))) {
       return;
     }
     try {

@@ -137,6 +137,11 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   pod nazwą UUID + SHA-256 w bazie). Kopia zapasowa `.dtjbackup` zawiera teraz też zdjęcia
   (weryfikacja sumy każdego pliku przed przywróceniem); trwałe usunięcie transakcji/konta/
   załącznika czyści fizyczne pliki dopiero po udanej operacji na bazie.
+- Spójne, stylizowane okna potwierdzeń w całej aplikacji (wszystkie 16 natywnych systemowych
+  okienek `window.confirm` zastąpione dialogiem pasującym do motywu, z czerwonym przyciskiem
+  dla akcji nieodwracalnych) oraz elegancki ekran odzyskiwania po awarii widoku zamiast
+  surowego zrzutu technicznego; wspólne komponenty SectionCard/ReadOnlyField/EditModeActions
+  porządkujące powtórzony kod kart i przycisków trybu edycji.
 - Nowa zakładka "Zasady handlu" - osobisty regulamin tradera, niezależny od zasad konkretnej
   strategii: 6 startowych kategorii z 40 pytaniami-szablonami (odpowiedzi zawsze puste na
   starcie), zwijane karty kategorii, tryb odczytu z przyciskiem "Edytuj", dodawanie własnych

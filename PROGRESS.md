@@ -1,6 +1,6 @@
 # Postęp prac
 
-Ostatnia aktualizacja: 2026-07-21 (Faza 8: zakładka "Zasady handlu" ukończona, patrz Faza 8
+Ostatnia aktualizacja: 2026-07-21 (Faza 10: wspólne komponenty + audyt - ukończona, patrz Faza 10
 poniżej)
 
 ## Cel 1.1 — Repozytorium, standardy i uruchomiony podgląd — ✅ ukończony
@@ -1232,6 +1232,35 @@ edycja (uzupełnienie odpowiedzi, nowa kategoria z pytaniem, blokada duplikatu "
 handluję?", archiwizacja pytania), zapis zbiorczy i powrót do trybu odczytu z poprawnym stanem.
 
 **Następny krok:** Faza 10 — wspólne komponenty i pełny audyt wizualny (Faza 7 odroczona).
+
+### Faza 10 — Wspólne komponenty i audyt wizualny — ✅ ukończona (część komponentowa + audyt)
+
+**Podejście:** najpierw audyt dowodowy (co jest NAPRAWDĘ zduplikowane), żeby nie budować
+abstrakcji na siłę. Ustalenia: PageHeader zbędny (tytuły już scentralizowane w `shell/Header`),
+DataTable zbędny (wszystkie tabele używają wspólnego `Table`), KpiCard/ChartCard/FilterBar już
+istnieją z Fazy 9 (StatCard/ChartCard/ReportFilterBar).
+
+**Zbudowane i wdrożone:**
+- `SectionCard` (wspólna otoczka karty - tło/ramka/zaokrąglenie powtarzane dotąd w wielu CSS).
+- `ReadOnlyField` (siatka etykieta→wartość - `TradeBalanceCard` i `TradePreviewCard` miały
+  bajt-w-bajt identyczne CSS; obie przepisane na nowe komponenty).
+- `ConfirmDialog` (`ConfirmProvider`+`useConfirm`, wzorzec jak Toast) - **wszystkie 16 wywołań
+  natywnego `window.confirm` w aplikacji zastąpione** stylizowanym, spójnym dialogiem z
+  czerwonym przyciskiem dla akcji nieodwracalnych.
+- `EditModeActions` (para "Edytuj"/"Anuluj"+"Zapisz zmiany" ze slotem na dodatkowy przycisk) -
+  wdrożone na karcie transakcji i Zasadach handlu.
+- `RouteErrorScreen` (**znalezisko audytu**: awaria komponentu strony pokazywała surowy,
+  deweloperski zrzut stosu React Routera w `<pre>` wywołujący przewijanie poziome - teraz trasy
+  mają `errorElement` z tym samym ekranem odzyskiwania co górny ErrorBoundary).
+
+**Przetestowane:** typecheck/eslint (0 błędów; 5. ostrzeżenie react-refresh to ten sam
+zaakceptowany wzorzec provider+hook co ToastProvider)/prettier/vitest czyste; na żywo w
+przeglądarce: ConfirmDialog otwiera się, Potwierdź wykonuje akcję (purge w Koszu) i odświeża
+listę, Anuluj zamyka; wymuszona awaria strony renderuje ekran odzyskiwania bez poziomego
+przewijania. Pełny ręczny przegląd rozdzielczości/skalowania/motywów pozostaje do Fazy 11
+(testy końcowe) - patrz plan.
+
+**Następny krok:** Faza 11 — aktualizacja obszarów zależnych + testy końcowe + podsumowanie.
 
 ## Pozostałe cele Etapu 1
 

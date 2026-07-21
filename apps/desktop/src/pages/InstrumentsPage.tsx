@@ -28,6 +28,7 @@ import { Select } from "../ui/components/Select/Select";
 import { Skeleton } from "../ui/components/Skeleton/Skeleton";
 import { Table, tableStyles } from "../ui/components/Table/Table";
 import { TextField } from "../ui/components/TextField/TextField";
+import { useConfirm } from "../ui/components/ConfirmDialog/ConfirmDialog";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import { InstrumentFormModal } from "./InstrumentFormModal";
 import styles from "./InstrumentsPage.module.css";
@@ -57,6 +58,7 @@ function symbolLabel(instrument: InstrumentWithDetails): ReactElement {
 
 export function InstrumentsPage(): ReactElement {
   const { showToast } = useToast();
+  const confirm = useConfirm();
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -190,9 +192,10 @@ export function InstrumentsPage(): ReactElement {
 
   async function handleDelete(instrument: InstrumentWithDetails): Promise<void> {
     if (
-      !window.confirm(
-        `Trwale usunąć instrument ${instrument.display_symbol}? Tej operacji nie można cofnąć. Nie uda się, jeśli instrument jest już użyty w jakiejś transakcji.`,
-      )
+      !(await confirm({
+        message: `Trwale usunąć instrument ${instrument.display_symbol}? Tej operacji nie można cofnąć. Nie uda się, jeśli instrument jest już użyty w jakiejś transakcji.`,
+        danger: true,
+      }))
     ) {
       return;
     }

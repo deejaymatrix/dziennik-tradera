@@ -7,6 +7,7 @@ import { MAX_SCREENSHOT_BYTES } from "../app/types/attachment";
 import type { PendingAttachment, ScreenshotCandidate } from "../app/types/attachment";
 import { useAttachments } from "../app/useAttachments";
 import { Button } from "../ui/components/Button/Button";
+import { useConfirm } from "../ui/components/ConfirmDialog/ConfirmDialog";
 import { IconButton } from "../ui/components/IconButton/IconButton";
 import { Modal } from "../ui/components/Modal/Modal";
 import { TextField } from "../ui/components/TextField/TextField";
@@ -55,6 +56,7 @@ export function TradeAttachments({
     remove,
   } = useAttachments(tradeId ?? "");
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const [busy, setBusy] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -222,19 +224,24 @@ export function TradeAttachments({
   }
 
   async function handleOpenLink(url: string): Promise<void> {
-    if (!window.confirm(`Otworzyć ten adres w domyślnej przeglądarce?\n\n${url}`)) {
+    if (!(await confirm(`Otworzyć ten adres w domyślnej przeglądarce?\n\n${url}`))) {
       return;
     }
     const { open } = await import("@tauri-apps/plugin-shell");
     await open(url);
   }
 
-  function handleDelete(id: string, label: string): void {
+  async function handleDelete(id: string, label: string): Promise<void> {
     if (isPendingMode) {
       onPendingChange?.(pendingItems.filter((p) => p.id !== id));
       return;
     }
-    if (!window.confirm(`Usunąć załącznik "${label}"? Tej operacji nie można odwrócić.`)) {
+    if (
+      !(await confirm({
+        message: `Usunąć załącznik "${label}"? Tej operacji nie można odwrócić.`,
+        danger: true,
+      }))
+    ) {
       return;
     }
     void withBusy(() => remove(id));
@@ -421,12 +428,12 @@ export function TradeAttachments({
                   <IconButton
                     icon={<Trash2 size={14} />}
                     aria-label="Usuń załącznik"
-                    onClick={() =>
-                      handleDelete(
+                    onClick={() => {
+                      void handleDelete(
                         item.id,
                         item.label ?? (item.kind === "link" ? "link" : "zdjęcie"),
-                      )
-                    }
+                      );
+                    }}
                   />
                 </div>
               </li>
