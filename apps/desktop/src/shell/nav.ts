@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   ListChecks,
   CalendarDays,
+  Calculator,
   Wallet,
   BookMarked,
   ScrollText,
@@ -37,6 +38,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: "/", label: "Dashboard", icon: LayoutDashboard },
       { to: "/transakcje", label: "Transakcje", icon: ListChecks },
       { to: "/kalendarz", label: "Kalendarz", icon: CalendarDays },
+      { to: "/kalkulator-pozycji", label: "Kalkulator pozycji", icon: Calculator },
     ],
   },
   {

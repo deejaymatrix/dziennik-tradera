@@ -8,6 +8,7 @@ pub mod emotional_state;
 pub mod instrument;
 pub mod instrument_import;
 pub mod interval;
+pub mod position_sizing;
 pub mod strategy;
 pub mod strategy_checklist;
 pub mod trade;
