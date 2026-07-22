@@ -6,6 +6,7 @@ use rusqlite::Connection;
 use crate::application::accounts::AccountsService;
 use crate::application::attachments::AttachmentsService;
 use crate::application::backup::BackupService;
+use crate::application::broker_templates::BrokerTemplatesService;
 use crate::application::emotional_states::EmotionalStatesService;
 use crate::application::export::ExportService;
 use crate::application::instruments::InstrumentsService;
@@ -39,6 +40,7 @@ pub enum DbState {
         emotional_states: EmotionalStatesService,
         attachments: Arc<AttachmentsService>,
         trading_rules: Arc<TradingRulesService>,
+        broker_templates: Arc<BrokerTemplatesService>,
         trash: TrashService,
     },
     Failed {

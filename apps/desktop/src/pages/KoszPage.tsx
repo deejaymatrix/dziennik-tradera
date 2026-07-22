@@ -24,6 +24,7 @@ const TYPE_BADGE_VARIANT: Record<TrashEntityType, BadgeVariant> = {
   strategy: "accent",
   interval: "neutral",
   trading_rule: "profit",
+  template: "loss",
 };
 
 const TYPE_FILTER_OPTIONS: { value: TrashEntityType | ""; label: string }[] = [
@@ -33,6 +34,7 @@ const TYPE_FILTER_OPTIONS: { value: TrashEntityType | ""; label: string }[] = [
   { value: "strategy", label: "Strategie" },
   { value: "interval", label: "Interwały" },
   { value: "trading_rule", label: "Pytania (Zasady handlu)" },
+  { value: "template", label: "Szablony instrumentów" },
 ];
 
 function formatDateTime(value: string): string {

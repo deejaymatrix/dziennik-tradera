@@ -1,6 +1,7 @@
 pub mod accounts;
 pub mod attachments;
 pub mod backup;
+pub mod broker_templates;
 pub mod emotional_states;
 pub mod export;
 pub mod instruments;

@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::application::accounts::AccountsService;
 use crate::application::attachments::AttachmentsService;
 use crate::application::backup::BackupService;
+use crate::application::broker_templates::BrokerTemplatesService;
 use crate::application::intervals::IntervalsService;
 use crate::application::strategies::StrategiesService;
 use crate::application::trading_rules::TradingRulesService;
@@ -27,6 +28,7 @@ pub enum TrashEntityType {
     Strategy,
     Interval,
     TradingRule,
+    Template,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -64,6 +66,7 @@ pub struct TrashService {
     trades: Arc<dyn TradeRepository + Send + Sync>,
     attachments: Arc<AttachmentsService>,
     trading_rules: Arc<TradingRulesService>,
+    broker_templates: Arc<BrokerTemplatesService>,
     backup: BackupService,
 }
 
@@ -75,6 +78,7 @@ impl TrashService {
         trades: Arc<dyn TradeRepository + Send + Sync>,
         attachments: Arc<AttachmentsService>,
         trading_rules: Arc<TradingRulesService>,
+        broker_templates: Arc<BrokerTemplatesService>,
         backup: BackupService,
     ) -> Self {
         Self {
@@ -84,6 +88,7 @@ impl TrashService {
             trades,
             attachments,
             trading_rules,
+            broker_templates,
             backup,
         }
     }
@@ -221,6 +226,22 @@ impl TrashService {
             });
         }
 
+        for template in self.broker_templates.list(true)? {
+            let Some(deleted_at) = template.archived_at else {
+                continue;
+            };
+            items.push(TrashItem {
+                entity_type: TrashEntityType::Template,
+                id: template.id,
+                label: format!("Szablon: {}", template.name),
+                deleted_at,
+                dependency_note: Some(format!(
+                    "Zawiera {} instrumentów - trwałe usunięcie nie ruszy transakcji historycznych (ich zamrożone migawki zostają).",
+                    template.instrument_count
+                )),
+            });
+        }
+
         items.sort_by_key(|item| std::cmp::Reverse(item.deleted_at));
         Ok(items)
     }
@@ -232,6 +253,7 @@ impl TrashService {
             TrashEntityType::Strategy => self.strategies.restore(id).map(|_| ()),
             TrashEntityType::Interval => self.intervals.restore(id).map(|_| ()),
             TrashEntityType::TradingRule => self.trading_rules.restore_rule(id),
+            TrashEntityType::Template => self.broker_templates.restore(id),
         }
     }
 
@@ -259,6 +281,7 @@ impl TrashService {
             TrashEntityType::Strategy => self.strategies.delete_permanently(id),
             TrashEntityType::Interval => self.intervals.delete_permanently(id),
             TrashEntityType::TradingRule => self.trading_rules.delete_rule_permanently(id),
+            TrashEntityType::Template => self.broker_templates.delete_permanently(id),
         }
     }
 
@@ -333,6 +356,14 @@ mod tests {
         let trading_rules = Arc::new(TradingRulesService::new(Arc::new(
             SqliteTradingRulesRepository::new(conn.clone()),
         )));
+        let broker_templates = Arc::new(BrokerTemplatesService::new(
+            Arc::new(
+                crate::infrastructure::sqlite_broker_template_repository::SqliteBrokerTemplateRepository::new(
+                    conn.clone(),
+                ),
+            ),
+            accounts.clone(),
+        ));
         let backup = BackupService::new(conn.clone(), dir.path().to_path_buf());
 
         let trash = TrashService::new(
@@ -342,6 +373,7 @@ mod tests {
             trades,
             attachments,
             trading_rules,
+            broker_templates,
             backup,
         );
 
