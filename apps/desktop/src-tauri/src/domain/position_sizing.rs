@@ -188,7 +188,9 @@ pub fn calculate(
     };
     if !stop_is_on_correct_side {
         return Err(AppError::Validation(match request.side {
-            TradeSide::Buy => "Przy pozycji BUY stop loss musi być poniżej ceny wejścia.".to_string(),
+            TradeSide::Buy => {
+                "Przy pozycji BUY stop loss musi być poniżej ceny wejścia.".to_string()
+            }
             TradeSide::Sell => {
                 "Przy pozycji SELL stop loss musi być powyżej ceny wejścia.".to_string()
             }

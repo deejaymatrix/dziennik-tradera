@@ -429,7 +429,8 @@ mod tests {
     /// i useReportFilter - jeśli którykolwiek przestanie się deserializować, ekran znów padnie.
     #[test]
     fn filtr_listy_przyjmuje_ladunki_wysylane_przez_frontend() {
-        let bez_user_created_only = r#"{"search":null,"category":null,"visibility":"visible","template_id":null}"#;
+        let bez_user_created_only =
+            r#"{"search":null,"category":null,"visibility":"visible","template_id":null}"#;
         let filtr: InstrumentListFilter = serde_json::from_str(bez_user_created_only).unwrap();
         assert!(!filtr.user_created_only);
         assert_eq!(filtr.visibility, InstrumentVisibilityFilter::Visible);

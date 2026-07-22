@@ -105,6 +105,147 @@ fn optional_string(map: &HashMap<String, String>, key: &str) -> Option<String> {
         .map(str::to_string)
 }
 
+/// Sprowadza nazwę kolumny do postaci porównywalnej: same litery i cyfry, małymi. Dzięki temu
+/// `TradeTickSize`, `trade_tick_size` i `Trade Tick Size` to dla parsera jedno i to samo -
+/// brokerzy eksportują ten sam zestaw parametrów w różnych konwencjach zapisu.
+fn normalize_column(name: &str) -> String {
+    name.chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+/// Kolumny, których nazwa po normalizacji NADAL nie zgadza się z nazwą MT5, bo broker nazwał je
+/// inaczej merytorycznie (np. Vantage: `tick_size` zamiast `TradeTickSize`, `path` zamiast
+/// `Category`). Pierwsza pozycja to nazwa kanoniczna używana w `parse_row`.
+const COLUMN_ALIASES: &[(&str, &[&str])] = &[
+    ("TradeTickSize", &["ticksize"]),
+    ("TradeTickValue", &["tickvalue"]),
+    ("CalcMode", &["tradecalcmode"]),
+    ("ExecutionMode", &["tradeexecution", "tradeexemode"]),
+    ("StopsLevelPoints", &["stopslevel"]),
+    ("FreezeLevelPoints", &["freezelevel"]),
+    ("Category", &["path", "sectorname", "industryname"]),
+];
+
+/// Mapuje nazwę kolumny z pliku na nazwę kanoniczną, której oczekuje `parse_row`.
+fn canonical_column(header_name: &str) -> String {
+    let normalized = normalize_column(header_name);
+    for (canonical, aliases) in COLUMN_ALIASES {
+        if aliases.contains(&normalized.as_str()) {
+            return (*canonical).to_string();
+        }
+    }
+    // Bez aliasu: dopasowanie po samej normalizacji do nazwy kanonicznej (`contract_size` →
+    // `ContractSize`). Nieznane kolumny zostają pod własną nazwą - nikomu nie przeszkadzają.
+    for canonical in CANONICAL_COLUMNS {
+        if normalize_column(canonical) == normalized {
+            return (*canonical).to_string();
+        }
+    }
+    header_name.trim().to_string()
+}
+
+/// Kategoria z pliku brokera. Część brokerów (np. Vantage) podaje ją jako ścieżkę drzewa
+/// instrumentów - `Forex Major\Forex Major\EURUSD`. Bierzemy pierwszy człon i przypisujemy go do
+/// kategorii używanej w aplikacji; przy braku dopasowania NIE zgadujemy, tylko oznaczamy jako
+/// "Zaimportowane" - kategoria wpływa wyłącznie na filtrowanie list, nigdy na obliczenia.
+fn category_from_raw(raw: &str) -> String {
+    let first_segment = raw
+        .split(['\\', '/'])
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_lowercase();
+    if first_segment.is_empty() {
+        return "Zaimportowane".to_string();
+    }
+    let category = if first_segment.contains("forex") || first_segment.contains("fx") {
+        "Forex"
+    } else if first_segment.contains("metal")
+        || first_segment.contains("gold")
+        || first_segment.contains("silver")
+    {
+        "Metale"
+    } else if first_segment.contains("crypto") || first_segment.contains("krypto") {
+        "Kryptowaluty"
+    } else if first_segment.contains("soft") {
+        "Soft commodities"
+    } else if first_segment.contains("ind") {
+        "Indeksy"
+    } else if first_segment.contains("energ")
+        || first_segment.contains("commodit")
+        || first_segment.contains("oil")
+    {
+        "Towary"
+    } else if first_segment.contains("share")
+        || first_segment.contains("stock")
+        || first_segment.contains("equit")
+    {
+        "Akcje"
+    } else if first_segment.contains("ndf") {
+        "NDF"
+    } else {
+        "Zaimportowane"
+    };
+    category.to_string()
+}
+
+/// Wszystkie nazwy kolumn, jakich szuka `parse_row` - lista służy do dopasowania po normalizacji.
+const CANONICAL_COLUMNS: &[&str] = &[
+    "Symbol",
+    "DisplaySymbol",
+    "Description",
+    "Category",
+    "CurrencyBase",
+    "CurrencyProfit",
+    "CurrencyMargin",
+    "Digits",
+    "Point",
+    "TradeTickSize",
+    "TradeTickValue",
+    "TickValueProfit",
+    "TickValueLoss",
+    "ContractSize",
+    "VolumeMin",
+    "VolumeMax",
+    "VolumeStep",
+    "VolumeLimit",
+    "CalcMode",
+    "TradeMode",
+    "ExecutionMode",
+    "OrderModeFlags",
+    "FillingModeFlags",
+    "ExpirationModeFlags",
+    "SpreadFloating",
+    "StopsLevelPoints",
+    "FreezeLevelPoints",
+    "MarginInitial",
+    "MarginMaintenance",
+    "MarginHedged",
+    "MarginHedgedUseLeg",
+    "LiquidityRate",
+    "MarginRateBuyInitial",
+    "MarginRateBuyMaintenance",
+    "MarginRateSellInitial",
+    "MarginRateSellMaintenance",
+    "SwapMode",
+    "SwapLong",
+    "SwapShort",
+    "SwapSunday",
+    "SwapMonday",
+    "SwapTuesday",
+    "SwapWednesday",
+    "SwapThursday",
+    "SwapFriday",
+    "SwapSaturday",
+    "TripleSwapDay",
+    "QuoteSessions",
+    "TradeSessions",
+    "StartTime",
+    "ExpirationTime",
+];
+
 /// Wymagane kolumny - bez nich nie da się policzyć wyniku transakcji, więc ich brak przerywa
 /// cały import (żaden częściowy szablon nie powstaje - sekcja 1.5 specyfikacji).
 const REQUIRED_COLUMNS: [&str; 13] = [
@@ -207,7 +348,7 @@ fn parse_row(map: &HashMap<String, String>, row: usize) -> Result<ImportedInstru
         canonical_symbol,
         variant,
         description: string_or(map, "Description", ""),
-        category: string_or(map, "Category", "Zaimportowane"),
+        category: category_from_raw(&string_or(map, "Category", "")),
         parameters,
     })
 }
@@ -220,10 +361,15 @@ pub fn parse_records(
     header: &[String],
     records: &[Vec<String>],
 ) -> Result<Vec<ImportedInstrument>, AppError> {
+    // Nagłówek sprowadzamy do nazw kanonicznych RAZ, a potem pracujemy już tylko na nich - dzięki
+    // temu plik z `tick_size`/`contract_size` (Vantage) i plik z `TradeTickSize`/`ContractSize`
+    // (MT5) idą tą samą ścieżką.
+    let canonical_header: Vec<String> = header.iter().map(|h| canonical_column(h)).collect();
+
     let missing: Vec<&str> = REQUIRED_COLUMNS
         .iter()
         .copied()
-        .filter(|col| !header.iter().any(|h| h.trim() == *col))
+        .filter(|col| !canonical_header.iter().any(|h| h == *col))
         .collect();
     if !missing.is_empty() {
         return Err(AppError::Validation(format!(
@@ -241,10 +387,10 @@ pub fn parse_records(
     let mut seen: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
     for (i, record) in records.iter().enumerate() {
         let row_number = i + 2; // +1 na nagłówek, +1 bo ludzie liczą od 1.
-        let map: HashMap<String, String> = header
+        let map: HashMap<String, String> = canonical_header
             .iter()
             .zip(record.iter())
-            .map(|(h, v)| (h.trim().to_string(), v.clone()))
+            .map(|(h, v)| (h.clone(), v.clone()))
             .collect();
         let instrument = parse_row(&map, row_number)?;
         // Kolizja: dwa wiersze dające ten sam symbol wyświetlany + wariant (sekcja 1.7 - nie
@@ -327,6 +473,146 @@ mod tests {
         .iter()
         .map(|s| s.to_string())
         .collect()
+    }
+
+    /// Prawdziwy nagłówek z eksportu Vantage - inna konwencja nazw niż MT5 (`tick_size` zamiast
+    /// `TradeTickSize`, `path` zamiast kategorii). Wcześniej import takiego pliku od razu kończył
+    /// się komunikatem o brakujących kolumnach, mimo że plik ma komplet potrzebnych danych.
+    fn vantage_header() -> Vec<String> {
+        [
+            "symbol",
+            "description",
+            "path",
+            "currency_base",
+            "currency_profit",
+            "currency_margin",
+            "digits",
+            "point",
+            "tick_size",
+            "tick_value",
+            "tick_value_profit",
+            "tick_value_loss",
+            "contract_size",
+            "volume_min",
+            "volume_max",
+            "volume_step",
+            "trade_mode",
+            "trade_calc_mode",
+            "trade_execution",
+            "stops_level",
+            "freeze_level",
+            "spread",
+            "swap_mode",
+            "swap_long",
+            "swap_short",
+            "bid",
+            "ask",
+            "last",
+            "tick_volume",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+    }
+
+    fn vantage_row(symbol: &str, path: &str) -> Vec<String> {
+        [
+            symbol,
+            "Euro vs US Dollar",
+            path,
+            "EUR",
+            "USD",
+            "EUR",
+            "5",
+            "0.0000100000",
+            "0.0000100000",
+            "1.0000000000",
+            "1.0000000000",
+            "1.0000000000",
+            "100000.0000000000",
+            "0.0100000000",
+            "100.0000000000",
+            "0.0100000000",
+            "0",
+            "0",
+            "2",
+            "0",
+            "0",
+            "13",
+            "1",
+            "-5.86",
+            "2.58",
+            "1.14054",
+            "1.14067",
+            "0.0",
+            "0",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+    }
+
+    #[test]
+    fn parsuje_plik_vantage_mimo_innej_konwencji_nazw_kolumn() {
+        let records = vec![vantage_row("EURUSD", "Forex Major\\Forex Major\\EURUSD")];
+        let parsed = parse_records(&vantage_header(), &records).expect("plik Vantage");
+
+        assert_eq!(parsed.len(), 1);
+        let instrument = &parsed[0];
+        assert_eq!(instrument.source_symbol, "EURUSD");
+        assert_eq!(instrument.description, "Euro vs US Dollar");
+        // Kluczowe: parametry obliczeniowe muszą trafić z kolumn o "obcych" nazwach.
+        assert_eq!(
+            instrument.parameters.trade_tick_size.to_string(),
+            "0.0000100000"
+        );
+        assert_eq!(
+            instrument.parameters.contract_size.to_string(),
+            "100000.0000000000"
+        );
+        assert_eq!(instrument.parameters.currency_base, "EUR");
+        assert_eq!(
+            instrument.parameters.volume_step.to_string(),
+            "0.0100000000"
+        );
+        // `tick_value` (bez sufiksu) to TradeTickValue.
+        assert_eq!(
+            instrument.parameters.trade_tick_value.to_string(),
+            "1.0000000000"
+        );
+    }
+
+    #[test]
+    fn kategoria_powstaje_ze_sciezki_drzewa_instrumentow() {
+        assert_eq!(
+            category_from_raw("Forex Major\\Forex Major\\EURUSD"),
+            "Forex"
+        );
+        assert_eq!(category_from_raw("Metals\\XAUUSD"), "Metale");
+        // Prawdziwe ścieżki z eksportu Vantage - broker nie używa słowa "metals".
+        assert_eq!(category_from_raw("Gold+\\XAUUSD"), "Metale");
+        assert_eq!(category_from_raw("Silver\\XAGUSD"), "Metale");
+        assert_eq!(category_from_raw("Forex+\\EURPLN"), "Forex");
+        assert_eq!(category_from_raw("Stocks\\AAPL"), "Akcje");
+        assert_eq!(category_from_raw("Commodities\\XNGUSD"), "Towary");
+        assert_eq!(category_from_raw("Indices\\US500"), "Indeksy");
+        assert_eq!(category_from_raw("Crypto\\BTCUSD"), "Kryptowaluty");
+        assert_eq!(category_from_raw("Share CFDs\\AAPL"), "Akcje");
+        assert_eq!(category_from_raw("Energy\\XTIUSD"), "Towary");
+        // Nieznana ścieżka NIE jest zgadywana.
+        assert_eq!(category_from_raw("Cokolwiek\\XYZ"), "Zaimportowane");
+        assert_eq!(category_from_raw(""), "Zaimportowane");
+    }
+
+    #[test]
+    fn nazwy_kolumn_dopasowuja_sie_niezaleznie_od_konwencji_zapisu() {
+        assert_eq!(canonical_column("contract_size"), "ContractSize");
+        assert_eq!(canonical_column("ContractSize"), "ContractSize");
+        assert_eq!(canonical_column("Contract Size"), "ContractSize");
+        assert_eq!(canonical_column("tick_size"), "TradeTickSize");
+        assert_eq!(canonical_column("path"), "Category");
+        // Nieznana kolumna zostaje pod własną nazwą i nikomu nie przeszkadza.
+        assert_eq!(canonical_column("tick_volume"), "tick_volume");
     }
 
     #[test]
