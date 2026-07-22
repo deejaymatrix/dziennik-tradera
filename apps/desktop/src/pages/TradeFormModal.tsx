@@ -31,9 +31,10 @@ import type {
 } from "../app/types/trade";
 import { blankStrategyChecklist } from "../app/types/trade";
 import { Button } from "../ui/components/Button/Button";
-import { Checkbox } from "../ui/components/Checkbox/Checkbox";
+import { FormPanel } from "../ui/components/FormPanel/FormPanel";
+import type { PanelStatus } from "../ui/components/FormPanel/FormPanel";
+import { SessionField } from "./SessionField";
 import { useConfirm } from "../ui/components/ConfirmDialog/ConfirmDialog";
-import { EditModeActions } from "../ui/components/EditModeActions/EditModeActions";
 import { Modal } from "../ui/components/Modal/Modal";
 import { Select } from "../ui/components/Select/Select";
 import { Textarea } from "../ui/components/Textarea/Textarea";
@@ -99,6 +100,9 @@ export function TradeFormModal({
   const [mode, setMode] = useState<"view" | "edit">(() => (trade ? "view" : "edit"));
   const readOnly = isEdit && mode === "view";
 
+  /** Szkic dopuszcza braki, finalny zapis przechodzi pełną walidację (sekcja 6.10). */
+  type SaveMode = "draft" | "final";
+
   const [fields, setFields] = useState<TradeFormFields>(() => {
     if (trade) {
       return tradeToFormFields(trade);
@@ -128,6 +132,21 @@ export function TradeFormModal({
   // podstawiony przycisk "Zapisz zmiany", zapisując transakcję bez żadnej zmiany i bez szansy
   // na edycję. Krótka blokada zapisu tuż po wejściu w tryb edycji temu zapobiega.
   const [submitLocked, setSubmitLocked] = useState(false);
+
+  // Po otwarciu rozwinięte są dokładnie dwa pierwsze panele (sekcja 6.1). Zwinięcie panelu nie
+  // odmontowuje jego zawartości - patrz `FormPanel` - więc nic się nie gubi.
+  const [panels, setPanels] = useState({
+    basics: true,
+    params: true,
+    costs: false,
+    strategy: false,
+    notes: false,
+    attachments: false,
+  });
+
+  function togglePanel(panel: keyof typeof panels): void {
+    setPanels((current) => ({ ...current, [panel]: !current[panel] }));
+  }
 
   // Id strategii, dla której `fields.checklist` została ostatnio zbudowana - pozwala odróżnić
   // "strategia się nie zmieniła, zachowaj checklistę" od "wybrano inną strategię, zbuduj świeżą
@@ -413,8 +432,11 @@ export function TradeFormModal({
     return failures;
   }
 
-  async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
+  async function handleSubmit(
+    event: SubmitEvent<HTMLFormElement> | null,
+    mode: SaveMode,
+  ): Promise<void> {
+    event?.preventDefault();
     // Zabezpieczenie dodatkowe do `disabled` na przycisku - patrz komentarz przy stanie
     // `submitLocked` (szybkie podwójne kliknięcie "Edytuj" trafiające w podstawiony w tym samym
     // miejscu przycisk zapisu).
@@ -426,6 +448,16 @@ export function TradeFormModal({
     const formatError = validateTradeFormFormat(fields);
     if (formatError) {
       setFormError(formatError);
+      return;
+    }
+
+    // Szkic może być niekompletny, finalny zapis nie (sekcja 6.3/6.10). Panel z brakującym
+    // polem rozwijamy, żeby użytkownik zobaczył, o co chodzi, zamiast szukać po omacku.
+    if (mode === "final" && !fields.strategyId) {
+      setPanels((current) => ({ ...current, basics: true }));
+      setFormError(
+        "Wybierz strategię - transakcję można zapisać dopiero ze strategią. Bez niej użyj przycisku „Zapisz szkic”.",
+      );
       return;
     }
 
@@ -462,6 +494,39 @@ export function TradeFormModal({
       setSubmitting(false);
     }
   }
+
+  /** Status sekcji liczony z tego, ile jej istotnych pól jest wypełnionych. */
+  function statusFor(filled: number, total: number): PanelStatus {
+    if (filled === 0) {
+      return "empty";
+    }
+    return filled === total ? "complete" : "partial";
+  }
+
+  const basicsStatus = statusFor(
+    [fields.instrumentId, fields.strategyId, fields.openedAt].filter(Boolean).length,
+    3,
+  );
+  const paramsStatus = statusFor(
+    [fields.volume, fields.entryPrice, fields.stopLoss].filter((v) => v.trim()).length,
+    3,
+  );
+  const costsStatus: PanelStatus = [fields.commission, fields.swap, fields.otherFees].some(
+    (v) => v.trim() && v.trim() !== "0",
+  )
+    ? "complete"
+    : "empty";
+  const strategyStatus: PanelStatus = fields.strategyId ? "complete" : "empty";
+  const notesStatus = statusFor(
+    [fields.planBefore.trim(), fields.conclusion.trim()].filter(Boolean).length,
+    2,
+  );
+
+  /** Treści z pól usuniętych z formularza w sekcji 6.7 - pokazywane tylko do odczytu. */
+  const legacyNotes = [
+    { label: "Notatki z zarządzania pozycją", text: fields.managementNotes.trim() },
+    { label: "Podsumowanie po transakcji", text: fields.postTradeSummary.trim() },
+  ].filter((note) => note.text.length > 0);
 
   const instrumentOptions = [
     { value: "", label: "— wybierz instrument —" },
@@ -501,251 +566,279 @@ export function TradeFormModal({
       <form
         className={styles.form}
         onSubmit={(event) => {
-          void handleSubmit(event);
+          void handleSubmit(event, "final");
         }}
       >
-        <TradeBalanceCard
-          isEdit={isEdit}
-          context={balanceContext}
-          currentBalance={accountBalance}
-          currency={accountCurrency}
-        />
+        <div className={styles.layout}>
+          <div className={styles.panels}>
+            <FormPanel
+              title="Dane podstawowe"
+              open={panels.basics}
+              onToggle={() => togglePanel("basics")}
+              status={basicsStatus}
+            >
+              <div className={styles.grid}>
+                <Select
+                  label="Instrument"
+                  value={fields.instrumentId}
+                  onChange={(e) => setField("instrumentId", e.target.value)}
+                  options={instrumentOptions}
+                  disabled={readOnly}
+                  {...(instruments.length === 0 && instrumentsHint
+                    ? { hint: instrumentsHint }
+                    : {})}
+                />
+                <Select
+                  label="Strategia"
+                  value={fields.strategyId}
+                  onChange={(e) => handleStrategyChange(e.target.value)}
+                  options={strategyOptions}
+                  disabled={readOnly}
+                  hint="Wymagana przy zapisie transakcji - szkic można zapisać bez niej."
+                />
+                <Select
+                  label="Kierunek"
+                  value={fields.side}
+                  onChange={(e) => setField("side", e.target.value as TradeSide)}
+                  options={SIDE_OPTIONS}
+                  disabled={readOnly}
+                />
+                <Select
+                  label="Interwał (opcjonalnie)"
+                  value={fields.intervalId}
+                  onChange={(e) => setField("intervalId", e.target.value)}
+                  options={intervalOptions}
+                  disabled={readOnly}
+                />
+              </div>
 
-        <div className={styles.grid}>
-          <Select
-            label="Instrument"
-            value={fields.instrumentId}
-            onChange={(e) => setField("instrumentId", e.target.value)}
-            options={instrumentOptions}
-            disabled={readOnly}
-            {...(instruments.length === 0 && instrumentsHint ? { hint: instrumentsHint } : {})}
-          />
-          <Select
-            label="Strategia"
-            value={fields.strategyId}
-            onChange={(e) => handleStrategyChange(e.target.value)}
-            options={strategyOptions}
-            disabled={readOnly}
-          />
-          <Select
-            label="Kierunek"
-            value={fields.side}
-            onChange={(e) => setField("side", e.target.value as TradeSide)}
-            options={SIDE_OPTIONS}
-            disabled={readOnly}
-          />
-        </div>
+              <div className={styles.grid}>
+                <TextField
+                  label="Data otwarcia"
+                  type="datetime-local"
+                  step={1}
+                  value={fields.openedAt}
+                  onChange={(e) => setField("openedAt", e.target.value)}
+                  disabled={readOnly}
+                />
+                <TextField
+                  label="Data zamknięcia"
+                  type="datetime-local"
+                  step={1}
+                  value={fields.closedAt}
+                  onChange={(e) => setField("closedAt", e.target.value)}
+                  disabled={readOnly}
+                />
+              </div>
 
-        <div className={styles.grid}>
-          <TextField
-            label="Data otwarcia"
-            type="datetime-local"
-            step={1}
-            value={fields.openedAt}
-            onChange={(e) => setField("openedAt", e.target.value)}
-            disabled={readOnly}
-          />
-          <TextField
-            label="Data zamknięcia"
-            type="datetime-local"
-            step={1}
-            value={fields.closedAt}
-            onChange={(e) => setField("closedAt", e.target.value)}
-            disabled={readOnly}
-          />
-        </div>
+              <SessionField
+                value={fields.session}
+                onChange={(value) => setField("session", value)}
+                disabled={readOnly}
+              />
+            </FormPanel>
 
-        <div className={styles.gridThree}>
-          <TextField
-            label="Lot"
-            inputMode="decimal"
-            value={fields.volume}
-            onChange={(e) => setField("volume", e.target.value)}
-            disabled={readOnly}
-          />
-          <TextField
-            label="Cena wejścia"
-            inputMode="decimal"
-            value={fields.entryPrice}
-            onChange={(e) => setField("entryPrice", e.target.value)}
-            disabled={readOnly}
-          />
-          <TextField
-            label="Cena wyjścia"
-            inputMode="decimal"
-            value={fields.exitPrice}
-            onChange={(e) => setField("exitPrice", e.target.value)}
-            disabled={readOnly}
-          />
-          <TextField
-            label="Stop loss"
-            inputMode="decimal"
-            value={fields.stopLoss}
-            onChange={(e) => setField("stopLoss", e.target.value)}
-            disabled={readOnly}
-          />
-          <TextField
-            label="Take profit"
-            inputMode="decimal"
-            value={fields.takeProfit}
-            onChange={(e) => setField("takeProfit", e.target.value)}
-            disabled={readOnly}
-          />
-        </div>
+            <FormPanel
+              title="Parametry transakcji"
+              open={panels.params}
+              onToggle={() => togglePanel("params")}
+              status={paramsStatus}
+            >
+              <div className={styles.gridThree}>
+                <TextField
+                  label="Lot"
+                  inputMode="decimal"
+                  value={fields.volume}
+                  onChange={(e) => setField("volume", e.target.value)}
+                  disabled={readOnly}
+                />
+                <TextField
+                  label="Cena wejścia"
+                  inputMode="decimal"
+                  value={fields.entryPrice}
+                  onChange={(e) => setField("entryPrice", e.target.value)}
+                  disabled={readOnly}
+                />
+                <TextField
+                  label="Cena wyjścia"
+                  inputMode="decimal"
+                  value={fields.exitPrice}
+                  onChange={(e) => setField("exitPrice", e.target.value)}
+                  disabled={readOnly}
+                />
+                <TextField
+                  label="Stop loss"
+                  inputMode="decimal"
+                  value={fields.stopLoss}
+                  onChange={(e) => setField("stopLoss", e.target.value)}
+                  disabled={readOnly}
+                />
+                <TextField
+                  label="Take profit"
+                  inputMode="decimal"
+                  value={fields.takeProfit}
+                  onChange={(e) => setField("takeProfit", e.target.value)}
+                  disabled={readOnly}
+                />
+              </div>
 
-        <div className={styles.gridThree}>
-          <TextField
-            label="Prowizja"
-            inputMode="decimal"
-            value={fields.commission}
-            onChange={(e) => setField("commission", e.target.value)}
-            disabled={readOnly}
-          />
-          <TextField
-            label="Swap"
-            inputMode="decimal"
-            value={fields.swap}
-            onChange={(e) => setField("swap", e.target.value)}
-            disabled={readOnly}
-          />
-          <TextField
-            label="Dodatkowe opłaty"
-            inputMode="decimal"
-            value={fields.otherFees}
-            onChange={(e) => setField("otherFees", e.target.value)}
-            disabled={readOnly}
-          />
-        </div>
+              {(preview?.requires_conversion_rate ?? false) || fields.conversionRate.trim() ? (
+                <TextField
+                  label="Kurs przeliczeniowy"
+                  inputMode="decimal"
+                  required={preview?.requires_conversion_rate ?? false}
+                  value={fields.conversionRate}
+                  onChange={(e) => setField("conversionRate", e.target.value)}
+                  hint="Waluta wyniku instrumentu różni się od waluty konta - podaj kurs, żeby dokładnie przeliczyć wynik (bez tego wynik pieniężny nie zostanie policzony)."
+                  disabled={readOnly}
+                />
+              ) : null}
 
-        {(preview?.requires_conversion_rate ?? false) || fields.conversionRate.trim() ? (
-          <TextField
-            label="Kurs przeliczeniowy"
-            inputMode="decimal"
-            required={preview?.requires_conversion_rate ?? false}
-            value={fields.conversionRate}
-            onChange={(e) => setField("conversionRate", e.target.value)}
-            hint="Waluta wyniku instrumentu różni się od waluty konta - podaj kurs, żeby dokładnie przeliczyć wynik (bez tego wynik pieniężny nie zostanie policzony)."
-            disabled={readOnly}
-          />
-        ) : null}
+              <FormPanel
+                title="Koszty"
+                open={panels.costs}
+                onToggle={() => togglePanel("costs")}
+                status={costsStatus}
+                statusLabel={costsStatus === "empty" ? "Bez kosztów" : "Uzupełnione"}
+              >
+                <div className={styles.gridThree}>
+                  <TextField
+                    label="Prowizja"
+                    inputMode="decimal"
+                    value={fields.commission}
+                    onChange={(e) => setField("commission", e.target.value)}
+                    disabled={readOnly}
+                  />
+                  <TextField
+                    label="Swap"
+                    inputMode="decimal"
+                    value={fields.swap}
+                    onChange={(e) => setField("swap", e.target.value)}
+                    disabled={readOnly}
+                  />
+                  <TextField
+                    label="Dodatkowe opłaty"
+                    inputMode="decimal"
+                    value={fields.otherFees}
+                    onChange={(e) => setField("otherFees", e.target.value)}
+                    disabled={readOnly}
+                  />
+                </div>
+              </FormPanel>
+            </FormPanel>
 
-        <TradePreviewCard calculation={preview} currency={accountCurrency} />
+            <FormPanel
+              title="Strategia i spełnienie warunków"
+              open={panels.strategy}
+              onToggle={() => togglePanel("strategy")}
+              status={strategyStatus}
+            >
+              <StrategyChecklistEditor
+                checklist={fields.checklist}
+                onChange={(checklist) => setField("checklist", checklist)}
+                disabled={readOnly}
+              />
+            </FormPanel>
 
-        <div className={styles.grid}>
-          <Select
-            label="Interwał (opcjonalnie)"
-            value={fields.intervalId}
-            onChange={(e) => setField("intervalId", e.target.value)}
-            options={intervalOptions}
-            disabled={readOnly}
-          />
-          <TextField
-            label="Sesja (opcjonalnie)"
-            hint="Np. Londyn, Nowy Jork, Azja"
-            value={fields.session}
-            onChange={(e) => setField("session", e.target.value)}
-            disabled={readOnly}
-          />
-        </div>
-
-        <Textarea
-          label="Plan przed transakcją (opcjonalnie)"
-          value={fields.planBefore}
-          onChange={(e) => setField("planBefore", e.target.value)}
-          disabled={readOnly}
-        />
-        <Textarea
-          label="Notatki z zarządzania pozycją (opcjonalnie)"
-          value={fields.managementNotes}
-          onChange={(e) => setField("managementNotes", e.target.value)}
-          disabled={readOnly}
-        />
-        <Textarea
-          label="Podsumowanie po transakcji (opcjonalnie)"
-          value={fields.postTradeSummary}
-          onChange={(e) => setField("postTradeSummary", e.target.value)}
-          disabled={readOnly}
-        />
-        <Textarea
-          label="Wnioski (opcjonalnie)"
-          value={fields.conclusion}
-          onChange={(e) => setField("conclusion", e.target.value)}
-          disabled={readOnly}
-        />
-        <Select
-          label="Ocena zgodności z planem (opcjonalnie)"
-          value={fields.planAdherenceRating}
-          onChange={(e) => setField("planAdherenceRating", e.target.value)}
-          options={RATING_OPTIONS}
-          disabled={readOnly}
-        />
-
-        <div className={styles.overrideBlock}>
-          <Checkbox
-            label="Ręcznie koryguj wynik netto"
-            checked={fields.overrideEnabled}
-            onChange={(e) => setField("overrideEnabled", e.target.checked)}
-            disabled={readOnly}
-          />
-          {fields.overrideEnabled && (
-            <div className={styles.overrideFields}>
-              <TextField
-                label="Ręczny wynik netto"
-                inputMode="decimal"
-                value={fields.overrideNetPnl}
-                onChange={(e) => setField("overrideNetPnl", e.target.value)}
+            <FormPanel
+              title="Notatki i emocje"
+              open={panels.notes}
+              onToggle={() => togglePanel("notes")}
+              status={notesStatus}
+            >
+              <Textarea
+                label="Notatka do transakcji (opcjonalnie)"
+                value={fields.planBefore}
+                onChange={(e) => setField("planBefore", e.target.value)}
                 disabled={readOnly}
               />
               <Textarea
-                label="Uzasadnienie (wymagane)"
-                required
-                value={fields.overrideReason}
-                onChange={(e) => setField("overrideReason", e.target.value)}
-                hint="Np. korekta po weryfikacji wyciągu brokera - wynik ręczny zastąpi wyliczenia powyżej."
+                label="Wnioski po transakcji (opcjonalnie)"
+                value={fields.conclusion}
+                onChange={(e) => setField("conclusion", e.target.value)}
                 disabled={readOnly}
               />
-            </div>
-          )}
+              <Select
+                label="Ocena zgodności z planem (opcjonalnie)"
+                value={fields.planAdherenceRating}
+                onChange={(e) => setField("planAdherenceRating", e.target.value)}
+                options={RATING_OPTIONS}
+                disabled={readOnly}
+              />
+
+              {/* Pola "Notatki z zarządzania pozycją" i "Podsumowanie po transakcji" zniknęły
+                  z formularza (sekcja 6.7), ale zapisane wcześniej treści NIE są kasowane -
+                  pokazujemy je tylko do odczytu, żeby nic nie przepadło po cichu. */}
+              {legacyNotes.length > 0 && (
+                <div className={styles.legacyNotes}>
+                  <p className={styles.legacyNotesTitle}>
+                    Zapisane w starym układzie formularza (tylko do odczytu):
+                  </p>
+                  {legacyNotes.map((note) => (
+                    <div key={note.label}>
+                      <span className={styles.legacyNoteLabel}>{note.label}</span>
+                      <p className={styles.legacyNoteText}>{note.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className={styles.emotionsSection}>
+                <h3 className={styles.emotionsTitle}>Emocje</h3>
+                <EmotionMomentEditor
+                  label="Przed transakcją"
+                  value={fields.emotions.before}
+                  onChange={(value) => setEmotionMoment("before", value)}
+                  states={emotionalStates}
+                  disabled={readOnly}
+                />
+                <EmotionMomentEditor
+                  label="W trakcie transakcji"
+                  value={fields.emotions.during}
+                  onChange={(value) => setEmotionMoment("during", value)}
+                  states={emotionalStates}
+                  disabled={readOnly}
+                />
+                <EmotionMomentEditor
+                  label="Po transakcji"
+                  value={fields.emotions.after}
+                  onChange={(value) => setEmotionMoment("after", value)}
+                  states={emotionalStates}
+                  disabled={readOnly}
+                />
+              </div>
+            </FormPanel>
+
+            <FormPanel
+              title="Wykres i załączniki"
+              open={panels.attachments}
+              onToggle={() => togglePanel("attachments")}
+              status="empty"
+              statusLabel="Opcjonalne"
+            >
+              {isEdit && trade ? (
+                <TradeAttachments tradeId={trade.id} />
+              ) : (
+                <TradeAttachments
+                  pending={pendingAttachments}
+                  onPendingChange={setPendingAttachments}
+                />
+              )}
+            </FormPanel>
+
+            {isEdit && <TradeAuditLog entries={auditLog} />}
+          </div>
+
+          <aside className={styles.summary}>
+            <TradeBalanceCard
+              isEdit={isEdit}
+              context={balanceContext}
+              currentBalance={accountBalance}
+              currency={accountCurrency}
+            />
+            <TradePreviewCard calculation={preview} currency={accountCurrency} />
+          </aside>
         </div>
-
-        <StrategyChecklistEditor
-          checklist={fields.checklist}
-          onChange={(checklist) => setField("checklist", checklist)}
-          disabled={readOnly}
-        />
-
-        <div className={styles.emotionsSection}>
-          <h3 className={styles.emotionsTitle}>Emocje</h3>
-          <EmotionMomentEditor
-            label="Przed transakcją"
-            value={fields.emotions.before}
-            onChange={(value) => setEmotionMoment("before", value)}
-            states={emotionalStates}
-            disabled={readOnly}
-          />
-          <EmotionMomentEditor
-            label="W trakcie transakcji"
-            value={fields.emotions.during}
-            onChange={(value) => setEmotionMoment("during", value)}
-            states={emotionalStates}
-            disabled={readOnly}
-          />
-          <EmotionMomentEditor
-            label="Po transakcji"
-            value={fields.emotions.after}
-            onChange={(value) => setEmotionMoment("after", value)}
-            states={emotionalStates}
-            disabled={readOnly}
-          />
-        </div>
-
-        {isEdit && trade ? (
-          <TradeAttachments tradeId={trade.id} />
-        ) : (
-          <TradeAttachments pending={pendingAttachments} onPendingChange={setPendingAttachments} />
-        )}
-
-        {isEdit && <TradeAuditLog entries={auditLog} />}
 
         {formError && (
           <p role="alert" className={styles.error}>
@@ -753,17 +846,8 @@ export function TradeFormModal({
           </p>
         )}
         <div className={styles.actions}>
-          <EditModeActions
-            editing={!readOnly}
-            saving={submitting}
-            disabled={submitLocked}
-            saveButtonType="submit"
-            saveLabel={isEdit ? "Zapisz zmiany" : "Zapisz"}
-            onEdit={() => {
-              void handleStartEdit();
-            }}
-            onCancel={handleCancelEdit}
-            readOnlyExtra={
+          {readOnly ? (
+            <>
               <Button
                 type="button"
                 variant="secondary"
@@ -773,8 +857,36 @@ export function TradeFormModal({
               >
                 Zamknij
               </Button>
-            }
-          />
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => {
+                  void handleStartEdit();
+                }}
+              >
+                Edytuj
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="secondary" onClick={handleCancelEdit}>
+                Anuluj
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={submitting || submitLocked}
+                onClick={() => {
+                  void handleSubmit(null, "draft");
+                }}
+              >
+                Zapisz szkic
+              </Button>
+              <Button type="submit" variant="primary" disabled={submitting || submitLocked}>
+                {submitting ? "Zapisywanie..." : "Zapisz transakcję"}
+              </Button>
+            </>
+          )}
         </div>
       </form>
     </Modal>

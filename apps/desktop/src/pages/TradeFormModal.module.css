@@ -4,6 +4,48 @@
   gap: var(--space-3);
 }
 
+/* Formularz po lewej, przyklejone podsumowanie po prawej (sekcja 6.5). Na węższym ekranie
+   podsumowanie schodzi pod panele - stąd jedna kolumna w media query niżej. */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.panels {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  position: sticky;
+  top: 0;
+  min-width: 0;
+}
+
+@media (max-width: 64rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Kolejność ma znaczenie: podsumowanie ma wylądować zaraz pod parametrami transakcji, a nie
+     na samym końcu formularza. */
+  .summary {
+    position: static;
+    order: 2;
+  }
+
+  .panels {
+    order: 1;
+  }
+}
+
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -42,6 +84,34 @@
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-text-muted);
+}
+
+/* Treści z pól usuniętych w sekcji 6.7 - pokazywane tylko do odczytu, żeby nic nie przepadło. */
+.legacyNotes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.legacyNotesTitle {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.legacyNoteLabel {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.legacyNoteText {
+  margin: 0.15rem 0 0;
+  white-space: pre-wrap;
+  color: var(--color-text-primary);
 }
 
 .error {
