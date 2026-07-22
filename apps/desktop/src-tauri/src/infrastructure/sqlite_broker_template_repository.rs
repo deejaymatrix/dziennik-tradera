@@ -7,7 +7,9 @@ use uuid::Uuid;
 use crate::domain::broker_template::{
     BrokerTemplate, BrokerTemplateRepository, NewTemplate, TemplateSource,
 };
+use crate::domain::instrument_import::ImportedInstrument;
 use crate::error::AppError;
+use crate::infrastructure::sqlite_instrument_repository::insert_version;
 
 pub struct SqliteBrokerTemplateRepository {
     conn: Arc<Mutex<Connection>>,
@@ -39,6 +41,17 @@ fn map_row(row: &Row) -> rusqlite::Result<BrokerTemplate> {
         archived_at: row.get("archived_at")?,
         instrument_count: row.get("instrument_count")?,
     })
+}
+
+fn map_import_conflict(err: rusqlite::Error) -> AppError {
+    if let rusqlite::Error::SqliteFailure(sql_err, _) = &err {
+        if sql_err.code == rusqlite::ErrorCode::ConstraintViolation {
+            return AppError::Validation(
+                "Import zawiera instrumenty o powtarzającym się symbolu w obrębie szablonu - popraw plik i spróbuj ponownie.".to_string(),
+            );
+        }
+    }
+    err.into()
 }
 
 fn name_conflict_as_validation(err: rusqlite::Error, name: &str) -> AppError {
@@ -114,6 +127,71 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
         .map_err(|e| name_conflict_as_validation(e, input.name.trim()))?;
         drop(conn);
         self.get(&id)
+    }
+
+    fn create_from_import(
+        &self,
+        meta: &NewTemplate,
+        instruments: &[ImportedInstrument],
+    ) -> Result<BrokerTemplate, AppError> {
+        meta.validate()?;
+        let mut conn = self
+            .conn
+            .lock()
+            .expect("mutex bazy danych zatruty (poprzedni panik)");
+        let tx = conn.transaction()?;
+        let now = Utc::now().to_rfc3339();
+        let template_id = Uuid::now_v7().to_string();
+
+        tx.execute(
+            "INSERT INTO broker_instrument_templates
+                 (id, name, broker_name, account_type, source, import_format_version, account_id, created_at, updated_at, archived_at)
+             VALUES (?1, ?2, ?3, ?4, 'broker_import', 1, NULL, ?5, ?5, NULL)",
+            rusqlite::params![template_id, meta.name.trim(), meta.broker_name.trim(), meta.account_type, now],
+        )
+        .map_err(|e| name_conflict_as_validation(e, meta.name.trim()))?;
+
+        for (index, imported) in instruments.iter().enumerate() {
+            let instrument_id = Uuid::now_v7().to_string();
+            tx.execute(
+                "INSERT INTO instruments (id, display_symbol, source_symbol, description, category, factory_index, created_at, updated_at, template_id, canonical_symbol, variant, origin)
+                 VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?6, ?7, ?8, ?9, 'broker_import')",
+                rusqlite::params![
+                    instrument_id,
+                    imported.display_symbol.trim(),
+                    imported.source_symbol.trim(),
+                    imported.description.trim(),
+                    imported.category,
+                    now,
+                    template_id,
+                    imported.canonical_symbol,
+                    imported.variant,
+                ],
+            )
+            .map_err(map_import_conflict)?;
+
+            let version_id = Uuid::now_v7().to_string();
+            insert_version(
+                &tx,
+                &version_id,
+                &instrument_id,
+                1,
+                &imported.parameters,
+                &now,
+            )?;
+
+            // Domyślnie ukryte - użytkownik aktywuje wybrane instrumenty (sekcja 1.7). Kolejność
+            // startowa = kolejność w pliku.
+            tx.execute(
+                "INSERT INTO instrument_preferences (instrument_id, is_visible, sort_order, is_favorite)
+                 VALUES (?1, 0, ?2, 0)",
+                rusqlite::params![instrument_id, index as i64],
+            )?;
+        }
+
+        tx.commit()?;
+        drop(conn);
+        self.get(&template_id)
     }
 
     fn rename(&self, id: &str, name: &str) -> Result<BrokerTemplate, AppError> {
@@ -404,6 +482,68 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
 mod tests {
     use super::*;
     use crate::db::{connection, migrations};
+    use crate::domain::instrument::InstrumentVersionInput;
+    use rust_decimal_macros::dec;
+
+    fn imported(display: &str, source: &str, variant: &str, canonical: &str) -> ImportedInstrument {
+        ImportedInstrument {
+            display_symbol: display.to_string(),
+            source_symbol: source.to_string(),
+            canonical_symbol: canonical.to_string(),
+            variant: variant.to_string(),
+            description: "Zaimportowany".to_string(),
+            category: "Zaimportowane".to_string(),
+            parameters: InstrumentVersionInput {
+                currency_base: "EUR".to_string(),
+                currency_profit: "USD".to_string(),
+                currency_margin: "USD".to_string(),
+                digits: 5,
+                point: dec!(0.00001),
+                trade_tick_size: dec!(0.00001),
+                trade_tick_value: dec!(1),
+                tick_value_profit: dec!(1),
+                tick_value_loss: dec!(1),
+                contract_size: dec!(100000),
+                volume_min: dec!(0.01),
+                volume_max: dec!(100),
+                volume_step: dec!(0.01),
+                volume_limit: dec!(0),
+                calc_mode: "SYMBOL_CALC_MODE_FOREX".to_string(),
+                trade_mode: "SYMBOL_TRADE_MODE_FULL".to_string(),
+                execution_mode: "SYMBOL_TRADE_EXECUTION_MARKET".to_string(),
+                order_mode_flags: 63,
+                filling_mode_flags: 1,
+                expiration_mode_flags: 15,
+                spread_floating: true,
+                stops_level_points: 0,
+                freeze_level_points: 0,
+                margin_initial: dec!(0),
+                margin_maintenance: dec!(0),
+                margin_hedged: dec!(0),
+                margin_hedged_use_leg: false,
+                liquidity_rate: dec!(0),
+                margin_rate_buy_initial: dec!(1),
+                margin_rate_buy_maintenance: dec!(1),
+                margin_rate_sell_initial: dec!(1),
+                margin_rate_sell_maintenance: dec!(1),
+                swap_mode: "SYMBOL_SWAP_MODE_POINTS".to_string(),
+                swap_long: dec!(0),
+                swap_short: dec!(0),
+                swap_sunday: dec!(0),
+                swap_monday: dec!(0),
+                swap_tuesday: dec!(0),
+                swap_wednesday: dec!(0),
+                swap_thursday: dec!(0),
+                swap_friday: dec!(0),
+                swap_saturday: dec!(0),
+                triple_swap_day: "ENUM_DAY_OF_WEEK::3".to_string(),
+                quote_sessions: String::new(),
+                trade_sessions: String::new(),
+                start_time: None,
+                expiration_time: None,
+            },
+        }
+    }
 
     fn repo_with_fresh_db() -> (
         SqliteBrokerTemplateRepository,
@@ -434,6 +574,54 @@ mod tests {
             .into_iter()
             .find(|t| t.name == "QuoMarkets RAW")
             .expect("szablon startowy istnieje")
+    }
+
+    #[test]
+    fn create_from_import_builds_a_template_with_all_instruments_hidden() {
+        let (repo, conn, _dir) = repo_with_fresh_db();
+        let meta = NewTemplate {
+            name: "IC Markets Raw (import)".to_string(),
+            broker_name: "IC Markets".to_string(),
+            account_type: Some("RAW".to_string()),
+        };
+        let instruments = vec![
+            imported("EURUSD", "EURUSD.raw", "STANDARD", "EURUSD"),
+            imported("DJI30-MINI", "DJI30m", "MINI", "DJI30"),
+        ];
+        let template = repo
+            .create_from_import(&meta, &instruments)
+            .expect("import");
+        assert_eq!(template.instrument_count, 2);
+        assert_eq!(template.source, TemplateSource::BrokerImport);
+        assert_eq!(template.account_id, None);
+
+        // Instrumenty z importu: origin=broker_import, domyślnie ukryte, z rewizją v1 i
+        // rozpoznanym wariantem.
+        let (origin, visible, versions): (String, i64, i64) = conn
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT i.origin, p.is_visible,
+                        (SELECT count(*) FROM instrument_versions v WHERE v.instrument_id = i.id)
+                 FROM instruments i JOIN instrument_preferences p ON p.instrument_id = i.id
+                 WHERE i.template_id = ?1 AND i.display_symbol = 'DJI30-MINI'",
+                [&template.id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .expect("imported instrument row");
+        assert_eq!(origin, "broker_import");
+        assert_eq!(visible, 0);
+        assert_eq!(versions, 1);
+        let variant: String = conn
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT variant FROM instruments WHERE template_id = ?1 AND display_symbol = 'DJI30-MINI'",
+                [&template.id],
+                |r| r.get(0),
+            )
+            .expect("variant");
+        assert_eq!(variant, "MINI");
     }
 
     #[test]

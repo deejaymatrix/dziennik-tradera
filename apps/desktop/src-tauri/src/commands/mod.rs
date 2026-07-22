@@ -4,6 +4,7 @@ pub mod backup;
 pub mod broker_templates;
 pub mod emotional_states;
 pub mod export;
+pub mod instrument_import;
 pub mod instruments;
 pub mod intervals;
 pub mod reports;

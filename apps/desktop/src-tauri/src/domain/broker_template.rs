@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use super::instrument_import::ImportedInstrument;
 use crate::error::AppError;
 
 /// Źródło szablonu instrumentów (sekcja 1.2 specyfikacji szablonów brokerów).
@@ -67,8 +68,17 @@ impl NewTemplate {
 pub trait BrokerTemplateRepository {
     fn list(&self, include_archived: bool) -> Result<Vec<BrokerTemplate>, AppError>;
     fn get(&self, id: &str) -> Result<BrokerTemplate, AppError>;
-    /// Nowy, pusty szablon użytkownika (import brokera tworzy szablony osobną ścieżką w B3).
+    /// Nowy, pusty szablon użytkownika.
     fn create(&self, input: &NewTemplate) -> Result<BrokerTemplate, AppError>;
+    /// Atomowo tworzy szablon z importu brokera wraz ze WSZYSTKIMI instrumentami i ich pierwszą
+    /// rewizją parametrów (sekcja 1.5 - żaden częściowy szablon nie powstaje przy błędzie).
+    /// `source = broker_import`, instrumenty oznaczone jako pochodzące z importu (chronione
+    /// przed pojedynczym usunięciem). Domyślnie wszystkie ukryte - użytkownik aktywuje wybrane.
+    fn create_from_import(
+        &self,
+        meta: &NewTemplate,
+        instruments: &[ImportedInstrument],
+    ) -> Result<BrokerTemplate, AppError>;
     fn rename(&self, id: &str, name: &str) -> Result<BrokerTemplate, AppError>;
     /// Głęboka, niezależna kopia: szablon + instrumenty + preferencje + AKTYWNE rewizje
     /// parametrów. Zmiany w kopii nigdy nie dotykają oryginału (sekcja 1.1).

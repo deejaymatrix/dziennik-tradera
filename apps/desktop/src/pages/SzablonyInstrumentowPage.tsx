@@ -61,6 +61,7 @@ export function SzablonyInstrumentowPage(): ReactElement {
   const [busy, setBusy] = useState(false);
   const [dialog, setDialog] = useState<CreateOrRenameDialogState | null>(null);
   const [assign, setAssign] = useState<AssignDialogState | null>(null);
+  const [importing, setImporting] = useState(false);
 
   async function load(): Promise<void> {
     setError(null);
@@ -185,12 +186,8 @@ export function SzablonyInstrumentowPage(): ReactElement {
             </p>
           </div>
           <div className={styles.headerActions}>
-            <Button
-              variant="secondary"
-              disabled
-              title="Import z terminala MT5 - dostępny w kolejnej aktualizacji"
-            >
-              Importuj dane brokera (wkrótce)
+            <Button variant="secondary" onClick={() => setImporting(true)} disabled={busy}>
+              Importuj dane brokera
             </Button>
             <Button variant="primary" onClick={() => setDialog({ mode: "create" })} disabled={busy}>
               <Plus size={16} /> Dodaj szablon
@@ -247,9 +244,11 @@ export function SzablonyInstrumentowPage(): ReactElement {
                         <IconButton
                           icon={<SlidersHorizontal size={14} />}
                           aria-label={`Edytuj instrumenty: ${template.name}`}
-                          onClick={() =>
-                            navigate(`/instrumenty?template=${encodeURIComponent(template.id)}`)
-                          }
+                          onClick={() => {
+                            void navigate(
+                              `/instrumenty?template=${encodeURIComponent(template.id)}`,
+                            );
+                          }}
                           disabled={busy}
                         />
                         <IconButton
@@ -315,7 +314,216 @@ export function SzablonyInstrumentowPage(): ReactElement {
           }}
         />
       )}
+      {importing && (
+        <ImportBrokerModal
+          onClose={() => setImporting(false)}
+          onImported={async () => {
+            setImporting(false);
+            await load();
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+interface ImportPreviewRow {
+  source_symbol: string;
+  display_symbol: string;
+  canonical_symbol: string;
+  variant: string;
+  currency_profit: string;
+  contract_size: string;
+}
+interface ImportPreview {
+  row_count: number;
+  rows: ImportPreviewRow[];
+  warnings: string[];
+}
+
+interface ImportBrokerModalProps {
+  onClose: () => void;
+  onImported: () => Promise<void>;
+}
+
+/**
+ * Kreator importu danych brokera z pliku CSV (eksport parametrów instrumentów z MT5, B3).
+ * Krok 1: wybór pliku → podgląd bez zapisu. Krok 2: nazwa/broker/typ → atomowy import jako nowy
+ * szablon. Sam plik czyta backend (komendy przyjmują ścieżkę), tu przekazujemy tylko ścieżkę.
+ */
+function ImportBrokerModal({ onClose, onImported }: ImportBrokerModalProps): ReactElement {
+  const { showToast } = useToast();
+  const [sourcePath, setSourcePath] = useState<string | null>(null);
+  const [preview, setPreview] = useState<ImportPreview | null>(null);
+  const [name, setName] = useState("");
+  const [broker, setBroker] = useState("");
+  const [accountType, setAccountType] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function handlePickFile(): Promise<void> {
+    setError(null);
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const path = await open({
+      multiple: false,
+      directory: false,
+      filters: [{ name: "Dane instrumentów brokera", extensions: ["csv", "txt"] }],
+    });
+    if (!path || Array.isArray(path)) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await invokeCommand<ImportPreview>("preview_broker_import", {
+        sourcePath: path,
+      });
+      setSourcePath(path);
+      setPreview(result);
+      // Podpowiedz nazwę i brokera na podstawie nazwy pliku.
+      const fileName =
+        path
+          .split(/[\\/]/)
+          .pop()
+          ?.replace(/\.(csv|txt)$/i, "") ?? "";
+      if (!name.trim()) {
+        setName(fileName || "Nowy szablon");
+      }
+      if (!broker.trim()) {
+        setBroker(fileName || "Broker");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Nie udało się odczytać pliku.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleImport(): Promise<void> {
+    if (!sourcePath || !name.trim()) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const template = await invokeCommand<BrokerTemplate>("import_broker_template", {
+        name: name.trim(),
+        brokerName: broker.trim() || name.trim(),
+        accountType: accountType.trim() || null,
+        sourcePath,
+      });
+      showToast(
+        `Zaimportowano szablon "${template.name}" (${template.instrument_count} instrumentów).`,
+        "success",
+      );
+      await onImported();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Import się nie powiódł.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Importuj dane brokera">
+      <div className={styles.form}>
+        <p className={styles.note}>
+          Wskaż plik CSV z eksportem parametrów instrumentów z terminala MT5 (ten sam format, z
+          którego powstał szablon startowy). Aplikacja odczyta tabelę i utworzy z niej nowy szablon
+          - nic nie zostanie zapisane, dopóki nie klikniesz "Importuj".
+        </p>
+
+        <div className={styles.importPickRow}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void handlePickFile()}
+            disabled={busy}
+          >
+            {sourcePath ? "Zmień plik" : "Wybierz plik CSV"}
+          </Button>
+          {sourcePath && (
+            <span className={styles.importFileName}>{sourcePath.split(/[\\/]/).pop()}</span>
+          )}
+        </div>
+
+        {error && (
+          <p role="alert" className={styles.error}>
+            {error}
+          </p>
+        )}
+
+        {preview && (
+          <>
+            <div className={styles.importSummary}>
+              <Badge variant="info">Rozpoznano {preview.row_count} instrumentów</Badge>
+              {preview.warnings.map((w) => (
+                <Badge key={w} variant="neutral">
+                  {w}
+                </Badge>
+              ))}
+            </div>
+            <div className={styles.importPreviewTable}>
+              <Table>
+                <thead>
+                  <tr>
+                    <th>Symbol brokera</th>
+                    <th>Wyświetlany</th>
+                    <th>Wariant</th>
+                    <th>Waluta</th>
+                    <th className={tableStyles.numeric}>Kontrakt</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.rows.slice(0, 50).map((r) => (
+                    <tr key={r.source_symbol}>
+                      <td>{r.source_symbol}</td>
+                      <td>{r.display_symbol}</td>
+                      <td>{r.variant === "MINI" ? <Badge variant="neutral">MINI</Badge> : "—"}</td>
+                      <td>{r.currency_profit}</td>
+                      <td className={tableStyles.numeric}>{r.contract_size}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+              {preview.rows.length > 50 && (
+                <p className={styles.note}>...i {preview.rows.length - 50} więcej.</p>
+              )}
+            </div>
+
+            <TextField
+              label="Nazwa szablonu"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+            <TextField
+              label="Nazwa brokera"
+              value={broker}
+              onChange={(e) => setBroker(e.target.value)}
+            />
+            <TextField
+              label="Typ konta (opcjonalnie)"
+              value={accountType}
+              onChange={(e) => setAccountType(e.target.value)}
+              hint="Np. RAW, Standard, ECN."
+            />
+          </>
+        )}
+
+        <div className={styles.formActions}>
+          <Button type="button" variant="secondary" onClick={onClose} disabled={busy}>
+            Anuluj
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={() => void handleImport()}
+            disabled={busy || !preview || !name.trim()}
+          >
+            {busy ? "Import..." : "Importuj"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

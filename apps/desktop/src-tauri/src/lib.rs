@@ -18,6 +18,7 @@ use application::backup::BackupService;
 use application::broker_templates::BrokerTemplatesService;
 use application::emotional_states::EmotionalStatesService;
 use application::export::ExportService;
+use application::instrument_import::InstrumentImportService;
 use application::instruments::InstrumentsService;
 use application::intervals::IntervalsService;
 use application::reports::ReportsService;
@@ -137,10 +138,12 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
     let trading_rules = Arc::new(TradingRulesService::new(Arc::new(
         SqliteTradingRulesRepository::new(conn.clone()),
     )));
+    let broker_template_repo = Arc::new(SqliteBrokerTemplateRepository::new(conn.clone()));
     let broker_templates = Arc::new(BrokerTemplatesService::new(
-        Arc::new(SqliteBrokerTemplateRepository::new(conn.clone())),
+        broker_template_repo.clone(),
         accounts.clone(),
     ));
+    let instrument_import = InstrumentImportService::new(broker_template_repo.clone());
     // Uzgodnienie startowe (sekcja 1.3 specyfikacji szablonów): każde aktywne konto bez
     // szablonu dostaje niezależną kopię domyślnego. Błąd nie blokuje startu aplikacji.
     match broker_templates.reconcile_account_templates() {
@@ -177,6 +180,7 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
         attachments,
         trading_rules,
         broker_templates,
+        instrument_import,
         trash,
     }
 }
@@ -280,6 +284,8 @@ pub fn run() {
             commands::broker_templates::assign_broker_template,
             commands::broker_templates::unassign_broker_template,
             commands::broker_templates::archive_broker_template,
+            commands::instrument_import::preview_broker_import,
+            commands::instrument_import::import_broker_template,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

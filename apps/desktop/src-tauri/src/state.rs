@@ -9,6 +9,7 @@ use crate::application::backup::BackupService;
 use crate::application::broker_templates::BrokerTemplatesService;
 use crate::application::emotional_states::EmotionalStatesService;
 use crate::application::export::ExportService;
+use crate::application::instrument_import::InstrumentImportService;
 use crate::application::instruments::InstrumentsService;
 use crate::application::intervals::IntervalsService;
 use crate::application::reports::ReportsService;
@@ -41,6 +42,7 @@ pub enum DbState {
         attachments: Arc<AttachmentsService>,
         trading_rules: Arc<TradingRulesService>,
         broker_templates: Arc<BrokerTemplatesService>,
+        instrument_import: InstrumentImportService,
         trash: TrashService,
     },
     Failed {

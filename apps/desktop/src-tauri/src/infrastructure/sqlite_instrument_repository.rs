@@ -173,7 +173,7 @@ fn map_unique_violation(err: rusqlite::Error) -> AppError {
     AppError::from(err)
 }
 
-fn insert_version(
+pub(crate) fn insert_version(
     tx: &rusqlite::Transaction,
     version_id: &str,
     instrument_id: &str,
