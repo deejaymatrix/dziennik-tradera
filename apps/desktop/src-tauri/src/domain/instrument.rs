@@ -360,7 +360,14 @@ impl NewInstrumentInput {
 }
 
 /// Filtr listy dla ekranu "Zarządzaj instrumentami".
+///
+/// `#[serde(default)]` jest tu ISTOTNE, nie kosmetyczne: `derive(Default)` sam z siebie NIE
+/// sprawia, że serde uzupełnia brakujące pola - bez tego atrybutu każde pole nie-`Option`
+/// (`visibility`, `user_created_only`) jest obowiązkowe w JSON-ie i pominięcie go wywala całą
+/// komendę błędem "missing field", mimo że typ po stronie TypeScriptu deklaruje je jako
+/// opcjonalne. Filtr ma się zachowywać jak filtr: brak pola = brak zawężenia.
 #[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
 pub struct InstrumentListFilter {
     /// Szuka w symbolu wyświetlanym, symbolu technicznym, kanonicznym, opisie i kategorii.
     pub search: Option<String>,
@@ -414,6 +421,29 @@ pub trait InstrumentRepository {
 mod tests {
     use super::*;
     use rust_decimal_macros::dec;
+
+    /// Regresja: ekran instrumentów wywalał się komunikatem
+    /// "invalid args `filter` for command `list_instruments`: missing field `user_created_only`",
+    /// bo frontend pomija pola, których nie zawęża, a struktura wymagała ich wszystkich.
+    /// Te trzy ładunki to DOKŁADNIE to, co wysyłają InstrumentsPage, TradeFormModal
+    /// i useReportFilter - jeśli którykolwiek przestanie się deserializować, ekran znów padnie.
+    #[test]
+    fn filtr_listy_przyjmuje_ladunki_wysylane_przez_frontend() {
+        let bez_user_created_only = r#"{"search":null,"category":null,"visibility":"visible","template_id":null}"#;
+        let filtr: InstrumentListFilter = serde_json::from_str(bez_user_created_only).unwrap();
+        assert!(!filtr.user_created_only);
+        assert_eq!(filtr.visibility, InstrumentVisibilityFilter::Visible);
+
+        let bez_template_id = r#"{"search":null,"category":null,"visibility":"visible"}"#;
+        let filtr: InstrumentListFilter = serde_json::from_str(bez_template_id).unwrap();
+        assert!(filtr.template_id.is_none());
+
+        // Pusty obiekt = brak jakiegokolwiek zawężenia, nie błąd.
+        let filtr: InstrumentListFilter = serde_json::from_str("{}").unwrap();
+        assert_eq!(filtr.visibility, InstrumentVisibilityFilter::All);
+        assert!(!filtr.user_created_only);
+        assert!(filtr.search.is_none());
+    }
 
     fn valid_params() -> InstrumentVersionInput {
         InstrumentVersionInput {
