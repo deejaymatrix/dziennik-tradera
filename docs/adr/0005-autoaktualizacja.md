@@ -30,19 +30,27 @@ nowej wersji (bez wysyłania żadnych danych użytkownika).
   przepływ (sprawdź / pobierz / zainstaluj / uruchom ponownie) jest w Ustawieniach →
   Aktualizacje, zawsze z wyraźną akcją użytkownika przed pobraniem i przed restartem.
 
+## Gdzie mieszkają aktualizacje
+
+Źródłem aktualizacji są **wydania (Releases) publicznego repozytorium**
+`deejaymatrix/dziennik-tradera`. Nie trzeba do tego żadnego własnego serwera ani hostingu:
+pliki wydania w publicznym repozytorium są pobieralne bez logowania, a `tauri-action` publikuje
+obok instalatora manifest `latest.json`, którego szuka wtyczka aktualizacji.
+
+```
+"endpoints": ["https://github.com/deejaymatrix/dziennik-tradera/releases/latest/download/latest.json"]
+```
+
+Warunek konieczny: repozytorium musi pozostać **publiczne**. Gdyby kiedyś zostało przełączone na
+prywatne, aktualizacje przestaną się pobierać (prywatne wydania wymagają tokenu), i trzeba będzie
+przenieść pliki wydań gdzie indziej — np. do osobnego publicznego repozytorium tylko na wydania
+albo na statyczny hosting (Cloudflare R2, GitHub Pages).
+
 ## WAŻNE — do zrobienia przed pierwszym prawdziwym wydaniem
 
-`tauri.conf.json` ma na razie **placeholder** zamiast prawdziwego adresu repozytorium:
-
-```
-"endpoints": ["https://github.com/TWOJA-NAZWA-UZYTKOWNIKA/dziennik-tradera/releases/latest/download/latest.json"]
-```
-
-Zanim autoaktualizacja będzie działać naprawdę, trzeba:
-
-1. Utworzyć repozytorium na GitHubie (jeśli jeszcze nie istnieje) i podpiąć je jako `origin`.
-2. Podmienić `TWOJA-NAZWA-UZYTKOWNIKA/dziennik-tradera` w `tauri.conf.json` na prawdziwą
-   ścieżkę `właściciel/repozytorium`.
+1. ~~Utworzyć repozytorium na GitHubie i podpiąć je jako `origin`.~~ ✅ zrobione.
+2. ~~Podmienić placeholder w `tauri.conf.json` na prawdziwą ścieżkę `właściciel/repozytorium`.~~
+   ✅ zrobione.
 3. W ustawieniach repozytorium na GitHubie (Settings → Secrets and variables → Actions)
    dodać dwa sekrety:
    - `TAURI_SIGNING_PRIVATE_KEY` — cała zawartość pliku

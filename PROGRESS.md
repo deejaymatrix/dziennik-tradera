@@ -1262,6 +1262,67 @@ przewijania. Pełny ręczny przegląd rozdzielczości/skalowania/motywów pozost
 
 **Następny krok:** Faza 11 — aktualizacja obszarów zależnych + testy końcowe + podsumowanie.
 
+## Nowa specyfikacja: szablony brokerów, kalkulator, formularz transakcji (etapy B1–B9)
+
+Źródło: `Prompt_implementacja_szablonow_brokerow_kalkulatora_i_formularza_transakcji (2).md`.
+Ta specyfikacja wchłania dawną Fazę 11. Windows-only (użytkownik wycofał macOS).
+
+### B1 — Schemat szablonów brokerów — ✅ ukończona
+
+Migracja `0010_broker_templates.sql`: tabela `broker_instrument_templates` (1 konto = maks. 1
+aktywny szablon, wymuszone indeksami częściowymi, nie tylko w UI), `instruments` rozszerzone
+w miejscu przez `ALTER TABLE` o `template_id`/`canonical_symbol`/`variant`/`origin`.
+Unikalność symboli przestała być globalna — działa per szablon, więc dwa szablony różnych
+brokerów mają własny XAUUSD o różnych parametrach. Cały dotychczasowy katalog 350 instrumentów
+stał się szablonem „QuoMarkets RAW" bez utraty parametrów, rewizji ani kolejności. Domena
+`domain::broker_template`, `SqliteBrokerTemplateRepository`, `BrokerTemplatesService`, komendy
+szablonów i integracja z Koszem.
+
+### B2 — Ekran „Szablony instrumentów" + edycja per szablon — ✅ ukończona
+
+`SzablonyInstrumentowPage`: lista szablonów (nazwa, broker, typ, liczba instrumentów,
+przypisane konto), tworzenie/zmiana nazwy/duplikowanie/przypisanie do konta/archiwizacja do
+Kosza, a także „Edytuj instrumenty" przechodzące na ekran instrumentów w kontekście danego
+szablonu.
+
+### B3 — Import instrumentów z pliku CSV brokera (MT5) — ✅ ukończona
+
+`domain::instrument_import`: parser 52-kolumnowego eksportu MT5 (dopasowanie kolumn po nazwie,
+kolumny wymagane vs. sensowne domyślne, wariant rozpoznawany z sufiksu `-MINI`, wykrywanie
+kolizji symboli). Kolizja przerywa CAŁY import — nigdy nie zapisuje częściowego szablonu.
+Atomowe `create_from_import` (szablon + instrumenty + rewizje v1 + preferencje). Kreator w UI:
+plik → podgląd (liczba, ostrzeżenia, tabela) → nazwa/broker/typ → import. 269 testów Rust.
+
+### Poprawka lota z przecinkiem + `Wolumen` → `Lot` — ✅ ukończona
+
+**Zgłoszony błąd:** lot `1,23` nie był przeliczany. Przyczyną nie było środowisko Rust (backend
+odpowiadał poprawnie) tylko `app/decimal.ts`: wzorzec walidacji akceptował wyłącznie kropkę,
+więc `1,23` z polskiej klawiatury nie przechodziło, a `buildTradeInput` wysyłało do backendu
+`volume: null` — transakcja zapisywała się bez lota i nie było czego liczyć.
+
+Wspólna `normalizeDecimalInput` sprowadza wejście do jednej postaci kanonicznej wymaganej przez
+`rust_decimal` (przecinek i kropka równoważne, spacje separatora tysięcy ignorowane, skróty
+`,5`/`5,` uzupełniane) i jest stosowana we **wszystkich** miejscach wysyłki liczb — także saldo
+początkowe konta, operacje kasowe i parametry instrumentu. Samo dopuszczenie przecinka w
+walidacji przeniosłoby błąd do parsowania `Decimal` po stronie Rusta.
+
+Zmiana nazwy użytkowej `Wolumen` → `Lot` (sekcja 2.3 specyfikacji): formularz transakcji, tabela
+historii, podgląd, parametry instrumentu, nagłówek eksportu CSV, dziennik zmian transakcji.
+Nazwy techniczne (`volume`) zostają wewnętrzne.
+
+Dodatkowo: `invokeCommand` zwracało komunikat „Brak środowiska Tauri" jako domyślny dla KAŻDEGO
+błędu o nieznanym kształcie (Tauri odrzuca zwykłym stringiem m.in. przy niezarejestrowanej
+komendzie), więc realne błędy backendu były opisywane jako brak backendu i kierowały diagnozę na
+manowce. Obecność powłoki Tauri jest teraz sprawdzana jawnie.
+
+**Przetestowane:** 11 nowych testów frontendu pilnujących `1,23`/`0,01` (24 łącznie), 269 testów
+Rust, eslint bez błędów.
+
+**Następny krok (decyzja użytkownika z 2026-07-22):** kolejność została zmieniona — najpierw
+działający instalator, a pozostałe etapy (B4 kalkulator pozycji, B5 kolor strategii/szczegóły
+konta, B6 przebudowa formularza, B7 częściowe zamknięcia, B8 interwały do Kosza, B9 aktualizacje)
+mają trafiać do aplikacji jako aktualizacje.
+
 ## Pozostałe cele Etapu 1
 
 Patrz [ROADMAP.md](ROADMAP.md) — jeszcze nierozpoczęte.

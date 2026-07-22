@@ -39,7 +39,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU3RjFDOEQ0N0NGNzU4RjEKUldUeFdQZDgxTWp4NTBTK3VDajhPVGNBODBiaVdXWGRHSE5FZGdmSERnYUFOZlpaelpmZkt5UnEK",
       "endpoints": [
-        "https://github.com/TWOJA-NAZWA-UZYTKOWNIKA/dziennik-tradera/releases/latest/download/latest.json"
+        "https://github.com/deejaymatrix/dziennik-tradera/releases/latest/download/latest.json"
       ]
     }
   }
