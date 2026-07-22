@@ -73,4 +73,17 @@ impl InstrumentImportService {
         };
         self.templates.create_from_import(&meta, &instruments)
     }
+
+    /// Atomowy import do istniejącego szablonu - dokładnie raz na szablon (B3+, zmiana zakresu:
+    /// import odbywa się teraz w zakładce "Instrumenty", w kontekście wybranego szablonu).
+    pub fn import_into_template(
+        &self,
+        template_id: &str,
+        csv_text: &str,
+    ) -> Result<BrokerTemplate, AppError> {
+        let (header, records) = Self::split_csv(csv_text)?;
+        let instruments = parse_records(&header, &records)?;
+        self.templates
+            .import_into_template(template_id, &instruments)
+    }
 }

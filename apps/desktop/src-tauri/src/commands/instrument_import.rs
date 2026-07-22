@@ -35,6 +35,17 @@ pub fn preview_broker_import(
     require_db(&state)?.preview(&csv_text)
 }
 
+/// Atomowy import pliku brokera do WYBRANEGO szablonu - jeden import na szablon.
+#[tauri::command]
+pub fn import_instruments_into_template(
+    state: State<'_, AppState>,
+    template_id: String,
+    source_path: String,
+) -> Result<BrokerTemplate, AppError> {
+    let csv_text = read_csv_file(&source_path)?;
+    require_db(&state)?.import_into_template(&template_id, &csv_text)
+}
+
 /// Atomowy import pliku brokera jako nowy szablon instrumentów.
 #[tauri::command]
 pub fn import_broker_template(

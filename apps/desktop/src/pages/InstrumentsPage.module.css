@@ -25,6 +25,21 @@
   gap: var(--space-2);
 }
 
+/* Pole wyboru szablonu razem z akcjami na szablonach - osobne okno nawigacyjne "Szablony
+   instrumentów" zostało zwinięte tutaj, żeby nie mnożyć ekranów. */
+.templateField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.templateActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
 .searchInput {
   width: 20rem;
 }

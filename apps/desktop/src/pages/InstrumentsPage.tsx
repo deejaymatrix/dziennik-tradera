@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
-import { useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import {
   ArrowDown,
   ArrowUp,
@@ -9,9 +9,11 @@ import {
   Pencil,
   Plus,
   RotateCcw,
+  Layers,
   Search,
   SlidersHorizontal,
   Trash2,
+  Upload,
 } from "lucide-react";
 import { invokeCommand } from "../app/invokeCommand";
 import {
@@ -32,7 +34,9 @@ import { Table, tableStyles } from "../ui/components/Table/Table";
 import { TextField } from "../ui/components/TextField/TextField";
 import { useConfirm } from "../ui/components/ConfirmDialog/ConfirmDialog";
 import { useToast } from "../ui/components/Toast/ToastProvider";
+import { ImportBrokerModal } from "./ImportBrokerModal";
 import { InstrumentFormModal } from "./InstrumentFormModal";
+import { NewTemplateModal } from "./NewTemplateModal";
 import styles from "./InstrumentsPage.module.css";
 
 const PAGE_SIZE = 25;
@@ -62,6 +66,7 @@ export function InstrumentsPage(): ReactElement {
   const { showToast } = useToast();
   const confirm = useConfirm();
 
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -84,6 +89,15 @@ export function InstrumentsPage(): ReactElement {
   const [editingInstrument, setEditingInstrument] = useState<InstrumentWithDetails | undefined>(
     undefined,
   );
+  const [newTemplateOpen, setNewTemplateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+
+  const selectedTemplate = useMemo(
+    () => templates?.find((t) => t.id === templateId) ?? null,
+    [templates, templateId],
+  );
+  /** Jeden import danych brokera na szablon - szablon z importu jest już "zajęty". */
+  const alreadyImported = selectedTemplate?.source === "broker_import";
 
   const filter: InstrumentListFilter = useMemo(
     () => ({
@@ -114,6 +128,17 @@ export function InstrumentsPage(): ReactElement {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- jednorazowo przy montowaniu.
   }, []);
+
+  /** Odświeża listę szablonów (po utworzeniu nowego albo po imporcie zmieniającym licznik). */
+  async function reloadTemplates(selectId?: string): Promise<void> {
+    const ts = await invokeCommand<BrokerTemplate[]>("list_broker_templates", {
+      includeArchived: false,
+    });
+    setTemplates(ts);
+    if (selectId) {
+      setTemplateId(selectId);
+    }
+  }
 
   async function load(): Promise<void> {
     setError(null);
@@ -260,16 +285,43 @@ export function InstrumentsPage(): ReactElement {
     <div className={styles.page}>
       <div className={styles.header}>
         <div className={styles.filters}>
-          {templates && templates.length > 0 && (
-            <Select
-              label="Szablon"
-              value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
-              options={templates.map((t) => ({
-                value: t.id,
-                label: `${t.name} (${t.instrument_count})`,
-              }))}
-            />
+          {templates && (
+            <div className={styles.templateField}>
+              <Select
+                label="Szablon"
+                value={templateId}
+                onChange={(e) => setTemplateId(e.target.value)}
+                options={templates.map((t) => ({
+                  value: t.id,
+                  label: `${t.name} (${t.instrument_count})`,
+                }))}
+              />
+              <div className={styles.templateActions}>
+                <Button variant="ghost" size="sm" onClick={() => setNewTemplateOpen(true)}>
+                  <Plus size={14} aria-hidden="true" /> Nowy szablon
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setImportOpen(true)}
+                  disabled={!selectedTemplate || alreadyImported}
+                  title={
+                    alreadyImported
+                      ? "Ten szablon ma już zaimportowane dane brokera - jeden import na szablon."
+                      : undefined
+                  }
+                >
+                  <Upload size={14} aria-hidden="true" /> Importuj dane brokera
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void navigate("/szablony-instrumentow")}
+                >
+                  <Layers size={14} aria-hidden="true" /> Zarządzaj szablonami
+                </Button>
+              </div>
+            </div>
           )}
           <TextField
             label="Szukaj"
@@ -498,6 +550,28 @@ export function InstrumentsPage(): ReactElement {
         instrument={editingInstrument}
         templateId={templateId || null}
       />
+
+      {newTemplateOpen && (
+        <NewTemplateModal
+          onClose={() => setNewTemplateOpen(false)}
+          onCreated={async (template) => {
+            setNewTemplateOpen(false);
+            await reloadTemplates(template.id);
+          }}
+        />
+      )}
+
+      {importOpen && selectedTemplate && (
+        <ImportBrokerModal
+          template={selectedTemplate}
+          onClose={() => setImportOpen(false)}
+          onImported={async () => {
+            setImportOpen(false);
+            await reloadTemplates();
+            await load();
+          }}
+        />
+      )}
     </div>
   );
 }

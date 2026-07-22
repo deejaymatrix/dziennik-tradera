@@ -79,6 +79,15 @@ pub trait BrokerTemplateRepository {
         meta: &NewTemplate,
         instruments: &[ImportedInstrument],
     ) -> Result<BrokerTemplate, AppError>;
+    /// Atomowo wgrywa dane brokera do ISTNIEJĄCEGO szablonu - dokładnie raz na szablon.
+    /// Powtórny import do tego samego szablonu jest odrzucany (`Validation`), bo scalanie dwóch
+    /// eksportów dawałoby duplikaty symboli i niejednoznaczne parametry; żeby wgrać dane innego
+    /// brokera, użytkownik zakłada nowy szablon.
+    fn import_into_template(
+        &self,
+        template_id: &str,
+        instruments: &[ImportedInstrument],
+    ) -> Result<BrokerTemplate, AppError>;
     fn rename(&self, id: &str, name: &str) -> Result<BrokerTemplate, AppError>;
     /// Głęboka, niezależna kopia: szablon + instrumenty + preferencje + AKTYWNE rewizje
     /// parametrów. Zmiany w kopii nigdy nie dotykają oryginału (sekcja 1.1).

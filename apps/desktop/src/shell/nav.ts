@@ -6,7 +6,6 @@ import {
   BookMarked,
   ScrollText,
   SlidersHorizontal,
-  Layers,
   BarChart3,
   DatabaseBackup,
   Trash2,
@@ -46,7 +45,10 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: "/konta", label: "Konta", icon: Wallet },
       { to: "/strategie", label: "Strategie", icon: BookMarked },
       { to: "/zasady-handlu", label: "Zasady handlu", icon: ScrollText },
-      { to: "/szablony-instrumentow", label: "Szablony instrumentów", icon: Layers },
+      // "Szablony instrumentów" celowo NIE ma już własnej pozycji w nawigacji - zakładanie
+      // szablonu i import danych brokera dzieją się przy polu "Szablon" na ekranie Instrumenty,
+      // a pełne zarządzanie (zmiana nazwy, kopia, przypisanie konta, Kosz) jest dostępne stamtąd
+      // pod trasą /szablony-instrumentow. Jeden ekran mniej zamiast dwóch robiących to samo.
       { to: "/instrumenty", label: "Instrumenty", icon: SlidersHorizontal },
     ],
   },

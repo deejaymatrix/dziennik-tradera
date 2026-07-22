@@ -194,6 +194,104 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
         self.get(&template_id)
     }
 
+    fn import_into_template(
+        &self,
+        template_id: &str,
+        instruments: &[ImportedInstrument],
+    ) -> Result<BrokerTemplate, AppError> {
+        let mut conn = self
+            .conn
+            .lock()
+            .expect("mutex bazy danych zatruty (poprzedni panik)");
+        let tx = conn.transaction()?;
+        let now = Utc::now().to_rfc3339();
+
+        // Szablon musi istnieć i być aktywny (zarchiwizowany leży w Koszu - najpierw przywróć).
+        let archived: Option<String> = tx
+            .query_row(
+                "SELECT archived_at FROM broker_instrument_templates WHERE id = ?1",
+                [template_id],
+                |r| r.get(0),
+            )
+            .map_err(|_| AppError::Validation("Nie znaleziono szablonu.".to_string()))?;
+        if archived.is_some() {
+            return Err(AppError::Validation(
+                "Ten szablon jest w Koszu - przywróć go przed importem.".to_string(),
+            ));
+        }
+
+        // Jeden import danych brokera na szablon. Sprawdzane w tej samej transakcji co zapis,
+        // więc dwa równoległe importy nie prześlizgną się obok siebie.
+        let already_imported: i64 = tx.query_row(
+            "SELECT count(*) FROM instruments WHERE template_id = ?1 AND origin = 'broker_import'",
+            [template_id],
+            |r| r.get(0),
+        )?;
+        if already_imported > 0 {
+            return Err(AppError::Validation(format!(
+                "Ten szablon ma już zaimportowane dane brokera ({already_imported} instrumentów). \
+                 Jeden szablon przyjmuje import tylko raz - żeby wgrać dane innego brokera, \
+                 załóż nowy szablon."
+            )));
+        }
+
+        // Instrumenty dodane wcześniej ręcznie zostają - nowe dopisujemy za nimi.
+        let next_sort_order: i64 = tx.query_row(
+            "SELECT coalesce(max(p.sort_order) + 1, 0) FROM instrument_preferences p
+             JOIN instruments i ON i.id = p.instrument_id WHERE i.template_id = ?1",
+            [template_id],
+            |r| r.get(0),
+        )?;
+
+        for (index, imported) in instruments.iter().enumerate() {
+            let instrument_id = Uuid::now_v7().to_string();
+            tx.execute(
+                "INSERT INTO instruments (id, display_symbol, source_symbol, description, category, factory_index, created_at, updated_at, template_id, canonical_symbol, variant, origin)
+                 VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?6, ?7, ?8, ?9, 'broker_import')",
+                rusqlite::params![
+                    instrument_id,
+                    imported.display_symbol.trim(),
+                    imported.source_symbol.trim(),
+                    imported.description.trim(),
+                    imported.category,
+                    now,
+                    template_id,
+                    imported.canonical_symbol,
+                    imported.variant,
+                ],
+            )
+            .map_err(map_import_conflict)?;
+
+            let version_id = Uuid::now_v7().to_string();
+            insert_version(
+                &tx,
+                &version_id,
+                &instrument_id,
+                1,
+                &imported.parameters,
+                &now,
+            )?;
+
+            tx.execute(
+                "INSERT INTO instrument_preferences (instrument_id, is_visible, sort_order, is_favorite)
+                 VALUES (?1, 0, ?2, 0)",
+                rusqlite::params![instrument_id, next_sort_order + index as i64],
+            )?;
+        }
+
+        // Szablon utworzony ręcznie staje się po wgraniu szablonem z importu brokera.
+        tx.execute(
+            "UPDATE broker_instrument_templates
+             SET source = 'broker_import', import_format_version = 1, updated_at = ?2
+             WHERE id = ?1",
+            rusqlite::params![template_id, now],
+        )?;
+
+        tx.commit()?;
+        drop(conn);
+        self.get(template_id)
+    }
+
     fn rename(&self, id: &str, name: &str) -> Result<BrokerTemplate, AppError> {
         if name.trim().is_empty() {
             return Err(AppError::Validation(
@@ -622,6 +720,63 @@ mod tests {
             )
             .expect("variant");
         assert_eq!(variant, "MINI");
+    }
+
+    #[test]
+    fn import_into_template_fills_an_empty_template_but_only_once() {
+        let (repo, conn, _dir) = repo_with_fresh_db();
+        let template = repo
+            .create(&NewTemplate {
+                name: "IC Markets RAW".to_string(),
+                broker_name: "IC Markets".to_string(),
+                account_type: Some("RAW".to_string()),
+            })
+            .expect("pusty szablon");
+        assert_eq!(template.instrument_count, 0);
+
+        let instruments = vec![
+            imported("EURUSD", "EURUSD.raw", "STANDARD", "EURUSD"),
+            imported("DJI30-MINI", "DJI30m", "MINI", "DJI30"),
+        ];
+        let filled = repo
+            .import_into_template(&template.id, &instruments)
+            .expect("pierwszy import");
+        assert_eq!(filled.instrument_count, 2);
+        // Szablon założony ręcznie staje się po wgraniu szablonem z importu brokera.
+        assert_eq!(filled.source, TemplateSource::BrokerImport);
+
+        // Instrumenty domyślnie ukryte, oznaczone jako pochodzące z importu.
+        let (origin, visible): (String, i64) = conn
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT i.origin, p.is_visible FROM instruments i
+                 JOIN instrument_preferences p ON p.instrument_id = i.id
+                 WHERE i.template_id = ?1 AND i.display_symbol = 'EURUSD'",
+                [&template.id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .expect("wiersz instrumentu");
+        assert_eq!(origin, "broker_import");
+        assert_eq!(visible, 0);
+
+        // Drugi import do TEGO SAMEGO szablonu jest odrzucany...
+        let second = repo.import_into_template(&template.id, &instruments);
+        assert!(matches!(second, Err(AppError::Validation(_))));
+
+        // ...i nie zostawia po sobie żadnych dopisanych wierszy.
+        let after = repo.get(&template.id).expect("szablon po odrzuceniu");
+        assert_eq!(after.instrument_count, 2);
+    }
+
+    #[test]
+    fn import_into_template_rejects_unknown_template() {
+        let (repo, _conn, _dir) = repo_with_fresh_db();
+        let result = repo.import_into_template(
+            "019f9d10-dead-7000-8000-000000000999",
+            &[imported("EURUSD", "EURUSD.raw", "STANDARD", "EURUSD")],
+        );
+        assert!(matches!(result, Err(AppError::Validation(_))));
     }
 
     #[test]

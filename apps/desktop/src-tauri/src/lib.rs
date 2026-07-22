@@ -286,6 +286,7 @@ pub fn run() {
             commands::broker_templates::archive_broker_template,
             commands::instrument_import::preview_broker_import,
             commands::instrument_import::import_broker_template,
+            commands::instrument_import::import_instruments_into_template,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
