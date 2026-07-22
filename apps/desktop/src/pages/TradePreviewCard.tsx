@@ -26,7 +26,7 @@ export function TradePreviewCard({ calculation, currency }: TradePreviewCardProp
     return (
       <SectionCard surface="alt" padding="sm">
         <p className={styles.empty}>
-          Uzupełnij instrument, cenę wejścia i wolumen, żeby zobaczyć podgląd wyniku.
+          Uzupełnij instrument, cenę wejścia i lot, żeby zobaczyć podgląd wyniku.
         </p>
       </SectionCard>
     );

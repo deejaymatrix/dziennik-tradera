@@ -5,10 +5,37 @@
  * stronie frontendu (parseFloat/Number tylko do prezentacji, nie do zapisu).
  */
 
-const DECIMAL_PATTERN = /^-?\d+(\.\d+)?$/;
+/** Postać już znormalizowana: opcjonalny znak, kropka jako JEDYNY separator dziesiętny. */
+const CANONICAL_DECIMAL_PATTERN = /^[+-]?(\d+(\.\d*)?|\.\d+)$/;
+
+/**
+ * Sprowadza to, co użytkownik wpisał, do jednej kanonicznej reprezentacji dziesiętnej
+ * wysyłanej do backendu (`rust_decimal` parsuje WYŁĄCZNIE kropkę). Polska klawiatura numeryczna
+ * daje przecinek, więc `1,23` i `1.23` muszą znaczyć to samo - inaczej pole lota po cichu
+ * lądowało jako `null` i nic się nie przeliczało. Spacje (także twarde) są ignorowane, bo w
+ * liczbie pełnią rolę separatora tysięcy (`1 000,50`), nigdy części znaczącej.
+ * Zwraca `null`, gdy wartość nie jest poprawną liczbą.
+ */
+export function normalizeDecimalInput(value: string): string | null {
+  const compact = value.replace(/\s/g, "").replace(",", ".");
+  if (!compact || !CANONICAL_DECIMAL_PATTERN.test(compact)) {
+    return null;
+  }
+
+  let normalized = compact.startsWith("+") ? compact.slice(1) : compact;
+  if (normalized.startsWith(".")) {
+    normalized = `0${normalized}`;
+  } else if (normalized.startsWith("-.")) {
+    normalized = `-0${normalized.slice(1)}`;
+  }
+  if (normalized.endsWith(".")) {
+    normalized = normalized.slice(0, -1);
+  }
+  return normalized;
+}
 
 export function isValidDecimalString(value: string): boolean {
-  return DECIMAL_PATTERN.test(value.trim());
+  return normalizeDecimalInput(value) !== null;
 }
 
 export function formatMoney(value: string, currency?: string): string {

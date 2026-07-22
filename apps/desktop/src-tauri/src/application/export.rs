@@ -18,7 +18,7 @@ const CSV_HEADERS: [&str; 19] = [
     "Status",
     "Data otwarcia",
     "Data zamknięcia",
-    "Wolumen",
+    "Lot",
     "Cena wejścia",
     "Cena wyjścia",
     "Stop Loss",

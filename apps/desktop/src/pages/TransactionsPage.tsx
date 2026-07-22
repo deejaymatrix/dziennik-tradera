@@ -288,7 +288,7 @@ export function TransactionsPage(): ReactElement {
               <th>Status</th>
               <th>Otwarcie</th>
               <th>Zamknięcie</th>
-              <th className={tableStyles.numeric}>Wolumen</th>
+              <th className={tableStyles.numeric}>Lot</th>
               <th className={tableStyles.numeric}>Wynik netto</th>
               <th aria-hidden="true" />
             </tr>

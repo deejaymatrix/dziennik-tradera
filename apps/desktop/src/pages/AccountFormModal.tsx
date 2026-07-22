@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
-import { isValidDecimalString } from "../app/decimal";
+import { isValidDecimalString, normalizeDecimalInput } from "../app/decimal";
 import { invokeCommand } from "../app/invokeCommand";
 import type { AccountWithBalance, NewAccountInput, UpdateAccountInput } from "../app/types/account";
 import { Button } from "../ui/components/Button/Button";
@@ -56,7 +56,7 @@ export function AccountFormModal({
     setFormError(null);
 
     if (!isEdit && !isValidDecimalString(initialBalance)) {
-      setFormError("Saldo początkowe musi być liczbą (np. 1000 albo 1000.50).");
+      setFormError("Saldo początkowe musi być liczbą (np. 1000 albo 1000,50).");
       return;
     }
 
@@ -77,7 +77,7 @@ export function AccountFormModal({
           description: description.trim() ? description : null,
           account_type: accountType.trim() ? accountType : null,
           currency: currency.toUpperCase(),
-          initial_balance: initialBalance,
+          initial_balance: normalizeDecimalInput(initialBalance) ?? "0",
         };
         await invokeCommand("create_account", { input });
         showToast("Konto utworzone.", "success");

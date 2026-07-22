@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
-import { formatMoney, isValidDecimalString } from "../app/decimal";
+import { formatMoney, isValidDecimalString, normalizeDecimalInput } from "../app/decimal";
 import { invokeCommand } from "../app/invokeCommand";
 import type { AccountWithBalance } from "../app/types/account";
 import type {
@@ -88,7 +88,7 @@ export function CashOperationsModal({
 
     if (!isValidDecimalString(amount)) {
       setFormError(
-        "Kwota musi być liczbą (np. 100 albo 100.50, dla korekty można poprzedzić znakiem -).",
+        "Kwota musi być liczbą (np. 100 albo 100,50, dla korekty można poprzedzić znakiem -).",
       );
       return;
     }
@@ -98,7 +98,7 @@ export function CashOperationsModal({
       const input: NewCashOperationInput = {
         account_id: account.id,
         kind,
-        amount,
+        amount: normalizeDecimalInput(amount) ?? amount,
         occurred_at: new Date(occurredAt).toISOString(),
         note: note.trim() ? note : null,
       };

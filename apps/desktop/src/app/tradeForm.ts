@@ -1,5 +1,5 @@
 import { fromDatetimeLocalValue, toDatetimeLocalValue } from "./datetime";
-import { isValidDecimalString } from "./decimal";
+import { isValidDecimalString, normalizeDecimalInput } from "./decimal";
 import type { StrategyChecklist, Trade, TradeEmotions, TradeInput, TradeSide } from "./types/trade";
 import { blankStrategyChecklist, blankTradeEmotions } from "./types/trade";
 
@@ -101,14 +101,14 @@ export function tradeToFormFields(trade: Trade): TradeFormFields {
   };
 }
 
+/** Do backendu ZAWSZE trafia postać kanoniczna (kropka), niezależnie od tego, czy użytkownik
+ * wpisał `1,23` czy `1.23` - patrz `normalizeDecimalInput`. */
 function parseOptionalDecimal(value: string): string | null {
-  const trimmed = value.trim();
-  return trimmed && isValidDecimalString(trimmed) ? trimmed : null;
+  return normalizeDecimalInput(value);
 }
 
 function parseRequiredDecimal(value: string, fallback: string): string {
-  const trimmed = value.trim();
-  return trimmed && isValidDecimalString(trimmed) ? trimmed : fallback;
+  return normalizeDecimalInput(value) ?? fallback;
 }
 
 export function buildTradeInput(fields: TradeFormFields, accountId: string): TradeInput {
@@ -138,7 +138,10 @@ export function buildTradeInput(fields: TradeFormFields, accountId: string): Tra
       ? Number.parseInt(fields.planAdherenceRating, 10)
       : null,
     pnl_override: fields.overrideEnabled
-      ? { net_pnl: fields.overrideNetPnl.trim() || "0", reason: fields.overrideReason }
+      ? {
+          net_pnl: normalizeDecimalInput(fields.overrideNetPnl) ?? "0",
+          reason: fields.overrideReason,
+        }
       : null,
     emotions: fields.emotions,
     checklist: fields.checklist,
@@ -157,7 +160,7 @@ type DecimalFieldKey =
   | "conversionRate";
 
 const DECIMAL_FIELD_LABELS: { key: DecimalFieldKey; label: string }[] = [
-  { key: "volume", label: "Wolumen" },
+  { key: "volume", label: "Lot" },
   { key: "entryPrice", label: "Cena wejścia" },
   { key: "stopLoss", label: "Stop loss" },
   { key: "takeProfit", label: "Take profit" },
@@ -175,7 +178,7 @@ export function validateTradeFormFormat(fields: TradeFormFields): string | null 
   for (const { key, label } of DECIMAL_FIELD_LABELS) {
     const value = fields[key];
     if (value.trim() && !isValidDecimalString(value)) {
-      return `${label} musi być liczbą (np. 1.10500).`;
+      return `${label} musi być liczbą (np. 1,23 albo 1.23).`;
     }
   }
   if (fields.overrideEnabled) {

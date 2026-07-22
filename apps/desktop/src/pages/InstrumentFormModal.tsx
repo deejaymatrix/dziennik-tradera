@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
-import { isValidDecimalString } from "../app/decimal";
+import { isValidDecimalString, normalizeDecimalInput } from "../app/decimal";
 import { invokeCommand } from "../app/invokeCommand";
 import {
   INSTRUMENT_CATEGORIES,
@@ -211,10 +211,10 @@ const BASIC_DECIMAL_FIELDS: { key: keyof VersionFields; label: string }[] = [
   { key: "tickValueProfit", label: "Wartość ticka dla zysku" },
   { key: "tickValueLoss", label: "Wartość ticka dla straty" },
   { key: "contractSize", label: "Wielkość kontraktu" },
-  { key: "volumeMin", label: "Wolumen minimalny" },
-  { key: "volumeMax", label: "Wolumen maksymalny" },
-  { key: "volumeStep", label: "Krok wolumenu" },
-  { key: "volumeLimit", label: "Limit wolumenu" },
+  { key: "volumeMin", label: "Lot minimalny" },
+  { key: "volumeMax", label: "Lot maksymalny" },
+  { key: "volumeStep", label: "Krok lota" },
+  { key: "volumeLimit", label: "Limit lota" },
 ];
 
 const ADVANCED_DECIMAL_FIELDS: { key: keyof VersionFields; label: string }[] = [
@@ -258,22 +258,28 @@ function parseNumber(value: string): number {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+/** Parametry instrumentu też są liczbami wpisywanymi ręcznie - do backendu idzie postać
+ * kanoniczna, żeby `0,01` wpisane z przecinkiem nie wywaliło parsowania `Decimal`. */
+function dec(value: string): string {
+  return normalizeDecimalInput(value) ?? value;
+}
+
 function versionFieldsToInput(fields: VersionFields): InstrumentVersionInput {
   return {
     currency_base: fields.currencyBase.toUpperCase(),
     currency_profit: fields.currencyProfit.toUpperCase(),
     currency_margin: fields.currencyMargin.toUpperCase(),
     digits: parseNumber(fields.digits),
-    point: fields.point,
-    trade_tick_size: fields.tradeTickSize,
-    trade_tick_value: fields.tradeTickValue,
-    tick_value_profit: fields.tickValueProfit,
-    tick_value_loss: fields.tickValueLoss,
-    contract_size: fields.contractSize,
-    volume_min: fields.volumeMin,
-    volume_max: fields.volumeMax,
-    volume_step: fields.volumeStep,
-    volume_limit: fields.volumeLimit,
+    point: dec(fields.point),
+    trade_tick_size: dec(fields.tradeTickSize),
+    trade_tick_value: dec(fields.tradeTickValue),
+    tick_value_profit: dec(fields.tickValueProfit),
+    tick_value_loss: dec(fields.tickValueLoss),
+    contract_size: dec(fields.contractSize),
+    volume_min: dec(fields.volumeMin),
+    volume_max: dec(fields.volumeMax),
+    volume_step: dec(fields.volumeStep),
+    volume_limit: dec(fields.volumeLimit),
     calc_mode: fields.calcMode,
     trade_mode: fields.tradeMode,
     execution_mode: fields.executionMode,
@@ -283,25 +289,25 @@ function versionFieldsToInput(fields: VersionFields): InstrumentVersionInput {
     spread_floating: fields.spreadFloating,
     stops_level_points: parseNumber(fields.stopsLevelPoints),
     freeze_level_points: parseNumber(fields.freezeLevelPoints),
-    margin_initial: fields.marginInitial,
-    margin_maintenance: fields.marginMaintenance,
-    margin_hedged: fields.marginHedged,
+    margin_initial: dec(fields.marginInitial),
+    margin_maintenance: dec(fields.marginMaintenance),
+    margin_hedged: dec(fields.marginHedged),
     margin_hedged_use_leg: fields.marginHedgedUseLeg,
-    liquidity_rate: fields.liquidityRate,
-    margin_rate_buy_initial: fields.marginRateBuyInitial,
-    margin_rate_buy_maintenance: fields.marginRateBuyMaintenance,
-    margin_rate_sell_initial: fields.marginRateSellInitial,
-    margin_rate_sell_maintenance: fields.marginRateSellMaintenance,
+    liquidity_rate: dec(fields.liquidityRate),
+    margin_rate_buy_initial: dec(fields.marginRateBuyInitial),
+    margin_rate_buy_maintenance: dec(fields.marginRateBuyMaintenance),
+    margin_rate_sell_initial: dec(fields.marginRateSellInitial),
+    margin_rate_sell_maintenance: dec(fields.marginRateSellMaintenance),
     swap_mode: fields.swapMode,
-    swap_long: fields.swapLong,
-    swap_short: fields.swapShort,
-    swap_sunday: fields.swapSunday,
-    swap_monday: fields.swapMonday,
-    swap_tuesday: fields.swapTuesday,
-    swap_wednesday: fields.swapWednesday,
-    swap_thursday: fields.swapThursday,
-    swap_friday: fields.swapFriday,
-    swap_saturday: fields.swapSaturday,
+    swap_long: dec(fields.swapLong),
+    swap_short: dec(fields.swapShort),
+    swap_sunday: dec(fields.swapSunday),
+    swap_monday: dec(fields.swapMonday),
+    swap_tuesday: dec(fields.swapTuesday),
+    swap_wednesday: dec(fields.swapWednesday),
+    swap_thursday: dec(fields.swapThursday),
+    swap_friday: dec(fields.swapFriday),
+    swap_saturday: dec(fields.swapSaturday),
     triple_swap_day: fields.tripleSwapDay,
     quote_sessions: fields.quoteSessions,
     trade_sessions: fields.tradeSessions,
@@ -369,7 +375,7 @@ export function InstrumentFormModal({
     const decimalFields = [...BASIC_DECIMAL_FIELDS, ...ADVANCED_DECIMAL_FIELDS];
     for (const { key, label } of decimalFields) {
       if (!isValidDecimalString(fields[key] as string)) {
-        setFormError(`${label} musi być liczbą (np. 0.0001).`);
+        setFormError(`${label} musi być liczbą (np. 0,0001 albo 0.0001).`);
         return;
       }
     }
@@ -494,7 +500,7 @@ export function InstrumentFormModal({
             </dd>
             <dt>Wielkość kontraktu</dt>
             <dd>{instrument.version.contract_size}</dd>
-            <dt>Wolumen min / max / krok</dt>
+            <dt>Lot min / max / krok</dt>
             <dd>
               {instrument.version.volume_min} / {instrument.version.volume_max} /{" "}
               {instrument.version.volume_step}

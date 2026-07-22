@@ -488,7 +488,7 @@ mod tests {
 
         let log = trades.list_audit_log(&trade.id).expect("list audit log");
         assert_eq!(log.len(), 1);
-        assert!(log[0].changes.iter().any(|c| c.field == "Wolumen"));
+        assert!(log[0].changes.iter().any(|c| c.field == "Lot"));
     }
 
     #[test]

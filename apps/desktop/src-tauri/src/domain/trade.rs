@@ -229,7 +229,7 @@ impl TradeInput {
         }
 
         if let Some(volume) = self.volume {
-            validate_positive("Wolumen", volume)?;
+            validate_positive("Lot", volume)?;
         }
         if let Some(entry_price) = self.entry_price {
             validate_positive("Cena wejścia", entry_price)?;
@@ -303,7 +303,7 @@ impl TradeInput {
             }
             if self.volume.is_none() {
                 return Err(AppError::Validation(
-                    "Podaj wolumen, aby zamknąć pozycję.".to_string(),
+                    "Podaj lot, aby zamknąć pozycję.".to_string(),
                 ));
             }
             if self.opened_at.is_none() {

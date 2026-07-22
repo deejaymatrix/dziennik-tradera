@@ -299,9 +299,9 @@ impl InstrumentVersionInput {
         validate_positive("Wartość ticka dla zysku", self.tick_value_profit)?;
         validate_positive("Wartość ticka dla straty", self.tick_value_loss)?;
         validate_positive("Wielkość kontraktu", self.contract_size)?;
-        validate_positive("Minimalny wolumen", self.volume_min)?;
-        validate_positive("Maksymalny wolumen", self.volume_max)?;
-        validate_positive("Krok wolumenu", self.volume_step)?;
+        validate_positive("Minimalny lot", self.volume_min)?;
+        validate_positive("Maksymalny lot", self.volume_max)?;
+        validate_positive("Krok lota", self.volume_step)?;
         validate_currency_code("Waluta bazowa", &self.currency_base)?;
         validate_currency_code("Waluta wyniku", &self.currency_profit)?;
         validate_currency_code("Waluta depozytu", &self.currency_margin)?;
@@ -316,14 +316,14 @@ impl InstrumentVersionInput {
 
         if self.volume_min > self.volume_max {
             return Err(AppError::Validation(
-                "Minimalny wolumen nie może być większy niż maksymalny.".to_string(),
+                "Minimalny lot nie może być większy niż maksymalny.".to_string(),
             ));
         }
         if self.volume_step.is_sign_positive() && !self.volume_step.is_zero() {
             let steps = (self.volume_max - self.volume_min) / self.volume_step;
             if steps.fract() != Decimal::ZERO {
                 return Err(AppError::Validation(
-                    "Zakres wolumenu musi być podzielny przez krok wolumenu.".to_string(),
+                    "Zakres lota musi być podzielny przez krok lota.".to_string(),
                 ));
             }
         }

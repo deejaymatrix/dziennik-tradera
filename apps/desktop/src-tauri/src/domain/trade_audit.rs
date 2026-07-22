@@ -93,7 +93,7 @@ pub fn diff_trade_input(old: &Trade, new: &TradeInput) -> Vec<FieldChange> {
         old.session.clone(),
         new.session.clone(),
     );
-    push_if_changed(&mut changes, "Wolumen", old.volume, new.volume);
+    push_if_changed(&mut changes, "Lot", old.volume, new.volume);
     push_if_changed(
         &mut changes,
         "Cena wejścia",
@@ -287,7 +287,7 @@ mod tests {
             && c.new_value == Some("1.2".to_string())));
         assert!(changes
             .iter()
-            .any(|c| c.field == "Wolumen" && c.new_value == Some("2".to_string())));
+            .any(|c| c.field == "Lot" && c.new_value == Some("2".to_string())));
     }
 
     #[test]

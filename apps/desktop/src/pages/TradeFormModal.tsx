@@ -518,7 +518,7 @@ export function TradeFormModal({
 
         <div className={styles.gridThree}>
           <TextField
-            label="Wolumen"
+            label="Lot"
             inputMode="decimal"
             value={fields.volume}
             onChange={(e) => setField("volume", e.target.value)}
