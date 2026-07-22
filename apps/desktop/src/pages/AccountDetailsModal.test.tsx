@@ -24,6 +24,7 @@ function account(overrides: Partial<AccountWithBalance> = {}): AccountWithBalanc
     updated_at: "2026-07-22T10:00:00Z",
     archived_at: null,
     balance: "5250.50",
+    template_id: null,
     ...overrides,
   };
 }
@@ -36,7 +37,7 @@ function template(overrides: Partial<BrokerTemplate> = {}): BrokerTemplate {
     account_type: "STP",
     source: "broker_import",
     import_format_version: 1,
-    account_id: null,
+    account_count: 0,
     created_at: "2026-07-22T11:00:00Z",
     updated_at: "2026-07-22T11:00:00Z",
     archived_at: null,
@@ -44,6 +45,9 @@ function template(overrides: Partial<BrokerTemplate> = {}): BrokerTemplate {
     ...overrides,
   };
 }
+
+/** Konto już powiązane z szablonem `t1` - powiązanie mieszka na koncie (migracja 0011). */
+const accountWithTemplate = account({ template_id: "t1" });
 
 /** Zwraca `void`, a nie wynik `render` - w typach Reacta 19 `ReactNode` obejmuje też `Promise`,
  * przez co lint uznawał każde wywołanie za nieobsłużoną obietnicę. */
@@ -61,11 +65,11 @@ describe("AccountDetailsModal", () => {
   });
 
   it("pokazuje dane konta razem z przypisanym szablonem i brokerem", async () => {
-    invokeCommand.mockResolvedValue([template({ account_id: "a1" })]);
+    invokeCommand.mockResolvedValue([template()]);
 
     renderModal(
       <AccountDetailsModal
-        account={account()}
+        account={accountWithTemplate}
         onClose={vi.fn()}
         onEdit={vi.fn()}
         onChanged={vi.fn()}
@@ -83,7 +87,7 @@ describe("AccountDetailsModal", () => {
   });
 
   it("ostrzega, gdy konto nie ma przypisanego szablonu", async () => {
-    invokeCommand.mockResolvedValue([template({ account_id: null })]);
+    invokeCommand.mockResolvedValue([template()]);
 
     renderModal(
       <AccountDetailsModal
@@ -95,16 +99,17 @@ describe("AccountDetailsModal", () => {
     );
 
     expect(await screen.findByText("Brak przypisanego szablonu")).toBeInTheDocument();
+    // (konto bez `template_id` - patrz `account()` bez nadpisań)
     expect(screen.getByText(/te same symbole mogą się dublować/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Przypisz szablon/ })).toBeInTheDocument();
   });
 
-  it("do przypisania daje wyłącznie szablony jeszcze niezajęte", async () => {
+  it("do przypisania daje też szablon używany już przez inne konta", async () => {
     invokeCommand.mockResolvedValue([
-      template({ id: "t2", name: "Wolny szablon", account_id: null }),
-      // Zajęty przez inne konto - przypisanie jest nieodwracalne, więc odebranie go tamtemu
-      // kontu byłoby zmianą nie do naprawienia. Nie pokazujemy go w ogóle.
-      template({ id: "t3", name: "Szablon innego konta", account_id: "a2" }),
+      template({ id: "t2", name: "Nieużywany szablon", account_count: 0 }),
+      // Jeden szablon obsługuje wiele kont, więc używany NIE znika z listy - kilka rachunków
+      // u tego samego brokera ma prawo dzielić katalog instrumentów.
+      template({ id: "t3", name: "Wspólny szablon", account_count: 2 }),
     ]);
 
     renderModal(
@@ -120,19 +125,22 @@ describe("AccountDetailsModal", () => {
 
     const select = await screen.findByLabelText(/Szablon dla tego konta/);
     const options = Array.from(select.querySelectorAll("option")).map((o) => o.textContent);
-    expect(options).toEqual(["Wolny szablon (1052 instrumentów)"]);
+    expect(options).toEqual([
+      "Nieużywany szablon (1052 instrumentów)",
+      "Wspólny szablon (1052 instrumentów) — używany przez 2 kont(a)",
+    ]);
     expect(screen.getByText(/NIE DA SIĘ cofnąć/)).toBeInTheDocument();
   });
 
   it("konto z szablonem nie ma już żadnej możliwości jego zmiany", async () => {
     invokeCommand.mockResolvedValue([
-      template({ id: "t1", name: "Vantage STP", account_id: "a1" }),
-      template({ id: "t2", name: "Wolny szablon", account_id: null }),
+      template({ id: "t1", name: "Vantage STP", account_count: 1 }),
+      template({ id: "t2", name: "Inny szablon" }),
     ]);
 
     renderModal(
       <AccountDetailsModal
-        account={account()}
+        account={accountWithTemplate}
         onClose={vi.fn()}
         onEdit={vi.fn()}
         onChanged={vi.fn()}
@@ -145,12 +153,12 @@ describe("AccountDetailsModal", () => {
   });
 
   it("przycisk Edytuj konto oddaje sterowanie liście kont", async () => {
-    invokeCommand.mockResolvedValue([template({ account_id: "a1" })]);
+    invokeCommand.mockResolvedValue([template()]);
     const onEdit = vi.fn();
 
     renderModal(
       <AccountDetailsModal
-        account={account()}
+        account={accountWithTemplate}
         onClose={vi.fn()}
         onEdit={onEdit}
         onChanged={vi.fn()}

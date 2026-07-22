@@ -12,6 +12,10 @@ pub struct Account {
     pub account_type: Option<String>,
     pub currency: String,
     pub initial_balance: Decimal,
+    /// Szablon instrumentów, z którego korzysta to konto (migracja 0011). Powiązanie mieszka po
+    /// stronie konta, więc jeden szablon może obsługiwać wiele rachunków u tego samego brokera.
+    /// `None` = konto sprzed wprowadzenia szablonów albo świadomie jeszcze nieprzypisane.
+    pub template_id: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub archived_at: Option<DateTime<Utc>>,

@@ -11,6 +11,7 @@ import {
   validateTradeFormFormat,
 } from "../app/tradeForm";
 import type { TradeFormFields } from "../app/tradeForm";
+import type { AccountWithBalance } from "../app/types/account";
 import type { PendingAttachment } from "../app/types/attachment";
 import type { EmotionalState } from "../app/types/emotional_state";
 import type {
@@ -144,10 +145,11 @@ export function TradeFormModal({
         // z kontem (sekcja 1.1) - bez tego lista mieszała symbole ze WSZYSTKICH szablonów i
         // to samo EURUSD pojawiało się kilka razy, nie do odróżnienia. Szablon bierzemy
         // z przypisania do konta tej transakcji.
-        const accountTemplates = await invokeCommand<BrokerTemplate[]>("list_broker_templates", {
-          includeArchived: false,
-        });
-        const templateForAccount = accountTemplates.find((t) => t.account_id === accountId);
+        const [accountTemplates, ownerAccount] = await Promise.all([
+          invokeCommand<BrokerTemplate[]>("list_broker_templates", { includeArchived: false }),
+          invokeCommand<AccountWithBalance>("get_account", { id: accountId }),
+        ]);
+        const templateForAccount = accountTemplates.find((t) => t.id === ownerAccount.template_id);
         const visibleFilter: InstrumentListFilter = {
           search: null,
           category: null,

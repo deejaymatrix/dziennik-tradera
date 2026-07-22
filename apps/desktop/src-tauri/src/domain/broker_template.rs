@@ -34,7 +34,9 @@ pub struct BrokerTemplate {
     pub account_type: Option<String>,
     pub source: TemplateSource,
     pub import_format_version: Option<i64>,
-    pub account_id: Option<String>,
+    /// Ile kont korzysta z tego szablonu. Powiązanie mieszka na koncie (`accounts.template_id`),
+    /// więc jeden szablon może obsługiwać wiele rachunków u tego samego brokera.
+    pub account_count: i64,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub archived_at: Option<DateTime<Utc>>,

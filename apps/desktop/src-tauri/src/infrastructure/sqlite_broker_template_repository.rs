@@ -21,9 +21,12 @@ impl SqliteBrokerTemplateRepository {
     }
 }
 
+// Powiązanie z kontem mieszka na koncie (`accounts.template_id`, migracja 0011), więc liczbę
+// korzystających rachunków liczymy podzapytaniem - jeden szablon obsługuje wiele kont.
 const SELECT: &str = "SELECT t.id, t.name, t.broker_name, t.account_type, t.source, \
-    t.import_format_version, t.account_id, t.created_at, t.updated_at, t.archived_at, \
-    (SELECT count(*) FROM instruments i WHERE i.template_id = t.id) AS instrument_count \
+    t.import_format_version, t.created_at, t.updated_at, t.archived_at, \
+    (SELECT count(*) FROM instruments i WHERE i.template_id = t.id) AS instrument_count, \
+    (SELECT count(*) FROM accounts a WHERE a.template_id = t.id AND a.archived_at IS NULL) AS account_count \
     FROM broker_instrument_templates t";
 
 fn map_row(row: &Row) -> rusqlite::Result<BrokerTemplate> {
@@ -35,11 +38,11 @@ fn map_row(row: &Row) -> rusqlite::Result<BrokerTemplate> {
         account_type: row.get("account_type")?,
         source: TemplateSource::from_db_str(&source),
         import_format_version: row.get("import_format_version")?,
-        account_id: row.get("account_id")?,
         created_at: row.get("created_at")?,
         updated_at: row.get("updated_at")?,
         archived_at: row.get("archived_at")?,
         instrument_count: row.get("instrument_count")?,
+        account_count: row.get("account_count")?,
     })
 }
 
@@ -422,30 +425,35 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
         let tx = conn.transaction()?;
         let now = Utc::now().to_rfc3339();
 
-        let assigned_to: Option<Option<String>> = tx
-            .query_row(
-                "SELECT account_id FROM broker_instrument_templates WHERE id = ?1 AND archived_at IS NULL",
-                [template_id],
-                |r| r.get(0),
-            )
-            .optional()?;
-        let Some(current_assignment) = assigned_to else {
+        // Szablon musi istnieć i być aktywny.
+        let template_exists: i64 = tx.query_row(
+            "SELECT count(*) FROM broker_instrument_templates WHERE id = ?1 AND archived_at IS NULL",
+            [template_id],
+            |r| r.get(0),
+        )?;
+        if template_exists == 0 {
             return Err(AppError::NotFound(format!(
                 "Nie znaleziono aktywnego szablonu o id {template_id}."
             )));
-        };
-        // Szablon już na TYM koncie - nie ma czego zmieniać.
-        if current_assignment.as_deref() == Some(account_id) {
-            tx.commit()?;
-            return Ok(());
         }
 
-        // Szablon zajęty przez inne konto: nie zabieramy go, bo tamto konto zostałoby bez
-        // instrumentów, a przypisania i tak nie da się już cofnąć.
-        if current_assignment.is_some() {
-            return Err(AppError::Validation(
-                "Ten szablon jest już przypisany do innego konta. Jeden szablon należy do jednego konta - zaimportuj dane brokera do nowego szablonu albo zduplikuj istniejący.".to_string(),
-            ));
+        let current: Option<Option<String>> = tx
+            .query_row(
+                "SELECT template_id FROM accounts WHERE id = ?1",
+                [account_id],
+                |r| r.get(0),
+            )
+            .optional()?;
+        let Some(current_template) = current else {
+            return Err(AppError::NotFound(format!(
+                "Nie znaleziono konta o id {account_id}."
+            )));
+        };
+
+        // Ten sam szablon na tym koncie - nie ma czego zmieniać.
+        if current_template.as_deref() == Some(template_id) {
+            tx.commit()?;
+            return Ok(());
         }
 
         // Przypisanie jest JEDNORAZOWE i nieodwracalne (decyzja produktowa): konto, które raz
@@ -453,19 +461,18 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
         // na koncie odnoszą się do instrumentów z jego szablonu, a podmiana szablonu pod
         // istniejącą historią daje konto, którego część transakcji dotyczy instrumentów spoza
         // aktualnego katalogu. Jeżeli powiązanie jest błędne, usuwa się całe konto.
-        let account_has_template: i64 = tx.query_row(
-            "SELECT count(*) FROM broker_instrument_templates WHERE account_id = ?1 AND archived_at IS NULL",
-            [account_id],
-            |r| r.get(0),
-        )?;
-        if account_has_template > 0 {
+        //
+        // NIE sprawdzamy natomiast, czy szablon jest już używany gdzie indziej - jeden szablon
+        // może obsługiwać wiele kont (np. kilka rachunków u tego samego brokera).
+        if current_template.is_some() {
             return Err(AppError::Validation(
                 "To konto ma już przypisany szablon instrumentów, a przypisania nie można zmienić. Jeżeli powiązanie jest błędne, usuń konto i utwórz je na nowo z właściwym szablonem.".to_string(),
             ));
         }
+
         tx.execute(
-            "UPDATE broker_instrument_templates SET account_id = ?1, updated_at = ?2 WHERE id = ?3",
-            rusqlite::params![account_id, now, template_id],
+            "UPDATE accounts SET template_id = ?1, updated_at = ?2 WHERE id = ?3",
+            rusqlite::params![template_id, now, account_id],
         )?;
         tx.commit()?;
         Ok(())
@@ -476,15 +483,12 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
             .conn
             .lock()
             .expect("mutex bazy danych zatruty (poprzedni panik)");
-        let affected = conn.execute(
-            "UPDATE broker_instrument_templates SET account_id = NULL, updated_at = ?1 WHERE id = ?2",
+        // Odpięcie zdejmuje szablon ze WSZYSTKICH kont, które go używają - służy wyłącznie
+        // ścieżce archiwizacji szablonu, nie zmianie powiązania pojedynczego konta.
+        conn.execute(
+            "UPDATE accounts SET template_id = NULL, updated_at = ?1 WHERE template_id = ?2",
             rusqlite::params![Utc::now().to_rfc3339(), template_id],
         )?;
-        if affected == 0 {
-            return Err(AppError::NotFound(format!(
-                "Nie znaleziono szablonu o id {template_id}."
-            )));
-        }
         Ok(())
     }
 
@@ -493,23 +497,27 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
             .conn
             .lock()
             .expect("mutex bazy danych zatruty (poprzedni panik)");
-        let assigned: Option<Option<String>> = conn
-            .query_row(
-                "SELECT account_id FROM broker_instrument_templates WHERE id = ?1 AND archived_at IS NULL",
-                [id],
-                |r| r.get(0),
-            )
-            .optional()?;
-        let Some(account_id) = assigned else {
+        let exists: i64 = conn.query_row(
+            "SELECT count(*) FROM broker_instrument_templates WHERE id = ?1 AND archived_at IS NULL",
+            [id],
+            |r| r.get(0),
+        )?;
+        if exists == 0 {
             return Err(AppError::NotFound(format!(
                 "Nie znaleziono aktywnego szablonu o id {id}."
             )));
-        };
-        if account_id.is_some() {
-            return Err(AppError::Validation(
-                "Szablon jest przypisany do konta - najpierw zastąp szablon tego konta innym."
-                    .to_string(),
-            ));
+        }
+        // Szablon używany przez JAKIEKOLWIEK aktywne konto zostaje - inaczej konta straciłyby
+        // katalog instrumentów pod istniejącą historią.
+        let used_by: i64 = conn.query_row(
+            "SELECT count(*) FROM accounts WHERE template_id = ?1 AND archived_at IS NULL",
+            [id],
+            |r| r.get(0),
+        )?;
+        if used_by > 0 {
+            return Err(AppError::Validation(format!(
+                "Szablon jest używany przez {used_by} konto/konta - usuń najpierw te konta albo przypisz im inny szablon."
+            )));
         }
         let active_count: i64 = conn.query_row(
             "SELECT count(*) FROM broker_instrument_templates WHERE archived_at IS NULL",
@@ -724,7 +732,7 @@ mod tests {
             .expect("import");
         assert_eq!(template.instrument_count, 2);
         assert_eq!(template.source, TemplateSource::BrokerImport);
-        assert_eq!(template.account_id, None);
+        assert_eq!(template.account_count, 0);
 
         // Instrumenty z importu: origin=broker_import, domyślnie ukryte, z rewizją v1 i
         // rozpoznanym wariantem.
@@ -823,7 +831,7 @@ mod tests {
         let template = quomarkets(&repo);
         assert_eq!(template.instrument_count, 350);
         assert_eq!(template.source, TemplateSource::BrokerImport);
-        assert_eq!(template.account_id, None, "świeża baza nie ma kont");
+        assert_eq!(template.account_count, 0, "świeża baza nie ma kont");
     }
 
     #[test]
@@ -846,7 +854,7 @@ mod tests {
             .expect("duplicate");
         assert_eq!(copy.instrument_count, 350);
         assert_eq!(copy.source, TemplateSource::Duplicated);
-        assert_eq!(copy.account_id, None);
+        assert_eq!(copy.account_count, 0);
 
         // Zmiana instrumentu w kopii nie dotyka oryginału (izolacja parametrów).
         conn.lock()
@@ -878,24 +886,48 @@ mod tests {
         let first = quomarkets(&repo);
         repo.assign_to_account(&first.id, "acc-1")
             .expect("assign first");
-        assert_eq!(
-            repo.get(&first.id).unwrap().account_id,
-            Some("acc-1".into())
-        );
+        assert_eq!(repo.get(&first.id).unwrap().account_count, 1);
 
-        // Odpięcie zwalnia konto (używane przy archiwizacji szablonu), a wtedy - i tylko wtedy -
-        // konto może dostać inny szablon.
+        // Odpięcie zdejmuje szablon ze wszystkich kont (ścieżka archiwizacji szablonu), a wtedy -
+        // i tylko wtedy - konto może dostać inny szablon.
         repo.unassign(&first.id).expect("odpięcie");
         let second = repo
             .duplicate(&first.id, "Drugi szablon")
             .expect("duplicate");
         repo.assign_to_account(&second.id, "acc-1")
             .expect("przypisanie po zwolnieniu konta");
+        assert_eq!(repo.get(&second.id).unwrap().account_count, 1);
         assert_eq!(
-            repo.get(&second.id).unwrap().account_id,
-            Some("acc-1".into())
+            repo.get(&first.id).unwrap().account_count,
+            0,
+            "stary bez kont"
         );
-        assert_eq!(repo.get(&first.id).unwrap().account_id, None, "stary wolny");
+    }
+
+    /// Sedno zmiany z migracji 0011: jeden szablon obsługuje wiele kont, np. kilka rachunków
+    /// u tego samego brokera korzystających z tego samego katalogu instrumentów.
+    #[test]
+    fn one_template_serves_many_accounts() {
+        let (repo, conn, _dir) = repo_with_fresh_db();
+        seed_account(&conn, "acc-1");
+        seed_account(&conn, "acc-2");
+        seed_account(&conn, "acc-3");
+        let shared = quomarkets(&repo);
+
+        repo.assign_to_account(&shared.id, "acc-1")
+            .expect("konto 1");
+        repo.assign_to_account(&shared.id, "acc-2")
+            .expect("konto 2");
+        repo.assign_to_account(&shared.id, "acc-3")
+            .expect("konto 3");
+
+        assert_eq!(repo.get(&shared.id).expect("szablon").account_count, 3);
+
+        // Szablon używany przez konta nie daje się usunąć do Kosza.
+        assert!(matches!(
+            repo.archive(&shared.id),
+            Err(AppError::Validation(_))
+        ));
     }
 
     /// Przypisanie jest jednorazowe: konto, które ma już szablon, nie przyjmuje kolejnego, a
@@ -922,18 +954,14 @@ mod tests {
             repo.assign_to_account(&second.id, "acc-1"),
             Err(AppError::Validation(_))
         ));
-        // Szablon zajęty przez inne konto też nie daje się przejąć.
-        assert!(matches!(
-            repo.assign_to_account(&first.id, "acc-2"),
-            Err(AppError::Validation(_))
-        ));
 
-        // Stan się nie zmienił: pierwszy szablon nadal na pierwszym koncie, drugi wolny.
-        assert_eq!(
-            repo.get(&first.id).expect("szablon").account_id,
-            Some("acc-1".to_string())
-        );
-        assert_eq!(repo.get(&second.id).expect("szablon").account_id, None);
+        // Nieodwracalność dotyczy KONTA, nie szablonu: ten sam szablon spokojnie idzie na drugie
+        // konto, bo tamto jeszcze żadnego nie ma.
+        repo.assign_to_account(&first.id, "acc-2")
+            .expect("wspólny szablon na drugim koncie");
+
+        assert_eq!(repo.get(&first.id).expect("szablon").account_count, 2);
+        assert_eq!(repo.get(&second.id).expect("szablon").account_count, 0);
     }
 
     #[test]
@@ -943,10 +971,7 @@ mod tests {
         let template = quomarkets(&repo);
         repo.assign_to_account(&template.id, "acc-1").expect("raz");
         repo.assign_to_account(&template.id, "acc-1").expect("dwa");
-        assert_eq!(
-            repo.get(&template.id).expect("szablon").account_id,
-            Some("acc-1".to_string())
-        );
+        assert_eq!(repo.get(&template.id).expect("szablon").account_count, 1);
     }
 
     #[test]

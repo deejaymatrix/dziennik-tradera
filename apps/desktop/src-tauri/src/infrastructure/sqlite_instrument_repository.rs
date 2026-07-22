@@ -34,6 +34,26 @@ fn parse_decimal(row: &Row, idx: &str) -> rusqlite::Result<Decimal> {
     })
 }
 
+/// Kolejność "według popularności handlu u brokera". Prawdziwych wolumenów NIE MA w eksporcie
+/// brokera (kolumna `tick_volume` jest w nim wyzerowana), więc popularność odwzorowujemy
+/// rankingiem klas aktywów odpowiadającym realnej strukturze obrotu detalicznego: pary walutowe,
+/// potem metale, indeksy, kryptowaluty, surowce, a na końcu akcje i pozycje niesklasyfikowane
+/// (ETF-y, obligacje). W obrębie jednej klasy decyduje alfabet.
+///
+/// Świadomie NIE udajemy, że to zmierzone dane - to uporządkowanie listy, nie statystyka.
+const POPULARITY_RANK: &str = "CASE i.category \
+    WHEN 'Forex' THEN 1 \
+    WHEN 'Metale' THEN 2 \
+    WHEN 'Indeksy' THEN 3 \
+    WHEN 'Indeksy mini' THEN 4 \
+    WHEN 'Kryptowaluty' THEN 5 \
+    WHEN 'Towary' THEN 6 \
+    WHEN 'Soft commodities' THEN 7 \
+    WHEN 'NDF' THEN 8 \
+    WHEN 'Instrumenty syntetyczne' THEN 9 \
+    WHEN 'Akcje' THEN 10 \
+    ELSE 11 END";
+
 const DETAILS_SELECT: &str = "
 SELECT
     i.id, i.display_symbol, i.source_symbol, i.description, i.category, i.factory_index,
@@ -383,7 +403,17 @@ impl InstrumentRepository for SqliteInstrumentRepository {
             format!("WHERE {}", conditions.join(" AND "))
         };
         let sql =
-            format!("{DETAILS_SELECT} {where_clause} ORDER BY p.sort_order, i.display_symbol");
+            // Widoczne instrumenty na samej górze (w kolejności ustawionej przez użytkownika),
+            // reszta według popularności handlu, a dopiero w ostatniej kolejności alfabetycznie.
+            // Przy katalogu liczącym ponad tysiąc pozycji szukanie tych faktycznie używanych
+            // gdzieś w środku listy było bez sensu.
+            format!(
+                "{DETAILS_SELECT} {where_clause} \
+                 ORDER BY p.is_visible DESC, \
+                 CASE WHEN p.is_visible = 1 THEN p.sort_order END, \
+                 {POPULARITY_RANK}, \
+                 i.display_symbol COLLATE NOCASE"
+            );
 
         let mut stmt = conn.prepare(&sql)?;
         let rows = stmt
@@ -1031,6 +1061,78 @@ mod tests {
         let created = repo.create(&sample_input("NOFACTORY")).expect("create");
         let result = repo.reset_to_factory(&created.instrument.id);
         assert!(matches!(result, Err(AppError::Validation(_))));
+    }
+
+    /// Kolejność listy: widoczne instrumenty na samej górze, reszta według popularności klas
+    /// aktywów. Przy katalogu liczącym ponad tysiąc pozycji szukanie tych faktycznie używanych
+    /// gdzieś w środku listy było bezużyteczne.
+    #[test]
+    fn list_puts_visible_instruments_first_then_the_rest_by_popularity() {
+        let (repo, _dir) = repo_with_fresh_db();
+        for symbol in ["ZULU", "ALFA", "MIKE", "BRAVO"] {
+            repo.create(&sample_input(symbol)).expect("create");
+        }
+        // Domyślnie wszystko widoczne - chowamy dwa, żeby rozdzielić grupy.
+        for symbol in ["ALFA", "MIKE"] {
+            let found = repo
+                .list(&InstrumentListFilter::default())
+                .expect("list")
+                .into_iter()
+                .find(|i| i.instrument.display_symbol == symbol)
+                .expect("instrument");
+            repo.set_visibility(&found.instrument.id, false)
+                .expect("hide");
+        }
+
+        let listed = repo.list(&InstrumentListFilter::default()).expect("list");
+        let first_hidden = listed
+            .iter()
+            .position(|i| !i.is_visible)
+            .expect("jakiś ukryty");
+
+        // Grupy się nie przeplatają: wszystko przed pierwszym ukrytym jest widoczne, reszta nie.
+        assert!(listed[..first_hidden].iter().all(|i| i.is_visible));
+        assert!(listed[first_hidden..].iter().all(|i| !i.is_visible));
+
+        // Ukryte idą według popularności klas aktywów: Forex przed metalami, metale przed
+        // indeksami, akcje na końcu. W obrębie jednej klasy - alfabetycznie.
+        let rank = |category: &str| match category {
+            "Forex" => 1,
+            "Metale" => 2,
+            "Indeksy" => 3,
+            "Indeksy mini" => 4,
+            "Kryptowaluty" => 5,
+            "Towary" => 6,
+            "Soft commodities" => 7,
+            "NDF" => 8,
+            "Instrumenty syntetyczne" => 9,
+            "Akcje" => 10,
+            _ => 11,
+        };
+        let hidden: Vec<(i32, String)> = listed[first_hidden..]
+            .iter()
+            .map(|i| {
+                (
+                    rank(&i.instrument.category),
+                    i.instrument.display_symbol.to_lowercase(),
+                )
+            })
+            .collect();
+        let mut sorted = hidden.clone();
+        sorted.sort();
+        assert_eq!(hidden, sorted, "ukryte nie są uporządkowane popularnością");
+
+        // Świeżo utworzone (widoczne) są przed ukrytymi.
+        let position = |symbol: &str| {
+            listed
+                .iter()
+                .position(|i| i.instrument.display_symbol == symbol)
+                .expect("instrument")
+        };
+        assert!(position("ZULU") < first_hidden);
+        assert!(position("BRAVO") < first_hidden);
+        assert!(position("ALFA") >= first_hidden);
+        assert!(position("MIKE") >= first_hidden);
     }
 
     #[test]

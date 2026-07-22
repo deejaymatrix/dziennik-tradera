@@ -41,7 +41,9 @@ export interface BrokerTemplate {
   account_type: string | null;
   source: "broker_import" | "duplicated" | "user_created";
   import_format_version: number | null;
-  account_id: string | null;
+  /** Ile kont korzysta z tego szablonu - powiązanie mieszka na koncie (`Account.template_id`),
+   * więc jeden szablon może obsługiwać wiele rachunków u tego samego brokera. */
+  account_count: number;
   created_at: string;
   updated_at: string;
   archived_at: string | null;

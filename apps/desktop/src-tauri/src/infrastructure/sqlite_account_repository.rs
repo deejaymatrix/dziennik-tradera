@@ -34,6 +34,7 @@ fn map_row(row: &Row) -> rusqlite::Result<Account> {
         account_type: row.get("account_type")?,
         currency: row.get("currency")?,
         initial_balance: parse_decimal(row, "initial_balance")?,
+        template_id: row.get("template_id")?,
         created_at: row.get("created_at")?,
         updated_at: row.get("updated_at")?,
         archived_at: row.get("archived_at")?,
@@ -41,7 +42,7 @@ fn map_row(row: &Row) -> rusqlite::Result<Account> {
 }
 
 const SELECT_COLUMNS: &str =
-    "id, name, description, account_type, currency, initial_balance, created_at, updated_at, archived_at";
+    "id, name, description, account_type, currency, initial_balance, template_id, created_at, updated_at, archived_at";
 
 fn write_audit_log(
     conn: &rusqlite::Connection,

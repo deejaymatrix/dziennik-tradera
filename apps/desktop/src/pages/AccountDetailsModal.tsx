@@ -71,13 +71,14 @@ export function AccountDetailsModal({
     void loadTemplates();
   }, []);
 
-  const assigned = templates?.find((t) => t.account_id === account.id) ?? null;
-  // Do wyboru wyłącznie szablony WOLNE. Przypisanie jest jednorazowe i nieodwracalne, więc
-  // zabranie szablonu innemu kontu byłoby zmianą, której tamto konto nie mogłoby już naprawić.
-  const selectable = (templates ?? []).filter((t) => t.account_id === null);
+  const assigned = templates?.find((t) => t.id === account.template_id) ?? null;
+  // Do wyboru KAŻDY aktywny szablon - jeden szablon obsługuje wiele kont (np. kilka rachunków
+  // u tego samego brokera na wspólnym katalogu instrumentów).
+  const selectable = templates ?? [];
 
   function optionLabel(t: BrokerTemplate): string {
-    return `${t.name} (${t.instrument_count} instrumentów)`;
+    const base = `${t.name} (${t.instrument_count} instrumentów)`;
+    return t.account_count > 0 ? `${base} — używany przez ${t.account_count} kont(a)` : base;
   }
 
   async function handleReplace(): Promise<void> {
@@ -189,7 +190,7 @@ export function AccountDetailsModal({
                   Bez szablonu to konto pokazuje instrumenty ze wszystkich szablonów naraz, więc te
                   same symbole mogą się dublować. Przypisz szablon brokera, u którego handlujesz.
                   {selectable.length === 0 &&
-                    " Wszystkie szablony są już zajęte - zaimportuj dane brokera do nowego szablonu w zakładce Instrumenty."}
+                    " Nie ma jeszcze żadnego szablonu - zaimportuj dane brokera w zakładce Instrumenty."}
                 </p>
               )}
 
@@ -200,7 +201,7 @@ export function AccountDetailsModal({
                     value={selectedTemplateId}
                     onChange={(e) => setSelectedTemplateId(e.target.value)}
                     options={selectable.map((t) => ({ value: t.id, label: optionLabel(t) }))}
-                    hint="Do wyboru są tylko szablony jeszcze nieprzypisane - jeden szablon należy do jednego konta."
+                    hint="Jeden szablon może obsługiwać wiele kont - jeżeli masz kilka rachunków u tego samego brokera, wskaż im ten sam szablon."
                   />
                   <p className={styles.warning}>
                     Przypisania NIE DA SIĘ cofnąć ani zmienić. Jeżeli okaże się błędne, jedynym

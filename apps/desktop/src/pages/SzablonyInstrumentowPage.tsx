@@ -8,7 +8,7 @@ import {
   Trash2,
   Unlink2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { useNavigate } from "react-router";
 import { invokeCommand } from "../app/invokeCommand";
@@ -80,14 +80,6 @@ export function SzablonyInstrumentowPage(): ReactElement {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, []);
-
-  const accountsById = useMemo(() => {
-    const map = new Map<string, AccountWithBalance>();
-    for (const a of accounts ?? []) {
-      map.set(a.id, a);
-    }
-    return map;
-  }, [accounts]);
 
   async function withBusy(action: () => Promise<void>): Promise<void> {
     setBusy(true);
@@ -214,9 +206,9 @@ export function SzablonyInstrumentowPage(): ReactElement {
             </thead>
             <tbody>
               {templates.map((template) => {
-                const account = template.account_id
-                  ? (accountsById.get(template.account_id) ?? null)
-                  : null;
+                // Powiązanie mieszka na koncie (migracja 0011), więc szablon może obsługiwać
+                // wiele rachunków - wypisujemy je wszystkie, nie jedno.
+                const usingAccounts = accounts.filter((a) => a.template_id === template.id);
                 return (
                   <tr key={template.id}>
                     <td className={styles.nameCell}>
@@ -229,10 +221,14 @@ export function SzablonyInstrumentowPage(): ReactElement {
                     </td>
                     <td className={tableStyles.numeric}>{template.instrument_count}</td>
                     <td>
-                      {account ? (
-                        <Badge variant="info">
-                          {account.name} ({account.currency})
-                        </Badge>
+                      {usingAccounts.length > 0 ? (
+                        <div className={styles.accountBadges}>
+                          {usingAccounts.map((a) => (
+                            <Badge key={a.id} variant="info">
+                              {a.name} ({a.currency})
+                            </Badge>
+                          ))}
+                        </div>
                       ) : (
                         <span className={styles.muted}>—</span>
                       )}
@@ -267,7 +263,7 @@ export function SzablonyInstrumentowPage(): ReactElement {
                           onClick={() => setAssign({ template })}
                           disabled={busy || accounts.length === 0}
                         />
-                        {template.account_id && (
+                        {usingAccounts.length > 0 && (
                           <IconButton
                             icon={<Unlink2 size={14} />}
                             aria-label={`Odepnij: ${template.name}`}
@@ -419,7 +415,7 @@ function AssignAccountModal({
   onSaved,
 }: AssignAccountModalProps): ReactElement {
   const { showToast } = useToast();
-  const [selected, setSelected] = useState(template.account_id ?? "");
+  const [selected, setSelected] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function handleAssign(): Promise<void> {

@@ -66,8 +66,7 @@ export function AccountFormModal({
           includeArchived: false,
         });
         setTemplates(templateList);
-        // Podpowiadamy pierwszy WOLNY szablon - zajętych i tak nie da się już przejąć.
-        setTemplateId(templateList.find((t) => t.account_id === null)?.id ?? "");
+        setTemplateId(templateList[0]?.id ?? "");
       } catch {
         // Brak listy szablonów nie może blokować zakładania konta - pole zostaje puste.
       }
@@ -75,16 +74,17 @@ export function AccountFormModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- jednorazowo przy montowaniu.
   }, []);
 
-  // Tylko WOLNE szablony: przypisanie jest nieodwracalne, więc zabranie szablonu innemu kontu
-  // byłoby zmianą, której tamto konto nie mogłoby już naprawić.
+  // Każdy aktywny szablon jest do wzięcia - jeden szablon obsługuje wiele kont, więc kilka
+  // rachunków u tego samego brokera spokojnie dzieli ten sam katalog instrumentów.
   const templateOptions = [
     { value: "", label: "Bez szablonu (przypiszę później)" },
-    ...templates
-      .filter((t) => t.account_id === null)
-      .map((t) => ({
-        value: t.id,
-        label: `${t.name} (${t.instrument_count} instrumentów)`,
-      })),
+    ...templates.map((t) => ({
+      value: t.id,
+      label:
+        t.account_count > 0
+          ? `${t.name} (${t.instrument_count} instrumentów) — używany przez ${t.account_count} kont(a)`
+          : `${t.name} (${t.instrument_count} instrumentów)`,
+    })),
   ];
   const templateHint =
     "Szablon decyduje, jakie instrumenty i parametry zobaczysz przy transakcjach na tym koncie. Wyboru NIE DA SIĘ później zmienić - błędne powiązanie naprawia się usunięciem konta.";

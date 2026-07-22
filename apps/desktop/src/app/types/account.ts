@@ -11,6 +11,8 @@ export interface Account {
   account_type: string | null;
   currency: string;
   initial_balance: string;
+  /** Szablon instrumentów tego konta. Wiele kont może wskazywać ten sam szablon. */
+  template_id: string | null;
   created_at: string;
   updated_at: string;
   archived_at: string | null;

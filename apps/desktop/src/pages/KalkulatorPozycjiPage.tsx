@@ -103,8 +103,8 @@ export function KalkulatorPozycjiPage(): ReactElement {
   );
   /** Szablon przypisany do wybranego konta - kalkulator ładuje WYŁĄCZNIE jego instrumenty. */
   const accountTemplate = useMemo(
-    () => templates?.find((t) => t.account_id === accountId) ?? null,
-    [templates, accountId],
+    () => templates?.find((t) => t.id === account?.template_id) ?? null,
+    [templates, account],
   );
 
   async function loadBase(): Promise<void> {

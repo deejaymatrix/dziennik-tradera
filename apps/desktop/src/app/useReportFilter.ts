@@ -120,7 +120,8 @@ export function useReportFilter(): UseReportFilterResult {
     if (!accountId) {
       return;
     }
-    const templateForAccount = templates.find((t) => t.account_id === accountId);
+    const selectedAccount = accounts?.find((a) => a.id === accountId);
+    const templateForAccount = templates.find((t) => t.id === selectedAccount?.template_id);
     void (async () => {
       try {
         const list = await invokeCommand<InstrumentWithDetails[]>("list_instruments", {
@@ -137,7 +138,7 @@ export function useReportFilter(): UseReportFilterResult {
         // Brak listy nie blokuje raportu - pole wyboru instrumentu będzie po prostu puste.
       }
     })();
-  }, [filter.accountId, templates]);
+  }, [filter.accountId, templates, accounts]);
 
   async function loadAvailableYears(accountId: string): Promise<void> {
     try {

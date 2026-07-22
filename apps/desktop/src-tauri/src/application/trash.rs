@@ -365,7 +365,6 @@ mod tests {
                     conn.clone(),
                 ),
             ),
-            accounts.clone(),
         ));
         let backup = BackupService::new(conn.clone(), dir.path().to_path_buf());
 

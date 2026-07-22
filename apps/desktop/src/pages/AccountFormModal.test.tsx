@@ -16,7 +16,7 @@ const TEMPLATES = [
     account_type: "STP",
     source: "broker_import",
     import_format_version: 1,
-    account_id: null,
+    account_count: 0,
     created_at: "2026-07-22T11:00:00Z",
     updated_at: "2026-07-22T11:00:00Z",
     archived_at: null,
@@ -29,7 +29,7 @@ const TEMPLATES = [
     account_type: "RAW",
     source: "broker_import",
     import_format_version: 1,
-    account_id: "a-stare",
+    account_count: 1,
     created_at: "2026-07-01T10:00:00Z",
     updated_at: "2026-07-01T10:00:00Z",
     archived_at: null,
@@ -49,6 +49,7 @@ const ACCOUNTS = [
     updated_at: "2026-01-01T00:00:00Z",
     archived_at: null,
     balance: "1000",
+    template_id: "t-zajety",
   },
 ];
 
@@ -71,23 +72,24 @@ describe("AccountFormModal - szablon przy zakładaniu konta", () => {
     mockBackend();
   });
 
-  it("podpowiada pierwszy WOLNY szablon, nie zabierając go innemu kontu", async () => {
+  it("podpowiada pierwszy dostępny szablon", async () => {
     renderForm(<AccountFormModal open onClose={vi.fn()} onSaved={vi.fn()} />);
 
     const select = await screen.findByLabelText(/Szablon instrumentów/);
     await waitFor(() => expect(select).toHaveValue("t-wolny"));
   });
 
-  it("nie oferuje szablonu zajętego przez inne konto", async () => {
+  it("oferuje też szablon używany przez inne konto, pokazując ilu kont dotyczy", async () => {
     renderForm(<AccountFormModal open onClose={vi.fn()} onSaved={vi.fn()} />);
 
     const select = await screen.findByLabelText(/Szablon instrumentów/);
     const options = Array.from(select.querySelectorAll("option")).map((o) => o.textContent);
-    // Przypisanie jest nieodwracalne, więc odebranie szablonu innemu kontu byłoby zmianą
-    // nie do naprawienia - takie szablony w ogóle nie pojawiają się na liście.
+    // Jeden szablon obsługuje wiele kont, więc zajęty NIE znika z listy - kilka rachunków
+    // u tego samego brokera ma prawo korzystać ze wspólnego katalogu instrumentów.
     expect(options).toEqual([
       "Bez szablonu (przypiszę później)",
       "Vantage STP (1052 instrumentów)",
+      "QuoMarkets RAW (350 instrumentów) — używany przez 1 kont(a)",
     ]);
   });
 

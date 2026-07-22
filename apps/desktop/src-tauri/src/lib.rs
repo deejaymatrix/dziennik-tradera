@@ -139,21 +139,13 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
         SqliteTradingRulesRepository::new(conn.clone()),
     )));
     let broker_template_repo = Arc::new(SqliteBrokerTemplateRepository::new(conn.clone()));
-    let broker_templates = Arc::new(BrokerTemplatesService::new(
-        broker_template_repo.clone(),
-        accounts.clone(),
-    ));
+    let broker_templates = Arc::new(BrokerTemplatesService::new(broker_template_repo.clone()));
     let instrument_import = InstrumentImportService::new(broker_template_repo.clone());
-    // Uzgodnienie startowe (sekcja 1.3 specyfikacji szablonów): każde aktywne konto bez
-    // szablonu dostaje niezależną kopię domyślnego. Błąd nie blokuje startu aplikacji.
-    match broker_templates.reconcile_account_templates() {
-        Ok(0) => {}
-        Ok(created) => logging::log_info(
-            "broker_templates",
-            &format!("utworzono {created} kopii szablonu domyślnego dla kont bez szablonu"),
-        ),
-        Err(err) => logging::log_error("broker_templates", &err),
-    }
+    // Uzgodnienia startowego kopiującego szablon dla każdego konta CELOWO już nie ma. Istniało
+    // wyłącznie po to, żeby spełnić dawną regułę "jeden szablon = jedno konto" (migracja 0011
+    // odwróciła powiązanie i wiele kont może dzielić szablon), a przy okazji podejmowałoby za
+    // użytkownika decyzję, której nie da się cofnąć. Konto bez szablonu zostaje bez szablonu,
+    // a interfejs poprowadzi do jego wybrania.
     let trash = TrashService::new(
         accounts.clone(),
         strategies.clone(),
