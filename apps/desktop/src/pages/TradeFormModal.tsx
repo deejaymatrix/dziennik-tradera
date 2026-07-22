@@ -13,7 +13,11 @@ import {
 import type { TradeFormFields } from "../app/tradeForm";
 import type { PendingAttachment } from "../app/types/attachment";
 import type { EmotionalState } from "../app/types/emotional_state";
-import type { InstrumentListFilter, InstrumentWithDetails } from "../app/types/instrument";
+import type {
+  BrokerTemplate,
+  InstrumentListFilter,
+  InstrumentWithDetails,
+} from "../app/types/instrument";
 import type { Interval } from "../app/types/interval";
 import type { Strategy } from "../app/types/strategy";
 import type {
@@ -134,10 +138,22 @@ export function TradeFormModal({
     // ta instancja komponentu jest zawsze dla jednej, stałej transakcji (key wymusza remount).
     void (async () => {
       try {
+        // Instrumenty NIGDY nie są listowane bez kontekstu szablonu w przepływach związanych
+        // z kontem (sekcja 1.1) - bez tego lista mieszała symbole ze WSZYSTKICH szablonów i
+        // to samo EURUSD pojawiało się kilka razy, nie do odróżnienia. Szablon bierzemy
+        // z przypisania do konta tej transakcji.
+        const accountTemplates = await invokeCommand<BrokerTemplate[]>("list_broker_templates", {
+          includeArchived: false,
+        });
+        const templateForAccount = accountTemplates.find((t) => t.account_id === accountId);
         const visibleFilter: InstrumentListFilter = {
           search: null,
           category: null,
           visibility: "visible",
+          // Konto bez przypisanego szablonu (np. dodane po migracji, która podpięła szablon
+          // startowy tylko do najstarszego konta) nie może zostać bez żadnych instrumentów -
+          // wtedy świadomie pokazujemy wszystkie, zamiast pustej listy blokującej zapis.
+          template_id: templateForAccount?.id ?? null,
         };
         const [instrumentsData, strategiesData, intervalsData, emotionalStatesData] =
           await Promise.all([

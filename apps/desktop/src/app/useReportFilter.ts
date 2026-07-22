@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { invokeCommand } from "./invokeCommand";
 import type { AccountWithBalance } from "./types/account";
-import type { InstrumentWithDetails } from "./types/instrument";
+import type { BrokerTemplate, InstrumentWithDetails } from "./types/instrument";
 import type { Interval } from "./types/interval";
 import type { AccountComparisonFilter, FilteredReport, ReportFilter } from "./types/report";
 import type { Strategy } from "./types/strategy";
@@ -78,6 +78,7 @@ export function useReportFilter(): UseReportFilterResult {
   const [accounts, setAccounts] = useState<AccountWithBalance[] | null>(null);
   const [accountsError, setAccountsError] = useState<string | null>(null);
   const [instruments, setInstruments] = useState<InstrumentWithDetails[]>([]);
+  const [templates, setTemplates] = useState<BrokerTemplate[]>([]);
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [intervals, setIntervals] = useState<Interval[]>([]);
   const [filter, setFilter] = useState<ReportFilterBarValue>(() => blankReportFilter(""));
@@ -90,11 +91,9 @@ export function useReportFilter(): UseReportFilterResult {
     // (instrumenty widoczne, strategie/interwały aktywne).
     void (async () => {
       try {
-        const [accountsData, instrumentsData, strategiesData, intervalsData] = await Promise.all([
+        const [accountsData, templatesData, strategiesData, intervalsData] = await Promise.all([
           invokeCommand<AccountWithBalance[]>("list_accounts", { includeArchived: false }),
-          invokeCommand<InstrumentWithDetails[]>("list_instruments", {
-            filter: { search: null, category: null, visibility: "visible" },
-          }),
+          invokeCommand<BrokerTemplate[]>("list_broker_templates", { includeArchived: false }),
           invokeCommand<Strategy[]>("list_strategies", { includeArchived: false }),
           invokeCommand<Interval[]>("list_intervals", {
             includeHidden: false,
@@ -102,7 +101,7 @@ export function useReportFilter(): UseReportFilterResult {
           }),
         ]);
         setAccounts(accountsData);
-        setInstruments(instrumentsData);
+        setTemplates(templatesData);
         setStrategies(strategiesData);
         setIntervals(intervalsData);
         setFilter((current) =>
@@ -113,6 +112,32 @@ export function useReportFilter(): UseReportFilterResult {
       }
     })();
   }, []);
+
+  // Instrumenty w filtrze zależą od WYBRANEGO konta - listowane bez kontekstu szablonu mieszałyby
+  // symbole ze wszystkich szablonów i to samo EURUSD pojawiałoby się kilka razy (sekcja 1.1).
+  useEffect(() => {
+    const accountId = filter.accountId;
+    if (!accountId) {
+      return;
+    }
+    const templateForAccount = templates.find((t) => t.account_id === accountId);
+    void (async () => {
+      try {
+        const list = await invokeCommand<InstrumentWithDetails[]>("list_instruments", {
+          filter: {
+            search: null,
+            category: null,
+            visibility: "visible",
+            // Konto bez przypisanego szablonu nie może zostać bez instrumentów w filtrze.
+            template_id: templateForAccount?.id ?? null,
+          },
+        });
+        setInstruments(list);
+      } catch {
+        // Brak listy nie blokuje raportu - pole wyboru instrumentu będzie po prostu puste.
+      }
+    })();
+  }, [filter.accountId, templates]);
 
   async function loadAvailableYears(accountId: string): Promise<void> {
     try {
