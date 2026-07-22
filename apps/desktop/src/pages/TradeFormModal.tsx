@@ -114,6 +114,8 @@ export function TradeFormModal({
   const [instruments, setInstruments] = useState<
     (InstrumentWithDetails & { isHidden?: boolean })[]
   >([]);
+  /** Wyjaśnienie pustej listy instrumentów - patrz efekt pobierania list wyboru. */
+  const [instrumentsHint, setInstrumentsHint] = useState<string | null>(null);
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [intervals, setIntervals] = useState<(Interval & { isHiddenOrArchived?: boolean })[]>([]);
   const [emotionalStates, setEmotionalStates] = useState<EmotionalState[]>([]);
@@ -180,6 +182,24 @@ export function TradeFormModal({
           }
         } else {
           setInstruments(instrumentsData);
+        }
+        // Pusta lista instrumentów ma powiedzieć DLACZEGO jest pusta. Instrumenty z importu
+        // brokera są domyślnie ukryte, więc świeżo zaimportowany szablon (nawet z tysiącem
+        // pozycji) daje tu zero wyboru i bez tej podpowiedzi wygląda to jak awaria aplikacji.
+        if (instrumentsData.length === 0) {
+          if (!templateForAccount) {
+            setInstrumentsHint(
+              "To konto nie ma przypisanego szablonu instrumentów. Przypisz go w Konta → kliknij konto → Szablon instrumentów.",
+            );
+          } else if (templateForAccount.instrument_count > 0) {
+            setInstrumentsHint(
+              `Szablon „${templateForAccount.name}" ma ${templateForAccount.instrument_count} instrumentów, ale żaden nie jest widoczny. Włącz te, którymi handlujesz, w zakładce Instrumenty.`,
+            );
+          } else {
+            setInstrumentsHint(
+              `Szablon „${templateForAccount.name}" nie ma jeszcze żadnych instrumentów. Zaimportuj dane brokera w zakładce Instrumenty.`,
+            );
+          }
         }
         setStrategies(strategiesData);
         // Ten sam wzorzec co ukryty instrument powyżej - jeśli edytowana transakcja używa
@@ -496,6 +516,7 @@ export function TradeFormModal({
             onChange={(e) => setField("instrumentId", e.target.value)}
             options={instrumentOptions}
             disabled={readOnly}
+            {...(instruments.length === 0 && instrumentsHint ? { hint: instrumentsHint } : {})}
           />
           <Select
             label="Strategia"

@@ -415,17 +415,24 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
                 "Nie znaleziono aktywnego szablonu o id {template_id}."
             )));
         };
-        if let Some(other_account) = &current_assignment {
-            if other_account != account_id {
-                return Err(AppError::Validation(
-                    "Ten szablon jest już przypisany do innego konta - najpierw utwórz jego kopię (Duplikuj szablon).".to_string(),
-                ));
-            }
+        // Szablon już na TYM koncie - nie ma czego zmieniać.
+        if current_assignment.as_deref() == Some(account_id) {
             tx.commit()?;
             return Ok(());
         }
 
+        // Przypisanie jest PRZENIESIENIEM: szablon leżący na innym koncie zostaje z niego zdjęty
+        // w tej samej transakcji. Wcześniej kończyło się to błędem "najpierw zrób kopię", przez co
+        // konto, do którego szablon pasował, nie dało się z nim połączyć bez obchodzenia UI.
+        // Relacja jeden-do-jednego nadal obowiązuje - po prostu wymuszamy ją przenosząc, a nie
+        // odmawiając. To wywołujący (widok szczegółów konta) pyta użytkownika o zgodę i mówi
+        // wprost, z którego konta szablon zniknie.
+        //
         // Atomowe "Zastąp szablon konta": odpięcie dotychczasowego + przypięcie nowego.
+        tx.execute(
+            "UPDATE broker_instrument_templates SET account_id = NULL, updated_at = ?1 WHERE id = ?2",
+            rusqlite::params![now, template_id],
+        )?;
         tx.execute(
             "UPDATE broker_instrument_templates SET account_id = NULL, updated_at = ?1 WHERE account_id = ?2",
             rusqlite::params![now, account_id],
@@ -861,16 +868,49 @@ mod tests {
         );
     }
 
+    /// Przypisanie szablonu leżącego na innym koncie to PRZENIESIENIE, nie błąd. Wcześniej kończyło
+    /// się komunikatem "najpierw zrób kopię", przez co konta nie dało się połączyć z pasującym
+    /// szablonem bez obchodzenia interfejsu.
     #[test]
-    fn assign_rejects_a_template_already_bound_to_another_account() {
+    fn assign_moves_a_template_from_another_account_keeping_one_to_one() {
         let (repo, conn, _dir) = repo_with_fresh_db();
         seed_account(&conn, "acc-1");
         seed_account(&conn, "acc-2");
         let template = quomarkets(&repo);
+
         repo.assign_to_account(&template.id, "acc-1")
-            .expect("assign");
-        let result = repo.assign_to_account(&template.id, "acc-2");
-        assert!(matches!(result, Err(AppError::Validation(_))));
+            .expect("pierwsze przypisanie");
+        repo.assign_to_account(&template.id, "acc-2")
+            .expect("przeniesienie na drugie konto");
+
+        // Szablon jest DOKŁADNIE na jednym koncie - tym nowym.
+        assert_eq!(
+            repo.get(&template.id).expect("szablon").account_id,
+            Some("acc-2".to_string())
+        );
+        let on_first_account: i64 = conn
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT count(*) FROM broker_instrument_templates WHERE account_id = 'acc-1' AND archived_at IS NULL",
+                [],
+                |r| r.get(0),
+            )
+            .expect("licznik");
+        assert_eq!(on_first_account, 0, "stare konto zostaje bez tego szablonu");
+    }
+
+    #[test]
+    fn assign_to_the_same_account_twice_is_a_no_op() {
+        let (repo, conn, _dir) = repo_with_fresh_db();
+        seed_account(&conn, "acc-1");
+        let template = quomarkets(&repo);
+        repo.assign_to_account(&template.id, "acc-1").expect("raz");
+        repo.assign_to_account(&template.id, "acc-1").expect("dwa");
+        assert_eq!(
+            repo.get(&template.id).expect("szablon").account_id,
+            Some("acc-1".to_string())
+        );
     }
 
     #[test]

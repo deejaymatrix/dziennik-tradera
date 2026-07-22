@@ -99,13 +99,20 @@ describe("AccountDetailsModal", () => {
     expect(screen.getByRole("button", { name: /Przypisz szablon/ })).toBeInTheDocument();
   });
 
-  it("do wyboru daje tylko szablony wolne albo należące do tego konta", async () => {
-    invokeCommand.mockResolvedValue([
-      template({ id: "t1", name: "Vantage STP", account_id: "a1" }),
-      template({ id: "t2", name: "Wolny szablon", account_id: null }),
-      // Zajęty przez INNE konto - backend i tak by go odrzucił, więc go nie pokazujemy.
-      template({ id: "t3", name: "Szablon innego konta", account_id: "a2" }),
-    ]);
+  it("pozwala wybrać także szablon z innego konta, nazywając to konto wprost", async () => {
+    invokeCommand.mockImplementation((command: string) =>
+      Promise.resolve(
+        command === "list_accounts"
+          ? [account(), account({ id: "a2", name: "Konto QuoMarkets" })]
+          : [
+              template({ id: "t1", name: "Vantage STP", account_id: "a1" }),
+              template({ id: "t2", name: "Wolny szablon", account_id: null }),
+              // Leży na INNYM koncie - przypisanie stąd przeniesie go tutaj, więc musi być
+              // widoczny, ale z jasną informacją, komu go zabieramy.
+              template({ id: "t3", name: "Szablon innego konta", account_id: "a2" }),
+            ],
+      ),
+    );
 
     renderModal(
       <AccountDetailsModal
@@ -123,8 +130,8 @@ describe("AccountDetailsModal", () => {
     expect(options).toEqual([
       "Vantage STP (1052 instrumentów)",
       "Wolny szablon (1052 instrumentów)",
+      "Szablon innego konta (1052 instrumentów) — teraz na koncie: Konto QuoMarkets",
     ]);
-    expect(options.join()).not.toContain("Szablon innego konta");
   });
 
   it("przycisk Edytuj konto oddaje sterowanie liście kont", async () => {

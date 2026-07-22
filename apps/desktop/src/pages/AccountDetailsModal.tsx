@@ -50,6 +50,8 @@ export function AccountDetailsModal({
   const confirm = useConfirm();
 
   const [templates, setTemplates] = useState<BrokerTemplate[] | null>(null);
+  /** Potrzebne wyłącznie po to, żeby nazwać konto, z którego szablon zostanie zdjęty. */
+  const [accounts, setAccounts] = useState<AccountWithBalance[] | null>(null);
   const [replacing, setReplacing] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -57,10 +59,12 @@ export function AccountDetailsModal({
 
   async function loadTemplates(): Promise<void> {
     try {
-      const list = await invokeCommand<BrokerTemplate[]>("list_broker_templates", {
-        includeArchived: false,
-      });
+      const [list, accountList] = await Promise.all([
+        invokeCommand<BrokerTemplate[]>("list_broker_templates", { includeArchived: false }),
+        invokeCommand<AccountWithBalance[]>("list_accounts", { includeArchived: false }),
+      ]);
       setTemplates(list);
+      setAccounts(accountList);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Nie udało się wczytać szablonów.");
     }
@@ -72,20 +76,43 @@ export function AccountDetailsModal({
   }, []);
 
   const assigned = templates?.find((t) => t.account_id === account.id) ?? null;
-  // Szablon zajęty przez INNE konto jest odrzucany przez backend - nie pokazujemy go do wyboru,
-  // żeby nie kusić akcją, która i tak skończy się błędem.
-  const selectable = (templates ?? []).filter(
-    (t) => t.account_id === null || t.account_id === account.id,
-  );
+  // Pokazujemy WSZYSTKIE aktywne szablony, także te leżące na innych kontach - przypisanie jest
+  // przeniesieniem, więc ukrywanie ich zostawiało konto bez żadnej drogi do pasującego szablonu.
+  // Przy takim wyborze potwierdzenie mówi wprost, z którego konta szablon zniknie.
+  const selectable = templates ?? [];
+
+  function accountNameFor(templateAccountId: string | null): string | null {
+    if (!templateAccountId || templateAccountId === account.id) {
+      return null;
+    }
+    return accounts?.find((a) => a.id === templateAccountId)?.name ?? "inne konto";
+  }
+
+  function optionLabel(t: BrokerTemplate): string {
+    const owner = accountNameFor(t.account_id);
+    const base = `${t.name} (${t.instrument_count} instrumentów)`;
+    return owner ? `${base} — teraz na koncie: ${owner}` : base;
+  }
 
   async function handleReplace(): Promise<void> {
     const target = templates?.find((t) => t.id === selectedTemplateId);
     if (!target) {
       return;
     }
-    const message = assigned
-      ? `Zastąpić szablon konta "${account.name}"?\n\nZ: „${assigned.name}" (${assigned.instrument_count} instrumentów)\nNa: „${target.name}" (${target.instrument_count} instrumentów)\n\nNowe transakcje będą korzystać z instrumentów i parametrów nowego szablonu. Transakcje już zapisane zachowują zamrożone parametry, więc ich wyniki się nie zmienią.`
-      : `Przypisać szablon „${target.name}" (${target.instrument_count} instrumentów) do konta "${account.name}"?`;
+    const takenFrom = accountNameFor(target.account_id);
+    const message = [
+      assigned
+        ? `Zastąpić szablon konta "${account.name}"?\n\nZ: „${assigned.name}" (${assigned.instrument_count} instrumentów)\nNa: „${target.name}" (${target.instrument_count} instrumentów)`
+        : `Przypisać szablon „${target.name}" (${target.instrument_count} instrumentów) do konta "${account.name}"?`,
+      // Jeden szablon należy do jednego konta, więc przypisanie stąd zabiera go tamtemu - to musi
+      // być powiedziane wprost, zanim użytkownik potwierdzi.
+      takenFrom
+        ? `\nUWAGA: ten szablon jest teraz przypisany do konta "${takenFrom}" i zostanie z niego zdjęty. Tamto konto zostanie bez szablonu.`
+        : null,
+      "\nTransakcje już zapisane zachowują zamrożone parametry, więc ich wyniki się nie zmienią.",
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     if (!(await confirm({ message, confirmLabel: assigned ? "Zastąp szablon" : "Przypisz" }))) {
       return;
@@ -188,11 +215,8 @@ export function AccountDetailsModal({
                     label="Szablon dla tego konta"
                     value={selectedTemplateId}
                     onChange={(e) => setSelectedTemplateId(e.target.value)}
-                    options={selectable.map((t) => ({
-                      value: t.id,
-                      label: `${t.name} (${t.instrument_count} instrumentów)`,
-                    }))}
-                    hint="Widoczne są tylko szablony wolne albo już przypisane do tego konta - jeden szablon należy do maksymalnie jednego konta."
+                    options={selectable.map((t) => ({ value: t.id, label: optionLabel(t) }))}
+                    hint="Jeden szablon należy do jednego konta. Wybranie szablonu z innego konta przeniesie go tutaj, a tamto konto zostanie bez szablonu."
                   />
                   <p className={styles.note}>
                     Transakcje już zapisane zachowują zamrożone parametry instrumentów, więc zmiana
