@@ -262,14 +262,20 @@ impl InstrumentRepository for SqliteInstrumentRepository {
 
         let instrument_id = Uuid::now_v7().to_string();
         // B1 (szablony brokerów): każdy instrument należy do szablonu, a unikalność symboli
-        // działa per szablon. Do czasu przewleczenia jawnego kontekstu szablonu przez UI (B2)
-        // nowe instrumenty użytkownika trafiają do domyślnego (najstarszego aktywnego) szablonu
-        // - dokładnie tam, gdzie migracja 0010 umieściła cały dotychczasowy katalog.
+        // działa per szablon. `template_id` z wejścia (ekran instrumentów zna wybrany szablon);
+        // jeśli go brak - domyślny (najstarszy aktywny) szablon, tam gdzie migracja 0010
+        // umieściła cały dotychczasowy katalog.
+        let template_id: String = match &input.template_id {
+            Some(id) => id.clone(),
+            None => tx.query_row(
+                "SELECT id FROM broker_instrument_templates WHERE archived_at IS NULL ORDER BY created_at LIMIT 1",
+                [],
+                |row| row.get(0),
+            )?,
+        };
         tx.execute(
             "INSERT INTO instruments (id, display_symbol, source_symbol, description, category, factory_index, created_at, updated_at, template_id, canonical_symbol, variant, origin)
-             VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?6,
-                     (SELECT id FROM broker_instrument_templates WHERE archived_at IS NULL ORDER BY created_at LIMIT 1),
-                     ?2, 'STANDARD', 'user_created')",
+             VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?6, ?7, ?2, 'STANDARD', 'user_created')",
             rusqlite::params![
                 instrument_id,
                 input.display_symbol.trim(),
@@ -277,6 +283,7 @@ impl InstrumentRepository for SqliteInstrumentRepository {
                 input.description.trim(),
                 input.category,
                 now_str,
+                template_id,
             ],
         )
         .map_err(map_unique_violation)?;
@@ -718,6 +725,7 @@ mod tests {
             source_symbol: format!("{display_symbol}.custom"),
             description: "Instrument testowy".to_string(),
             category: "Forex".to_string(),
+            template_id: None,
             parameters: sample_params(),
         }
     }
@@ -743,6 +751,53 @@ mod tests {
         assert!(instruments
             .iter()
             .all(|i| i.instrument.origin == "broker_import"));
+    }
+
+    /// Nowy instrument z jawnym `template_id` trafia dokładnie do wskazanego szablonu, a nie do
+    /// domyślnego (edycja instrumentów odbywa się w kontekście wybranego szablonu - B2).
+    #[test]
+    fn create_with_template_id_targets_that_template() {
+        let (repo, conn, _dir) = repo_with_fresh_db_and_conn();
+        conn.lock()
+            .unwrap()
+            .execute(
+                "INSERT INTO broker_instrument_templates (id, name, broker_name, account_type, source, created_at, updated_at)
+                 VALUES ('tpl-2', 'Drugi broker', 'Broker X', NULL, 'user_created', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+                [],
+            )
+            .expect("second template");
+
+        let mut input = sample_input("MYSYM");
+        input.template_id = Some("tpl-2".to_string());
+        let created = repo.create(&input).expect("create in tpl-2");
+        assert_eq!(created.instrument.template_id.as_deref(), Some("tpl-2"));
+        assert_eq!(created.instrument.origin, "user_created");
+
+        let in_tpl2 = repo
+            .list(&InstrumentListFilter {
+                visibility: InstrumentVisibilityFilter::All,
+                template_id: Some("tpl-2".to_string()),
+                ..Default::default()
+            })
+            .expect("list tpl-2");
+        assert_eq!(in_tpl2.len(), 1);
+        assert_eq!(in_tpl2[0].instrument.display_symbol, "MYSYM");
+    }
+
+    /// Filtr "Dodane przez użytkownika" pokazuje tylko instrumenty utworzone ręcznie.
+    #[test]
+    fn user_created_only_filter_excludes_broker_import_instruments() {
+        let (repo, _dir) = repo_with_fresh_db();
+        repo.create(&sample_input("MYSYM")).expect("create custom");
+        let only_user = repo
+            .list(&InstrumentListFilter {
+                visibility: InstrumentVisibilityFilter::All,
+                user_created_only: true,
+                ..Default::default()
+            })
+            .expect("list user-created");
+        assert_eq!(only_user.len(), 1);
+        assert_eq!(only_user[0].instrument.display_symbol, "MYSYM");
     }
 
     /// Instrumenty listowane są w kontekście szablonu (sekcja 1.1 specyfikacji szablonów

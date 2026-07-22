@@ -29,10 +29,6 @@ impl BrokerTemplatesService {
         self.repository.list(include_archived)
     }
 
-    pub fn get(&self, id: &str) -> Result<BrokerTemplate, AppError> {
-        self.repository.get(id)
-    }
-
     pub fn create(&self, input: NewTemplate) -> Result<BrokerTemplate, AppError> {
         self.repository.create(&input)
     }

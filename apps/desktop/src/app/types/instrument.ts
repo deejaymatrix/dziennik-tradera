@@ -128,6 +128,10 @@ export interface InstrumentListFilter {
   search?: string | null;
   category?: string | null;
   visibility: InstrumentVisibilityFilter;
+  /** Kontekst szablonu (B1) - instrumenty listowane w obrębie jednego szablonu brokera. */
+  template_id?: string | null;
+  /** Tylko instrumenty dodane ręcznie przez użytkownika (filtr "Dodane przez użytkownika"). */
+  user_created_only?: boolean;
 }
 
 /** Edytowalny podzbiór parametrów wersji - to, co formularz edycji wysyła do backendu. */
@@ -141,5 +145,7 @@ export interface NewInstrumentInput {
   source_symbol: string;
   description: string;
   category: string;
+  /** Szablon docelowy (B1); null = domyślny (najstarszy aktywny) szablon. */
+  template_id?: string | null;
   parameters: InstrumentVersionInput;
 }

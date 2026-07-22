@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
+import { useSearchParams } from "react-router";
 import {
   ArrowDown,
   ArrowUp,
@@ -15,6 +16,7 @@ import {
 import { invokeCommand } from "../app/invokeCommand";
 import {
   INSTRUMENT_CATEGORIES,
+  type BrokerTemplate,
   type InstrumentListFilter,
   type InstrumentVisibilityFilter,
   type InstrumentWithDetails,
@@ -60,10 +62,18 @@ export function InstrumentsPage(): ReactElement {
   const { showToast } = useToast();
   const confirm = useConfirm();
 
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [visibility, setVisibility] = useState<InstrumentVisibilityFilter>("all");
+  const [origin, setOrigin] = useState<"all" | "user">("all");
   const [page, setPage] = useState(0);
+
+  // Kontekst szablonu (B1/B2): instrumenty edytuje się zawsze w obrębie jednego szablonu.
+  // Startowy szablon bierzemy z parametru URL (wejście z ekranu "Szablony instrumentów" przez
+  // "Edytuj instrumenty"), a jak go brak - pierwszy aktywny szablon.
+  const [templates, setTemplates] = useState<BrokerTemplate[] | null>(null);
+  const [templateId, setTemplateId] = useState<string>("");
 
   const [instruments, setInstruments] = useState<InstrumentWithDetails[] | null>(null);
   const [visibleOrder, setVisibleOrder] = useState<InstrumentWithDetails[] | null>(null);
@@ -80,9 +90,30 @@ export function InstrumentsPage(): ReactElement {
       search: search.trim() ? search.trim() : null,
       category: category ? category : null,
       visibility,
+      template_id: templateId || null,
+      user_created_only: origin === "user",
     }),
-    [search, category, visibility],
+    [search, category, visibility, templateId, origin],
   );
+
+  // Jednorazowe wczytanie listy szablonów + ustalenie startowego (z URL albo pierwszy aktywny).
+  useEffect(() => {
+    void (async () => {
+      try {
+        const ts = await invokeCommand<BrokerTemplate[]>("list_broker_templates", {
+          includeArchived: false,
+        });
+        setTemplates(ts);
+        const fromUrl = searchParams.get("template");
+        const initial = fromUrl && ts.some((t) => t.id === fromUrl) ? fromUrl : (ts[0]?.id ?? "");
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setTemplateId((current) => current || initial);
+      } catch {
+        // Główny `load` obsłuży i pokaże błąd - tu tylko brak pickera szablonów.
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- jednorazowo przy montowaniu.
+  }, []);
 
   async function load(): Promise<void> {
     setError(null);
@@ -94,6 +125,7 @@ export function InstrumentsPage(): ReactElement {
             search: null,
             category: null,
             visibility: "visible",
+            template_id: templateId || null,
           } satisfies InstrumentListFilter,
         }),
       ]);
@@ -228,6 +260,17 @@ export function InstrumentsPage(): ReactElement {
     <div className={styles.page}>
       <div className={styles.header}>
         <div className={styles.filters}>
+          {templates && templates.length > 0 && (
+            <Select
+              label="Szablon"
+              value={templateId}
+              onChange={(e) => setTemplateId(e.target.value)}
+              options={templates.map((t) => ({
+                value: t.id,
+                label: `${t.name} (${t.instrument_count})`,
+              }))}
+            />
+          )}
           <TextField
             label="Szukaj"
             icon={<Search size={16} />}
@@ -247,6 +290,15 @@ export function InstrumentsPage(): ReactElement {
             value={visibility}
             onChange={(e) => setVisibility(e.target.value as InstrumentVisibilityFilter)}
             options={VISIBILITY_OPTIONS}
+          />
+          <Select
+            label="Pochodzenie"
+            value={origin}
+            onChange={(e) => setOrigin(e.target.value as "all" | "user")}
+            options={[
+              { value: "all", label: "Wszystkie" },
+              { value: "user", label: "Dodane przez użytkownika" },
+            ]}
           />
         </div>
         <div className={styles.headerActions}>
@@ -444,6 +496,7 @@ export function InstrumentsPage(): ReactElement {
           void load();
         }}
         instrument={editingInstrument}
+        templateId={templateId || null}
       />
     </div>
   );

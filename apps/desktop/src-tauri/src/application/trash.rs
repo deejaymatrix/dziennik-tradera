@@ -71,6 +71,9 @@ pub struct TrashService {
 }
 
 impl TrashService {
+    // Konstruktor agreguje wszystkie serwisy, których dotyka uniwersalny Kosz - stąd naturalnie
+    // przekracza domyślny próg clippy na liczbę argumentów.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         accounts: Arc<AccountsService>,
         strategies: Arc<StrategiesService>,

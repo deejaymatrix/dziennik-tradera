@@ -13,14 +13,6 @@ pub enum TemplateSource {
 }
 
 impl TemplateSource {
-    pub fn as_db_str(self) -> &'static str {
-        match self {
-            TemplateSource::BrokerImport => "broker_import",
-            TemplateSource::Duplicated => "duplicated",
-            TemplateSource::UserCreated => "user_created",
-        }
-    }
-
     pub fn from_db_str(value: &str) -> Self {
         match value {
             "duplicated" => TemplateSource::Duplicated,
@@ -118,13 +110,22 @@ mod tests {
     }
 
     #[test]
-    fn template_source_round_trips_through_db_strings() {
-        for source in [
-            TemplateSource::BrokerImport,
-            TemplateSource::Duplicated,
-            TemplateSource::UserCreated,
-        ] {
-            assert_eq!(TemplateSource::from_db_str(source.as_db_str()), source);
-        }
+    fn template_source_parses_known_db_strings_and_defaults_the_rest() {
+        assert_eq!(
+            TemplateSource::from_db_str("duplicated"),
+            TemplateSource::Duplicated
+        );
+        assert_eq!(
+            TemplateSource::from_db_str("user_created"),
+            TemplateSource::UserCreated
+        );
+        assert_eq!(
+            TemplateSource::from_db_str("broker_import"),
+            TemplateSource::BrokerImport
+        );
+        assert_eq!(
+            TemplateSource::from_db_str("cokolwiek"),
+            TemplateSource::BrokerImport
+        );
     }
 }

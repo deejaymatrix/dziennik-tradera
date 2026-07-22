@@ -22,6 +22,8 @@ export interface InstrumentFormModalProps {
   onClose: () => void;
   onSaved: () => void;
   instrument?: InstrumentWithDetails | undefined;
+  /** Szablon, do którego trafi nowy instrument (B1) - kontekst wybrany na ekranie instrumentów. */
+  templateId?: string | null;
 }
 
 interface IdentityFields {
@@ -324,6 +326,7 @@ export function InstrumentFormModal({
   onClose,
   onSaved,
   instrument,
+  templateId,
 }: InstrumentFormModalProps): ReactElement {
   const isEdit = Boolean(instrument);
   const { showToast } = useToast();
@@ -385,6 +388,7 @@ export function InstrumentFormModal({
           source_symbol: identity.sourceSymbol.trim(),
           description: identity.description.trim(),
           category: identity.category,
+          template_id: templateId ?? null,
           parameters: versionFieldsToInput(fields),
         };
         await invokeCommand("create_instrument", { input });

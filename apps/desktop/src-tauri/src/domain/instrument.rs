@@ -195,6 +195,10 @@ pub struct NewInstrumentInput {
     pub source_symbol: String,
     pub description: String,
     pub category: String,
+    /// Szablon, do którego trafi nowy instrument (B1). `None` = domyślny (najstarszy aktywny)
+    /// szablon - używane przez starsze ścieżki, które nie znają jeszcze kontekstu szablonu.
+    #[serde(default)]
+    pub template_id: Option<String>,
     pub parameters: InstrumentVersionInput,
 }
 
@@ -469,6 +473,7 @@ mod tests {
             source_symbol: "EURUSD.ecn".to_string(),
             description: "Euro vs US Dollar".to_string(),
             category: "Forex".to_string(),
+            template_id: None,
             parameters: valid_params(),
         }
     }

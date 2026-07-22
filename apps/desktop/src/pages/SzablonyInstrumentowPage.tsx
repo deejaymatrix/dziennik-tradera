@@ -1,6 +1,16 @@
-import { Copy, Layers, Link2, Pencil, Plus, Trash2, Unlink2 } from "lucide-react";
+import {
+  Copy,
+  Layers,
+  Link2,
+  Pencil,
+  Plus,
+  SlidersHorizontal,
+  Trash2,
+  Unlink2,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
+import { useNavigate } from "react-router";
 import { invokeCommand } from "../app/invokeCommand";
 import type { AccountWithBalance } from "../app/types/account";
 import type { BrokerTemplate } from "../app/types/instrument";
@@ -44,6 +54,7 @@ interface CreateOrRenameDialogState {
 export function SzablonyInstrumentowPage(): ReactElement {
   const { showToast } = useToast();
   const confirm = useConfirm();
+  const navigate = useNavigate();
   const [templates, setTemplates] = useState<BrokerTemplate[] | null>(null);
   const [accounts, setAccounts] = useState<AccountWithBalance[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -233,6 +244,14 @@ export function SzablonyInstrumentowPage(): ReactElement {
                     </td>
                     <td>
                       <div className={styles.rowActions}>
+                        <IconButton
+                          icon={<SlidersHorizontal size={14} />}
+                          aria-label={`Edytuj instrumenty: ${template.name}`}
+                          onClick={() =>
+                            navigate(`/instrumenty?template=${encodeURIComponent(template.id)}`)
+                          }
+                          disabled={busy}
+                        />
                         <IconButton
                           icon={<Pencil size={14} />}
                           aria-label={`Zmień nazwę: ${template.name}`}
