@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
 import { isValidDecimalString, normalizeDecimalInput } from "../app/decimal";
 import { invokeCommand } from "../app/invokeCommand";
 import type { AccountWithBalance, NewAccountInput, UpdateAccountInput } from "../app/types/account";
+import type { BrokerTemplate } from "../app/types/instrument";
 import { Button } from "../ui/components/Button/Button";
 import { Modal } from "../ui/components/Modal/Modal";
 import { Select } from "../ui/components/Select/Select";
@@ -48,6 +49,47 @@ export function AccountFormModal({
     ? undefined
     : "To konto ma walutę spoza obecnie obsługiwanych (USD/EUR/GBP). Wybierz nową walutę świadomie — zmiana nie jest wykonywana automatycznie.";
   const [initialBalance, setInitialBalance] = useState(() => account?.initial_balance ?? "0");
+
+  // Szablon instrumentów wybierany OD RAZU przy zakładaniu konta. Przy edycji tego pola nie ma -
+  // tam zmiana szablonu idzie przez prowadzone "Zastąp szablon konta" w szczegółach konta, które
+  // ostrzega, z którego konta szablon zostanie zdjęty.
+  const [templates, setTemplates] = useState<BrokerTemplate[]>([]);
+  const [accountsById, setAccountsById] = useState<Map<string, string>>(new Map());
+  const [templateId, setTemplateId] = useState("");
+
+  useEffect(() => {
+    if (isEdit) {
+      return;
+    }
+    void (async () => {
+      try {
+        const [templateList, accountList] = await Promise.all([
+          invokeCommand<BrokerTemplate[]>("list_broker_templates", { includeArchived: false }),
+          invokeCommand<AccountWithBalance[]>("list_accounts", { includeArchived: false }),
+        ]);
+        setTemplates(templateList);
+        setAccountsById(new Map(accountList.map((a) => [a.id, a.name])));
+        // Podpowiadamy pierwszy WOLNY szablon - nie zabieramy niczego innemu kontu bez decyzji.
+        setTemplateId(templateList.find((t) => t.account_id === null)?.id ?? "");
+      } catch {
+        // Brak listy szablonów nie może blokować zakładania konta - pole zostaje puste.
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- jednorazowo przy montowaniu.
+  }, []);
+
+  const templateOptions = [
+    { value: "", label: "Bez szablonu (przypiszę później)" },
+    ...templates.map((t) => {
+      const owner = t.account_id ? (accountsById.get(t.account_id) ?? "inne konto") : null;
+      const base = `${t.name} (${t.instrument_count} instrumentów)`;
+      return { value: t.id, label: owner ? `${base} — teraz na koncie: ${owner}` : base };
+    }),
+  ];
+  const takenBy = templates.find((t) => t.id === templateId)?.account_id;
+  const templateHint = takenBy
+    ? `Ten szablon jest teraz przypisany do konta "${accountsById.get(takenBy) ?? "inne konto"}" i zostanie z niego zdjęty - jeden szablon należy do jednego konta.`
+    : "Szablon decyduje, jakie instrumenty i parametry zobaczysz przy transakcjach na tym koncie.";
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -79,8 +121,19 @@ export function AccountFormModal({
           currency: currency.toUpperCase(),
           initial_balance: normalizeDecimalInput(initialBalance) ?? "0",
         };
-        await invokeCommand("create_account", { input });
-        showToast("Konto utworzone.", "success");
+        const created = await invokeCommand<AccountWithBalance>("create_account", { input });
+        // Szablon przypisujemy od razu po utworzeniu konta - inaczej konto rodzi się bez
+        // instrumentów i użytkownik musi szukać, gdzie to dopiąć.
+        if (templateId) {
+          await invokeCommand("assign_broker_template", {
+            templateId,
+            accountId: created.id,
+          });
+        }
+        showToast(
+          templateId ? "Konto utworzone i połączone z szablonem." : "Konto utworzone.",
+          "success",
+        );
       }
       onSaved();
       onClose();
@@ -131,6 +184,15 @@ export function AccountFormModal({
             inputMode="decimal"
             value={initialBalance}
             onChange={(e) => setInitialBalance(e.target.value)}
+          />
+        )}
+        {!isEdit && (
+          <Select
+            label="Szablon instrumentów"
+            value={templateId}
+            onChange={(e) => setTemplateId(e.target.value)}
+            options={templateOptions}
+            hint={templateHint}
           />
         )}
         {formError && (
