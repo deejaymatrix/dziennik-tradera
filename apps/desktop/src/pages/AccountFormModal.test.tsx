@@ -78,13 +78,17 @@ describe("AccountFormModal - szablon przy zakładaniu konta", () => {
     await waitFor(() => expect(select).toHaveValue("t-wolny"));
   });
 
-  it("opisuje szablon zajęty przez inne konto zamiast go ukrywać", async () => {
+  it("nie oferuje szablonu zajętego przez inne konto", async () => {
     renderForm(<AccountFormModal open onClose={vi.fn()} onSaved={vi.fn()} />);
 
     const select = await screen.findByLabelText(/Szablon instrumentów/);
     const options = Array.from(select.querySelectorAll("option")).map((o) => o.textContent);
-    expect(options).toContain("QuoMarkets RAW (350 instrumentów) — teraz na koncie: Stare konto");
-    expect(options).toContain("Bez szablonu (przypiszę później)");
+    // Przypisanie jest nieodwracalne, więc odebranie szablonu innemu kontu byłoby zmianą
+    // nie do naprawienia - takie szablony w ogóle nie pojawiają się na liście.
+    expect(options).toEqual([
+      "Bez szablonu (przypiszę później)",
+      "Vantage STP (1052 instrumentów)",
+    ]);
   });
 
   it("po utworzeniu konta od razu przypina wybrany szablon", async () => {

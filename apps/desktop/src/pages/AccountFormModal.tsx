@@ -54,7 +54,6 @@ export function AccountFormModal({
   // tam zmiana szablonu idzie przez prowadzone "Zastąp szablon konta" w szczegółach konta, które
   // ostrzega, z którego konta szablon zostanie zdjęty.
   const [templates, setTemplates] = useState<BrokerTemplate[]>([]);
-  const [accountsById, setAccountsById] = useState<Map<string, string>>(new Map());
   const [templateId, setTemplateId] = useState("");
 
   useEffect(() => {
@@ -63,13 +62,11 @@ export function AccountFormModal({
     }
     void (async () => {
       try {
-        const [templateList, accountList] = await Promise.all([
-          invokeCommand<BrokerTemplate[]>("list_broker_templates", { includeArchived: false }),
-          invokeCommand<AccountWithBalance[]>("list_accounts", { includeArchived: false }),
-        ]);
+        const templateList = await invokeCommand<BrokerTemplate[]>("list_broker_templates", {
+          includeArchived: false,
+        });
         setTemplates(templateList);
-        setAccountsById(new Map(accountList.map((a) => [a.id, a.name])));
-        // Podpowiadamy pierwszy WOLNY szablon - nie zabieramy niczego innemu kontu bez decyzji.
+        // Podpowiadamy pierwszy WOLNY szablon - zajętych i tak nie da się już przejąć.
         setTemplateId(templateList.find((t) => t.account_id === null)?.id ?? "");
       } catch {
         // Brak listy szablonów nie może blokować zakładania konta - pole zostaje puste.
@@ -78,18 +75,19 @@ export function AccountFormModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- jednorazowo przy montowaniu.
   }, []);
 
+  // Tylko WOLNE szablony: przypisanie jest nieodwracalne, więc zabranie szablonu innemu kontu
+  // byłoby zmianą, której tamto konto nie mogłoby już naprawić.
   const templateOptions = [
     { value: "", label: "Bez szablonu (przypiszę później)" },
-    ...templates.map((t) => {
-      const owner = t.account_id ? (accountsById.get(t.account_id) ?? "inne konto") : null;
-      const base = `${t.name} (${t.instrument_count} instrumentów)`;
-      return { value: t.id, label: owner ? `${base} — teraz na koncie: ${owner}` : base };
-    }),
+    ...templates
+      .filter((t) => t.account_id === null)
+      .map((t) => ({
+        value: t.id,
+        label: `${t.name} (${t.instrument_count} instrumentów)`,
+      })),
   ];
-  const takenBy = templates.find((t) => t.id === templateId)?.account_id;
-  const templateHint = takenBy
-    ? `Ten szablon jest teraz przypisany do konta "${accountsById.get(takenBy) ?? "inne konto"}" i zostanie z niego zdjęty - jeden szablon należy do jednego konta.`
-    : "Szablon decyduje, jakie instrumenty i parametry zobaczysz przy transakcjach na tym koncie.";
+  const templateHint =
+    "Szablon decyduje, jakie instrumenty i parametry zobaczysz przy transakcjach na tym koncie. Wyboru NIE DA SIĘ później zmienić - błędne powiązanie naprawia się usunięciem konta.";
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 

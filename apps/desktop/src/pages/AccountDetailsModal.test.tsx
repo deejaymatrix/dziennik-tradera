@@ -99,20 +99,13 @@ describe("AccountDetailsModal", () => {
     expect(screen.getByRole("button", { name: /Przypisz szablon/ })).toBeInTheDocument();
   });
 
-  it("pozwala wybrać także szablon z innego konta, nazywając to konto wprost", async () => {
-    invokeCommand.mockImplementation((command: string) =>
-      Promise.resolve(
-        command === "list_accounts"
-          ? [account(), account({ id: "a2", name: "Konto QuoMarkets" })]
-          : [
-              template({ id: "t1", name: "Vantage STP", account_id: "a1" }),
-              template({ id: "t2", name: "Wolny szablon", account_id: null }),
-              // Leży na INNYM koncie - przypisanie stąd przeniesie go tutaj, więc musi być
-              // widoczny, ale z jasną informacją, komu go zabieramy.
-              template({ id: "t3", name: "Szablon innego konta", account_id: "a2" }),
-            ],
-      ),
-    );
+  it("do przypisania daje wyłącznie szablony jeszcze niezajęte", async () => {
+    invokeCommand.mockResolvedValue([
+      template({ id: "t2", name: "Wolny szablon", account_id: null }),
+      // Zajęty przez inne konto - przypisanie jest nieodwracalne, więc odebranie go tamtemu
+      // kontu byłoby zmianą nie do naprawienia. Nie pokazujemy go w ogóle.
+      template({ id: "t3", name: "Szablon innego konta", account_id: "a2" }),
+    ]);
 
     renderModal(
       <AccountDetailsModal
@@ -123,15 +116,32 @@ describe("AccountDetailsModal", () => {
       />,
     );
 
-    await userEvent.click(await screen.findByRole("button", { name: /Zastąp szablon/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /Przypisz szablon/ }));
 
     const select = await screen.findByLabelText(/Szablon dla tego konta/);
     const options = Array.from(select.querySelectorAll("option")).map((o) => o.textContent);
-    expect(options).toEqual([
-      "Vantage STP (1052 instrumentów)",
-      "Wolny szablon (1052 instrumentów)",
-      "Szablon innego konta (1052 instrumentów) — teraz na koncie: Konto QuoMarkets",
+    expect(options).toEqual(["Wolny szablon (1052 instrumentów)"]);
+    expect(screen.getByText(/NIE DA SIĘ cofnąć/)).toBeInTheDocument();
+  });
+
+  it("konto z szablonem nie ma już żadnej możliwości jego zmiany", async () => {
+    invokeCommand.mockResolvedValue([
+      template({ id: "t1", name: "Vantage STP", account_id: "a1" }),
+      template({ id: "t2", name: "Wolny szablon", account_id: null }),
     ]);
+
+    renderModal(
+      <AccountDetailsModal
+        account={account()}
+        onClose={vi.fn()}
+        onEdit={vi.fn()}
+        onChanged={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText("Vantage STP")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Przypisz szablon|Zastąp szablon/ })).toBeNull();
+    expect(screen.getByText(/Zmiana wymaga usunięcia konta/)).toBeInTheDocument();
   });
 
   it("przycisk Edytuj konto oddaje sterowanie liście kont", async () => {

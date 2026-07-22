@@ -92,11 +92,11 @@ pub trait BrokerTemplateRepository {
     /// Głęboka, niezależna kopia: szablon + instrumenty + preferencje + AKTYWNE rewizje
     /// parametrów. Zmiany w kopii nigdy nie dotykają oryginału (sekcja 1.1).
     fn duplicate(&self, id: &str, new_name: &str) -> Result<BrokerTemplate, AppError>;
-    /// Atomowe "Zastąp szablon konta": w jednej transakcji odpina dotychczasowy szablon konta
-    /// (jeśli istnieje) i przypina wskazany. Szablon leżący na INNYM koncie zostaje z niego
-    /// przeniesiony - relacja jeden-do-jednego jest utrzymana przez przeniesienie, nie przez
-    /// odmowę. O zgodę użytkownika (i o to, żeby wiedział, z którego konta szablon zniknie) pyta
-    /// warstwa interfejsu.
+    /// Przypisuje szablon do konta - operacja JEDNORAZOWA i nieodwracalna. Odrzuca konto, które
+    /// ma już szablon, oraz szablon zajęty przez inne konto. Powód jest merytoryczny: transakcje
+    /// zapisane na koncie odnoszą się do instrumentów z jego szablonu, więc podmiana szablonu pod
+    /// istniejącą historią dałaby konto, którego część transakcji dotyczy instrumentów spoza
+    /// aktualnego katalogu. Błędne powiązanie naprawia się usunięciem konta.
     fn assign_to_account(&self, template_id: &str, account_id: &str) -> Result<(), AppError>;
     fn unassign(&self, template_id: &str) -> Result<(), AppError>;
     /// Do Kosza. Odrzuca: ostatni aktywny szablon oraz szablon wciąż przypisany do konta

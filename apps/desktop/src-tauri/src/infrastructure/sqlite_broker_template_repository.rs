@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::domain::broker_template::{
     BrokerTemplate, BrokerTemplateRepository, NewTemplate, TemplateSource,
 };
-use crate::domain::instrument_import::ImportedInstrument;
+use crate::domain::instrument_import::{base_symbol, is_default_visible, ImportedInstrument};
 use crate::error::AppError;
 use crate::infrastructure::sqlite_instrument_repository::insert_version;
 
@@ -41,6 +41,20 @@ fn map_row(row: &Row) -> rusqlite::Result<BrokerTemplate> {
         archived_at: row.get("archived_at")?,
         instrument_count: row.get("instrument_count")?,
     })
+}
+
+/// Zwraca 1 dla instrumentu, który ma być widoczny zaraz po imporcie - ale tylko dla PIERWSZEGO
+/// wystąpienia danego instrumentu bazowego. Brokerzy mają po kilka wariantów tego samego (np.
+/// `XAUUSD+` i `XAUUSD.crp`); włączenie wszystkich dałoby kilka pozycji "złoto" na liście wyboru.
+fn default_visible_once(seen: &mut std::collections::HashSet<String>, display_symbol: &str) -> i64 {
+    if !is_default_visible(display_symbol) {
+        return 0;
+    }
+    if seen.insert(base_symbol(display_symbol)) {
+        1
+    } else {
+        0
+    }
 }
 
 fn map_import_conflict(err: rusqlite::Error) -> AppError {
@@ -151,6 +165,7 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
         )
         .map_err(|e| name_conflict_as_validation(e, meta.name.trim()))?;
 
+        let mut already_visible: std::collections::HashSet<String> = Default::default();
         for (index, imported) in instruments.iter().enumerate() {
             let instrument_id = Uuid::now_v7().to_string();
             tx.execute(
@@ -180,12 +195,14 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
                 &now,
             )?;
 
-            // Domyślnie ukryte - użytkownik aktywuje wybrane instrumenty (sekcja 1.7). Kolejność
-            // startowa = kolejność w pliku.
+            // Domyślnie ukryte, poza krótką listą najczęściej handlowanych instrumentów -
+            // inaczej import tysiąca pozycji dawał formularz transakcji bez czegokolwiek do
+            // wyboru. Kolejność startowa = kolejność w pliku.
+            let visible = default_visible_once(&mut already_visible, &imported.display_symbol);
             tx.execute(
                 "INSERT INTO instrument_preferences (instrument_id, is_visible, sort_order, is_favorite)
-                 VALUES (?1, 0, ?2, 0)",
-                rusqlite::params![instrument_id, index as i64],
+                 VALUES (?1, ?3, ?2, 0)",
+                rusqlite::params![instrument_id, index as i64, visible],
             )?;
         }
 
@@ -243,6 +260,7 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
             |r| r.get(0),
         )?;
 
+        let mut already_visible: std::collections::HashSet<String> = Default::default();
         for (index, imported) in instruments.iter().enumerate() {
             let instrument_id = Uuid::now_v7().to_string();
             tx.execute(
@@ -272,10 +290,11 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
                 &now,
             )?;
 
+            let visible = default_visible_once(&mut already_visible, &imported.display_symbol);
             tx.execute(
                 "INSERT INTO instrument_preferences (instrument_id, is_visible, sort_order, is_favorite)
-                 VALUES (?1, 0, ?2, 0)",
-                rusqlite::params![instrument_id, next_sort_order + index as i64],
+                 VALUES (?1, ?3, ?2, 0)",
+                rusqlite::params![instrument_id, next_sort_order + index as i64, visible],
             )?;
         }
 
@@ -421,22 +440,29 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
             return Ok(());
         }
 
-        // Przypisanie jest PRZENIESIENIEM: szablon leżący na innym koncie zostaje z niego zdjęty
-        // w tej samej transakcji. Wcześniej kończyło się to błędem "najpierw zrób kopię", przez co
-        // konto, do którego szablon pasował, nie dało się z nim połączyć bez obchodzenia UI.
-        // Relacja jeden-do-jednego nadal obowiązuje - po prostu wymuszamy ją przenosząc, a nie
-        // odmawiając. To wywołujący (widok szczegółów konta) pyta użytkownika o zgodę i mówi
-        // wprost, z którego konta szablon zniknie.
-        //
-        // Atomowe "Zastąp szablon konta": odpięcie dotychczasowego + przypięcie nowego.
-        tx.execute(
-            "UPDATE broker_instrument_templates SET account_id = NULL, updated_at = ?1 WHERE id = ?2",
-            rusqlite::params![now, template_id],
+        // Szablon zajęty przez inne konto: nie zabieramy go, bo tamto konto zostałoby bez
+        // instrumentów, a przypisania i tak nie da się już cofnąć.
+        if current_assignment.is_some() {
+            return Err(AppError::Validation(
+                "Ten szablon jest już przypisany do innego konta. Jeden szablon należy do jednego konta - zaimportuj dane brokera do nowego szablonu albo zduplikuj istniejący.".to_string(),
+            ));
+        }
+
+        // Przypisanie jest JEDNORAZOWE i nieodwracalne (decyzja produktowa): konto, które raz
+        // dostało szablon, zostaje z nim na stałe. Powód jest merytoryczny - transakcje zapisane
+        // na koncie odnoszą się do instrumentów z jego szablonu, a podmiana szablonu pod
+        // istniejącą historią daje konto, którego część transakcji dotyczy instrumentów spoza
+        // aktualnego katalogu. Jeżeli powiązanie jest błędne, usuwa się całe konto.
+        let account_has_template: i64 = tx.query_row(
+            "SELECT count(*) FROM broker_instrument_templates WHERE account_id = ?1 AND archived_at IS NULL",
+            [account_id],
+            |r| r.get(0),
         )?;
-        tx.execute(
-            "UPDATE broker_instrument_templates SET account_id = NULL, updated_at = ?1 WHERE account_id = ?2",
-            rusqlite::params![now, account_id],
-        )?;
+        if account_has_template > 0 {
+            return Err(AppError::Validation(
+                "To konto ma już przypisany szablon instrumentów, a przypisania nie można zmienić. Jeżeli powiązanie jest błędne, usuń konto i utwórz je na nowo z właściwym szablonem.".to_string(),
+            ));
+        }
         tx.execute(
             "UPDATE broker_instrument_templates SET account_id = ?1, updated_at = ?2 WHERE id = ?3",
             rusqlite::params![account_id, now, template_id],
@@ -752,20 +778,25 @@ mod tests {
         // Szablon założony ręcznie staje się po wgraniu szablonem z importu brokera.
         assert_eq!(filled.source, TemplateSource::BrokerImport);
 
-        // Instrumenty domyślnie ukryte, oznaczone jako pochodzące z importu.
-        let (origin, visible): (String, i64) = conn
-            .lock()
-            .unwrap()
-            .query_row(
-                "SELECT i.origin, p.is_visible FROM instruments i
-                 JOIN instrument_preferences p ON p.instrument_id = i.id
-                 WHERE i.template_id = ?1 AND i.display_symbol = 'EURUSD'",
-                [&template.id],
-                |r| Ok((r.get(0)?, r.get(1)?)),
-            )
-            .expect("wiersz instrumentu");
+        let visibility_of = |symbol: &str| -> (String, i64) {
+            conn.lock()
+                .unwrap()
+                .query_row(
+                    "SELECT i.origin, p.is_visible FROM instruments i
+                     JOIN instrument_preferences p ON p.instrument_id = i.id
+                     WHERE i.template_id = ?1 AND i.display_symbol = ?2",
+                    rusqlite::params![&template.id, symbol],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .expect("wiersz instrumentu")
+        };
+
+        // EURUSD jest na krótkiej liście instrumentów włączanych od razu po imporcie...
+        let (origin, visible) = visibility_of("EURUSD");
         assert_eq!(origin, "broker_import");
-        assert_eq!(visible, 0);
+        assert_eq!(visible, 1);
+        // ...a wszystko poza tą listą zostaje ukryte, żeby lista wyboru nie miała tysiąca pozycji.
+        assert_eq!(visibility_of("DJI30-MINI").1, 0);
 
         // Drugi import do TEGO SAMEGO szablonu jest odrzucany...
         let second = repo.import_into_template(&template.id, &instruments);
@@ -852,52 +883,57 @@ mod tests {
             Some("acc-1".into())
         );
 
+        // Odpięcie zwalnia konto (używane przy archiwizacji szablonu), a wtedy - i tylko wtedy -
+        // konto może dostać inny szablon.
+        repo.unassign(&first.id).expect("odpięcie");
         let second = repo
             .duplicate(&first.id, "Drugi szablon")
             .expect("duplicate");
         repo.assign_to_account(&second.id, "acc-1")
-            .expect("replace");
+            .expect("przypisanie po zwolnieniu konta");
         assert_eq!(
             repo.get(&second.id).unwrap().account_id,
             Some("acc-1".into())
         );
-        assert_eq!(
-            repo.get(&first.id).unwrap().account_id,
-            None,
-            "stary odpięty"
-        );
+        assert_eq!(repo.get(&first.id).unwrap().account_id, None, "stary wolny");
     }
 
-    /// Przypisanie szablonu leżącego na innym koncie to PRZENIESIENIE, nie błąd. Wcześniej kończyło
-    /// się komunikatem "najpierw zrób kopię", przez co konta nie dało się połączyć z pasującym
-    /// szablonem bez obchodzenia interfejsu.
+    /// Przypisanie jest jednorazowe: konto, które ma już szablon, nie przyjmuje kolejnego, a
+    /// szablon leżący na innym koncie nie daje się przejąć. Jedyną drogą jest usunięcie konta.
     #[test]
-    fn assign_moves_a_template_from_another_account_keeping_one_to_one() {
+    fn assign_is_irreversible_once_the_account_has_a_template() {
         let (repo, conn, _dir) = repo_with_fresh_db();
         seed_account(&conn, "acc-1");
         seed_account(&conn, "acc-2");
-        let template = quomarkets(&repo);
+        let first = quomarkets(&repo);
+        let second = repo
+            .create(&NewTemplate {
+                name: "Drugi szablon".to_string(),
+                broker_name: "Inny broker".to_string(),
+                account_type: None,
+            })
+            .expect("drugi szablon");
 
-        repo.assign_to_account(&template.id, "acc-1")
+        repo.assign_to_account(&first.id, "acc-1")
             .expect("pierwsze przypisanie");
-        repo.assign_to_account(&template.id, "acc-2")
-            .expect("przeniesienie na drugie konto");
 
-        // Szablon jest DOKŁADNIE na jednym koncie - tym nowym.
+        // Konto ma już szablon - kolejny jest odrzucany.
+        assert!(matches!(
+            repo.assign_to_account(&second.id, "acc-1"),
+            Err(AppError::Validation(_))
+        ));
+        // Szablon zajęty przez inne konto też nie daje się przejąć.
+        assert!(matches!(
+            repo.assign_to_account(&first.id, "acc-2"),
+            Err(AppError::Validation(_))
+        ));
+
+        // Stan się nie zmienił: pierwszy szablon nadal na pierwszym koncie, drugi wolny.
         assert_eq!(
-            repo.get(&template.id).expect("szablon").account_id,
-            Some("acc-2".to_string())
+            repo.get(&first.id).expect("szablon").account_id,
+            Some("acc-1".to_string())
         );
-        let on_first_account: i64 = conn
-            .lock()
-            .unwrap()
-            .query_row(
-                "SELECT count(*) FROM broker_instrument_templates WHERE account_id = 'acc-1' AND archived_at IS NULL",
-                [],
-                |r| r.get(0),
-            )
-            .expect("licznik");
-        assert_eq!(on_first_account, 0, "stare konto zostaje bez tego szablonu");
+        assert_eq!(repo.get(&second.id).expect("szablon").account_id, None);
     }
 
     #[test]

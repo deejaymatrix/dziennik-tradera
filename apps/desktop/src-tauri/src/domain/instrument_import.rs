@@ -105,6 +105,40 @@ fn optional_string(map: &HashMap<String, String>, key: &str) -> Option<String> {
         .map(str::to_string)
 }
 
+/// Instrumenty włączane od razu po imporcie. Import potrafi wnieść ponad tysiąc pozycji i
+/// zostawienie WSZYSTKICH ukrytych znaczyło, że formularz transakcji nie miał z czego wybierać,
+/// dopóki użytkownik sam czegoś nie odszuka. To jest punkt startowy, nie ograniczenie - resztę
+/// włącza się na ekranie "Instrumenty".
+///
+/// Lista jest celowo krótka i złożona z instrumentów, którymi handluje się najczęściej.
+const DEFAULT_VISIBLE_SYMBOLS: &[&str] = &[
+    // Metale
+    "XAUUSD", "XAGUSD", // Indeksy
+    "GER40", "NAS100", "DJ30", "SP500", "UK100", // Krypto
+    "BTCUSD", "ETHUSD", // Forex major
+    "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "USDCHF", "NZDUSD", // Energia
+    "USOUSD", "UKOUSD",
+];
+
+/// Sprowadza symbol brokera do postaci porównywalnej z listą domyślną. Brokerzy doklejają do tego
+/// samego instrumentu własne oznaczenia: `XAUUSD+`, `XAUUSD.crp`, `NAS100ft` (kontrakt terminowy)
+/// - dla dopasowania to wszystko jest ten sam instrument bazowy.
+pub fn base_symbol(symbol: &str) -> String {
+    let without_suffix = symbol.split('.').next().unwrap_or("").trim();
+    let upper: String = without_suffix
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(char::to_uppercase)
+        .collect();
+    upper.strip_suffix("FT").unwrap_or(&upper).to_string()
+}
+
+/// Czy instrument ma być widoczny zaraz po imporcie.
+pub fn is_default_visible(symbol: &str) -> bool {
+    let base = base_symbol(symbol);
+    DEFAULT_VISIBLE_SYMBOLS.contains(&base.as_str())
+}
+
 /// Sprowadza nazwę kolumny do postaci porównywalnej: same litery i cyfry, małymi. Dzięki temu
 /// `TradeTickSize`, `trade_tick_size` i `Trade Tick Size` to dla parsera jedno i to samo -
 /// brokerzy eksportują ten sam zestaw parametrów w różnych konwencjach zapisu.
@@ -602,6 +636,32 @@ mod tests {
         // Nieznana ścieżka NIE jest zgadywana.
         assert_eq!(category_from_raw("Cokolwiek\\XYZ"), "Zaimportowane");
         assert_eq!(category_from_raw(""), "Zaimportowane");
+    }
+
+    #[test]
+    fn domyslnie_widoczne_rozpoznaja_warianty_symboli_brokera() {
+        // Prawdziwe zapisy z eksportu Vantage - ten sam instrument bazowy w kilku odmianach.
+        assert!(is_default_visible("XAUUSD"));
+        assert!(is_default_visible("XAUUSD+"));
+        assert!(is_default_visible("XAUUSD.crp"));
+        assert!(is_default_visible("NAS100"));
+        assert!(
+            is_default_visible("NAS100ft"),
+            "kontrakt terminowy to ten sam instrument"
+        );
+        assert!(is_default_visible("GER40"));
+        assert!(is_default_visible("DJ30"));
+        assert!(is_default_visible("BTCUSD"));
+        assert!(is_default_visible("EURUSD"));
+
+        // Poza listą - zostaje ukryte.
+        assert!(!is_default_visible("EURPLN+"));
+        assert!(!is_default_visible("ADAJPY"));
+        assert!(!is_default_visible("Cocoa-C"));
+        assert!(
+            !is_default_visible("DJI30-MINI"),
+            "wariant MINI to osobny instrument"
+        );
     }
 
     #[test]
