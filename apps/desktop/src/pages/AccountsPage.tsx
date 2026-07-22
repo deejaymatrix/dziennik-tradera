@@ -13,6 +13,7 @@ import { Skeleton } from "../ui/components/Skeleton/Skeleton";
 import { Switch } from "../ui/components/Switch/Switch";
 import { Table, tableStyles } from "../ui/components/Table/Table";
 import { useToast } from "../ui/components/Toast/ToastProvider";
+import { AccountDetailsModal } from "./AccountDetailsModal";
 import { AccountFormModal } from "./AccountFormModal";
 import { CashOperationsModal } from "./CashOperationsModal";
 import styles from "./AccountsPage.module.css";
@@ -26,6 +27,7 @@ export function AccountsPage(): ReactElement {
   const [formOpen, setFormOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<AccountWithBalance | undefined>(undefined);
   const [operationsAccount, setOperationsAccount] = useState<AccountWithBalance | null>(null);
+  const [detailsAccount, setDetailsAccount] = useState<AccountWithBalance | null>(null);
 
   async function load(): Promise<AccountWithBalance[] | null> {
     setError(null);
@@ -149,10 +151,16 @@ export function AccountsPage(): ReactElement {
             {accounts.map((account) => (
               <tr key={account.id}>
                 <td>
-                  <div className={styles.nameCell}>
-                    {account.name}
-                    {account.account_type && <span>{account.account_type}</span>}
-                  </div>
+                  <button
+                    type="button"
+                    className={styles.nameButton}
+                    onClick={() => setDetailsAccount(account)}
+                  >
+                    <span className={styles.nameCell}>
+                      {account.name}
+                      {account.account_type && <span>{account.account_type}</span>}
+                    </span>
+                  </button>
                 </td>
                 <td>{account.currency}</td>
                 <td className={tableStyles.numeric}>
@@ -211,6 +219,21 @@ export function AccountsPage(): ReactElement {
         }}
         account={editingAccount}
       />
+      {detailsAccount && (
+        <AccountDetailsModal
+          key={`details-${detailsAccount.id}`}
+          account={detailsAccount}
+          onClose={() => setDetailsAccount(null)}
+          onEdit={() => {
+            const account = detailsAccount;
+            setDetailsAccount(null);
+            openEditForm(account);
+          }}
+          onChanged={() => {
+            void load();
+          }}
+        />
+      )}
       <CashOperationsModal
         key={`ops-${operationsAccount?.id ?? "closed"}`}
         open={operationsAccount !== null}
