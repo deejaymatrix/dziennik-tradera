@@ -12,6 +12,7 @@ import { DataPage } from "../pages/DataPage";
 import { KoszPage } from "../pages/KoszPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { ZasadyHandluPage } from "../pages/ZasadyHandluPage";
+import { SzablonyInstrumentowPage } from "../pages/SzablonyInstrumentowPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 
 export const router = createBrowserRouter([
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
       { path: "konta", element: <AccountsPage /> },
       { path: "strategie", element: <StrategiesPage /> },
       { path: "zasady-handlu", element: <ZasadyHandluPage /> },
+      { path: "szablony-instrumentow", element: <SzablonyInstrumentowPage /> },
       { path: "instrumenty", element: <InstrumentsPage /> },
       { path: "raporty", element: <ReportsPage /> },
       { path: "dane", element: <DataPage /> },

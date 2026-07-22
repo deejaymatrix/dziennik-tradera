@@ -37,6 +37,7 @@ fn parse_decimal(row: &Row, idx: &str) -> rusqlite::Result<Decimal> {
 const DETAILS_SELECT: &str = "
 SELECT
     i.id, i.display_symbol, i.source_symbol, i.description, i.category, i.factory_index,
+    i.template_id, i.canonical_symbol, i.variant, i.origin,
     i.created_at, i.updated_at,
     v.id AS version_id, v.version_number,
     v.currency_base, v.currency_profit, v.currency_margin, v.digits, v.point, v.trade_tick_size,
@@ -82,6 +83,10 @@ fn map_details_row(row: &Row) -> rusqlite::Result<InstrumentWithDetails> {
         description: row.get("description")?,
         category: row.get("category")?,
         factory_index: row.get("factory_index")?,
+        template_id: row.get("template_id")?,
+        canonical_symbol: row.get("canonical_symbol")?,
+        variant: row.get("variant")?,
+        origin: row.get("origin")?,
         created_at: row.get("created_at")?,
         updated_at: row.get("updated_at")?,
     };
@@ -336,6 +341,13 @@ impl InstrumentRepository for SqliteInstrumentRepository {
             params.push(category.clone());
             conditions.push(format!("i.category = ?{}", params.len()));
         }
+        if let Some(template_id) = &filter.template_id {
+            params.push(template_id.clone());
+            conditions.push(format!("i.template_id = ?{}", params.len()));
+        }
+        if filter.user_created_only {
+            conditions.push("i.origin = 'user_created'".to_string());
+        }
         if let Some(search) = &filter.search {
             let trimmed = search.trim();
             if !trimmed.is_empty() {
@@ -347,13 +359,13 @@ impl InstrumentRepository for SqliteInstrumentRepository {
                         .replace('_', "\\_")
                 );
                 let mut placeholders = Vec::new();
-                for _ in 0..4 {
+                for _ in 0..5 {
                     params.push(pattern.clone());
                     placeholders.push(format!("?{}", params.len()));
                 }
                 conditions.push(format!(
-                    "(i.display_symbol LIKE {0} ESCAPE '\\' OR i.source_symbol LIKE {1} ESCAPE '\\' OR i.description LIKE {2} ESCAPE '\\' OR i.category LIKE {3} ESCAPE '\\')",
-                    placeholders[0], placeholders[1], placeholders[2], placeholders[3]
+                    "(i.display_symbol LIKE {0} ESCAPE '\\' OR i.source_symbol LIKE {1} ESCAPE '\\' OR i.canonical_symbol LIKE {2} ESCAPE '\\' OR i.description LIKE {3} ESCAPE '\\' OR i.category LIKE {4} ESCAPE '\\')",
+                    placeholders[0], placeholders[1], placeholders[2], placeholders[3], placeholders[4]
                 ));
             }
         }
@@ -723,6 +735,58 @@ mod tests {
         assert!(instruments
             .iter()
             .any(|i| i.instrument.display_symbol == "EURUSD"));
+        // Wszystkie zaseedowane instrumenty należą do szablonu "QuoMarkets RAW" (B1); żaden
+        // nie jest osierocony bez szablonu.
+        assert!(instruments
+            .iter()
+            .all(|i| i.instrument.template_id.is_some()));
+        assert!(instruments
+            .iter()
+            .all(|i| i.instrument.origin == "broker_import"));
+    }
+
+    /// Instrumenty listowane są w kontekście szablonu (sekcja 1.1 specyfikacji szablonów
+    /// brokerów) - filtrowanie po `template_id` musi całkowicie odizolować dwa szablony.
+    #[test]
+    fn listing_by_template_isolates_instruments_between_templates() {
+        let (repo, conn, _dir) = repo_with_fresh_db_and_conn();
+        let quomarkets_id: String = conn
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT id FROM broker_instrument_templates WHERE name = 'QuoMarkets RAW'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("template exists");
+
+        // Wstaw szkielet drugiego szablonu bez ani jednego instrumentu - jego lista musi być
+        // pusta, a lista pierwszego nietknięta.
+        conn.lock()
+            .unwrap()
+            .execute(
+                "INSERT INTO broker_instrument_templates (id, name, broker_name, account_type, source, created_at, updated_at)
+                 VALUES ('other-template', 'IC Markets Standard', 'IC Markets', 'Standard', 'user_created', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+                [],
+            )
+            .expect("second template inserted");
+
+        let first = repo
+            .list(&InstrumentListFilter {
+                visibility: InstrumentVisibilityFilter::All,
+                template_id: Some(quomarkets_id),
+                ..Default::default()
+            })
+            .expect("list first");
+        let second = repo
+            .list(&InstrumentListFilter {
+                visibility: InstrumentVisibilityFilter::All,
+                template_id: Some("other-template".to_string()),
+                ..Default::default()
+            })
+            .expect("list second");
+        assert_eq!(first.len(), 350);
+        assert_eq!(second.len(), 0);
     }
 
     #[test]

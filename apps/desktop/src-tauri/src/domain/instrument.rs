@@ -33,6 +33,17 @@ pub struct Instrument {
     /// Indeks rekordu z fabrycznego katalogu 350 instrumentów - `None` dla instrumentów
     /// dodanych ręcznie przez użytkownika.
     pub factory_index: Option<i64>,
+    /// Szablon brokera, do którego należy instrument (B1). Izolacja parametrów między
+    /// brokerami/kontami opiera się na tym powiązaniu.
+    pub template_id: Option<String>,
+    /// Symbol kanoniczny (np. XAUUSD) niezależny od sufiksu brokera - `None` do czasu importu
+    /// brokera dla instrumentów sprzed B1, wtedy pochodzi z display_symbol.
+    pub canonical_symbol: Option<String>,
+    /// Wariant instrumentu: STANDARD, MINI, itd.
+    pub variant: String,
+    /// Pochodzenie: `broker_import` (chroniony przed pojedynczym usunięciem) albo
+    /// `user_created` (Dodany przez użytkownika).
+    pub origin: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -347,10 +358,15 @@ impl NewInstrumentInput {
 /// Filtr listy dla ekranu "Zarządzaj instrumentami".
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct InstrumentListFilter {
-    /// Szuka w symbolu wyświetlanym, symbolu technicznym, opisie i kategorii.
+    /// Szuka w symbolu wyświetlanym, symbolu technicznym, kanonicznym, opisie i kategorii.
     pub search: Option<String>,
     pub category: Option<String>,
     pub visibility: InstrumentVisibilityFilter,
+    /// Kontekst szablonu - instrumenty NIGDY nie są listowane bez niego w przepływach związanych
+    /// z kontem (sekcja 1.1 specyfikacji). `None` = wszystkie szablony (np. globalny podgląd).
+    pub template_id: Option<String>,
+    /// Tylko instrumenty dodane przez użytkownika (filtr "Dodane przez użytkownika").
+    pub user_created_only: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]

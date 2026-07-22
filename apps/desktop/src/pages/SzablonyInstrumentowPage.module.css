@@ -1,0 +1,68 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+}
+
+.subtitle {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  max-width: 46rem;
+}
+
+.headerActions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.nameCell {
+  font-weight: 600;
+}
+
+.nameText {
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.rowActions {
+  display: flex;
+  gap: var(--space-1);
+  justify-content: flex-end;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.note {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}

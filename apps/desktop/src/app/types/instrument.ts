@@ -22,8 +22,36 @@ export interface Instrument {
   description: string;
   category: string;
   factory_index: number | null;
+  /** Szablon brokera (B1) - izolacja parametrów między brokerami/kontami. */
+  template_id: string | null;
+  /** Symbol kanoniczny (np. XAUUSD) niezależny od sufiksu brokera. */
+  canonical_symbol: string | null;
+  /** STANDARD / MINI / itp. */
+  variant: string;
+  /** `broker_import` (chroniony) albo `user_created` (Dodany przez użytkownika). */
+  origin: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface BrokerTemplate {
+  id: string;
+  name: string;
+  broker_name: string;
+  account_type: string | null;
+  source: "broker_import" | "duplicated" | "user_created";
+  import_format_version: number | null;
+  account_id: string | null;
+  created_at: string;
+  updated_at: string;
+  archived_at: string | null;
+  instrument_count: number;
+}
+
+export interface NewBrokerTemplate {
+  name: string;
+  broker_name: string;
+  account_type: string | null;
 }
 
 /**
