@@ -12,20 +12,13 @@
 
 .colorField {
   display: flex;
-  align-items: flex-end;
-  gap: var(--space-2);
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
-.colorField > :first-child {
-  flex: 1;
-}
-
-.colorSwatch {
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  flex-shrink: 0;
+.colorLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
 }
 
 .error {

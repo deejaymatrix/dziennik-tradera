@@ -14,6 +14,7 @@ import { SettingsPage } from "../pages/SettingsPage";
 import { ZasadyHandluPage } from "../pages/ZasadyHandluPage";
 import { SzablonyInstrumentowPage } from "../pages/SzablonyInstrumentowPage";
 import { KalkulatorPozycjiPage } from "../pages/KalkulatorPozycjiPage";
+import { StanEmocjonalnyPage } from "../pages/StanEmocjonalnyPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 
 export const router = createBrowserRouter([
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
       { path: "instrumenty", element: <InstrumentsPage /> },
       { path: "kalkulator-pozycji", element: <KalkulatorPozycjiPage /> },
       { path: "raporty", element: <ReportsPage /> },
+      { path: "stan-emocjonalny", element: <StanEmocjonalnyPage /> },
       { path: "dane", element: <DataPage /> },
       { path: "kosz", element: <KoszPage /> },
       { path: "ustawienia", element: <SettingsPage /> },

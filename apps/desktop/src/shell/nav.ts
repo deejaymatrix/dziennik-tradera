@@ -8,6 +8,7 @@ import {
   ScrollText,
   SlidersHorizontal,
   BarChart3,
+  HeartPulse,
   DatabaseBackup,
   Trash2,
   Settings,
@@ -56,7 +57,12 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Analiza",
-    items: [{ to: "/raporty", label: "Raporty", icon: BarChart3 }],
+    items: [
+      { to: "/raporty", label: "Raporty", icon: BarChart3 },
+      // Sekcja 5 specyfikacji: zarządzanie emocjami należy do analizy własnego handlu, a nie do
+      // konfiguracji aplikacji - przeniesione z Ustawień, bez zostawiania tam martwego wpisu.
+      { to: "/stan-emocjonalny", label: "Stan emocjonalny", icon: HeartPulse },
+    ],
   },
   {
     label: "Dane",

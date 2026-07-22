@@ -3,6 +3,7 @@ import type { ReactElement, SubmitEvent } from "react";
 import { invokeCommand } from "../app/invokeCommand";
 import type { EntryRule, ManagementRule, Strategy, StrategyInput } from "../app/types/strategy";
 import { Button } from "../ui/components/Button/Button";
+import { ColorPicker } from "../ui/components/ColorPicker/ColorPicker";
 import { Modal } from "../ui/components/Modal/Modal";
 import { Textarea } from "../ui/components/Textarea/Textarea";
 import { TextField } from "../ui/components/TextField/TextField";
@@ -121,13 +122,8 @@ export function StrategyFormModal({
             onChange={(e) => setName(e.target.value)}
           />
           <div className={styles.colorField}>
-            <TextField
-              label="Kolor"
-              hint="Kod HEX, np. #d7b45a"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-            />
-            <span className={styles.colorSwatch} style={{ backgroundColor: color }} />
+            <span className={styles.colorLabel}>Kolor</span>
+            <ColorPicker value={color} onChange={setColor} sampleLabel={name} />
           </div>
         </div>
         <TextField
