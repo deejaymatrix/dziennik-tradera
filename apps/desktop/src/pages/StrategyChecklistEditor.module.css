@@ -25,18 +25,34 @@
   letter-spacing: 0.02em;
 }
 
+/* Zasada + jej ewentualne pole "Powód niespełnienia" tworzą jedną całość - kreska oddzielająca
+   należy do CAŁEJ pozycji, nie do samego wiersza ze statusem, inaczej powód wyglądałby jak
+   element następnej zasady. */
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-2);
+}
+
+.item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
 .row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  border-bottom: 1px solid var(--color-border);
-  padding-bottom: var(--space-2);
 }
 
-.row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
+/* Wcięcie i pionowa kreska wiążą powód wzrokowo z zasadą NAD nim, żeby przy kilku
+   niespełnionych zasadach nie było wątpliwości, który powód należy do której. */
+.reason {
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--color-loss);
 }
 
 .itemName {

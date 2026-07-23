@@ -61,7 +61,7 @@ export function blankTradeEmotions(): TradeEmotions {
 
 /** Stan jednej pozycji checklisty - dla zasad wejścia czytany jako Spełniona/Niespełniona/Nie
  * dotyczy, dla zasad zarządzania jako Wykonana/Niewykonana/Nie dotyczy. Niespełniona wymagana
- * zasada nie blokuje zapisu, tylko oznacza naruszenie planu. Patrz
+ * zasada nie blokuje zapisu szkicu, ale finalny zapis wymaga powodu. Patrz
  * domain::strategy_checklist::ChecklistStatus. */
 export type ChecklistStatus = "fulfilled" | "unfulfilled" | "not_applicable";
 
@@ -72,6 +72,25 @@ export interface ChecklistItem {
   name: string;
   required: boolean;
   status: ChecklistStatus;
+  /** Powód niespełnienia (sekcja 6.6) - obowiązkowy przy finalnym zapisie, gdy zasada jest
+   * wymagana i niespełniona. `null`, gdy nie dotyczy albo jeszcze nie podano. */
+  reason: string | null;
+}
+
+/** Czy ta pozycja checklisty wymaga podania powodu niespełnienia (sekcja 6.6). Jedno miejsce
+ * prawdy - używane i przez edytor (czy pokazać pole), i przez walidację finalnego zapisu. */
+export function requiresUnfulfilledReason(item: ChecklistItem): boolean {
+  return item.required && item.status === "unfulfilled";
+}
+
+/** Pierwsza wymagana i niespełniona zasada BEZ powodu - `null`, gdy wszystko uzupełnione.
+ * Kolejność: najpierw zasady wejścia, potem zarządzania, czyli tak jak na ekranie. */
+export function findMissingUnfulfilledReason(checklist: StrategyChecklist): ChecklistItem | null {
+  return (
+    [...checklist.entry, ...checklist.management].find(
+      (item) => requiresUnfulfilledReason(item) && (item.reason ?? "").trim() === "",
+    ) ?? null
+  );
 }
 
 /** Migawka checklisty zasad strategii z momentu jej wyboru na transakcji (sekcja "Checklist w

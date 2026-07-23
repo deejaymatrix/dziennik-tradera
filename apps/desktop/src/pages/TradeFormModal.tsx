@@ -29,7 +29,7 @@ import type {
   TradeCalculation,
   TradeSide,
 } from "../app/types/trade";
-import { blankStrategyChecklist } from "../app/types/trade";
+import { blankStrategyChecklist, findMissingUnfulfilledReason } from "../app/types/trade";
 import { Button } from "../ui/components/Button/Button";
 import { FormPanel } from "../ui/components/FormPanel/FormPanel";
 import type { PanelStatus } from "../ui/components/FormPanel/FormPanel";
@@ -143,6 +143,10 @@ export function TradeFormModal({
   // podstawiony przycisk "Zapisz zmiany", zapisując transakcję bez żadnej zmiany i bez szansy
   // na edycję. Krótka blokada zapisu tuż po wejściu w tryb edycji temu zapobiega.
   const [submitLocked, setSubmitLocked] = useState(false);
+  // Brakujące powody niespełnienia czerwienimy dopiero po nieudanej próbie finalnego zapisu -
+  // pola świecące na czerwono od momentu zaznaczenia "Niespełniona" wyglądałyby jak błąd
+  // użytkownika, zanim ten w ogóle zdążył coś wpisać.
+  const [showReasonErrors, setShowReasonErrors] = useState(false);
 
   // Po otwarciu rozwinięte są dokładnie dwa pierwsze panele (sekcja 6.1). Zwinięcie panelu nie
   // odmontowuje jego zawartości - patrz `FormPanel` - więc nic się nie gubi.
@@ -368,6 +372,7 @@ export function TradeFormModal({
               name: rule.name,
               required: rule.required,
               status: "not_applicable" as const,
+              reason: null,
             })),
           management: selected.management_rules
             .filter((rule) => !rule.archived)
@@ -376,6 +381,7 @@ export function TradeFormModal({
               name: rule.name,
               required: false,
               status: "not_applicable" as const,
+              reason: null,
             })),
         }
       : blankStrategyChecklist();
@@ -489,6 +495,22 @@ export function TradeFormModal({
       return;
     }
 
+    // Każda wymagana zasada oznaczona jako niespełniona musi mieć własny powód (sekcja 6.6).
+    // Komunikat wskazuje KONKRETNĄ zasadę - przy kilku niespełnionych "uzupełnij powody" nie
+    // powiedziałoby użytkownikowi, gdzie właściwie patrzeć.
+    if (mode === "final") {
+      const missing = findMissingUnfulfilledReason(fields.checklist);
+      if (missing) {
+        setPanels((current) => ({ ...current, strategy: true }));
+        setShowReasonErrors(true);
+        setFormError(
+          `Podaj powód niespełnienia zasady „${missing.name}” - bez tego nie zapiszesz transakcji. Możesz też zapisać szkic.`,
+        );
+        return;
+      }
+      setShowReasonErrors(false);
+    }
+
     const input = buildTradeInput(fields, selectedAccountId);
 
     setSubmitting(true);
@@ -544,7 +566,15 @@ export function TradeFormModal({
   )
     ? "complete"
     : "empty";
-  const strategyStatus: PanelStatus = fields.strategyId ? "complete" : "empty";
+  // Brakujący powód niespełnienia to jedyny stan, który realnie BLOKUJE zapis - panel musi go
+  // sygnalizować także zwinięty, inaczej użytkownik dostaje komunikat błędu o sekcji, po której
+  // nie widać, że coś jest z nią nie tak.
+  const missingReasonRule = findMissingUnfulfilledReason(fields.checklist);
+  const strategyStatus: PanelStatus = missingReasonRule
+    ? "error"
+    : fields.strategyId
+      ? "complete"
+      : "empty";
   const notesStatus = statusFor(
     [fields.planBefore.trim(), fields.conclusion.trim()].filter(Boolean).length,
     2,
@@ -594,6 +624,12 @@ export function TradeFormModal({
     >
       <form
         className={styles.form}
+        // Natywna walidacja przeglądarki jest tu wyłączona świadomie: całość sprawdzania robi
+        // `handleSubmit` (polskie komunikaty wskazujące konkretne pole/zasadę + rozwinięcie
+        // panelu, w którym brakuje danych). Natywna nie tylko dublowałaby to gorszym dymkiem,
+        // ale wręcz BLOKUJE zapis - pole `required` w ZWINIĘTYM panelu jest niewidoczne, więc
+        // przeglądarka nie ma czego sfokusować i przerywa submit bez pokazania czegokolwiek.
+        noValidate
         onSubmit={(event) => {
           void handleSubmit(event, "final");
         }}
@@ -835,6 +871,7 @@ export function TradeFormModal({
                 checklist={fields.checklist}
                 onChange={(checklist) => setField("checklist", checklist)}
                 disabled={readOnly}
+                showReasonErrors={showReasonErrors}
               />
             </FormPanel>
 
