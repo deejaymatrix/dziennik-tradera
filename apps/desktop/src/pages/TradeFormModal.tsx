@@ -208,6 +208,16 @@ export function TradeFormModal({
   // podstawiony przycisk "Zapisz zmiany", zapisując transakcję bez żadnej zmiany i bez szansy
   // na edycję. Krótka blokada zapisu tuż po wejściu w tryb edycji temu zapobiega.
   const [submitLocked, setSubmitLocked] = useState(false);
+  /** Uchwyt licznika zdejmującego `submitLocked` - trzymany, żeby posprzątać go przy zamknięciu
+   * formularza. Bez tego licznik dożywał swoich 500 ms po odmontowaniu komponentu. */
+  const submitLockTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    return () => {
+      if (submitLockTimerRef.current !== null) {
+        window.clearTimeout(submitLockTimerRef.current);
+      }
+    };
+  }, []);
   // Brakujące powody niespełnienia czerwienimy dopiero po nieudanej próbie finalnego zapisu -
   // pola świecące na czerwono od momentu zaznaczenia "Niespełniona" wyglądałyby jak błąd
   // użytkownika, zanim ten w ogóle zdążył coś wpisać.
@@ -518,7 +528,13 @@ export function TradeFormModal({
     // "Edytuj", więc krótko po wejściu w tryb edycji ignorujemy zapis (chroni przed szybkim
     // podwójnym kliknięciem, które trafiłoby drugim kliknięciem w nowy przycisk).
     setSubmitLocked(true);
-    window.setTimeout(() => setSubmitLocked(false), 500);
+    if (submitLockTimerRef.current !== null) {
+      window.clearTimeout(submitLockTimerRef.current);
+    }
+    submitLockTimerRef.current = window.setTimeout(() => {
+      submitLockTimerRef.current = null;
+      setSubmitLocked(false);
+    }, 500);
   }
 
   function handleCancelEdit(): void {

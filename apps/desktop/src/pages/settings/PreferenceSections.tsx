@@ -12,6 +12,7 @@ import { Switch } from "../../ui/components/Switch/Switch";
 import { TextField } from "../../ui/components/TextField/TextField";
 import { SettingRow } from "./SettingRow";
 import styles from "./PreferenceSections.module.css";
+import { clearRememberedFilters } from "../../app/reportFilterMemory";
 
 /** Bezpieczna paleta akcentów - wszystkie mają wystarczający kontrast na ciemnym i jasnym tle.
  * Własny kolor nadal można wybrać niżej, ale te są gotowe i sprawdzone. */
@@ -621,7 +622,16 @@ export function DefaultsSection({
           <Switch
             label="Zapamiętuj filtry osobno dla każdego raportu"
             checked={value.report_remember_filters}
-            onChange={(e) => set("report_remember_filters", e.target.checked)}
+            onChange={(e) => {
+              // Wyłączenie ustawienia MUSI wyczyścić to, co już zapamiętano. Bez tego filtry
+              // zostawały w localStorage i ponowne włączenie przełącznika przywracało zakres
+              // sprzed miesięcy - użytkownik zobaczyłby raport zawężony do okresu, którego
+              // nie wybierał i o którym dawno zapomniał.
+              if (!e.target.checked) {
+                clearRememberedFilters();
+              }
+              set("report_remember_filters", e.target.checked);
+            }}
           />
         </SettingRow>
       </SectionCard>

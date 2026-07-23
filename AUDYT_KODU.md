@@ -3,7 +3,7 @@
 Data: 2026-07-23. Zakres: **206 plików źródłowych** (80 Rust, 126 TypeScript/TSX),
 łącznie ok. 40 000 linii, plus 68 arkuszy CSS i 13 migracji SQL.
 
-Audyt prowadzony klasami defektów: każda klasa sprawdzana przez **całe** drzewo, a nie
+Audyt prowadzony **26 klasami defektów**: każda klasa sprawdzana przez **całe** drzewo, a nie
 plik po pliku w kolejności alfabetycznej. Powód jest praktyczny — czytanie 40 000 linii
 po kolei znajduje to, co rzuca się w oczy w pojedynczym pliku, a przegapia dokładnie te
 błędy, które mają znaczenie: powtórzony ten sam wzorzec w piętnastu miejscach i jedno
@@ -61,28 +61,60 @@ Opisane w commicie audytu A4. Matematyka **nie** została zmieniona (odwrócenie
 przeliczyłoby po cichu każdą zapisaną transakcję ze swapem); pole dostało podpowiedź
 mówiącą wprost, w którą stronę wpisywać.
 
+### 5. Martwy kod, który okazał się brakującym podpięciem — NAPRAWIONE
+
+`app/reportFilterMemory.ts`, `pages/settings/PreferenceSections.tsx`
+
+`clearRememberedFilters()` była zdefiniowana i nigdy nie wywoływana. Jej własny komentarz
+mówił, do czego służy: „używane po wyłączeniu ustawienia, żeby następne włączenie nie
+przywróciło filtrów sprzed miesięcy". Dokładnie to się działo — wyłączenie przełącznika
+„Zapamiętuj filtry osobno dla każdego raportu" zostawiało wpisy w `localStorage`, więc
+ponowne włączenie przywracało zakres, którego użytkownik dawno nie pamiętał.
+
+To najciekawszy typ znaleziska w całym audycie: martwy kod nie był tu śmieciem do
+usunięcia, tylko sygnałem, że czegoś brakuje. Funkcja została podpięta do przełącznika.
+
+### 6. Licznik bez sprzątania po odmontowaniu — NAPRAWIONE
+
+`pages/TradeFormModal.tsx`
+
+Licznik zdejmujący blokadę zapisu (`window.setTimeout(..., 500)`) był uruchamiany bez
+zapamiętania uchwytu, więc dożywał swoich 500 ms po zamknięciu formularza. Skutki były
+niegroźne, ale to jedyny licznik w aplikacji bez sprzątania — pozostałe cztery (debounce
+podglądu, autozapis szkicu) czyszczą się poprawnie. Teraz uchwyt jest trzymany w ref
+i czyszczony przy odmontowaniu.
+
 ---
 
 ## Klasy sprawdzone bez zastrzeżeń
 
-| Klasa                                            | Wynik                                                                                                   |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| `panic!`, `todo!`, `unimplemented!` poza testami | brak                                                                                                    |
-| `.unwrap()`/`.expect()` w kodzie produkcyjnym    | 20 miejsc, wszystkie z realną gwarancją (poza znalezionymi wyżej)                                       |
-| `Mutex::lock()` bez odzysku z zatrucia           | wszystkie trafienia w modułach testowych; produkcja czysta                                              |
-| Sklejanie SQL ze zmiennych                       | brak — wyłącznie stałe kolumn, wartości przez `?N`                                                      |
-| Rzutowania `as` mogące uciąć wartość             | 37, wszystkie na wielkościach ograniczonych z definicji (miesiąc 1–12, dzień tygodnia 0–6, kubełek 0–5) |
-| `DROP TABLE` w migracjach                        | brak — jedyne trafienie to komentarz wyjaśniający, dlaczego się go nie używa                            |
-| Migracje zarejestrowane w kodzie                 | 13 plików, 13 wpisów — zgodne                                                                           |
-| `any` w TypeScript                               | brak                                                                                                    |
-| Asercje `!` (non-null)                           | brak                                                                                                    |
-| Puste `catch {}` połykające błędy                | brak                                                                                                    |
-| `dangerouslySetInnerHTML`                        | brak                                                                                                    |
-| `target="_blank"` bez `rel="noopener"`           | brak                                                                                                    |
-| `TODO`/`FIXME`/`HACK`                            | brak                                                                                                    |
-| Klucze listy po indeksie                         | 3 miejsca, wszystkie na listach w pełni kontrolowanych albo tylko do odczytu — bezpieczne               |
-| Obietnice bez obsługi błędu                      | brak                                                                                                    |
-| Kontrast tokenów WCAG AA                         | osobno w A1 — 5 naruszeń naprawionych                                                                   |
+| Klasa                                            | Wynik                                                                                                       |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `panic!`, `todo!`, `unimplemented!` poza testami | brak                                                                                                        |
+| `.unwrap()`/`.expect()` w kodzie produkcyjnym    | 20 miejsc, wszystkie z realną gwarancją (poza znalezionymi wyżej)                                           |
+| `Mutex::lock()` bez odzysku z zatrucia           | wszystkie trafienia w modułach testowych; produkcja czysta                                                  |
+| Sklejanie SQL ze zmiennych                       | brak — wyłącznie stałe kolumn, wartości przez `?N`                                                          |
+| Rzutowania `as` mogące uciąć wartość             | 37, wszystkie na wielkościach ograniczonych z definicji (miesiąc 1–12, dzień tygodnia 0–6, kubełek 0–5)     |
+| `DROP TABLE` w migracjach                        | brak — jedyne trafienie to komentarz wyjaśniający, dlaczego się go nie używa                                |
+| Migracje zarejestrowane w kodzie                 | 13 plików, 13 wpisów — zgodne                                                                               |
+| `any` w TypeScript                               | brak                                                                                                        |
+| Asercje `!` (non-null)                           | brak                                                                                                        |
+| Puste `catch {}` połykające błędy                | brak                                                                                                        |
+| `dangerouslySetInnerHTML`                        | brak                                                                                                        |
+| `target="_blank"` bez `rel="noopener"`           | brak                                                                                                        |
+| `TODO`/`FIXME`/`HACK`                            | brak                                                                                                        |
+| Klucze listy po indeksie                         | 3 miejsca, wszystkie na listach w pełni kontrolowanych albo tylko do odczytu — bezpieczne                   |
+| Obietnice bez obsługi błędu                      | brak                                                                                                        |
+| Liczniki (`setTimeout`/`setInterval`)            | 6 miejsc; 5 sprząta poprawnie, 1 poprawiony (patrz wyżej)                                                   |
+| Listenery bez `removeEventListener`              | 4 rejestracje: 2 z cleanupem, 2 globalne na czas życia aplikacji (poprawnie)                                |
+| Uprawnienia Tauri                                | 6 pozwoleń, każde realnie używane — `dialog`, `updater`, `process:restart`, `shell:open`                    |
+| Dane prywatne w logach                           | brak — logi nie zawierają nazw, kwot ani identyfikatorów                                                    |
+| Hardkodowane ścieżki                             | brak                                                                                                        |
+| Mocki produkcyjne                                | brak                                                                                                        |
+| Transakcyjność SQLite                            | 29 transakcji; repozytoria bez nich wykonują pojedyncze instrukcje (SQLite obejmuje je niejawną transakcją) |
+| Martwe eksporty                                  | 12, z czego 11 to typy opisujące kształt API; jedyny martwy kod wykonywalny opisany wyżej                   |
+| Wielokrotne źródła prawdy                        | `ThemeProvider` jest cienką nakładką nad preferencjami, nie drugim źródłem                                  |
+| Kontrast tokenów WCAG AA                         | osobno w A1 — 5 naruszeń naprawionych                                                                       |
 
 ---
 
