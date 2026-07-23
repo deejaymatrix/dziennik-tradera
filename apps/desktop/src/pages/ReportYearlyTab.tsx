@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { formatMoney } from "../app/decimal";
+import { formatMoney, sumDecimalStrings } from "../app/decimal";
 import { formatNumber, formatPercent } from "../app/reportFormat";
 import type { FilteredReport, GroupBreakdown } from "../app/types/report";
 import { Table, tableStyles } from "../ui/components/Table/Table";
@@ -55,7 +55,11 @@ export function ReportYearlyTab({ report, currency, year }: ReportYearlyTabProps
   const bestInstrument = bestOf(report.by_instrument);
   const worstInstrument = worstOf(report.by_instrument);
 
-  const averageMonthlyPnl = String(months.reduce((sum, m) => sum + Number(m.net_pnl), 0) / 12);
+  // Suma dwunastu miesięcy liczona dokładnie; dopiero podzielenie przez 12 (czyli już sama
+  // ŚREDNIA, z natury przybliżona) idzie przez liczbę. Odwrotna kolejność gubiła grosze
+  // w samej sumie, zanim jeszcze doszło do dzielenia.
+  const sumaRoczna = sumDecimalStrings(months.map((m) => m.net_pnl)) ?? "0";
+  const averageMonthlyPnl = String(Number(sumaRoczna) / 12);
   const averageTradesPerMonth = (report.stats.closed_trades / 12).toFixed(2);
 
   return (

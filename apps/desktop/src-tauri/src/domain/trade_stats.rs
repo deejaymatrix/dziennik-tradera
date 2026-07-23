@@ -11,6 +11,20 @@ use super::trade::{Trade, TradeSide, TradeStatus};
 /// liczą się statystyki/krzywa kapitału/kalendarz/rozbicia poniżej. Draft/open oraz transakcje
 /// bez `net_pnl` (np. szkic bez ceny wyjścia) celowo nie wchodzą do żadnej z tych analiz - nie
 /// ma tam jeszcze zrealizowanego wyniku do policzenia.
+/// Chwila, w której wynik transakcji stał się faktem - używana przez WSZYSTKIE rozbicia czasowe.
+///
+/// Pozycja domknięta w całości częściowymi zamknięciami ma status "zamknięta", ale nie musi mieć
+/// `closed_at`: datę zamknięcia wpisuje się przy zamykaniu ceną, a tu pozycja zeszła do zera przez
+/// sumę zamknięć częściowych. Wcześniej każde rozbicie brało `closed_at` przez `expect`, więc
+/// jedna taka transakcja wywalała Dashboard i wszystkie raporty tego konta.
+///
+/// `updated_at` to moment ostatniego zapisu transakcji, czyli najbliższa prawdzie chwila - ta sama
+/// reguła, którą stosuje `balance::timeline` przy nanoszeniu wyniku na saldo. Obie muszą używać
+/// tego samego znacznika, inaczej raport i saldo przypisałyby tę pozycję do różnych okresów.
+fn zamkniecie(trade: &Trade) -> DateTime<Utc> {
+    trade.closed_at.unwrap_or(trade.updated_at)
+}
+
 fn realized_trades(trades: &[Trade]) -> Vec<&Trade> {
     trades
         .iter()
@@ -180,13 +194,16 @@ pub struct EquityPoint {
 /// Krzywa kapitału: skumulowany wynik netto w kolejności zamykania pozycji.
 pub fn compute_equity_curve(trades: &[Trade]) -> Vec<EquityPoint> {
     let mut realized = realized_trades(trades);
-    realized.sort_by_key(|t| t.closed_at);
+    realized.sort_by_key(|t| zamkniecie(t));
 
     let mut cumulative = Decimal::ZERO;
     realized
         .into_iter()
         .filter_map(|t| {
-            let closed_at = t.closed_at?;
+            // `zamkniecie` zamiast `t.closed_at?`: pozycja domknięta częściowymi zamknięciami
+            // nie ma daty zamknięcia i wypadała z krzywej kapitału, mimo że jej wynik wchodził
+            // na saldo konta - krzywa rozjeżdżała się wtedy z saldem bez żadnego sygnału.
+            let closed_at = zamkniecie(t);
             let net_pnl = t.net_pnl?;
             cumulative += net_pnl;
             Some(EquityPoint {
@@ -221,9 +238,8 @@ pub fn compute_calendar(trades: &[Trade]) -> Vec<DailyPnl> {
     let mut by_day: BTreeMap<NaiveDate, DayAccumulator> = BTreeMap::new();
 
     for trade in realized_trades(trades) {
-        let Some(closed_at) = trade.closed_at else {
-            continue;
-        };
+        // Patrz `zamkniecie` - pominięcie pozycji bez `closed_at` robiło dziurę w kalendarzu.
+        let closed_at = zamkniecie(trade);
         let Some(net_pnl) = trade.net_pnl else {
             continue;
         };
@@ -403,7 +419,7 @@ const WEEKDAY_NAMES: [&str; 7] = [
 /// rosnąco (w odróżnieniu od `compute_breakdown`, które sortuje po wyniku).
 pub fn compute_monthly_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
     let mut result = compute_breakdown(trades, |t| {
-        let closed_at = t.closed_at.expect("realized_trades gwarantuje closed_at");
+        let closed_at = zamkniecie(t);
         let key = format!("{:04}-{:02}", closed_at.year(), closed_at.month());
         let label = format!(
             "{} {}",
@@ -422,10 +438,7 @@ pub fn compute_monthly_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
 /// "wszystkie miesiące zsumowane po latach" (np. wykres na Dashboardzie).
 pub fn compute_calendar_month_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
     let mut by_month = compute_breakdown(trades, |t| {
-        let month = t
-            .closed_at
-            .expect("realized_trades gwarantuje closed_at")
-            .month();
+        let month = zamkniecie(t).month();
         (
             (month - 1).to_string(),
             MONTH_NAMES[(month - 1) as usize].to_string(),
@@ -454,10 +467,7 @@ pub fn compute_calendar_month_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown>
 /// Rozbicie roczne (rok zamknięcia transakcji) - posortowane chronologicznie rosnąco.
 pub fn compute_yearly_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
     let mut result = compute_breakdown(trades, |t| {
-        let year = t
-            .closed_at
-            .expect("realized_trades gwarantuje closed_at")
-            .year();
+        let year = zamkniecie(t).year();
         (year.to_string(), year.to_string())
     });
     result.sort_by(|a, b| a.key.cmp(&b.key));
@@ -468,11 +478,7 @@ pub fn compute_yearly_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
 /// dni w ustalonej kolejności, nawet bez ani jednej transakcji danego dnia (zerowy wynik).
 pub fn compute_day_of_week_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
     let mut by_day = compute_breakdown(trades, |t| {
-        let weekday = t
-            .closed_at
-            .expect("realized_trades gwarantuje closed_at")
-            .weekday()
-            .num_days_from_monday();
+        let weekday = zamkniecie(t).weekday().num_days_from_monday();
         (
             weekday.to_string(),
             WEEKDAY_NAMES[weekday as usize].to_string(),
@@ -505,10 +511,7 @@ const FOUR_HOUR_LABELS: [&str; 6] = ["00-03", "04-07", "08-11", "12-15", "16-19"
 /// strefy czasowej użytkownika. Zawsze wszystkie 6 przedziałów w ustalonej kolejności.
 pub fn compute_four_hour_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
     let mut by_bucket = compute_breakdown(trades, |t| {
-        let hour = t
-            .closed_at
-            .expect("realized_trades gwarantuje closed_at")
-            .hour();
+        let hour = zamkniecie(t).hour();
         let bucket = (hour / 4) as usize;
         (bucket.to_string(), FOUR_HOUR_LABELS[bucket].to_string())
     });
@@ -569,10 +572,7 @@ const QUARTER_LABELS: [&str; 4] = ["Q1", "Q2", "Q3", "Q4"];
 /// Rozbicie kwartalne (kwartał zamknięcia) - zawsze wszystkie 4 kwartały w kolejności Q1-Q4.
 pub fn compute_quarterly_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
     let mut by_quarter = compute_breakdown(trades, |t| {
-        let month = t
-            .closed_at
-            .expect("realized_trades gwarantuje closed_at")
-            .month();
+        let month = zamkniecie(t).month();
         let quarter = ((month - 1) / 3) as usize;
         (quarter.to_string(), QUARTER_LABELS[quarter].to_string())
     });
@@ -1223,5 +1223,66 @@ mod tests {
     fn pnl_distribution_is_empty_without_realized_trades() {
         let buckets = compute_pnl_distribution(&[base_trade("1")]);
         assert!(buckets.is_empty());
+    }
+
+    /// Pozycja domknięta W CAŁOŚCI częściowymi zamknięciami ma status "zamknięta", ale NIE musi
+    /// mieć daty zamknięcia - datę wpisuje się przy zamykaniu ceną, a tu pozycja zeszła do zera
+    /// przez sumę zamknięć częściowych. Wszystkie rozbicia czasowe brały `closed_at` przez
+    /// `expect`, więc taka transakcja wywalała Dashboard i raporty tego konta.
+    fn zamknieta_bez_daty_zamkniecia() -> Trade {
+        Trade {
+            status: TradeStatus::Closed,
+            opened_at: Some(Utc::now() - Duration::days(3)),
+            closed_at: None,
+            net_pnl: Some(dec!(100)),
+            gross_pnl: Some(dec!(100)),
+            volume: Some(dec!(1)),
+            partial_closes: vec![crate::domain::trade_partial_close::PartialClose {
+                closed_volume: dec!(1),
+                realized_pnl: dec!(100),
+            }],
+            ..base_trade("bez-daty")
+        }
+    }
+
+    #[test]
+    fn statystyki_nie_wywracaja_sie_na_pozycji_bez_daty_zamkniecia() {
+        let trades = vec![zamknieta_bez_daty_zamkniecia()];
+        let stats = compute_stats(&trades);
+        assert_eq!(stats.closed_trades, 1);
+    }
+
+    #[test]
+    fn rozbicia_czasowe_nie_wywracaja_sie_na_pozycji_bez_daty_zamkniecia() {
+        let trades = vec![zamknieta_bez_daty_zamkniecia()];
+        compute_monthly_breakdown(&trades);
+        compute_calendar(&trades);
+        compute_equity_curve(&trades);
+        compute_day_of_week_breakdown(&trades);
+        compute_pnl_distribution(&trades);
+    }
+
+    /// Samo "nie wywala się" nie wystarczy: taka pozycja MUSI być widoczna w rozbiciach.
+    /// Ciche pominięcie byłoby gorsze od paniki - krzywa kapitału i kalendarz rozjechałyby się
+    /// z saldem konta, a użytkownik nie dostałby żadnego sygnału, że czegoś brakuje.
+    #[test]
+    fn pozycja_bez_daty_zamkniecia_wchodzi_do_rozbic() {
+        let trades = vec![zamknieta_bez_daty_zamkniecia()];
+
+        let krzywa = compute_equity_curve(&trades);
+        assert_eq!(krzywa.len(), 1, "pozycja wypadła z krzywej kapitału");
+        assert_eq!(krzywa[0].cumulative_net_pnl, dec!(100));
+
+        let kalendarz = compute_calendar(&trades);
+        assert_eq!(kalendarz.len(), 1, "pozycja wypadła z kalendarza");
+        assert_eq!(kalendarz[0].net_pnl, dec!(100));
+
+        let miesiace = compute_monthly_breakdown(&trades);
+        assert_eq!(miesiace.len(), 1, "pozycja wypadła z rozbicia miesięcznego");
+        assert_eq!(miesiace[0].trade_count, 1);
+
+        let dni = compute_day_of_week_breakdown(&trades);
+        let suma: i64 = dni.iter().map(|d| d.trade_count).sum();
+        assert_eq!(suma, 1, "pozycja wypadła z rozbicia po dniach tygodnia");
     }
 }

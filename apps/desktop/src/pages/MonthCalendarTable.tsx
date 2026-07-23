@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { formatSignedMoney } from "../app/decimal";
+import { decimalSign, formatSignedMoney, sumDecimalStrings } from "../app/decimal";
 import type { DailyPnl } from "../app/types/report";
 import { Table, tableStyles } from "../ui/components/Table/Table";
 import styles from "./BreakdownTable.module.css";
@@ -44,9 +44,11 @@ export function MonthCalendarTable({ days, currency }: MonthCalendarTableProps):
       </thead>
       <tbody>
         {days.map((day, index) => {
-          const cumulative = days
-            .slice(0, index + 1)
-            .reduce((sum, d) => sum + Number(d.net_pnl), 0);
+          // Suma narastająca liczona DOKŁADNIE - kwoty przychodzą z Rusta jako napisy właśnie
+          // po to, żeby nie przechodziły przez binarny float. Dodawanie `Number(...)` przez
+          // trzydzieści dni miesiąca odchylało ostatni wiersz od wyniku miesiąca o grosze.
+          const cumulative =
+            sumDecimalStrings(days.slice(0, index + 1).map((d) => d.net_pnl)) ?? "0";
           return (
             <tr key={day.date}>
               <td>{formatDay(day.date)}</td>
@@ -65,10 +67,11 @@ export function MonthCalendarTable({ days, currency }: MonthCalendarTableProps):
               <td
                 className={[
                   tableStyles.numeric,
-                  cumulative >= 0 ? styles.profit : styles.loss,
+                  // Znak z dokładnego porównania napisu, nie z Number - patrz komentarz wyżej.
+                  (decimalSign(cumulative) ?? 0) >= 0 ? styles.profit : styles.loss,
                 ].join(" ")}
               >
-                {formatSignedMoney(String(cumulative), currency)}
+                {formatSignedMoney(cumulative, currency)}
               </td>
             </tr>
           );

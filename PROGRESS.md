@@ -1397,8 +1397,8 @@ wszędzie. Zrobione dotąd tokeny i paleta zostają jako fundament.
 |      | ↳ Widoki zależne od danych czekają na A2 - w przeglądarce bez backendu Tauri renderują tylko stan błędu.                                                                                         |        |
 | A2   | Audyt jak końcowy użytkownik: 4 warianty bazy (pusta, z danymi, po restarcie, 300 transakcji) przechodzą przez pełny stos usług - saldo zgadza się z sumą wyników w każdym z nich                | ✅     |
 | A3   | Wartości graniczne: puste/spacje, duplikaty, długie nazwy, polskie znaki, 0, ujemne, bardzo duże, loty 0,01-1,23, złe daty, zamknięcie ponad lot, wielokrotny zapis - 14 testów na pełnym stosie | ✅     |
-| A4   | Obliczenia finansowe: 16 niezależnych rachunków referencyjnych (lot, tick, punkt, ryzyko, R:R, P&L BUY/SELL, koszty, waluty, częściowe zamknięcia) + test blokujący f64 w modułach pieniężnych | ✅     |
-| A5   | Audyt kodu linia po linii z LISTĄ sprawdzonych plików (martwy kod, puste catch, unwrap/expect, wycieki, wyścigi, hardkodowane kolory i ścieżki, dane prywatne w logach)                          | ⬜     |
+| A4   | Obliczenia finansowe: 16 niezależnych rachunków referencyjnych (lot, tick, punkt, ryzyko, R:R, P&L BUY/SELL, koszty, waluty, częściowe zamknięcia) + test blokujący f64 w modułach pieniężnych   | ✅     |
+| A5   | Audyt kodu: 206 plików sprawdzonych 17 klasami defektów, lista w [AUDYT_KODU.md](AUDYT_KODU.md). Znalezione i naprawione: panika statystyk, ciche pomijanie pozycji, 4x float na pieniądzach | ✅     |
 | A6   | Narzędzia: format, ESLint, typecheck, testy jednostkowe i integracyjne, cargo fmt --check, clippy, testy Rust                                                                                    | ⬜     |
 | A7   | Raport końcowy z macierzą audytową                                                                                                                                                               | ⬜     |
 

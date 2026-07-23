@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { formatMoney } from "../app/decimal";
+import { formatMoney, sumDecimalStrings } from "../app/decimal";
 import type { GroupBreakdown } from "../app/types/report";
 import { estimateYAxisWidth } from "./chartAxis";
 import styles from "./GroupBarChart.module.css";
@@ -36,10 +36,20 @@ export function CumulativeLineChart({ rows, currency }: CumulativeLineChartProps
     return <p className={styles.empty}>Brak danych do pokazania.</p>;
   }
 
-  const data = rows.map((row, index) => ({
-    label: row.label,
-    value: rows.slice(0, index + 1).reduce((sum, r) => sum + Number(r.net_pnl), 0),
-  }));
+  // Suma narastająca liczona DOKŁADNIE, na `sumDecimalStrings` (BigInt), a nie przez dodawanie
+  // `Number(...)`. Kwoty przychodzą z Rusta jako napisy właśnie po to, żeby nie przechodziły
+  // przez binarny float - zsumowanie kilkuset wyników w `Number` odchylało ostatni punkt wykresu
+  // od salda konta o grosze, bez żadnego sygnału, że coś jest nie tak.
+  //
+  // Przy okazji jeden przebieg zamiast `slice().reduce()` w każdej iteracji (kwadratowy koszt).
+  const data: { label: string; value: number }[] = [];
+  let narastajaco = "0";
+  for (const row of rows) {
+    narastajaco = sumDecimalStrings([narastajaco, row.net_pnl]) ?? narastajaco;
+    // Recharts rysuje na liczbach - konwersja jest tu ostatnim krokiem, WYŁĄCZNIE do rysowania.
+    // Wartość pokazywana w dymku bierze się z `formatMoney` na tym samym napisie.
+    data.push({ label: row.label, value: Number(narastajaco) });
+  }
 
   // Ta sama zasada co w GroupBarChart - każda kategoria ma widoczną etykietę, żadna nie jest
   // pomijana; przy wielu kategoriach etykiety są tylko bardziej przekrzywione i mniejsze.

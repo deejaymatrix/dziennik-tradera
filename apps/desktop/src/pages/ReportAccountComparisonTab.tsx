@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { formatMoney } from "../app/decimal";
+import { formatMoney, sumDecimalStrings } from "../app/decimal";
 import { formatNumber, formatPercent } from "../app/reportFormat";
 import type { AccountWithBalance } from "../app/types/account";
 import type { AccountComparisonRow } from "../app/types/report";
@@ -213,11 +213,11 @@ export function ReportAccountComparisonTab({
               </td>
               <td className={tableStyles.numeric}>—</td>
               <td className={tableStyles.numeric}>
-                {formatNumber(String(sorted.reduce((sum, r) => sum + Number(r.stats.net_pnl), 0)))}
+                {formatNumber(sumDecimalStrings(sorted.map((r) => r.stats.net_pnl)) ?? "0")}
               </td>
               <td className={tableStyles.numeric}>
                 {formatNumber(
-                  String(sorted.reduce((sum, r) => sum + Number(r.stats.total_commission), 0)),
+                  sumDecimalStrings(sorted.map((r) => r.stats.total_commission)) ?? "0",
                 )}
               </td>
               <td colSpan={6}></td>

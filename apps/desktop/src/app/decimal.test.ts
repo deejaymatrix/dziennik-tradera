@@ -148,3 +148,29 @@ describe("formatSignedMoney", () => {
     expect(formatSignedMoney("brak")).toBe("brak");
   });
 });
+
+describe("sumDecimalStrings - suma narastająca wykresu", () => {
+  it("kilkaset kwot sumuje się bez dryfu, w odróżnieniu od Number", () => {
+    // Dokładnie ten scenariusz, który psuł wykres skumulowany: setki wyników po 0,10.
+    const kwoty = Array.from({ length: 300 }, () => "0.10");
+
+    let narastajaco = "0";
+    for (const kwota of kwoty) {
+      narastajaco = sumDecimalStrings([narastajaco, kwota]) ?? narastajaco;
+    }
+    // Wynik jest znormalizowany (bez końcowych zer) - formatowanie do dwóch miejsc
+    // należy do formatMoney, nie do sumowania.
+    expect(narastajaco).toBe("30");
+
+    // Ta sama pętla na Number odchyla się od 30 - dlatego kwoty przychodzą z Rusta jako napisy.
+    let float = 0;
+    for (const kwota of kwoty) {
+      float += Number(kwota);
+    }
+    expect(float).not.toBe(30);
+  });
+
+  it("miesza znaki i skale bez utraty groszy", () => {
+    expect(sumDecimalStrings(["100.5", "-0.25", "0.75", "-1"])).toBe("100");
+  });
+});
