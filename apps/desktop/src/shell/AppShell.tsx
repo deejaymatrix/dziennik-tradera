@@ -5,9 +5,7 @@ import { Sidebar } from "./Sidebar";
 import { CommandPalette } from "./CommandPalette";
 import { Header } from "./Header";
 import { usePreferences } from "../app/PreferencesProvider";
-import { shouldNotify } from "../app/quietHours";
 import type { StartupView } from "../app/types/preferences";
-import { useToast } from "../ui/components/Toast/ToastProvider";
 import styles from "./AppShell.module.css";
 
 /** Ostatnio otwarta zakładka. To NIE jest ustawienie, tylko zapamiętany stan sesji - ustawieniem
@@ -23,7 +21,6 @@ const STARTUP_ROUTES: Record<StartupView, string> = {
 
 export function AppShell(): ReactElement {
   const { preferences } = usePreferences();
-  const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -68,44 +65,11 @@ export function AppShell(): ReactElement {
     localStorage.setItem(LAST_ROUTE_STORAGE_KEY, location.pathname);
   }, [location.pathname]);
 
-  /** Sprawdzenie aktualizacji ma się wykonać DOKŁADNIE RAZ na uruchomienie. Bez tego znacznika
-   * każdy zapis ustawień (zmiana `preferences`) odpalałby kolejne zapytanie do serwera. */
-  const updateCheckedRef = useRef(false);
-
-  useEffect(() => {
-    // Czekamy na preferencje, żeby wiedzieć, czy w ogóle pokazywać komunikat - ale samo
-    // sprawdzenie i tak dzieje się zawsze, niezależnie od przełącznika.
-    if (!preferences || updateCheckedRef.current) {
-      return;
-    }
-    updateCheckedRef.current = true;
-
-    // Ciche sprawdzenie aktualizacji przy starcie - tylko powiadomienie, nigdy automatyczne
-    // pobranie/instalacja. Błąd (np. brak internetu) jest celowo wyciszony - to nie jest coś,
-    // o czym trzeba informować użytkownika przy każdym starcie aplikacji.
-    void (async () => {
-      try {
-        const { check } = await import("@tauri-apps/plugin-updater");
-        const update = await check();
-        if (!update) {
-          return;
-        }
-        // SAMO SPRAWDZANIE dzieje się zawsze - przełącznik i ciche godziny decydują wyłącznie
-        // o tym, czy pokazać komunikat. Informacja o nowej wersji i tak zostaje widoczna
-        // w Ustawieniach → Aktualizacje.
-        if (shouldNotify(preferences.notifications, "update_available")) {
-          showToast(
-            `Dostępna jest nowa wersja ${update.version} - zainstaluj ją w Ustawieniach.`,
-            "info",
-          );
-        }
-      } catch {
-        // Brak sieci / brak środowiska Tauri (podgląd w przeglądarce) - pomijamy w ciszy.
-      }
-    })();
-    // `showToast` jest w zależnościach dla porządku - efekt i tak wykonuje się najwyżej raz,
-    // bo pilnuje tego `updateCheckedRef`.
-  }, [preferences, showToast]);
+  // Sprawdzanie aktualizacji NIE mieszka już tutaj. Przeniesione do `UpdateMonitorProvider`
+  // nad routerem: wymaganie Celu 1.8 mówi o jednym centralnym serwisie działającym przez cały
+  // czas uruchomienia, a nie o sprawdzeniu wykonywanym raz przy montowaniu powłoki. Tamten
+  // provider dodatkowo ponawia sprawdzanie co dziesięć minut, reaguje na powrót sieci
+  // i na powrót aplikacji na pierwszy plan.
 
   // Zwinięcie menu w trakcie pracy jest świadomie NIETRWAŁE: ustawieniem jest „domyślny stan
   // menu bocznego", więc zapisywanie tu drugiej wartości dawałoby dwa źródła prawdy dla jednej
