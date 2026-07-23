@@ -36,3 +36,28 @@
 .clearButton {
   margin-left: auto;
 }
+
+/* Wiersz nad polami: po lewej opis zakresu danych, po prawej chowanie filtrów. Zostaje na
+   ekranie także po zwinięciu - inaczej nie byłoby wiadomo, czego dotyczą pokazane liczby. */
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.scope {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.scopeLabel {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+}

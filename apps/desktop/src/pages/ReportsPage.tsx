@@ -4,6 +4,10 @@ import { loadRememberedFilter, saveRememberedFilter } from "../app/reportFilterM
 import type { ReactElement } from "react";
 import { LineChart } from "lucide-react";
 import { invokeCommand } from "../app/invokeCommand";
+import { exportTrades, toExportFilter } from "../app/exportTrades";
+import type { ExportFormat } from "../app/exportTrades";
+import { Button } from "../ui/components/Button/Button";
+import { useToast } from "../ui/components/Toast/ToastProvider";
 import { monthYearLabel, toAccountComparisonFilter, useReportFilter } from "../app/useReportFilter";
 import type { AccountComparisonRow } from "../app/types/report";
 import { EmptyState } from "../ui/components/EmptyState/EmptyState";
@@ -44,6 +48,8 @@ export function ReportsPage(): ReactElement {
   const { preferences } = usePreferences();
   const [activeTab, setActiveTab] = useState<TabId>("monthly");
   const [comparisonRows, setComparisonRows] = useState<AccountComparisonRow[] | null>(null);
+  const [exporting, setExporting] = useState<ExportFormat | null>(null);
+  const { showToast } = useToast();
 
   const rememberFilters = preferences?.defaults.report_remember_filters ?? true;
 
@@ -92,6 +98,37 @@ export function ReportsPage(): ReactElement {
     })();
   }, [activeTab, accounts, filter]);
 
+  /**
+   * Eksport bieżącego podraportu (sekcja 10 promptu). Zawężenie jest DOKŁADNIE tym z paska
+   * filtrów, więc plik zawiera to samo, co widać na ekranie - eksport pełnego konta pozostaje
+   * na ekranie "Dane".
+   *
+   * Porównanie kont eksportu nie ma: dotyczy wielu kont naraz, a komenda eksportu z założenia
+   * pracuje na jednym. Zrzut "jednego z porównywanych kont" byłby mylący.
+   */
+  async function handleExport(format: ExportFormat): Promise<void> {
+    const account = selectedAccount;
+    if (!account) {
+      return;
+    }
+    setExporting(format);
+    try {
+      const zapisano = await exportTrades({
+        accountId: account.id,
+        accountName: account.name,
+        format,
+        filter: toExportFilter(filter, activeTab),
+      });
+      if (zapisano) {
+        showToast(`Eksport ${format.toUpperCase()} zapisany.`, "success");
+      }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setExporting(null);
+    }
+  }
+
   if (accountsError) {
     return <ErrorState title="Nie udało się wczytać kont" description={accountsError} />;
   }
@@ -119,6 +156,7 @@ export function ReportsPage(): ReactElement {
         intervals={intervals}
         availableYears={availableYears}
         reportKind={activeTab}
+        collapsible
       />
 
       <div className={styles.tabs} role="tablist" aria-label="Podraporty">
@@ -136,6 +174,21 @@ export function ReportsPage(): ReactElement {
             {tab.label}
           </button>
         ))}
+        {activeTab !== "compare" && selectedAccount && (
+          <div className={styles.tabActions}>
+            {(["csv", "xlsx", "pdf"] as const).map((format) => (
+              <Button
+                key={format}
+                variant="secondary"
+                size="sm"
+                disabled={exporting !== null}
+                onClick={() => void handleExport(format)}
+              >
+                {exporting === format ? "Zapisywanie..." : format.toUpperCase()}
+              </Button>
+            ))}
+          </div>
+        )}
       </div>
 
       {activeTab === "compare" && (

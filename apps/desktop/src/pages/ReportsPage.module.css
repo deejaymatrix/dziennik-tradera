@@ -113,3 +113,12 @@
   font-size: var(--font-size-md);
   font-weight: 600;
 }
+
+/* Eksport bieżącego podraportu - po prawej stronie paska zakładek, żeby był powiązany
+   wzrokowo z wybranym raportem, a nie z filtrami nad nim. */
+.tabActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: auto;
+}

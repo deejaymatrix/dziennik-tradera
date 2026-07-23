@@ -1384,7 +1384,7 @@ wszędzie. Zrobione dotąd tokeny i paleta zostają jako fundament.
 | Q4   | Dashboard jako Executive Dashboard: 6 KPI w górnym rzędzie, wskaźniki uzupełniające ciszej, kafelki klikalne do źródła                     | ✅     |
 | Q5   | Historia transakcji: Table-First + Split View z Inspectorem po prawej (tylko odczyt, jawny „Edytuj", przypinanie)                          | ✅     |
 | Q6   | Nowa transakcja jako Guided Workflow: stały nagłówek z kontem i saldem, przyklejony pasek akcji, swobodne przechodzenie między sekcjami    | ✅     |
-| Q7   | Raporty: szeroki workspace analityczny                                                                                                     | ⬜     |
+| Q7   | Raporty jako workspace: zwijane filtry, opis zakresu danych, eksport bieżącego podraportu z tym samym zawężeniem                          | ✅     |
 | Q8   | Wykresy: paleta z tych samych tokenów, eksport PDF zostaje jasny                                                                           | ⬜     |
 | Q9   | Dostępność i animacje (120–180 ms, obsługa ograniczenia ruchu, focus, klawiatura)                                                          | ⬜     |
 | Q10  | Stany puste, ładowania, błędu, disabled i tylko-do-odczytu w każdym widoku                                                                 | ⬜     |

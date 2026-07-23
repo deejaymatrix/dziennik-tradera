@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ReactElement } from "react";
 import type { AccountWithBalance } from "../app/types/account";
 import type { InstrumentWithDetails } from "../app/types/instrument";
@@ -55,6 +56,61 @@ const SIDE_OPTIONS: { value: "" | "buy" | "sell"; label: string }[] = [
   { value: "sell", label: "SELL" },
 ];
 
+/** Nazwane listy potrzebne do zamiany identyfikatorów z filtru na czytelne etykiety. */
+export interface ReportScopeLists {
+  accounts: { id: string; name: string; currency: string }[];
+  instruments: { id: string; display_symbol: string }[];
+  strategies: { id: string; name: string }[];
+  intervals: { id: string; label: string }[];
+}
+
+/**
+ * Zdanie opisujące, JAKIE dane widzi użytkownik - wymagany „jasny opis zakresu danych"
+ * (sekcja 10 promptu). Jest widoczne również przy ZWINIĘTYCH filtrach, więc po schowaniu paska
+ * nadal wiadomo, czego dotyczą liczby na ekranie - bez tego zwijanie byłoby pułapką.
+ */
+export function describeReportScope(
+  value: ReportFilterBarValue,
+  lists: ReportScopeLists,
+  reportKind?: ReportKind,
+): string {
+  const czesci: string[] = [];
+
+  if (reportKind === "compare") {
+    czesci.push("Wszystkie konta");
+  } else {
+    const konto = lists.accounts.find((a) => a.id === value.accountId);
+    czesci.push(konto ? `${konto.name} (${konto.currency})` : "Bez wybranego konta");
+  }
+
+  if (value.year && value.month && reportKind !== "yearly") {
+    const miesiac = MONTH_OPTIONS.find((m) => m.value === value.month);
+    czesci.push(`${miesiac?.label ?? value.month} ${value.year}`);
+  } else if (value.year) {
+    czesci.push(`rok ${value.year}`);
+  } else {
+    czesci.push("cała historia");
+  }
+
+  const instrument = lists.instruments.find((i) => i.id === value.instrumentId);
+  if (instrument) {
+    czesci.push(instrument.display_symbol);
+  }
+  const strategia = lists.strategies.find((s) => s.id === value.strategyId);
+  if (strategia) {
+    czesci.push(strategia.name);
+  }
+  const interwal = lists.intervals.find((i) => i.id === value.intervalId);
+  if (interwal) {
+    czesci.push(interwal.label);
+  }
+  if (value.side) {
+    czesci.push(value.side.toUpperCase());
+  }
+
+  return czesci.join(" • ");
+}
+
 /** Rodzaj widoku, w którym renderuje się pasek filtrów - determinuje, które pola mają sens
  * (patrz `reportKind` poniżej). Dashboard nie podaje tej wartości - tam widoczne są wszystkie
  * pola, bo to jeden ogólny widok, nie zestaw odrębnych, wąsko zdefiniowanych podraportów. */
@@ -74,6 +130,10 @@ export interface ReportFilterBarProps {
    * już do tego dedykowaną zakładkę "Porównanie kont" - dodanie tej samej opcji też tam okazało
    * się w praktyce mylące (dwa różne sposoby robienia tego samego), więc nie jest tam używane. */
   allowAllAccounts?: boolean;
+  /** Dodaje przycisk chowania pól filtrów i wiersz z opisem zakresu danych (sekcja 10 promptu).
+   * Dashboard tego nie używa - tam pasek jest jedynym sterowaniem widoku i chowanie go nie ma
+   * sensu; w Raportach oddaje ekran wykresom i tabelom, gdy filtry są już ustawione. */
+  collapsible?: boolean;
 }
 
 /**
@@ -96,7 +156,9 @@ export function ReportFilterBar({
   availableYears,
   reportKind,
   allowAllAccounts,
+  collapsible,
 }: ReportFilterBarProps): ReactElement {
+  const [collapsed, setCollapsed] = useState(false);
   const showAccount = reportKind !== "compare";
   const showMonth = reportKind !== "yearly";
   function set<K extends keyof ReportFilterBarValue>(key: K, next: ReportFilterBarValue[K]): void {
@@ -113,99 +175,119 @@ export function ReportFilterBar({
 
   return (
     <div className={styles.bar}>
-      <div className={styles.row}>
-        <span className={styles.rowLabel}>Zakres</span>
-        {showAccount && (
-          <Select
-            label="Konto"
-            compact
-            value={value.accountId}
-            onChange={(e) => set("accountId", e.target.value)}
-            options={[
-              ...(allowAllAccounts
-                ? [{ value: ALL_ACCOUNTS_VALUE, label: "Wszystkie konta (porównanie)" }]
-                : []),
-              ...accounts.map((a) => ({ value: a.id, label: `${a.name} (${a.currency})` })),
-            ]}
-            className={styles.field}
-          />
-        )}
-        <Select
-          label="Rok"
-          compact
-          value={value.year}
-          onChange={(e) => set("year", e.target.value)}
-          options={[
-            { value: "", label: "Wszystkie lata" },
-            ...availableYears.map((y) => ({ value: y, label: y })),
-          ]}
-          className={styles.field}
-        />
-        {showMonth && (
-          <Select
-            label="Miesiąc"
-            compact
-            value={value.month}
-            onChange={(e) => set("month", e.target.value)}
-            options={MONTH_OPTIONS}
-            disabled={!value.year}
-            className={styles.field}
-          />
-        )}
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={isCleared}
-          onClick={() => onChange(blankReportFilter(value.accountId))}
-          className={styles.clearButton}
-        >
-          Wyczyść
-        </Button>
-      </div>
-      <div className={styles.row}>
-        <span className={styles.rowLabel}>Filtry</span>
-        <Select
-          label="Instrument"
-          compact
-          value={value.instrumentId}
-          onChange={(e) => set("instrumentId", e.target.value)}
-          options={[
-            { value: "", label: "Wszystkie instrumenty" },
-            ...instruments.map((i) => ({ value: i.id, label: i.display_symbol })),
-          ]}
-          className={styles.field}
-        />
-        <Select
-          label="Strategia"
-          compact
-          value={value.strategyId}
-          onChange={(e) => set("strategyId", e.target.value)}
-          options={[
-            { value: "", label: "Wszystkie strategie" },
-            ...strategies.map((s) => ({ value: s.id, label: s.name })),
-          ]}
-          className={styles.field}
-        />
-        <Select
-          label="Interwał"
-          compact
-          value={value.intervalId}
-          onChange={(e) => set("intervalId", e.target.value)}
-          options={[
-            { value: "", label: "Wszystkie interwały" },
-            ...intervals.map((i) => ({ value: i.id, label: i.label })),
-          ]}
-          className={styles.field}
-        />
-        <Select
-          label="Kierunek"
-          compact
-          value={value.side}
-          onChange={(e) => set("side", e.target.value as ReportFilterBarValue["side"])}
-          options={SIDE_OPTIONS}
-          className={styles.field}
-        />
-      </div>
+      {collapsible && (
+        <div className={styles.summary}>
+          <p className={styles.scope}>
+            <span className={styles.scopeLabel}>Dane:</span>{" "}
+            {describeReportScope(
+              value,
+              { accounts, instruments, strategies, intervals },
+              reportKind,
+            )}
+          </p>
+          <Button variant="ghost" size="sm" onClick={() => setCollapsed(!collapsed)}>
+            {collapsed ? "Pokaż filtry" : "Ukryj filtry"}
+          </Button>
+        </div>
+      )}
+
+      {collapsed && collapsible ? null : (
+        <>
+          <div className={styles.row}>
+            <span className={styles.rowLabel}>Zakres</span>
+            {showAccount && (
+              <Select
+                label="Konto"
+                compact
+                value={value.accountId}
+                onChange={(e) => set("accountId", e.target.value)}
+                options={[
+                  ...(allowAllAccounts
+                    ? [{ value: ALL_ACCOUNTS_VALUE, label: "Wszystkie konta (porównanie)" }]
+                    : []),
+                  ...accounts.map((a) => ({ value: a.id, label: `${a.name} (${a.currency})` })),
+                ]}
+                className={styles.field}
+              />
+            )}
+            <Select
+              label="Rok"
+              compact
+              value={value.year}
+              onChange={(e) => set("year", e.target.value)}
+              options={[
+                { value: "", label: "Wszystkie lata" },
+                ...availableYears.map((y) => ({ value: y, label: y })),
+              ]}
+              className={styles.field}
+            />
+            {showMonth && (
+              <Select
+                label="Miesiąc"
+                compact
+                value={value.month}
+                onChange={(e) => set("month", e.target.value)}
+                options={MONTH_OPTIONS}
+                disabled={!value.year}
+                className={styles.field}
+              />
+            )}
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={isCleared}
+              onClick={() => onChange(blankReportFilter(value.accountId))}
+              className={styles.clearButton}
+            >
+              Wyczyść
+            </Button>
+          </div>
+          <div className={styles.row}>
+            <span className={styles.rowLabel}>Filtry</span>
+            <Select
+              label="Instrument"
+              compact
+              value={value.instrumentId}
+              onChange={(e) => set("instrumentId", e.target.value)}
+              options={[
+                { value: "", label: "Wszystkie instrumenty" },
+                ...instruments.map((i) => ({ value: i.id, label: i.display_symbol })),
+              ]}
+              className={styles.field}
+            />
+            <Select
+              label="Strategia"
+              compact
+              value={value.strategyId}
+              onChange={(e) => set("strategyId", e.target.value)}
+              options={[
+                { value: "", label: "Wszystkie strategie" },
+                ...strategies.map((s) => ({ value: s.id, label: s.name })),
+              ]}
+              className={styles.field}
+            />
+            <Select
+              label="Interwał"
+              compact
+              value={value.intervalId}
+              onChange={(e) => set("intervalId", e.target.value)}
+              options={[
+                { value: "", label: "Wszystkie interwały" },
+                ...intervals.map((i) => ({ value: i.id, label: i.label })),
+              ]}
+              className={styles.field}
+            />
+            <Select
+              label="Kierunek"
+              compact
+              value={value.side}
+              onChange={(e) => set("side", e.target.value as ReportFilterBarValue["side"])}
+              options={SIDE_OPTIONS}
+              className={styles.field}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }

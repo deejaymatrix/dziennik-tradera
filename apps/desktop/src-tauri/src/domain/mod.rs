@@ -5,6 +5,7 @@ pub mod balance;
 pub mod broker_template;
 pub mod cash_operation;
 pub mod emotional_state;
+pub mod export_filter;
 pub mod instrument;
 pub mod instrument_import;
 pub mod interval;

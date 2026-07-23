@@ -5,6 +5,7 @@ use rust_decimal::Decimal;
 use rust_xlsxwriter::{Format, Workbook};
 
 use crate::application::accounts::AccountsService;
+use crate::domain::export_filter::{self, ExportFilter};
 use crate::domain::trade::{Trade, TradeRepository, TradeSide, TradeStatus};
 use crate::domain::trade_stats;
 use crate::error::AppError;
@@ -118,8 +119,13 @@ impl ExportService {
         Self { trades, accounts }
     }
 
-    pub fn export_csv(&self, account_id: &str, destination: &str) -> Result<(), AppError> {
-        let trades = self.trades.list(account_id, false)?;
+    pub fn export_csv(
+        &self,
+        account_id: &str,
+        destination: &str,
+        filter: Option<&ExportFilter>,
+    ) -> Result<(), AppError> {
+        let trades = export_filter::apply(self.trades.list(account_id, false)?, filter);
         let mut writer = csv::WriterBuilder::new()
             .from_path(destination)
             .map_err(|e| AppError::Io(e.to_string()))?;
@@ -135,8 +141,13 @@ impl ExportService {
         Ok(())
     }
 
-    pub fn export_xlsx(&self, account_id: &str, destination: &str) -> Result<(), AppError> {
-        let trades = self.trades.list(account_id, false)?;
+    pub fn export_xlsx(
+        &self,
+        account_id: &str,
+        destination: &str,
+        filter: Option<&ExportFilter>,
+    ) -> Result<(), AppError> {
+        let trades = export_filter::apply(self.trades.list(account_id, false)?, filter);
         let mut workbook = Workbook::new();
         let bold = Format::new().set_bold();
         let worksheet = workbook.add_worksheet();
@@ -213,9 +224,14 @@ impl ExportService {
         Ok(())
     }
 
-    pub fn export_pdf(&self, account_id: &str, destination: &str) -> Result<(), AppError> {
+    pub fn export_pdf(
+        &self,
+        account_id: &str,
+        destination: &str,
+        filter: Option<&ExportFilter>,
+    ) -> Result<(), AppError> {
         let account = self.accounts.get(account_id)?;
-        let trades = self.trades.list(account_id, false)?;
+        let trades = export_filter::apply(self.trades.list(account_id, false)?, filter);
         let stats = trade_stats::compute_stats(&trades);
 
         let title = format!(
@@ -380,7 +396,7 @@ mod tests {
         let (export, account_id, dir) = setup();
         let destination = dir.path().join("export.csv");
         export
-            .export_csv(&account_id, destination.to_str().unwrap())
+            .export_csv(&account_id, destination.to_str().unwrap(), None)
             .expect("export csv");
 
         let contents = std::fs::read_to_string(&destination).expect("read csv");
@@ -389,12 +405,45 @@ mod tests {
         assert!(lines[0].contains("Instrument"));
     }
 
+    /// Eksport z zakładki Raporty musi zwrócić DOKŁADNIE ten wycinek, który widać na ekranie.
+    /// Test pilnuje, że filtr faktycznie dociera do zapisu pliku, a nie jest przyjmowany i
+    /// po cichu ignorowany - to najgroźniejszy możliwy błąd tej funkcji.
+    #[test]
+    fn export_csv_respects_the_report_filter() {
+        use chrono::Datelike;
+        let (export, account_id, dir) = setup();
+
+        // Obie transakcje w fabryce są BUY - zawężenie do SELL musi zostawić sam nagłówek.
+        let tylko_sell = ExportFilter {
+            side: Some(TradeSide::Sell),
+            ..Default::default()
+        };
+        let sell_path = dir.path().join("sell.csv");
+        export
+            .export_csv(&account_id, sell_path.to_str().unwrap(), Some(&tylko_sell))
+            .expect("export csv");
+        let sell = std::fs::read_to_string(&sell_path).expect("read csv");
+        assert_eq!(sell.lines().filter(|l| !l.is_empty()).count(), 1);
+
+        // Ten sam eksport zawężony do roku otwarcia musi zawierać obie transakcje.
+        let biezacy_rok = ExportFilter {
+            year: Some(Utc::now().year()),
+            ..Default::default()
+        };
+        let rok_path = dir.path().join("rok.csv");
+        export
+            .export_csv(&account_id, rok_path.to_str().unwrap(), Some(&biezacy_rok))
+            .expect("export csv");
+        let rok = std::fs::read_to_string(&rok_path).expect("read csv");
+        assert_eq!(rok.lines().filter(|l| !l.is_empty()).count(), 3);
+    }
+
     #[test]
     fn export_xlsx_produces_a_valid_zip_container() {
         let (export, account_id, dir) = setup();
         let destination = dir.path().join("export.xlsx");
         export
-            .export_xlsx(&account_id, destination.to_str().unwrap())
+            .export_xlsx(&account_id, destination.to_str().unwrap(), None)
             .expect("export xlsx");
 
         let bytes = std::fs::read(&destination).expect("read xlsx");
@@ -407,7 +456,7 @@ mod tests {
         let (export, account_id, dir) = setup();
         let destination = dir.path().join("export.pdf");
         export
-            .export_pdf(&account_id, destination.to_str().unwrap())
+            .export_pdf(&account_id, destination.to_str().unwrap(), None)
             .expect("export pdf");
 
         let bytes = std::fs::read(&destination).expect("read pdf");

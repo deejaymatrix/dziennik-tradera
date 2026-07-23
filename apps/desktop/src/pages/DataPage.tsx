@@ -11,11 +11,8 @@ import { Select } from "../ui/components/Select/Select";
 import { Skeleton } from "../ui/components/Skeleton/Skeleton";
 import { useConfirm } from "../ui/components/ConfirmDialog/ConfirmDialog";
 import { useToast } from "../ui/components/Toast/ToastProvider";
+import { exportTrades } from "../app/exportTrades";
 import styles from "./DataPage.module.css";
-
-function sanitizeFileNamePart(value: string): string {
-  return value.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "konto";
-}
 
 function formatManifestDate(iso: string): string {
   return new Date(iso).toLocaleString("pl-PL", { dateStyle: "medium", timeStyle: "short" });
@@ -60,27 +57,15 @@ export function DataPage(): ReactElement {
     }
     setExporting(format);
     try {
-      const { save } = await import("@tauri-apps/plugin-dialog");
-      const extension = format;
-      const namePart = sanitizeFileNamePart(selectedAccount.name);
-      const destination = await save({
-        defaultPath: `${namePart}-transakcje.${extension}`,
-        filters: [{ name: extension.toUpperCase(), extensions: [extension] }],
-      });
-      if (!destination) {
-        return;
-      }
-      const command =
-        format === "csv"
-          ? "export_trades_csv"
-          : format === "xlsx"
-            ? "export_trades_xlsx"
-            : "export_trades_pdf";
-      await invokeCommand(command, {
+      // Ekran "Dane" eksportuje CAŁE konto - bez zawężenia, w odróżnieniu od Raportów.
+      const zapisano = await exportTrades({
         accountId: selectedAccount.id,
-        destinationPath: destination,
+        accountName: selectedAccount.name,
+        format,
       });
-      showToast(`Eksport ${extension.toUpperCase()} zapisany.`, "success");
+      if (zapisano) {
+        showToast(`Eksport ${format.toUpperCase()} zapisany.`, "success");
+      }
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Wystąpił nieoczekiwany błąd.", "error");
     } finally {
