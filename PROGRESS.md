@@ -1367,11 +1367,11 @@ zachowanie (nie atrapę), testy i przechodzące lint/typecheck.
 
 | Poz. | Zakres | Status |
 | --- | --- | --- |
-| M1 | Tokeny: pełna paleta ciemna i jasna, semantyczne nazwy, wysokości kontrolek | ⬜ |
+| M1 | Tokeny: pełna paleta ciemna i jasna, semantyczne nazwy, wysokości kontrolek | ✅ |
 | M2 | Komponenty wspólne: Button (4 warianty), Input, Select, Card, Modal, Table, Badge, Tabs, Tooltip, Toast, EmptyState, Skeleton | ⬜ |
-| M3 | Nawigacja i górny pasek | ⬜ |
+| M3 | Nawigacja i górny pasek | ✅ |
 | M4 | Karty, panele, KPI | ⬜ |
-| M5 | Tabele i historia transakcji | ⬜ |
+| M5 | Tabele i historia transakcji | ✅ |
 | M6 | Wykresy i raporty (paleta z tych samych tokenów, eksport PDF zostaje jasny) | ⬜ |
 | M7 | Ustawienia → Wygląd: miniatury podglądu wariantów, własny kolor dopiero po teście kontrastu | ⬜ |
 | M8 | Audyt wizualny wszystkich widoków w obu motywach | ⬜ |

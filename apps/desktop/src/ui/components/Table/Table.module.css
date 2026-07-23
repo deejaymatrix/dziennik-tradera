@@ -2,6 +2,7 @@
   overflow-x: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
 }
 
 .table {
@@ -10,22 +11,33 @@
   font-size: var(--font-size-sm);
 }
 
+/* Nagłówek wyraźny, ale NIE jaskrawy: ciemniejsza powierzchnia i mocniejsza kreska pod spodem
+   wystarczą, żeby oddzielić go od danych. Złota tu nie ma celowo - ma wskazywać hierarchię
+   w kilku miejscach aplikacji, a nie obrysowywać każdą tabelę. */
 .table thead tr {
   background-color: var(--color-surface-alt);
 }
 
+/* Nagłówek przyklejony przy długich listach - bez tego po kilkunastu wierszach historii
+   transakcji nie wiadomo już, która kolumna jest która. */
 .table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--color-surface-alt);
   text-align: left;
   font-weight: 600;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border-strong);
   white-space: nowrap;
 }
 
 .table td {
   padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--color-border);
+  /* Separator dyskretny - obramowanie pełnej siły w każdym wierszu robiło z tabeli kratkę
+     przyciągającą wzrok bardziej niż same liczby. */
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
   color: var(--color-text);
   vertical-align: middle;
 }
@@ -34,10 +46,14 @@
   border-bottom: none;
 }
 
+/* Wybrany sam hover, BEZ naprzemiennego tła wierszy: przy semantycznie kolorowanych wynikach
+   (zysk/strata) dwa poziomy tła zaczynały ze sobą konkurować i utrudniały czytanie. */
 .table tbody tr:hover {
-  background-color: color-mix(in srgb, var(--color-surface-alt) 60%, transparent);
+  background-color: var(--color-surface-hover);
 }
 
+/* Liczby, waluty i procenty ZAWSZE do prawej i cyframi tablicowymi - inaczej kolumny kwot
+   nie dają się porównywać wzrokiem. */
 .numeric {
   font-variant-numeric: tabular-nums;
   text-align: right;
