@@ -41,6 +41,7 @@ import { Textarea } from "../ui/components/Textarea/Textarea";
 import { TextField } from "../ui/components/TextField/TextField";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import { EmotionsEditor } from "./EmotionsEditor";
+import { PartialClosesEditor } from "./PartialClosesEditor";
 import { StrategyChecklistEditor } from "./StrategyChecklistEditor";
 import { TradeAttachments } from "./TradeAttachments";
 import { TradeAuditLog } from "./TradeAuditLog";
@@ -827,6 +828,14 @@ export function TradeFormModal({
                   disabled={readOnly}
                 />
               ) : null}
+
+              <PartialClosesEditor
+                rows={fields.partialCloses}
+                onChange={(partialCloses) => setField("partialCloses", partialCloses)}
+                volume={fields.volume}
+                currency={accountCurrency}
+                disabled={readOnly}
+              />
 
               <FormPanel
                 title="Koszty"

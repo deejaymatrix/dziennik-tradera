@@ -41,6 +41,14 @@ export interface InstrumentSnapshot {
   calc_mode: string;
 }
 
+/** Jeden wpis częściowego zamknięcia pozycji (sekcja 6.9) - wyłącznie zamknięty lot i kwota
+ * zrealizowanego wyniku tej części; bez ceny i bez daty. `realized_pnl` bywa ujemny (częściowe
+ * zamknięcie ze stratą) i jest w walucie rachunku. Patrz domain::trade_partial_close. */
+export interface PartialClose {
+  closed_volume: string;
+  realized_pnl: string;
+}
+
 /** Jedna emocja przypisana do transakcji: stan emocjonalny + skala natężenia 1-5 (sekcja 6.8).
  * `intensity` jest `null`, dopóki użytkownik nie wybierze na skali. Patrz
  * domain::trade_emotions::EmotionEntry. */
@@ -153,6 +161,9 @@ export interface Trade {
   pnl_override_reason: string | null;
   emotions: TradeEmotions | null;
   checklist: StrategyChecklist | null;
+  /** Częściowe zamknięcia w kolejności dodania; pusta lista = zwykła transakcja licząca wynik
+   * z ceny wejścia i wyjścia. */
+  partial_closes: PartialClose[];
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -183,6 +194,7 @@ export interface TradeInput {
   plan_adherence_rating: number | null;
   emotions: TradeEmotions | null;
   checklist: StrategyChecklist | null;
+  partial_closes: PartialClose[];
 }
 
 /** Saldo konta przed/po tej konkretnej transakcji + aktualne saldo konta (sekcja "Saldo

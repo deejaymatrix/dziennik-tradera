@@ -33,6 +33,26 @@ export interface TradeFormFields {
   planAdherenceRating: string;
   emotions: TradeEmotions;
   checklist: StrategyChecklist;
+  partialCloses: PartialCloseRow[];
+}
+
+/** Wiersz częściowego zamknięcia w formularzu - surowe stringi, bo to kontrolowane pola tekstowe
+ * (użytkownik może w trakcie pisania mieć tam `0,` albo pusto). Na `PartialClose` z kropką
+ * dziesiętną zamienia je dopiero `buildTradeInput`. */
+export interface PartialCloseRow {
+  closedVolume: string;
+  realizedPnl: string;
+}
+
+export function blankPartialCloseRow(): PartialCloseRow {
+  return { closedVolume: "", realizedPnl: "" };
+}
+
+/** Wiersz uznajemy za "jeszcze pusty" (świeżo dodany, nic nie wpisano) - taki nie leci do
+ * backendu i nie jest błędem. Dzięki temu kliknięcie "Dodaj częściowe zamknięcie" i rozmyślenie
+ * się nie blokuje zapisu. */
+export function isBlankPartialCloseRow(row: PartialCloseRow): boolean {
+  return !row.closedVolume.trim() && !row.realizedPnl.trim();
 }
 
 export function blankTradeFormFields(): TradeFormFields {
@@ -60,6 +80,7 @@ export function blankTradeFormFields(): TradeFormFields {
     planAdherenceRating: "",
     emotions: blankTradeEmotions(),
     checklist: blankStrategyChecklist(),
+    partialCloses: [],
   };
 }
 
@@ -89,6 +110,12 @@ export function tradeToFormFields(trade: Trade): TradeFormFields {
       trade.plan_adherence_rating !== null ? String(trade.plan_adherence_rating) : "",
     emotions: trade.emotions ?? blankTradeEmotions(),
     checklist: trade.checklist ?? blankStrategyChecklist(),
+    // Backend zawsze przysyła tablicę (`Vec` serializuje się jako `[]`), więc bez zabezpieczania
+    // przed `undefined` - lint słusznie zgłasza je jako martwy warunek.
+    partialCloses: trade.partial_closes.map((close) => ({
+      closedVolume: close.closed_volume,
+      realizedPnl: close.realized_pnl,
+    })),
   };
 }
 
@@ -130,6 +157,15 @@ export function buildTradeInput(fields: TradeFormFields, accountId: string): Tra
       : null,
     emotions: fields.emotions,
     checklist: fields.checklist,
+    // Puste wiersze (dodane i nieuzupełnione) po prostu odpadają - nie są błędem. Wiersz
+    // częściowo uzupełniony leci dalej z brakującą kwotą jako "0", a walidację formatu
+    // i sensu (lot > 0, suma <= lot transakcji) robi `validateTradeFormFormat` i backend.
+    partial_closes: fields.partialCloses
+      .filter((row) => !isBlankPartialCloseRow(row))
+      .map((row) => ({
+        closed_volume: parseRequiredDecimal(row.closedVolume, "0"),
+        realized_pnl: parseRequiredDecimal(row.realizedPnl, "0"),
+      })),
   };
 }
 
@@ -166,6 +202,25 @@ export function validateTradeFormFormat(fields: TradeFormFields): string | null 
       return `${label} musi być liczbą (np. 1,23 albo 1.23).`;
     }
   }
+
+  // Komunikat wskazuje NUMER wpisu, bo częściowych zamknięć bywa wiele i samo "zamknięty lot
+  // musi być liczbą" nie powiedziałoby, w którym wierszu szukać.
+  for (const [index, row] of fields.partialCloses.entries()) {
+    if (isBlankPartialCloseRow(row)) {
+      continue;
+    }
+    const number = index + 1;
+    if (!row.closedVolume.trim()) {
+      return `Podaj zamknięty lot w częściowym zamknięciu nr ${number}.`;
+    }
+    if (!isValidDecimalString(row.closedVolume)) {
+      return `Zamknięty lot w częściowym zamknięciu nr ${number} musi być liczbą (np. 0,5 albo 0.5).`;
+    }
+    if (row.realizedPnl.trim() && !isValidDecimalString(row.realizedPnl)) {
+      return `Zrealizowany wynik w częściowym zamknięciu nr ${number} musi być liczbą (np. -12,40 albo -12.40).`;
+    }
+  }
+
   return null;
 }
 

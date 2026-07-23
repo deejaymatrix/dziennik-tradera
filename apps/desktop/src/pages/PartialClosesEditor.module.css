@@ -1,0 +1,106 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Numer + dwa pola + kasowanie. `minmax(0, 1fr)` zamiast `1fr`: bez tego pola z długą wartością
+   rozpychają siatkę i wypychają krzyżyk poza panel (pułapka `min-width: auto` w CSS Grid). */
+.row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-2);
+}
+
+.number {
+  padding-bottom: 0.6rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Wąski formularz (panel obliczeń obok) - wtedy numer i krzyżyk lądują w jednym rzędzie
+   z polami ustawionymi jedno pod drugim, zamiast ściskać wszystko do nieczytelnej szerokości. */
+@container (max-width: 34rem) {
+  .row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .row > :nth-child(3) {
+    grid-column: 2 / -1;
+  }
+}
+
+.counter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-alt, rgb(255 255 255 / 3%));
+}
+
+.counterError {
+  border-color: var(--color-loss);
+}
+
+.counterItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.counterItem dt {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.counterItem dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-loss);
+  font-size: var(--font-size-sm);
+}
+
+.closedNote {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}

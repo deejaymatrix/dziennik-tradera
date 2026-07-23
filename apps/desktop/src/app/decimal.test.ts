@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isValidDecimalString, normalizeDecimalInput } from "./decimal";
+import {
+  decimalSign,
+  isValidDecimalString,
+  normalizeDecimalInput,
+  subtractDecimalStrings,
+  sumDecimalStrings,
+} from "./decimal";
 import { blankTradeFormFields, buildTradeInput, validateTradeFormFormat } from "./tradeForm";
 
 describe("normalizeDecimalInput", () => {
@@ -72,5 +78,47 @@ describe("lot w formularzu transakcji", () => {
     const fields = { ...blankTradeFormFields(), volume: "abc" };
 
     expect(validateTradeFormFormat(fields)).toContain("Lot");
+  });
+});
+
+describe("dokładna arytmetyka dziesiętna (licznik lotów)", () => {
+  it("sumuje bez błędu liczb zmiennoprzecinkowych", () => {
+    // Number: 0.1 + 0.2 === 0.30000000000000004 - taki licznik wyglądałby jak awaria aplikacji.
+    expect(sumDecimalStrings(["0.1", "0.2"])).toBe("0.3");
+    expect(sumDecimalStrings(["0.3", "0.2"])).toBe("0.5");
+  });
+
+  it("radzi sobie z różną liczbą miejsc po przecinku", () => {
+    expect(sumDecimalStrings(["0.5", "0.25", "1"])).toBe("1.75");
+  });
+
+  it("sumuje kwoty ujemne (częściowe zamknięcie ze stratą)", () => {
+    expect(sumDecimalStrings(["45.10", "-12.40"])).toBe("32.7");
+  });
+
+  it("pusta lista daje zero, a nie null", () => {
+    expect(sumDecimalStrings([])).toBe("0");
+  });
+
+  it("odrzuca wartości, które nie są liczbami", () => {
+    expect(sumDecimalStrings(["1", "abc"])).toBeNull();
+    expect(subtractDecimalStrings("1", "")).toBeNull();
+  });
+
+  it("odejmuje dokładnie i schodzi do zera bez reszty", () => {
+    expect(subtractDecimalStrings("1.0", "0.3")).toBe("0.7");
+    expect(subtractDecimalStrings("1.0", "1.0")).toBe("0");
+    expect(subtractDecimalStrings("0.3", "0.5")).toBe("-0.2");
+  });
+
+  it("przyjmuje przecinek, tak jak reszta pól formularza", () => {
+    expect(sumDecimalStrings(["0,3", "0,2"])).toBe("0.5");
+  });
+
+  it("rozpoznaje znak bez konwersji na Number", () => {
+    expect(decimalSign("0")).toBe(0);
+    expect(decimalSign("0.00")).toBe(0);
+    expect(decimalSign("-0.2")).toBe(-1);
+    expect(decimalSign("0.2")).toBe(1);
   });
 });
