@@ -9,6 +9,12 @@
   max-height: calc(100vh - var(--space-6));
 }
 
+/* Szeroki wariant dla formularzy z dwiema kolumnami (transakcja: panele + przyklejone
+   obliczenia). Skaluje się w dół z oknem, więc na wąskim ekranie zachowuje się jak zwykły modal. */
+.wide {
+  width: min(1080px, calc(100vw - var(--space-5)));
+}
+
 .dialog::backdrop {
   background-color: rgba(3, 6, 10, 0.6);
 }

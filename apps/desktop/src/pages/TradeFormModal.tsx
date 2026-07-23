@@ -107,7 +107,10 @@ export function TradeFormModal({
     if (trade) {
       return tradeToFormFields(trade);
     }
-    return loadTradeDraft(accountId, undefined) ?? blankTradeFormFields();
+    // Nowa transakcja startuje ZAWSZE pusta. Wcześniej wczytywaliśmy tu lokalny autoszkic, przez
+    // co formularz podpowiadał wartości z poprzedniej niezapisanej transakcji - mylące. Odkąd jest
+    // jawny przycisk "Zapisz szkic", ten automatyczny szkic jest zbędny.
+    return blankTradeFormFields();
   });
   const initialSnapshot = useRef(JSON.stringify(fields));
 
@@ -248,14 +251,15 @@ export function TradeFormModal({
   }, []);
 
   useEffect(() => {
-    // W trybie tylko-do-odczytu pola nie są edytowane, więc nie ma czego autosave'ować - a
-    // zapis tutaj nadpisałby ewentualny wcześniejszy szkic prawdziwymi danymi transakcji zaraz
-    // po zamontowaniu, zanim użytkownik zdąży dostać szansę go odzyskać (patrz handleStartEdit).
-    if (readOnly) {
+    // Autoszkic w localStorage dotyczy WYŁĄCZNIE edycji istniejącej transakcji - chroni
+    // niezapisane zmiany, które można odzyskać w `handleStartEdit`. Dla NOWEJ transakcji celowo
+    // nic nie zapisujemy, żeby następne otwarcie nie podpowiadało starych wartości (życzenie
+    // użytkownika). W trybie tylko-do-odczytu też nie ma czego autosave'ować.
+    if (readOnly || !trade) {
       return;
     }
-    saveTradeDraft(accountId, trade?.id, fields);
-  }, [fields, accountId, trade?.id, readOnly]);
+    saveTradeDraft(accountId, trade.id, fields);
+  }, [fields, accountId, trade, readOnly]);
 
   useEffect(() => {
     // Migawka salda sprzed rozpoczęcia edycji - pobrana raz przy otwarciu (sekcja "Saldo
@@ -562,6 +566,7 @@ export function TradeFormModal({
         void requestClose();
       }}
       title={title}
+      size="wide"
     >
       <form
         className={styles.form}

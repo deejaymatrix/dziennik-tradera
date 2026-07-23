@@ -1,61 +1,77 @@
+/* KLUCZOWE: reagujemy na szerokość SAMEGO formularza, nie okna. Formularz żyje w modalu, który
+   jest węższy niż okno - media query po szerokości okna dawało dwie kolumny wciśnięte w wąski
+   modal i cały układ się zgniatał. Container query mierzy realnie dostępne miejsce. */
 .form {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  container-type: inline-size;
+  container-name: tradeform;
 }
 
-/* Formularz po lewej, przyklejone podsumowanie po prawej (sekcja 6.5). Na węższym ekranie
-   podsumowanie schodzi pod panele - stąd jedna kolumna w media query niżej. */
+/* Domyślnie WSZYSTKO w jednej kolumnie (mobile-first) - rozszerzamy dopiero, gdy jest miejsce.
+   Dzięki temu wąski modal nigdy nie ląduje w zgniecionym wielokolumnowym układzie. */
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 20rem;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
   align-items: start;
 }
 
+/* Kolumna z panelami sama jest kontenerem - siatki pól niżej mierzą JEJ szerokość, a nie całego
+   formularza. Bez tego, gdy podsumowanie zjada prawą część, pola i tak układałyby się w dwie/trzy
+   kolumny wg szerokości całego formularza i znów się zgniatały. */
 .panels {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   min-width: 0;
+  order: 1;
+  container-type: inline-size;
+  container-name: tradepanels;
 }
 
 .summary {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  position: sticky;
-  top: 0;
   min-width: 0;
+  /* W wąskim układzie podsumowanie schodzi pod panele; przyklejenie włączamy dopiero w szerokim. */
+  order: 2;
 }
 
-@media (max-width: 64rem) {
-  .layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  /* Kolejność ma znaczenie: podsumowanie ma wylądować zaraz pod parametrami transakcji, a nie
-     na samym końcu formularza. */
-  .summary {
-    position: static;
-    order: 2;
-  }
-
-  .panels {
-    order: 1;
-  }
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
-}
-
+.grid,
 .gridThree {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
+}
+
+/* Pola po dwie/trzy w rzędzie dopiero, gdy sama kolumna paneli ma na to miejsce. */
+@container tradepanels (min-width: 30rem) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@container tradepanels (min-width: 34rem) {
+  .gridThree {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Szeroko: pola po lewej (1fr), przyklejone obliczenia po prawej (19rem). Kolejność order
+   panels(1) < summary(2) trafia je do właściwych kolumn - NIE nadpisujemy tu order summary,
+   bo to wypychało obliczenia na lewą stronę. */
+@container tradeform (min-width: 52rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 15rem;
+  }
+
+  .summary {
+    position: sticky;
+    top: 0;
+  }
 }
 
 .overrideBlock {

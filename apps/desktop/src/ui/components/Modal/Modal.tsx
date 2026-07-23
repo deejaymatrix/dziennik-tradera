@@ -8,13 +8,21 @@ export interface ModalProps {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  /** `wide` dla formularzy z dwiema kolumnami (np. transakcja z panelem obliczeń po prawej). */
+  size?: "default" | "wide";
 }
 
 /**
  * Oparty na natywnym <dialog>: przechwytywanie focusu, Esc i tło modalne dostaje
  * się "za darmo" z przeglądarki, bez dodatkowej biblioteki.
  */
-export function Modal({ open, title, onClose, children }: ModalProps): ReactElement {
+export function Modal({
+  open,
+  title,
+  onClose,
+  children,
+  size = "default",
+}: ModalProps): ReactElement {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -32,7 +40,7 @@ export function Modal({ open, title, onClose, children }: ModalProps): ReactElem
   return (
     <dialog
       ref={dialogRef}
-      className={styles.dialog}
+      className={[styles.dialog, size === "wide" ? styles.wide : null].filter(Boolean).join(" ")}
       onClose={onClose}
       onCancel={(event) => {
         event.preventDefault();

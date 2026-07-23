@@ -44,9 +44,11 @@ export function TradeBalanceCard({
     <SectionCard surface="alt" padding="sm">
       <ReadOnlyField
         rows={[
+          // Aktualne saldo na samej górze - to najważniejsza liczba i ma być zawsze pod ręką
+          // (życzenie użytkownika); saldo przed/po transakcji jest kontekstem pod spodem.
+          { label: "Aktualne saldo konta", value: formatMoney(context.current_balance, currency) },
           { label: "Saldo przed transakcją", value: formatMoney(context.balance_before, currency) },
           { label: "Saldo po transakcji", value: formatMoney(context.balance_after, currency) },
-          { label: "Aktualne saldo konta", value: formatMoney(context.current_balance, currency) },
         ]}
       />
     </SectionCard>

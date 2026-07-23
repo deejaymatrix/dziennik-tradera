@@ -17,6 +17,9 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+  /* Status ma prawo zejść do nowej linii, gdy tytuł jest długi, zamiast nachodzić na niego
+     w wąskim panelu - stąd wrap zamiast ściskania na siłę. */
+  flex-wrap: wrap;
 }
 
 .header:hover {
