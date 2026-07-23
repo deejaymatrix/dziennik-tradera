@@ -152,6 +152,70 @@ pub fn get_data_overview(
     })
 }
 
+/// Raport diagnostyczny dla użytkownika (Ustawienia → Aktualizacje i informacje).
+///
+/// Zawiera WYŁĄCZNIE: wersję aplikacji, system, architekturę, wersję schematu bazy, status
+/// migracji oraz zanonimizowane błędy techniczne. NIE zawiera transakcji, notatek, emocji,
+/// danych kont, załączników, kluczy, sekretów ani pełnych ścieżek ujawniających dane prywatne -
+/// katalog domowy jest w logach podmieniany na `<UŻYTKOWNIK>`.
+#[tauri::command]
+pub fn get_diagnostic_report(state: State<'_, AppState>) -> String {
+    let app = build_app_status();
+    let mut lines = vec![
+        "# Raport diagnostyczny - Dziennik Tradera".to_string(),
+        format!("Wygenerowano: {}", chrono::Utc::now().to_rfc3339()),
+        format!("Wersja aplikacji: {}", app.version),
+        format!("Kompilacja: {}", app.env),
+        format!(
+            "System: {} ({})",
+            std::env::consts::OS,
+            std::env::consts::ARCH
+        ),
+    ];
+
+    match &state.db {
+        DbState::Ready { conn, .. } => {
+            let guard = conn
+                .lock()
+                .expect("mutex bazy danych zatruty (poprzedni panik)");
+            let schema_version: i64 = guard
+                .query_row(
+                    "SELECT COALESCE(MAX(version), 0) FROM schema_migrations",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap_or(0);
+            let applied: i64 = guard
+                .query_row("SELECT count(*) FROM schema_migrations", [], |row| {
+                    row.get(0)
+                })
+                .unwrap_or(0);
+            let integrity = guard
+                .pragma_query_value(None, "integrity_check", |row| row.get::<_, String>(0))
+                .unwrap_or_else(|_| "nie udało się sprawdzić".to_string());
+            drop(guard);
+
+            lines.push(format!("Wersja schematu bazy: {schema_version}"));
+            lines.push(format!("Zastosowane migracje: {applied}"));
+            lines.push(format!("Kontrola integralności: {integrity}"));
+        }
+        DbState::Failed { reason } => {
+            lines.push(format!("Baza danych: NIEDOSTĘPNA - {reason}"));
+        }
+    }
+
+    lines.push(String::new());
+    lines.push("## Ostatnie wpisy diagnostyczne".to_string());
+    let log_lines = crate::logging::recent_lines(50);
+    if log_lines.is_empty() {
+        lines.push("(brak wpisów)".to_string());
+    } else {
+        lines.extend(log_lines);
+    }
+
+    lines.join("\n")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

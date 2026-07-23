@@ -113,6 +113,42 @@ function UpdatesInfoSection(): ReactElement {
   const { state, checkForUpdates, downloadAndInstall, restartNow } = useUpdater();
   const { state: appStatus } = useTauriQuery<AppStatus>("get_app_status");
   const { state: dbStatus } = useTauriQuery<DatabaseStatus>("get_database_status");
+  const { showToast } = useToast();
+  const [diagnosticsBusy, setDiagnosticsBusy] = useState(false);
+
+  async function copyDiagnostics(): Promise<void> {
+    setDiagnosticsBusy(true);
+    try {
+      const report = await invokeCommand<string>("get_diagnostic_report");
+      await navigator.clipboard.writeText(report);
+      showToast("Skopiowano informacje diagnostyczne do schowka.", "success");
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : String(e), "error");
+    } finally {
+      setDiagnosticsBusy(false);
+    }
+  }
+
+  async function exportDiagnostics(): Promise<void> {
+    setDiagnosticsBusy(true);
+    try {
+      const report = await invokeCommand<string>("get_diagnostic_report");
+      // Zapis przez pobranie pliku z przeglądarki - nie potrzeba do tego osobnej komendy
+      // ani dostępu do systemu plików z backendu.
+      const blob = new Blob([report], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `dziennik-tradera-diagnostyka-${new Date().toISOString().slice(0, 10)}.txt`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast("Raport diagnostyczny zapisany.", "success");
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : String(e), "error");
+    } finally {
+      setDiagnosticsBusy(false);
+    }
+  }
 
   return (
     <div className={styles.cards}>
@@ -211,6 +247,35 @@ function UpdatesInfoSection(): ReactElement {
           <dt>Połączenie z internetem</dt>
           <dd>Używane wyłącznie do sprawdzania i pobierania aktualizacji.</dd>
         </dl>
+      </SectionCard>
+
+      <SectionCard>
+        <h3 className={styles.cardTitle}>Diagnostyka użytkownika</h3>
+        <p className={styles.cardNote}>
+          Raport zawiera wyłącznie: wersję aplikacji, system i architekturę, wersję schematu bazy,
+          status migracji oraz techniczne wpisy diagnostyczne z podmienioną nazwą użytkownika.
+          Nie ma w nim transakcji, notatek, emocji, danych kont, załączników ani żadnych kluczy.
+        </p>
+        <div className={styles.row}>
+          <Button
+            variant="secondary"
+            disabled={diagnosticsBusy}
+            onClick={() => {
+              void copyDiagnostics();
+            }}
+          >
+            Skopiuj informacje diagnostyczne
+          </Button>
+          <Button
+            variant="secondary"
+            disabled={diagnosticsBusy}
+            onClick={() => {
+              void exportDiagnostics();
+            }}
+          >
+            Eksportuj raport diagnostyczny
+          </Button>
+        </div>
       </SectionCard>
     </div>
   );

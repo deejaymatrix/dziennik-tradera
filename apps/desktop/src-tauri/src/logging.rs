@@ -25,6 +25,42 @@ pub fn log_info(context: &str, message: &str) {
     write_line("INFO", context, message);
 }
 
+/// Ostatnie linie logu do raportu diagnostycznego, ze ZANONIMIZOWANYMI ścieżkami.
+///
+/// Ścieżki są jedynym miejscem, w którym do logu może trafić coś prywatnego - nazwa konta
+/// Windows siedzi w każdym `C:\Users\<imię>\...`. Zamieniamy ją na `<UŻYTKOWNIK>`, żeby raport
+/// dało się komuś wysłać bez ujawniania, kto go wygenerował.
+pub fn recent_lines(limit: usize) -> Vec<String> {
+    let Some(path) = LOG_FILE_PATH.get() else {
+        return Vec::new();
+    };
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    let lines: Vec<&str> = content.lines().collect();
+    lines
+        .iter()
+        .rev()
+        .take(limit)
+        .rev()
+        .map(|line| redact_paths(line))
+        .collect()
+}
+
+/// Podmienia katalog domowy użytkownika w tekście na `<UŻYTKOWNIK>`.
+fn redact_paths(line: &str) -> String {
+    let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) else {
+        return line.to_string();
+    };
+    let home = home.to_string_lossy().to_string();
+    if home.is_empty() {
+        return line.to_string();
+    }
+    // Ścieżki w logu bywają zapisane oboma rodzajami ukośnika, zależnie od źródła.
+    line.replace(&home, "<UŻYTKOWNIK>")
+        .replace(&home.replace('\\', "/"), "<UŻYTKOWNIK>")
+}
+
 fn write_line(level: &str, context: &str, message: &str) {
     let line = format!(
         "{} {level} [{}] {}\n",
