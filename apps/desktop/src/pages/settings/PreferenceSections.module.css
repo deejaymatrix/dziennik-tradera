@@ -50,7 +50,7 @@
   padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  background: var(--color-surface-alt, rgb(255 255 255 / 3%));
+  background: var(--color-surface-alt);
 }
 
 .previewLabel {
@@ -68,7 +68,7 @@
 .previewButton {
   padding: 0.35rem 0.9rem;
   border-radius: var(--radius-sm);
-  color: #0b0b0c;
+  color: var(--color-accent-contrast);
   font-weight: 600;
   font-size: var(--font-size-sm);
 }

@@ -20,20 +20,40 @@
   /* Rozmiary czcionek poniżej są w `rem`, więc skalują się razem z tym. */
   font-size: calc(16px * var(--ui-scale));
 
-  /* Kolory - motyw ciemny (domyślny) */
-  --color-bg: #080d14;
-  --color-surface: #0f1722;
-  --color-surface-alt: #131e2b;
-  --color-border: #223044;
-  --color-text: #f3f6fa;
-  --color-text-muted: #94a3b8;
-  --color-accent: #d7b45a;
-  --color-accent-contrast: #1a1506;
-  --color-profit: #32d583;
-  --color-loss: #f97066;
-  --color-info: #5ea1e6;
-  --color-warning: #f0a93b;
+  /* ---------------------------------------------------------------------------------------
+     Kolory - motyw ciemny (domyślny), paleta "Institutional Black & Gold".
+     Chłodna grafitowa czerń zamiast granatu, ciepłe szampańskie złoto jako JEDYNY akcent.
+     Złoto wskazuje hierarchię, nie dekoruje każdej krawędzi. Czysta czerń i czysta biel
+     świadomie nieużywane - hierarchia tonów jest czytelniejsza przy wielogodzinnej pracy.
+     --------------------------------------------------------------------------------------- */
+  --color-bg: #0b0d10;
+  /* Najciemniejsza powierzchnia - menu boczne. Odróżnia nawigację od treści bez rysowania
+     grubej kreski. */
+  --color-surface-nav: #0e1116;
+  --color-surface: #12161c;
+  --color-surface-alt: #171c23;
+  --color-surface-hover: #1d232c;
+  --color-border: #2a313b;
+  --color-border-strong: #3a4350;
+  --color-text: #f3f4f6;
+  --color-text-secondary: #a8b0bc;
+  --color-text-muted: #737d89;
+  --color-accent: #c9a85a;
+  --color-accent-hover: #d8ba72;
+  --color-accent-contrast: #17130a;
+  --color-profit: #35c784;
+  --color-loss: #f05b68;
+  --color-info: #5ca8ff;
+  --color-warning: #e3a93b;
+  /* Neutralny/BE - wynik zerowy nie jest ani zyskiem, ani stratą. */
+  --color-neutral: #9aa3ae;
   --color-focus-ring: var(--color-accent);
+
+  /* Wysokości kontrolek - jedno źródło, żeby input, select, pole daty i przycisk miały
+     dokładnie tę samą wysokość. Skalują się razem z interfejsem. */
+  --control-height-sm: calc(28px * var(--ui-scale));
+  --control-height-md: calc(36px * var(--ui-scale));
+  --control-height-lg: calc(44px * var(--ui-scale));
 
   /* Odstępy - system 8px */
   --space-0: 0px;
@@ -45,10 +65,11 @@
   --space-6: calc(48px * var(--space-scale));
   --space-7: calc(64px * var(--space-scale));
 
-  /* Promienie - ograniczony zestaw */
-  --radius-sm: calc(6px * var(--radius-scale));
+  /* Promienie - umiarkowane i profesjonalne, 8-12 px zależnie od komponentu. Wcześniejsze 16 px
+     dla dużych kart wyglądało miękko/konsumencko, a nie jak narzędzie finansowe. */
+  --radius-sm: calc(8px * var(--radius-scale));
   --radius-md: calc(10px * var(--radius-scale));
-  --radius-lg: calc(16px * var(--radius-scale));
+  --radius-lg: calc(12px * var(--radius-scale));
   --radius-full: 999px;
 
   /* Typografia */
@@ -79,24 +100,34 @@
   --header-height: calc(56px * var(--ui-scale));
 }
 
+/* Motyw jasny to PEŁNOPRAWNY wariant, a nie odwrócony ciemny: ciepła biel i delikatny beż
+   zamiast sterylnej bieli, oraz ciemniejsze złoto, bo szampańskie nie ma kontrastu na jasnym.
+   Kolory semantyczne mają własne, ciemniejsze odcienie - te z motywu ciemnego byłyby na białym
+   tle zbyt jasne, żeby przejść kontrast. */
 :root[data-theme="light"] {
   color-scheme: light;
 
-  --color-bg: #f4f6f9;
+  --color-bg: #f4f2ed;
+  --color-surface-nav: #ece8df;
   --color-surface: #ffffff;
-  --color-surface-alt: #eef1f5;
-  --color-border: #d7dde5;
-  --color-text: #10151d;
-  --color-text-muted: #4b5768;
-  --color-accent: #96762e;
+  --color-surface-alt: #faf8f3;
+  --color-surface-hover: #f0ece3;
+  --color-border: #d9d4c9;
+  --color-border-strong: #beb7aa;
+  --color-text: #1a1d22;
+  --color-text-secondary: #5e6670;
+  --color-text-muted: #818892;
+  --color-accent: #8a681f;
+  --color-accent-hover: #745516;
   --color-accent-contrast: #ffffff;
-  --color-profit: #1a8f5a;
-  --color-loss: #c73e33;
-  --color-info: #2166b3;
-  --color-warning: #a05a00;
+  --color-neutral: #606a75;
+  --color-profit: #087a4b;
+  --color-loss: #b42332;
+  --color-info: #1e64b7;
+  --color-warning: #875a00;
 
-  --shadow-sm: 0 1px 2px rgba(16, 21, 29, 0.08);
-  --shadow-md: 0 4px 12px rgba(16, 21, 29, 0.1);
+  --shadow-sm: 0 1px 2px rgba(26, 29, 34, 0.08);
+  --shadow-md: 0 4px 12px rgba(26, 29, 34, 0.1);
 }
 
 /* Poziomy skalowania z Ustawień → Wygląd. Wartości spoza tej listy są niemożliwe: interfejs

@@ -1357,11 +1357,11 @@ zachowanie (nie atrapę), testy i przechodzące lint/typecheck.
 | U4 | Wygląd realnie nakładany na aplikację + podgląd na żywo | ✅ |
 | U5 | Nawigacja i widok startowy wpięte w powłokę | ✅ |
 | U6 | Potwierdzenia, potwierdzenie zapisu, częstotliwość autozapisu szkicu | ✅ |
-| U7 | Pozostałe ustawienia zachowania: podpowiedzi przy polach, otwieranie szczegółów po zapisie, zapamiętywanie rozwiniętych paneli, ostatnie konto, szerokości kolumn | ⬜ |
-| U8 | Domyślne wartości: nowa transakcja, kalkulator, raporty — realnie stosowane | ⬜ |
-| U9 | Powiadomienia: systemowe, przypomnienia, ciche godziny — realnie działające | ⬜ |
-| U10 | Sekcja „Dane": stan danych (liczniki, rozmiar, integralność) + `Sprawdź integralność` | ⬜ |
-| U11 | Diagnostyka użytkownika: kopiowanie i eksport raportu bez danych wrażliwych | ⬜ |
+| U7 | Podpowiedzi przy polach, zapamiętywanie rozwiniętych paneli | ✅ |
+| U8 | Domyślne: konto/interwał/sesja, ryzyko i tryb SL kalkulatora, zapamiętywanie filtrów raportów | ✅ |
+| U9 | Przełączniki powiadomień + ciche godziny (przypomnienia czekają na centrum powiadomień) | ✅ |
+| U10 | Sekcja „Dane": stan danych (liczniki, rozmiar, integralność) + `Sprawdź integralność` | ✅ |
+| U11 | Diagnostyka użytkownika: kopiowanie i eksport raportu bez danych wrażliwych | ✅ |
 
 ## Blok C — redesign motywu „Institutional Black & Gold"
 

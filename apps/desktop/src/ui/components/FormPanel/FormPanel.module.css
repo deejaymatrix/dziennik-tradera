@@ -23,7 +23,7 @@
 }
 
 .header:hover {
-  background: var(--color-surface-alt, rgb(255 255 255 / 3%));
+  background: var(--color-surface-alt);
 }
 
 .header:focus-visible {
@@ -62,13 +62,13 @@
 }
 
 .statusPartial {
-  color: var(--color-warning, #d9a441);
-  background: color-mix(in srgb, var(--color-warning, #d9a441) 14%, transparent);
+  color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 14%, transparent);
 }
 
 .statusEmpty {
   color: var(--color-text-secondary);
-  background: var(--color-surface-alt, rgb(255 255 255 / 5%));
+  background: var(--color-surface-alt);
 }
 
 .statusError {

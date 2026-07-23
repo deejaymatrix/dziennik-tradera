@@ -48,13 +48,13 @@
 }
 
 .restartTag {
-  color: var(--color-warning, #d9a441);
-  background: color-mix(in srgb, var(--color-warning, #d9a441) 14%, transparent);
+  color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 14%, transparent);
 }
 
 .lockedTag {
   color: var(--color-text-secondary);
-  background: var(--color-surface-alt, rgb(255 255 255 / 6%));
+  background: var(--color-surface-alt);
 }
 
 .control {
