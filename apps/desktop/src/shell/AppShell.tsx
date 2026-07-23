@@ -4,6 +4,7 @@ import { Outlet, useLocation, useNavigate } from "react-router";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { usePreferences } from "../app/PreferencesProvider";
+import { shouldNotify } from "../app/quietHours";
 import type { StartupView } from "../app/types/preferences";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import styles from "./AppShell.module.css";
@@ -66,7 +67,18 @@ export function AppShell(): ReactElement {
     localStorage.setItem(LAST_ROUTE_STORAGE_KEY, location.pathname);
   }, [location.pathname]);
 
+  /** Sprawdzenie aktualizacji ma się wykonać DOKŁADNIE RAZ na uruchomienie. Bez tego znacznika
+   * każdy zapis ustawień (zmiana `preferences`) odpalałby kolejne zapytanie do serwera. */
+  const updateCheckedRef = useRef(false);
+
   useEffect(() => {
+    // Czekamy na preferencje, żeby wiedzieć, czy w ogóle pokazywać komunikat - ale samo
+    // sprawdzenie i tak dzieje się zawsze, niezależnie od przełącznika.
+    if (!preferences || updateCheckedRef.current) {
+      return;
+    }
+    updateCheckedRef.current = true;
+
     // Ciche sprawdzenie aktualizacji przy starcie - tylko powiadomienie, nigdy automatyczne
     // pobranie/instalacja. Błąd (np. brak internetu) jest celowo wyciszony - to nie jest coś,
     // o czym trzeba informować użytkownika przy każdym starcie aplikacji.
@@ -74,7 +86,13 @@ export function AppShell(): ReactElement {
       try {
         const { check } = await import("@tauri-apps/plugin-updater");
         const update = await check();
-        if (update) {
+        if (!update) {
+          return;
+        }
+        // SAMO SPRAWDZANIE dzieje się zawsze - przełącznik i ciche godziny decydują wyłącznie
+        // o tym, czy pokazać komunikat. Informacja o nowej wersji i tak zostaje widoczna
+        // w Ustawieniach → Aktualizacje.
+        if (shouldNotify(preferences.notifications, "update_available")) {
           showToast(
             `Dostępna jest nowa wersja ${update.version} - zainstaluj ją w Ustawieniach.`,
             "info",
@@ -84,8 +102,7 @@ export function AppShell(): ReactElement {
         // Brak sieci / brak środowiska Tauri (podgląd w przeglądarce) - pomijamy w ciszy.
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- jednorazowe sprawdzenie przy starcie aplikacji.
-  }, []);
+  }, [preferences]);
 
   // Zwinięcie menu w trakcie pracy jest świadomie NIETRWAŁE: ustawieniem jest „domyślny stan
   // menu bocznego", więc zapisywanie tu drugiej wartości dawałoby dwa źródła prawdy dla jednej
