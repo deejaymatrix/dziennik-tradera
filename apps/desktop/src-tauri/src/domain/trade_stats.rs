@@ -49,6 +49,18 @@ pub struct TradeStats {
     /// już istniejące `expectancy` (ten sam wzór, `net_pnl / closed_trades`), więc nie ma
     /// osobnego pola na to samo.
     pub total_commission: Decimal,
+    /// Liczba pozycji CZĘŚCIOWO zamkniętych, czyli takich, które mają już wpisy częściowych
+    /// zamknięć, ale wciąż zostaje im lot do zamknięcia (sekcja 6.9).
+    pub partially_closed_trades: i64,
+    /// Wynik netto zrealizowany dotąd na tych pozycjach - trzymany ODDZIELNIE od `net_pnl`
+    /// i celowo NIE wchodzący do żadnej statystyki liczonej z transakcji zamkniętych
+    /// (win rate, profit factor, oczekiwana wartość, obsunięcie, krzywa kapitału).
+    ///
+    /// Powód jest podwójny. Po pierwsze, specyfikacja wymaga, żeby raport ODRÓŻNIAŁ wynik
+    /// częściowo otwartej pozycji od wyniku transakcji domkniętej. Po drugie, gdyby wliczyć go
+    /// do `net_pnl`, ta sama kwota zostałaby policzona DRUGI raz w chwili, gdy pozycja domknie
+    /// się do końca i wejdzie do transakcji zamkniętych z tym samym wynikiem netto.
+    pub partially_realized_pnl: Decimal,
 }
 
 /// Statystyki dashboardu - liczone raz, w Rust, z Decimal (nigdy we frontendzie). `trades`
@@ -63,6 +75,19 @@ pub fn compute_stats(trades: &[Trade]) -> TradeStats {
             TradeStatus::Draft => stats.draft_trades += 1,
             TradeStatus::Open => stats.open_trades += 1,
             TradeStatus::Closed => stats.closed_trades += 1,
+        }
+    }
+
+    // Pozycje częściowo zamknięte liczone osobno - patrz doc-comment przy
+    // `TradeStats::partially_realized_pnl`. Kiedy taka pozycja domknie się do końca, jej status
+    // zmienia się na "zamknięta", wypada z tego kubełka i wchodzi do statystyk zrealizowanych -
+    // nigdy nie jest w obu naraz.
+    for trade in trades.iter().filter(|t| {
+        t.deleted_at.is_none() && t.status == TradeStatus::Open && !t.partial_closes.is_empty()
+    }) {
+        stats.partially_closed_trades += 1;
+        if let Some(net_pnl) = trade.net_pnl {
+            stats.partially_realized_pnl += net_pnl;
         }
     }
 
@@ -681,6 +706,7 @@ mod tests {
     use crate::domain::instrument::InstrumentSnapshot;
     use crate::domain::strategy::StrategySnapshot;
     use crate::domain::trade::{PnlSource, TradeSide};
+    use crate::domain::trade_partial_close::PartialClose;
     use chrono::{Duration, TimeZone};
     use rust_decimal_macros::dec;
 
@@ -758,6 +784,66 @@ mod tests {
         assert_eq!(stats.draft_trades, 1);
         assert_eq!(stats.open_trades, 1);
         assert_eq!(stats.closed_trades, 1);
+    }
+
+    #[test]
+    fn wynik_pozycji_czesciowo_zamknietej_jest_liczony_osobno_i_nie_podwojnie() {
+        // Pozycja WCIĄŻ OTWARTA, ale z częściowym zamknięciem: ma już zrealizowane 80.
+        let czesciowa = Trade {
+            status: TradeStatus::Open,
+            volume: Some(dec!(1.0)),
+            net_pnl: Some(dec!(80)),
+            partial_closes: vec![PartialClose {
+                closed_volume: dec!(0.4),
+                realized_pnl: dec!(80),
+            }],
+            ..base_trade("czesciowa")
+        };
+        let trades = vec![czesciowa, closed_trade("zamknieta", 1, dec!(100), None)];
+
+        let stats = compute_stats(&trades);
+
+        assert_eq!(stats.partially_closed_trades, 1);
+        assert_eq!(stats.partially_realized_pnl, dec!(80));
+        assert_eq!(
+            stats.net_pnl,
+            dec!(100),
+            "wynik częściowo otwartej pozycji NIE może wpaść do wyniku transakcji zamkniętych"
+        );
+        assert_eq!(
+            stats.win_count, 1,
+            "częściowo otwarta pozycja nie jest jeszcze wygraną ani przegraną"
+        );
+        assert_eq!(stats.closed_trades, 1);
+        assert_eq!(stats.open_trades, 1);
+    }
+
+    #[test]
+    fn domkniecie_pozycji_przenosi_wynik_z_kubelka_czesciowego_do_zamknietych() {
+        // Ta sama pozycja po domknięciu całego lota: status zamknięta, ten sam wynik netto.
+        // Musi zniknąć z kubełka częściowego, inaczej te 80 policzyłoby się drugi raz.
+        let domknieta = Trade {
+            status: TradeStatus::Closed,
+            volume: Some(dec!(1.0)),
+            net_pnl: Some(dec!(80)),
+            partial_closes: vec![
+                PartialClose {
+                    closed_volume: dec!(0.4),
+                    realized_pnl: dec!(80),
+                },
+                PartialClose {
+                    closed_volume: dec!(0.6),
+                    realized_pnl: dec!(0),
+                },
+            ],
+            ..base_trade("domknieta")
+        };
+
+        let stats = compute_stats(&[domknieta]);
+
+        assert_eq!(stats.partially_closed_trades, 0);
+        assert_eq!(stats.partially_realized_pnl, Decimal::ZERO);
+        assert_eq!(stats.net_pnl, dec!(80), "policzone dokładnie raz");
     }
 
     #[test]

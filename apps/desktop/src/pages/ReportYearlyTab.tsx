@@ -74,6 +74,14 @@ export function ReportYearlyTab({ report, currency, year }: ReportYearlyTabProps
           label="Łączna prowizja"
           value={formatMoney(report.stats.total_commission, currency)}
         />
+        {/* Osobno od "P&L netto roku" - patrz komentarz w ReportMonthlyTab (sekcja 6.9). */}
+        {report.stats.partially_closed_trades > 0 && (
+          <StatCard
+            label={`Zrealizowane na pozycjach otwartych (${report.stats.partially_closed_trades})`}
+            value={formatMoney(report.stats.partially_realized_pnl, currency)}
+            tone={Number(report.stats.partially_realized_pnl) >= 0 ? "profit" : "loss"}
+          />
+        )}
         <StatCard
           label="Saldo początkowe roku"
           value={formatMoney(report.period_balance.starting_balance, currency)}

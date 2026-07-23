@@ -24,6 +24,12 @@ export interface TradeStats {
   average_trade_duration_minutes: number | null;
   max_drawdown: string | null;
   total_commission: string;
+  /** Pozycje częściowo zamknięte - wciąż otwarte, ale z już zrealizowaną częścią wyniku. */
+  partially_closed_trades: number;
+  /** Wynik zrealizowany na tych pozycjach. Trzymany ODDZIELNIE od `net_pnl` i nieliczony do
+   * żadnej statystyki transakcji zamkniętych - inaczej ta sama kwota policzyłaby się drugi raz
+   * w chwili domknięcia pozycji (sekcja 6.9). */
+  partially_realized_pnl: string;
 }
 
 export interface EquityPoint {

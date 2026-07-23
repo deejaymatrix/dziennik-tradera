@@ -94,6 +94,16 @@ export function ReportMonthlyTab({
           label="Łączna prowizja"
           value={formatMoney(report.stats.total_commission, currency)}
         />
+        {/* Wynik pozycji wciąż otwartych, częściowo zamkniętych - pokazywany OSOBNO, żeby było
+            widać, że nie wchodzi do "P&L netto" powyżej (sekcja 6.9). Karta pojawia się tylko,
+            gdy takie pozycje w ogóle są, żeby nie zaśmiecać raportu zerem. */}
+        {report.stats.partially_closed_trades > 0 && (
+          <StatCard
+            label={`Zrealizowane na pozycjach otwartych (${report.stats.partially_closed_trades})`}
+            value={formatMoney(report.stats.partially_realized_pnl, currency)}
+            tone={Number(report.stats.partially_realized_pnl) >= 0 ? "profit" : "loss"}
+          />
+        )}
 
         <StatCard
           label="Saldo początkowe"
