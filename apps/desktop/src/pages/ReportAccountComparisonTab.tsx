@@ -237,6 +237,7 @@ export function ReportAccountComparisonTab({
         </ChartCard>
         <ChartCard title="Win rate per konto">
           <GroupBarChart
+            tone="neutral"
             rows={sorted.map((r) => ({
               key: r.account_id,
               label: accountName(accounts, r.account_id),
@@ -265,6 +266,7 @@ export function ReportAccountComparisonTab({
         </ChartCard>
         <ChartCard title="Max DD per konto">
           <GroupBarChart
+            tone="neutral"
             rows={sorted.map((r) => ({
               key: r.account_id,
               label: accountName(accounts, r.account_id),

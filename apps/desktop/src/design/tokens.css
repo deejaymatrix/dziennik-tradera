@@ -49,6 +49,25 @@
   --color-neutral: #9aa3ae;
   --color-focus-ring: var(--color-accent);
 
+  /* WYKRESY.
+     Główna seria to złoto (akcent), zysk/strata mają własne kolory semantyczne. Dodatkowe serie
+     mają CELOWO tylko cztery kolory - ograniczona paleta wymuszona przez sekcję 17 promptu.
+     Wykres wymagający piątego koloru jest wykresem, który trzeba rozbić na dwa, a nie dosypać
+     mu kolorów; dlatego lista jest krótka i domknięta.
+     Kolejność jest dobrana tak, żeby sąsiednie serie różniły się też jasnością, a nie samym
+     odcieniem - inaczej dwie serie byłyby nie do odróżnienia bez rozpoznawania barw. */
+  --color-chart-series-1: #5ca8ff;
+  --color-chart-series-2: #b38ce8;
+  --color-chart-series-3: #4fc7c0;
+  --color-chart-series-4: #e3a93b;
+  /* Siatka jest subtelna: ma pomóc odczytać wartość, nie konkurować z serią. */
+  --color-chart-grid: #232a33;
+  /* Tooltip celowo NIE używa --color-surface: nakłada się na karty o tym samym tle i zlewałby
+     się z nimi. Ma być wyraźnie ciemniejszy/jaśniejszy od wszystkiego pod spodem. */
+  --color-tooltip-bg: #05070a;
+  --color-tooltip-text: #f8f9fa;
+  --color-tooltip-border: #3a424e;
+
   /* Wysokości kontrolek - jedno źródło, żeby input, select, pole daty i przycisk miały
      dokładnie tę samą wysokość. Skalują się razem z interfejsem. */
   --control-height-sm: calc(28px * var(--ui-scale));
@@ -125,6 +144,17 @@
   --color-loss: #b42332;
   --color-info: #1e64b7;
   --color-warning: #875a00;
+
+  /* Wykresy w motywie jasnym: te same role, ale kolory przyciemnione, żeby zachowały kontrast
+     na białym tle. Tooltip odwraca się na ciemny - na jasnej stronie to on ma być "wycięty". */
+  --color-chart-series-1: #1e64b7;
+  --color-chart-series-2: #6b3fa0;
+  --color-chart-series-3: #0f7a74;
+  --color-chart-series-4: #875a00;
+  --color-chart-grid: #e2ded3;
+  --color-tooltip-bg: #1a1d22;
+  --color-tooltip-text: #f8f9fa;
+  --color-tooltip-border: #3a424e;
 
   --shadow-sm: 0 1px 2px rgba(26, 29, 34, 0.08);
   --shadow-md: 0 4px 12px rgba(26, 29, 34, 0.1);

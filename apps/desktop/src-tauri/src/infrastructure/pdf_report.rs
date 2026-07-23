@@ -185,3 +185,62 @@ pub fn generate(input: &PdfReportInput, destination: &Path) -> Result<(), AppErr
         .map_err(|e| AppError::Io(format!("nie można zapisać pliku PDF: {e}")))?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn przykladowe_wejscie() -> PdfReportInput {
+        PdfReportInput {
+            title: "Raport konta: Vantage Live (USD)".to_string(),
+            subtitle: "Wygenerowano 2026-07-23".to_string(),
+            summary_lines: vec!["Wynik netto: 1234,56".to_string()],
+            table_headers: vec!["#".to_string(), "Instrument".to_string()],
+            table_rows: vec![vec!["1".to_string(), "EURUSD".to_string()]],
+        }
+    }
+
+    /// Sekcja 17 promptu: „eksport PDF zachowuje profesjonalne jasne tło".
+    ///
+    /// PDF powstaje w Ruście i NIE zna motywu aplikacji - to jest właśnie mechanizm gwarancji.
+    /// Gdyby ktoś kiedyś zechciał „ujednolicić" raport z ciemnym motywem, musiałby dodać do
+    /// strumienia operator koloru (`rg`/`g`/`k`) albo prostokąt tła (`re ... f`). Ten test
+    /// pilnuje, że w strumieniu nie ma ani jednego z nich, więc strona zostaje domyślnie biała,
+    /// a tekst domyślnie czarny - niezależnie od tego, co użytkownik ma ustawione w aplikacji.
+    #[test]
+    fn pdf_nie_maluje_zadnego_tla_ani_koloru() {
+        let dir = tempfile::tempdir().expect("katalog tymczasowy");
+        let destination = dir.path().join("raport.pdf");
+        generate(&przykladowe_wejscie(), &destination).expect("generowanie PDF");
+
+        let doc = Document::load(&destination).expect("wczytanie PDF");
+        let pages = doc.get_pages();
+        assert!(
+            !pages.is_empty(),
+            "raport musi mieć co najmniej jedną stronę"
+        );
+
+        for page_id in pages.values() {
+            let content = doc.get_page_content(*page_id);
+            let content = Content::decode(&content).expect("dekodowanie strumienia");
+            for operation in &content.operations {
+                assert!(
+                    !matches!(
+                        operation.operator.as_str(),
+                        // Kolor wypełnienia/obrysu: RGB, szarość, CMYK i przestrzenie nazwane.
+                        "rg" | "RG" | "g" | "G" | "k" | "K" | "sc" | "SC" | "scn" | "SCN"
+                    ),
+                    "raport PDF nie może ustawiać koloru (operator {}), bo przestałby być \
+                     jasny i neutralny",
+                    operation.operator
+                );
+                assert!(
+                    !matches!(operation.operator.as_str(), "f" | "F" | "f*" | "B" | "B*"),
+                    "raport PDF nie może wypełniać figur (operator {}) - to droga do \
+                     pomalowania tła strony",
+                    operation.operator
+                );
+            }
+        }
+    }
+}

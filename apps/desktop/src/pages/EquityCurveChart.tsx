@@ -13,6 +13,12 @@ import { formatMoney } from "../app/decimal";
 import type { EquityPoint } from "../app/types/report";
 import { estimateYAxisWidth } from "./chartAxis";
 import styles from "./EquityCurveChart.module.css";
+import {
+  CHART_GRID_PROPS,
+  CHART_TOOLTIP_CONTENT_STYLE,
+  CHART_TOOLTIP_ITEM_STYLE,
+  CHART_TOOLTIP_LABEL_STYLE,
+} from "./chartTheme";
 
 export interface EquityCurveChartProps {
   points: EquityPoint[];
@@ -56,7 +62,7 @@ export function EquityCurveChart({ points, currency }: EquityCurveChartProps): R
             <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
+        <CartesianGrid {...CHART_GRID_PROPS} />
         <XAxis dataKey="index" hide />
         <YAxis
           width={axisWidth}
@@ -70,12 +76,9 @@ export function EquityCurveChart({ points, currency }: EquityCurveChartProps): R
             const point = payload[0]?.payload as EquityChartDatum | undefined;
             return point ? new Date(point.closedAt).toLocaleString("pl-PL") : "";
           }}
-          contentStyle={{
-            background: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-sm)",
-            color: "var(--color-text)",
-          }}
+          contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
+          itemStyle={CHART_TOOLTIP_ITEM_STYLE}
+          labelStyle={CHART_TOOLTIP_LABEL_STYLE}
         />
         <Area
           type="monotone"

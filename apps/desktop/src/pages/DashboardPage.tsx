@@ -245,6 +245,7 @@ export function DashboardPage(): ReactElement {
                         currency=""
                         unit="count"
                         valueLabel="Liczba transakcji"
+                        tone="neutral"
                       />
                     </ChartCard>
                     <ChartCard title="P&L netto wg dnia tygodnia">

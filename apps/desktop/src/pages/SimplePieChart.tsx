@@ -1,6 +1,11 @@
 import type { ReactElement } from "react";
 import { Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import styles from "./GroupBarChart.module.css";
+import {
+  CHART_TOOLTIP_CONTENT_STYLE,
+  CHART_TOOLTIP_ITEM_STYLE,
+  CHART_TOOLTIP_LABEL_STYLE,
+} from "./chartTheme";
 
 export interface PieSlice {
   label: string;
@@ -40,12 +45,9 @@ export function SimplePieChart({ slices }: SimplePieChartProps): ReactElement {
           isAnimationActive={false}
         />
         <Tooltip
-          contentStyle={{
-            background: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-sm)",
-            color: "var(--color-text)",
-          }}
+          contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
+          itemStyle={CHART_TOOLTIP_ITEM_STYLE}
+          labelStyle={CHART_TOOLTIP_LABEL_STYLE}
         />
         <Legend wrapperStyle={{ color: "var(--color-text-muted)", fontSize: 12 }} />
       </PieChart>

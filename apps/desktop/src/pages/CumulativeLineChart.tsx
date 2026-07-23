@@ -13,6 +13,12 @@ import { formatMoney } from "../app/decimal";
 import type { GroupBreakdown } from "../app/types/report";
 import { estimateYAxisWidth } from "./chartAxis";
 import styles from "./GroupBarChart.module.css";
+import {
+  CHART_GRID_PROPS,
+  CHART_TOOLTIP_CONTENT_STYLE,
+  CHART_TOOLTIP_ITEM_STYLE,
+  CHART_TOOLTIP_LABEL_STYLE,
+} from "./chartTheme";
 
 export interface CumulativeLineChartProps {
   rows: GroupBreakdown[];
@@ -49,7 +55,7 @@ export function CumulativeLineChart({ rows, currency }: CumulativeLineChartProps
   return (
     <ResponsiveContainer width="100%" height={220}>
       <LineChart data={data} margin={{ top: 8, right: 8, bottom: 32, left: 0 }}>
-        <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
+        <CartesianGrid {...CHART_GRID_PROPS} />
         <XAxis
           dataKey="label"
           interval={0}
@@ -66,12 +72,9 @@ export function CumulativeLineChart({ rows, currency }: CumulativeLineChartProps
         <ReferenceLine y={0} stroke="var(--color-border)" />
         <Tooltip
           formatter={(value) => formatMoney(String(value), currency)}
-          contentStyle={{
-            background: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-sm)",
-            color: "var(--color-text)",
-          }}
+          contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
+          itemStyle={CHART_TOOLTIP_ITEM_STYLE}
+          labelStyle={CHART_TOOLTIP_LABEL_STYLE}
         />
         <Line
           type="monotone"

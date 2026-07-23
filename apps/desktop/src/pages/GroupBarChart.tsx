@@ -14,6 +14,13 @@ import { formatMoney } from "../app/decimal";
 import type { GroupBreakdown } from "../app/types/report";
 import { estimateYAxisWidth } from "./chartAxis";
 import styles from "./GroupBarChart.module.css";
+import {
+  CHART_GRID_PROPS,
+  chartSeriesColor,
+  CHART_TOOLTIP_CONTENT_STYLE,
+  CHART_TOOLTIP_ITEM_STYLE,
+  CHART_TOOLTIP_LABEL_STYLE,
+} from "./chartTheme";
 
 export interface GroupBarChartProps {
   rows: GroupBreakdown[];
@@ -22,6 +29,15 @@ export interface GroupBarChartProps {
    * zamiast domyślnego formatowania pieniężnego. */
   unit?: "money" | "count";
   valueLabel?: string;
+  /**
+   * Czy znak wartości niesie znaczenie „zysk/strata".
+   *
+   * "profit-loss" (domyślne) koloruje słupki zielono/czerwono wg znaku - poprawne dla wyniku
+   * netto. "neutral" jest dla wielkości, które są z natury nieujemne albo których znak nie
+   * oznacza dobrego wyniku (win rate, liczba transakcji, obsunięcie): tam kolorowanie wg znaku
+   * KŁAMIE - 20% win rate świeciłoby na zielono tylko dlatego, że 20 > 0.
+   */
+  tone?: "profit-loss" | "neutral";
 }
 
 interface BarDatum {
@@ -29,16 +45,23 @@ interface BarDatum {
   value: number;
 }
 
-function ProfitLossBarShape(props: BarShapeProps): ReactElement {
-  const { x, y, width, height, value } = props;
-  const numericValue = Array.isArray(value) ? value[0] : value;
-  const fill = numericValue >= 0 ? "var(--color-profit)" : "var(--color-loss)";
-  // Słupki poniżej zera dostają od Recharts ujemną wysokość - SVG odmawia narysowania <rect>
-  // z ujemną szerokością/wysokością (błąd spec., element się nie renderuje), więc trzeba
-  // znormalizować do dodatniej wysokości i przesunąć y o różnicę.
-  const normalizedY = height < 0 ? y + height : y;
-  const normalizedHeight = Math.abs(height);
-  return <rect x={x} y={normalizedY} width={width} height={normalizedHeight} fill={fill} />;
+function makeBarShape(tone: "profit-loss" | "neutral") {
+  return function BarShape(props: BarShapeProps): ReactElement {
+    const { x, y, width, height, value } = props;
+    const numericValue = Array.isArray(value) ? value[0] : value;
+    const fill =
+      tone === "neutral"
+        ? chartSeriesColor(0)
+        : numericValue >= 0
+          ? "var(--color-profit)"
+          : "var(--color-loss)";
+    // Słupki poniżej zera dostają od Recharts ujemną wysokość - SVG odmawia narysowania <rect>
+    // z ujemną szerokością/wysokością (błąd spec., element się nie renderuje), więc trzeba
+    // znormalizować do dodatniej wysokości i przesunąć y o różnicę.
+    const normalizedY = height < 0 ? y + height : y;
+    const normalizedHeight = Math.abs(height);
+    return <rect x={x} y={normalizedY} width={width} height={normalizedHeight} fill={fill} />;
+  };
 }
 
 /** Słupkowy wykres wyniku netto wg grupy (miesiąc/rok/dzień tygodnia/instrument/strategia) -
@@ -49,6 +72,7 @@ export function GroupBarChart({
   currency,
   unit = "money",
   valueLabel = "Wynik netto",
+  tone = "profit-loss",
 }: GroupBarChartProps): ReactElement {
   if (rows.length === 0) {
     return <p className={styles.empty}>Brak danych do pokazania.</p>;
@@ -82,7 +106,7 @@ export function GroupBarChart({
   return (
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={data} margin={{ top: 8, right: 8, bottom: 32, left: 0 }}>
-        <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
+        <CartesianGrid {...CHART_GRID_PROPS} />
         <XAxis
           dataKey="label"
           interval={0}
@@ -100,17 +124,14 @@ export function GroupBarChart({
         <ReferenceLine y={0} stroke="var(--color-border)" />
         <Tooltip
           formatter={(value) => formatTooltipValue(Number(value))}
-          contentStyle={{
-            background: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-sm)",
-            color: "var(--color-text)",
-          }}
+          contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
+          itemStyle={CHART_TOOLTIP_ITEM_STYLE}
+          labelStyle={CHART_TOOLTIP_LABEL_STYLE}
         />
         <Bar
           dataKey="value"
           name={valueLabel}
-          shape={ProfitLossBarShape}
+          shape={makeBarShape(tone)}
           isAnimationActive={false}
         />
       </BarChart>
