@@ -1,4 +1,6 @@
 mod application;
+#[cfg(test)]
+mod audyt;
 mod commands;
 mod db;
 mod diagnostics;

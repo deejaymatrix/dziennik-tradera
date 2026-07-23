@@ -1395,7 +1395,7 @@ wszędzie. Zrobione dotąd tokeny i paleta zostają jako fundament.
 | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
 | A1   | Audyt wizualny obu motywów: kontrast WCAG AA (5 naruszeń naprawionych, test blokujący), brak przepełnień w 1366×768 i 1920×1080 | ✅     |
 |      | ↳ Widoki zależne od danych czekają na A2 - w przeglądarce bez backendu Tauri renderują tylko stan błędu. |        |
-| A2   | Audyt jak końcowy użytkownik: cztery warianty bazy (pusta, przykładowa, po migracjach, duża)                                                                            | ⬜     |
+| A2   | Audyt jak końcowy użytkownik: 4 warianty bazy (pusta, z danymi, po restarcie, 300 transakcji) przechodzą przez pełny stos usług - saldo zgadza się z sumą wyników w każdym z nich | ✅     |
 | A3   | Wartości graniczne: długie nazwy, wielkie liczby, puste dane, bardzo długie tabele                                                                                      | ⬜     |
 | A4   | Obliczenia finansowe: lot, P&L, koszty, częściowe zamknięcia, saldo                                                                                                     | ⬜     |
 | A5   | Audyt kodu linia po linii z LISTĄ sprawdzonych plików (martwy kod, puste catch, unwrap/expect, wycieki, wyścigi, hardkodowane kolory i ścieżki, dane prywatne w logach) | ⬜     |
