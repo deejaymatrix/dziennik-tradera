@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import { Sidebar } from "./Sidebar";
+import { CommandPalette } from "./CommandPalette";
 import { Header } from "./Header";
 import { usePreferences } from "../app/PreferencesProvider";
 import { shouldNotify } from "../app/quietHours";
@@ -116,6 +117,7 @@ export function AppShell(): ReactElement {
       <a href="#main-content" className={styles.skipLink}>
         Przejdź do treści głównej
       </a>
+      <CommandPalette />
       <Sidebar
         collapsed={collapsed}
         onToggleCollapsed={toggleCollapsed}
