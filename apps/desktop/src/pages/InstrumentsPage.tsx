@@ -120,7 +120,6 @@ export function InstrumentsPage(): ReactElement {
         setTemplates(ts);
         const fromUrl = searchParams.get("template");
         const initial = fromUrl && ts.some((t) => t.id === fromUrl) ? fromUrl : (ts[0]?.id ?? "");
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setTemplateId((current) => current || initial);
       } catch {
         // Główny `load` obsłuży i pokaże błąd - tu tylko brak pickera szablonów.

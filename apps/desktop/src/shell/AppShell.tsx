@@ -103,7 +103,9 @@ export function AppShell(): ReactElement {
         // Brak sieci / brak środowiska Tauri (podgląd w przeglądarce) - pomijamy w ciszy.
       }
     })();
-  }, [preferences]);
+    // `showToast` jest w zależnościach dla porządku - efekt i tak wykonuje się najwyżej raz,
+    // bo pilnuje tego `updateCheckedRef`.
+  }, [preferences, showToast]);
 
   // Zwinięcie menu w trakcie pracy jest świadomie NIETRWAŁE: ustawieniem jest „domyślny stan
   // menu bocznego", więc zapisywanie tu drugiej wartości dawałoby dwa źródła prawdy dla jednej

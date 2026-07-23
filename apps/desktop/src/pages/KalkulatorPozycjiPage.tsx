@@ -155,7 +155,6 @@ export function KalkulatorPozycjiPage(): ReactElement {
         setLoadError(e instanceof Error ? e.message : "Nie udało się wczytać instrumentów.");
       }
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadInstruments(accountTemplate?.id ?? null);
   }, [accountId, accountTemplate]);
 
