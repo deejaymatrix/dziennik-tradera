@@ -5,6 +5,7 @@ import { Sidebar } from "./Sidebar";
 import { CommandPalette } from "./CommandPalette";
 import { Header } from "./Header";
 import { usePreferences } from "../app/PreferencesProvider";
+import { useOptionalUpdateMonitor } from "../app/UpdateMonitorProvider";
 import type { StartupView } from "../app/types/preferences";
 import styles from "./AppShell.module.css";
 
@@ -70,6 +71,24 @@ export function AppShell(): ReactElement {
   // czas uruchomienia, a nie o sprawdzeniu wykonywanym raz przy montowaniu powłoki. Tamten
   // provider dodatkowo ponawia sprawdzanie co dziesięć minut, reaguje na powrót sieci
   // i na powrót aplikacji na pierwszy plan.
+
+  // Kliknięcie natywnego powiadomienia systemowego ma otworzyć aplikację bezpośrednio na oknie
+  // aktualizacji. `UpdateMonitorProvider` stoi NAD routerem i nie ma dostępu do `useNavigate`,
+  // więc tylko zlicza kliknięcia (`zadanieOtwarciaUstawien`) - `AppShell`, który JEST wewnątrz
+  // routera, obserwuje ten licznik i wykonuje samą nawigację. `useRef`, nie porównanie z
+  // poprzednim propsem w renderze, bo efekt ma zareagować tylko na ZMIANĘ (w tym na DRUGIE
+  // kliknięcie tego samego powiadomienia), a nie na każde przerysowanie.
+  const monitor = useOptionalUpdateMonitor();
+  const poprzednieZadanieRef = useRef(monitor?.zadanieOtwarciaUstawien ?? 0);
+  useEffect(() => {
+    if (!monitor) {
+      return;
+    }
+    if (monitor.zadanieOtwarciaUstawien !== poprzednieZadanieRef.current) {
+      poprzednieZadanieRef.current = monitor.zadanieOtwarciaUstawien;
+      void navigate("/ustawienia");
+    }
+  }, [monitor, navigate]);
 
   // Zwinięcie menu w trakcie pracy jest świadomie NIETRWAŁE: ustawieniem jest „domyślny stan
   // menu bocznego", więc zapisywanie tu drugiej wartości dawałoby dwa źródła prawdy dla jednej

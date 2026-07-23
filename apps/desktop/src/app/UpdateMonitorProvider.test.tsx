@@ -14,10 +14,22 @@ vi.mock("./PreferencesProvider", () => ({
 
 const sendNotification = vi.hoisted(() => vi.fn());
 const isPermissionGranted = vi.hoisted(() => vi.fn(async () => true));
+/** Przechwytuje callback zarejestrowany przez `onAction`, żeby test mógł ręcznie „kliknąć"
+ * powiadomienie, wywołując go z konkretną treścią `extra`. */
+const zarejestrowaneCallbackiOnAction = vi.hoisted(
+  () => [] as ((powiadomienie: { extra?: Record<string, unknown> }) => void)[],
+);
+const onAction = vi.hoisted(() =>
+  vi.fn((cb: (powiadomienie: { extra?: Record<string, unknown> }) => void) => {
+    zarejestrowaneCallbackiOnAction.push(cb);
+    return Promise.resolve({ unregister: vi.fn() });
+  }),
+);
 vi.mock("@tauri-apps/plugin-notification", () => ({
   sendNotification,
   isPermissionGranted,
   requestPermission: vi.fn(async () => "granted"),
+  onAction,
 }));
 
 const checkUpdate = vi.hoisted(() => vi.fn());
@@ -446,5 +458,62 @@ describe("UpdateMonitorProvider - natywne powiadomienie respektuje preferencje",
     // Trwały znacznik zostaje mimo cichych godzin - tylko natywny popup jest wyciszony.
     expect(screen.getByTestId("znacznik").textContent).toBe("tak");
     expect(sendNotification).not.toHaveBeenCalled();
+  });
+});
+
+describe("UpdateMonitorProvider - kliknięcie natywnego powiadomienia", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    invokeCommand.mockReset();
+    invokeCommand.mockResolvedValue({ kind: "bez_zmian" });
+    onAction.mockClear();
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("rejestruje DOKŁADNIE jeden nasłuch onAction, niezależnie od przerysowań", async () => {
+    render(
+      <UpdateMonitorProvider wersjaBiezaca="1.0.0">
+        <Podglad />
+      </UpdateMonitorProvider>,
+    );
+
+    // Pozwól dokończyć się asynchronicznej rejestracji nasłuchu (IIFE w efekcie startowym).
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(onAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("powiadomienie kogoś innego (inny `extra`) NIE zwiększa licznika", async () => {
+    function PodgladZLicznikiem(): React.ReactElement {
+      const { zadanieOtwarciaUstawien } = useUpdateMonitor();
+      return <span data-testid="licznik-otwarcia">{zadanieOtwarciaUstawien}</span>;
+    }
+
+    render(
+      <UpdateMonitorProvider wersjaBiezaca="1.0.0">
+        <PodgladZLicznikiem />
+      </UpdateMonitorProvider>,
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const callback = zarejestrowaneCallbackiOnAction.at(-1);
+    act(() => {
+      callback?.({ extra: { rodzaj: "cos-zupelnie-innego" } });
+    });
+
+    expect(screen.getByTestId("licznik-otwarcia").textContent).toBe("0");
+
+    act(() => {
+      callback?.({ extra: { rodzaj: "aktualizacja-dostepna" } });
+    });
+    expect(screen.getByTestId("licznik-otwarcia").textContent).toBe("1");
   });
 });

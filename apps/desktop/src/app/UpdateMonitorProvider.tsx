@@ -54,6 +54,11 @@ export interface UpdateMonitorValue {
   znacznikDostepnej: boolean;
   /** Wersja dostępnej aktualizacji, gdy jakakolwiek jest znana. */
   dostepnaWersja: string | null;
+  /** Rośnie za każdym razem, gdy użytkownik kliknął natywne powiadomienie systemowe - `AppShell`
+   * obserwuje tę wartość i przenosi do Ustawień → Aktualizacje. Licznik, nie `boolean`, żeby
+   * DRUGIE kliknięcie tego samego powiadomienia też wywołało nawigację (zmiana wartości, a nie
+   * jej pojawienie się, jest tym, co uruchamia efekt w AppShell). */
+  zadanieOtwarciaUstawien: number;
   sprawdzTeraz: () => Promise<void>;
   pobierzIZainstaluj: () => Promise<void>;
   odlozNapozniej: () => void;
@@ -61,6 +66,11 @@ export interface UpdateMonitorValue {
 }
 
 const UpdateMonitorContext = createContext<UpdateMonitorValue | null>(null);
+
+/** Znacznik w polu `extra` powiadomienia - odróżnia kliknięcie NASZEGO powiadomienia od innych,
+ * gdyby aplikacja w przyszłości wysyłała też inne rodzaje powiadomień systemowych. */
+const EXTRA_ROZPOZNANIE = "rodzaj";
+const EXTRA_AKTUALIZACJA = "aktualizacja-dostepna";
 
 /** Wynik komendy `check_update_manifest` (kształt z `WynikSprawdzenia` w Rust). */
 type WynikManifestu =
@@ -78,6 +88,7 @@ export function UpdateMonitorProvider({
   const [stan, setStan] = useState<StanAktualizacji>({ rodzaj: "bezczynny" });
   const [znacznikDostepnej, setZnacznikDostepnej] = useState(false);
   const [dostepnaWersja, setDostepnaWersja] = useState<string | null>(null);
+  const [zadanieOtwarciaUstawien, setZadanieOtwarciaUstawien] = useState(0);
   // `useOptional...` - w App.tsx ten provider jest zagnieżdżony wewnątrz PreferencesProvider,
   // więc zwykle preferencje są dostępne, ale własne testy renderują go samodzielnie, bez
   // owijania w PreferencesProvider - `useOptionalPreferences` wtedy po prostu zwraca `null`.
@@ -223,11 +234,31 @@ export function UpdateMonitorProvider({
     window.addEventListener("online", przyPowrocieSieci);
     document.addEventListener("visibilitychange", przyPowrocieNaPierwszyPlan);
 
+    // Kliknięcie natywnego powiadomienia ma otworzyć aplikację bezpośrednio na oknie
+    // aktualizacji (wymaganie Celu 1.8, sekcja 6). `onAction` wtyczki odbiera aktywację
+    // powiadomienia - sprawdzamy pole `extra`, żeby zareagować wyłącznie na WŁASNE
+    // powiadomienie, gdyby aplikacja kiedyś wysyłała też inne rodzaje.
+    let nasluchPowiadomien: { unregister: () => void } | null = null;
+    void (async () => {
+      try {
+        const { onAction } = await import("@tauri-apps/plugin-notification");
+        nasluchPowiadomien = await onAction((powiadomienie) => {
+          if (powiadomienie.extra?.[EXTRA_ROZPOZNANIE] === EXTRA_AKTUALIZACJA) {
+            setZadanieOtwarciaUstawien((n) => n + 1);
+          }
+        });
+      } catch {
+        // Brak wtyczki / środowiska Tauri (podgląd w przeglądarce) - kliknięcie po prostu nie
+        // będzie nawigować; samo powiadomienie i tak nie powstanie w takim środowisku.
+      }
+    })();
+
     return () => {
       odmontowanyRef.current = true;
       wyczyscTimer();
       window.removeEventListener("online", przyPowrocieSieci);
       document.removeEventListener("visibilitychange", przyPowrocieNaPierwszyPlan);
+      nasluchPowiadomien?.unregister();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -287,6 +318,7 @@ export function UpdateMonitorProvider({
         stan,
         znacznikDostepnej,
         dostepnaWersja,
+        zadanieOtwarciaUstawien,
         sprawdzTeraz,
         pobierzIZainstaluj,
         odlozNapozniej,
@@ -322,6 +354,7 @@ async function pokazNatywnePowiadomienie(wersja: string): Promise<void> {
     sendNotification({
       title: "Dziennik Tradera - dostępna aktualizacja",
       body: `Nowa wersja ${wersja}. Otwórz Ustawienia → Aktualizacje, aby ją zainstalować.`,
+      extra: { [EXTRA_ROZPOZNANIE]: EXTRA_AKTUALIZACJA },
     });
     zapiszOstatnioPowiadomionaWersje(wersja);
   } catch {
