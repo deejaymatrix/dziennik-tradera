@@ -8,6 +8,7 @@ import type { TradingRulesState, TradingRulesWrite } from "../app/types/trading_
 import { Button } from "../ui/components/Button/Button";
 import { Checkbox } from "../ui/components/Checkbox/Checkbox";
 import { useConfirm } from "../ui/components/ConfirmDialog/ConfirmDialog";
+import { useOptionalConfirm } from "../app/useOptionalConfirm";
 import { EditModeActions } from "../ui/components/EditModeActions/EditModeActions";
 import { ErrorState } from "../ui/components/ErrorState/ErrorState";
 import { IconButton } from "../ui/components/IconButton/IconButton";
@@ -89,6 +90,7 @@ function move<T>(list: T[], index: number, direction: -1 | 1): T[] {
  */
 export function ZasadyHandluPage(): ReactElement {
   const { showToast } = useToast();
+  const optionalConfirm = useOptionalConfirm();
   const confirm = useConfirm();
   const [state, setState] = useState<TradingRulesState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -434,7 +436,7 @@ export function ZasadyHandluPage(): ReactElement {
                             onClick={() => {
                               void (async () => {
                                 if (
-                                  await confirm(`Przenieść pytanie "${rule.question}" do kosza?`)
+                                  await optionalConfirm("trash", `Przenieść pytanie "${rule.question}" do kosza?`)
                                 ) {
                                   updateRule(categoryIndex, ruleIndex, { archived: true });
                                 }

@@ -8,6 +8,7 @@ import { Badge } from "../ui/components/Badge/Badge";
 import type { BadgeVariant } from "../ui/components/Badge/Badge";
 import { Button } from "../ui/components/Button/Button";
 import { useConfirm } from "../ui/components/ConfirmDialog/ConfirmDialog";
+import { useOptionalConfirm } from "../app/useOptionalConfirm";
 import { EmptyState } from "../ui/components/EmptyState/EmptyState";
 import { ErrorState } from "../ui/components/ErrorState/ErrorState";
 import { IconButton } from "../ui/components/IconButton/IconButton";
@@ -56,6 +57,7 @@ function itemKey(item: Pick<TrashItem, "entity_type" | "id">): string {
 export function KoszPage(): ReactElement {
   const { showToast } = useToast();
   const confirm = useConfirm();
+  const optionalConfirm = useOptionalConfirm();
   const [items, setItems] = useState<TrashItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -140,7 +142,7 @@ export function KoszPage(): ReactElement {
 
   async function handlePurge(item: TrashItem): Promise<void> {
     if (
-      !(await confirm({
+      !(await optionalConfirm("permanent", {
         message: `Trwale usunąć "${item.label}"? Tej operacji nie można cofnąć.`,
         danger: true,
       }))
@@ -184,7 +186,7 @@ export function KoszPage(): ReactElement {
       return;
     }
     if (
-      !(await confirm({
+      !(await optionalConfirm("permanent", {
         message: `Trwale usunąć ${selected.length} zaznaczonych elementów? Tej operacji nie można cofnąć.`,
         danger: true,
       }))
@@ -222,6 +224,9 @@ export function KoszPage(): ReactElement {
       return;
     }
     if (
+      // Opróżnienie CAŁEGO kosza pyta ZAWSZE, niezależnie od przełącznika potwierdzeń.
+      // Wyłączalne jest pytanie o pojedynczą operację, a nie zabezpieczenie przed hurtową,
+      // nieodwracalną utratą danych - specyfikacja wymaga tu ostrzeżeń bezwarunkowo.
       !(await confirm({
         message: `Opróżnić cały Kosz? Trwale usunie to wszystkie ${items.length} elementów (po automatycznej kopii zapasowej). Tej operacji nie można cofnąć.`,
         danger: true,

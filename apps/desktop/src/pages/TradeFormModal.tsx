@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
 import { Plus } from "lucide-react";
 import { invokeCommand } from "../app/invokeCommand";
+import { usePreferences } from "../app/PreferencesProvider";
 import {
   blankTradeFormFields,
   buildTradeInput,
@@ -98,6 +99,15 @@ export function TradeFormModal({
   const accountBalance = selectedAccount?.balance ?? "0";
 
   const { showToast } = useToast();
+  const { preferences } = usePreferences();
+
+  /** Komunikat o UDANYM zapisie - użytkownik może go wyłączyć w Ustawieniach. Błędy i częściowe
+   * niepowodzenia (np. nieudane załączniki) pokazujemy zawsze, bo to nie jest potwierdzenie. */
+  function showSaveConfirmation(message: string): void {
+    if (preferences?.behavior.show_save_confirmation ?? true) {
+      showToast(message, "success");
+    }
+  }
   const confirm = useConfirm();
   const [balanceContext, setBalanceContext] = useState<TradeBalanceContext | null>(null);
   const [auditLog, setAuditLog] = useState<TradeAuditEntry[] | null>(null);
@@ -286,6 +296,13 @@ export function TradeFormModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `trade` stały dla tej instancji (key wymusza remount); reagujemy tylko na zmianę konta.
   }, [selectedAccountId]);
 
+  // Najświeższe pola dla autozapisu działającego na zegarze - dzięki temu interwał nie musi być
+  // przestawiany przy każdym naciśnięciu klawisza.
+  const draftFieldsRef = useRef(fields);
+  useEffect(() => {
+    draftFieldsRef.current = fields;
+  }, [fields]);
+
   useEffect(() => {
     // Autoszkic w localStorage dotyczy WYŁĄCZNIE edycji istniejącej transakcji - chroni
     // niezapisane zmiany, które można odzyskać w `handleStartEdit`. Dla NOWEJ transakcji celowo
@@ -294,8 +311,23 @@ export function TradeFormModal({
     if (readOnly || !trade) {
       return;
     }
-    saveTradeDraft(selectedAccountId, trade.id, fields);
-  }, [fields, selectedAccountId, trade, readOnly]);
+
+    // Zapis co ustalony interwał (Ustawienia → Zachowanie aplikacji), a NIE po każdej zmianie
+    // pola. Świadomie zegar, a nie odroczenie po ostatnim naciśnięciu klawisza: przy 30 sekundach
+    // i ciągłym pisaniu odroczenie nie zapisałoby nigdy niczego.
+    const tradeId = trade.id;
+    const seconds = Number(preferences?.behavior.draft_autosave_seconds ?? "10");
+    const timer = setInterval(() => {
+      saveTradeDraft(selectedAccountId, tradeId, draftFieldsRef.current);
+    }, seconds * 1000);
+
+    return () => {
+      clearInterval(timer);
+      // Zapis przy zamknięciu formularza - inaczej zmiany z ostatnich sekund przed zamknięciem
+      // przepadałyby razem z niewykorzystanym tyknięciem zegara.
+      saveTradeDraft(selectedAccountId, tradeId, draftFieldsRef.current);
+    };
+  }, [selectedAccountId, trade, readOnly, preferences]);
 
   useEffect(() => {
     // Migawka salda sprzed rozpoczęcia edycji - pobrana raz przy otwarciu (sekcja "Saldo
@@ -522,7 +554,7 @@ export function TradeFormModal({
           expectedUpdatedAt: trade.updated_at,
           input,
         });
-        showToast("Transakcja zaktualizowana.", "success");
+        showSaveConfirmation("Transakcja zaktualizowana.");
       } else {
         const created = await invokeCommand<Trade>("create_trade", { input });
         const attachmentFailures = await savePendingAttachments(created.id);
@@ -533,7 +565,7 @@ export function TradeFormModal({
             "error",
           );
         } else {
-          showToast("Transakcja zapisana.", "success");
+          showSaveConfirmation("Transakcja zapisana.");
         }
       }
       clearTradeDraft(selectedAccountId, trade?.id);
