@@ -59,7 +59,7 @@
 
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
   gap: var(--space-3);
 }
 
@@ -84,4 +84,12 @@
   font-weight: 600;
   margin: 0 0 var(--space-2) 0;
   color: var(--color-text-muted);
+}
+
+/* Wskaźniki uzupełniające - węższe kolumny niż górny rząd, żeby hierarchia była widoczna
+   także w układzie, a nie tylko w rozmiarze liczby. */
+.secondaryStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-3);
 }

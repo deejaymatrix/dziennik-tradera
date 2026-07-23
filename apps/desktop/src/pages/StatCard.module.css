@@ -6,6 +6,46 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--space-3);
+  /* Kafelki bywają linkami - nigdy nie mają wyglądać jak podkreślony tekst. */
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Kafelek z górnego rzędu: większa liczba i mocniejsza krawędź. Prompt wymaga 4-6 naprawdę
+   ważnych danych na górze, a nie kilkunastu jednakowych kafelków - to rozróżnienie jest jedynym
+   powodem, dla którego wzrok wie, gdzie patrzeć najpierw. */
+.primary {
+  border-color: var(--color-border-strong);
+}
+
+.primary .value {
+  font-size: var(--font-size-xl);
+}
+
+/* Wskaźnik uzupełniający - ta sama konstrukcja, ale wyraźnie ciszej. */
+.secondary {
+  background-color: var(--color-surface-alt);
+}
+
+.secondary .value {
+  font-size: var(--font-size-md);
+}
+
+.clickable {
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--motion-easing),
+    background-color var(--motion-fast) var(--motion-easing);
+}
+
+.clickable:hover {
+  border-color: var(--color-accent);
+  background-color: var(--color-surface-hover);
+}
+
+.clickable:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 .label {
@@ -14,7 +54,6 @@
 }
 
 .value {
-  font-size: var(--font-size-lg);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }

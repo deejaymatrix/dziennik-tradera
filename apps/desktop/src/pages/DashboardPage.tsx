@@ -146,14 +146,6 @@ export function DashboardPage(): ReactElement {
             <ReportAccountComparisonTab rows={accountRankingRows} accounts={accounts} />
           )}
 
-          {!isAllAccounts && selectedAccount && (
-            <div className={styles.statsGrid}>
-              <StatCard
-                label="Aktualne saldo"
-                value={formatMoney(selectedAccount.balance, selectedAccount.currency)}
-              />
-            </div>
-          )}
 
           {!isAllAccounts && reportError && (
             <ErrorState title="Nie udało się wczytać podsumowania" description={reportError} />
@@ -171,17 +163,52 @@ export function DashboardPage(): ReactElement {
                 />
               ) : (
                 <>
+                  {/* Górny rząd: SZEŚĆ danych, po których ocenia się sytuację w kilka sekund.
+                      Każdy kafelek prowadzi do danych źródłowych - do raportów albo do historii
+                      transakcji - żeby liczba nie była ślepym zaułkiem. */}
                   <div className={styles.statsGrid}>
                     <StatCard
-                      label="P&L netto"
-                      value={formatMoney(report.stats.net_pnl, selectedAccount.currency)}
-                      tone={Number(report.stats.net_pnl) >= 0 ? "profit" : "loss"}
+                      emphasis="primary"
+                      label="Aktualne saldo"
+                      value={formatMoney(selectedAccount.balance, selectedAccount.currency)}
+                      to="/konta"
                     />
                     <StatCard
+                      emphasis="primary"
+                      label="Wynik netto"
+                      value={formatMoney(report.stats.net_pnl, selectedAccount.currency)}
+                      tone={Number(report.stats.net_pnl) >= 0 ? "profit" : "loss"}
+                      to="/raporty"
+                    />
+                    <StatCard
+                      emphasis="primary"
+                      label="Win rate"
+                      value={formatPercent(report.stats.win_rate)}
+                      to="/raporty"
+                    />
+                    <StatCard
+                      emphasis="primary"
+                      label="Max drawdown %"
+                      value={formatPercent(report.period_balance.max_drawdown_percent)}
+                      to="/raporty"
+                    />
+                    <StatCard
+                      emphasis="primary"
                       label="Liczba transakcji"
                       value={String(report.stats.closed_trades)}
+                      to="/transakcje"
                     />
-                    <StatCard label="Win rate" value={formatPercent(report.stats.win_rate)} />
+                    <StatCard
+                      emphasis="primary"
+                      label="Śr. R"
+                      value={formatR(report.stats.average_r)}
+                      to="/raporty"
+                    />
+                  </div>
+
+                  {/* Wskaźniki uzupełniające - te same dane, ale wizualnie ciszej. Wcześniej
+                      wszystkie kafelki wyglądały jednakowo i nie było widać, co jest ważne. */}
+                  <div className={styles.secondaryStatsGrid}>
                     <StatCard
                       label="Profit factor"
                       value={formatNumber(report.stats.profit_factor)}
@@ -198,11 +225,6 @@ export function DashboardPage(): ReactElement {
                         selectedAccount.currency,
                       )}
                       tone="loss"
-                    />
-                    <StatCard label="Śr. RR" value={formatR(report.stats.average_r)} />
-                    <StatCard
-                      label="Max drawdown %"
-                      value={formatPercent(report.period_balance.max_drawdown_percent)}
                     />
                   </div>
 
