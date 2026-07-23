@@ -78,3 +78,32 @@ fn write_line(level: &str, context: &str, message: &str) {
         None => eprint!("{line}"),
     }
 }
+
+/// Zapisuje każdą panikę do lokalnego logu diagnostycznego.
+///
+/// Bez tego panika w komendzie Tauri ginie w konsoli procesu, której użytkownik nie widzi -
+/// zostaje po niej wyłącznie "aplikacja przestała działać" bez żadnej wskazówki. Log zawiera
+/// komunikat i miejsce w kodzie, więc następny taki błąd da się od razu zdiagnozować.
+///
+/// Poprzedni hook (domyślny wydruk na stderr) jest zachowany i wywoływany dalej, żeby nic
+/// nie zniknęło z konsoli deweloperskiej.
+pub fn install_panic_logger() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let miejsce = info
+            .location()
+            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+            .unwrap_or_else(|| "nieznane miejsce".to_string());
+        // `payload` bywa `&str` albo `String` - obsługujemy oba, inaczej najczęstsze paniki
+        // zapisywałyby się jako "(nieznana treść)".
+        let tresc = info
+            .payload()
+            .downcast_ref::<&str>()
+            .map(|s| (*s).to_string())
+            .or_else(|| info.payload().downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "(nieznana treść)".to_string());
+
+        write_line("PANIC", &miejsce, &tresc);
+        previous(info);
+    }));
+}

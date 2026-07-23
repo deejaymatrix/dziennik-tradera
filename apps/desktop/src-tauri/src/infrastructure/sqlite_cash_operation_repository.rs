@@ -58,7 +58,7 @@ impl CashOperationRepository for SqliteCashOperationRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
 
         let account_exists: i64 = conn.query_row(
             "SELECT count(*) FROM accounts WHERE id = ?1",
@@ -98,7 +98,7 @@ impl CashOperationRepository for SqliteCashOperationRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let mut stmt = conn.prepare(&format!(
             "SELECT {SELECT_COLUMNS} FROM cash_operations WHERE account_id = ?1 ORDER BY occurred_at"
         ))?;
@@ -114,7 +114,7 @@ impl SqliteCashOperationRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let operation = conn.query_row(
             &format!("SELECT {SELECT_COLUMNS} FROM cash_operations WHERE id = ?1"),
             [id],

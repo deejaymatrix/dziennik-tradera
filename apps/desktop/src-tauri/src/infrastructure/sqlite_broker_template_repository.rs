@@ -104,7 +104,7 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let sql = if include_archived {
             format!("{SELECT} ORDER BY t.created_at")
         } else {
@@ -121,7 +121,7 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         conn.query_row(&format!("{SELECT} WHERE t.id = ?1"), [id], map_row)
             .optional()?
             .ok_or_else(|| AppError::NotFound(format!("Nie znaleziono szablonu o id {id}.")))
@@ -132,7 +132,7 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let id = Uuid::now_v7().to_string();
         let now = Utc::now().to_rfc3339();
         conn.execute(
@@ -155,7 +155,7 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
         let now = Utc::now().to_rfc3339();
         let template_id = Uuid::now_v7().to_string();
@@ -222,7 +222,7 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
         let now = Utc::now().to_rfc3339();
 
@@ -323,7 +323,7 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let affected = conn
             .execute(
                 "UPDATE broker_instrument_templates SET name = ?1, updated_at = ?2 WHERE id = ?3",
@@ -348,7 +348,7 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
         let now = Utc::now().to_rfc3339();
         let new_template_id = Uuid::now_v7().to_string();
@@ -421,7 +421,7 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
         let now = Utc::now().to_rfc3339();
 
@@ -482,7 +482,7 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         // Odpięcie zdejmuje szablon ze WSZYSTKICH kont, które go używają - służy wyłącznie
         // ścieżce archiwizacji szablonu, nie zmianie powiązania pojedynczego konta.
         conn.execute(
@@ -496,7 +496,7 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let exists: i64 = conn.query_row(
             "SELECT count(*) FROM broker_instrument_templates WHERE id = ?1 AND archived_at IS NULL",
             [id],
@@ -540,7 +540,7 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let affected = conn
             .execute(
                 "UPDATE broker_instrument_templates SET archived_at = NULL, updated_at = ?1
@@ -569,7 +569,7 @@ impl BrokerTemplateRepository for SqliteBrokerTemplateRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
         let archived_at: Option<Option<String>> = tx
             .query_row(

@@ -43,7 +43,7 @@ impl AttachmentRepository for SqliteAttachmentRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let id = Uuid::now_v7().to_string();
         let now = Utc::now().to_rfc3339();
         let next_sort_order: i64 = conn.query_row(
@@ -77,7 +77,7 @@ impl AttachmentRepository for SqliteAttachmentRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         conn.query_row(
             &format!("SELECT {SELECT_COLUMNS} FROM attachments WHERE id = ?1"),
             [id],
@@ -91,7 +91,7 @@ impl AttachmentRepository for SqliteAttachmentRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let mut stmt = conn.prepare(&format!(
             "SELECT {SELECT_COLUMNS} FROM attachments WHERE trade_id = ?1 ORDER BY sort_order"
         ))?;
@@ -105,7 +105,7 @@ impl AttachmentRepository for SqliteAttachmentRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let affected = conn.execute(
             "UPDATE attachments SET label = ?1 WHERE id = ?2",
             rusqlite::params![label, id],
@@ -123,7 +123,7 @@ impl AttachmentRepository for SqliteAttachmentRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
 
         let actual_count: i64 = tx.query_row(
@@ -156,7 +156,7 @@ impl AttachmentRepository for SqliteAttachmentRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let affected = conn.execute("DELETE FROM attachments WHERE id = ?1", [id])?;
         if affected == 0 {
             return Err(AppError::NotFound(format!(

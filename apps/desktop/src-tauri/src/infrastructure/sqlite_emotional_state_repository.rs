@@ -37,7 +37,7 @@ impl EmotionalStateRepository for SqliteEmotionalStateRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let id = Uuid::now_v7().to_string();
         let now = Utc::now();
         let next_sort_order: i64 = conn.query_row(
@@ -71,7 +71,7 @@ impl EmotionalStateRepository for SqliteEmotionalStateRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let sql = if include_hidden {
             format!("SELECT {SELECT_COLUMNS} FROM emotional_states ORDER BY sort_order")
         } else {
@@ -90,7 +90,7 @@ impl EmotionalStateRepository for SqliteEmotionalStateRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let affected = conn.execute(
             "UPDATE emotional_states SET hidden = ?1 WHERE id = ?2",
             rusqlite::params![hidden as i64, id],
@@ -108,7 +108,7 @@ impl EmotionalStateRepository for SqliteEmotionalStateRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let is_builtin: bool = conn
             .query_row(
                 "SELECT is_builtin FROM emotional_states WHERE id = ?1",
@@ -136,7 +136,7 @@ impl SqliteEmotionalStateRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         conn.query_row(
             &format!("SELECT {SELECT_COLUMNS} FROM emotional_states WHERE id = ?1"),
             [id],

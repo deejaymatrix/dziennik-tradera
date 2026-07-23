@@ -202,7 +202,7 @@ impl TradingRulesRepository for SqliteTradingRulesRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         read_state(&conn)
     }
 
@@ -213,7 +213,7 @@ impl TradingRulesRepository for SqliteTradingRulesRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
         apply_write(&tx, write)?;
         tx.commit()?;
@@ -224,7 +224,7 @@ impl TradingRulesRepository for SqliteTradingRulesRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
         let now = Utc::now().to_rfc3339();
         // Odtwarza pytania wbudowane: treść wraca do szablonu, ukrycie/archiwizacja są cofane.
@@ -243,7 +243,7 @@ impl TradingRulesRepository for SqliteTradingRulesRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let affected = conn.execute(
             "UPDATE trading_rules SET archived_at = NULL, updated_at = ?1 WHERE id = ?2 AND archived_at IS NOT NULL",
             rusqlite::params![Utc::now().to_rfc3339(), id],
@@ -260,7 +260,7 @@ impl TradingRulesRepository for SqliteTradingRulesRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let archived_at: Option<String> = conn
             .query_row(
                 "SELECT archived_at FROM trading_rules WHERE id = ?1",

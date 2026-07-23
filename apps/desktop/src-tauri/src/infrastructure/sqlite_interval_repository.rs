@@ -22,7 +22,7 @@ impl SqliteIntervalRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let found: Option<i64> = conn
             .query_row(
                 "SELECT 1 FROM intervals
@@ -67,7 +67,7 @@ impl IntervalRepository for SqliteIntervalRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let id = Uuid::now_v7().to_string();
         let now = Utc::now().to_rfc3339();
         let next_sort_order: i64 = conn.query_row(
@@ -93,7 +93,7 @@ impl IntervalRepository for SqliteIntervalRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         conn.query_row(
             &format!("SELECT {SELECT_COLUMNS} FROM intervals WHERE id = ?1"),
             [id],
@@ -111,7 +111,7 @@ impl IntervalRepository for SqliteIntervalRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let mut clauses = Vec::new();
         if !include_hidden {
             clauses.push("hidden = 0");
@@ -143,7 +143,7 @@ impl IntervalRepository for SqliteIntervalRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let is_builtin: bool = conn
             .query_row(
                 "SELECT is_builtin FROM intervals WHERE id = ?1",
@@ -174,7 +174,7 @@ impl IntervalRepository for SqliteIntervalRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let now = Utc::now().to_rfc3339();
         let affected = conn.execute(
             "UPDATE intervals SET hidden = ?1, updated_at = ?2 WHERE id = ?3",
@@ -193,7 +193,7 @@ impl IntervalRepository for SqliteIntervalRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let is_builtin: bool = conn
             .query_row(
                 "SELECT is_builtin FROM intervals WHERE id = ?1",
@@ -232,7 +232,7 @@ impl IntervalRepository for SqliteIntervalRepository {
             let conn = self
                 .conn
                 .lock()
-                .expect("mutex bazy danych zatruty (poprzedni panik)");
+                .unwrap_or_else(|zatruty| zatruty.into_inner());
             conn.query_row(
                 "SELECT label FROM intervals WHERE id = ?1 AND archived_at IS NOT NULL",
                 [id],
@@ -273,7 +273,7 @@ impl IntervalRepository for SqliteIntervalRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let now = Utc::now().to_rfc3339();
         let affected = conn.execute(
             "UPDATE intervals SET archived_at = NULL, label = ?1, updated_at = ?2
@@ -306,7 +306,7 @@ impl IntervalRepository for SqliteIntervalRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let archived_at: Option<String> = conn
             .query_row(
                 "SELECT archived_at FROM intervals WHERE id = ?1",
@@ -336,7 +336,7 @@ impl IntervalRepository for SqliteIntervalRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
         for (index, id) in ordered_ids.iter().enumerate() {
             tx.execute(

@@ -64,7 +64,7 @@ impl AccountRepository for SqliteAccountRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
 
         let id = Uuid::now_v7().to_string();
@@ -94,7 +94,7 @@ impl AccountRepository for SqliteAccountRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let account = conn
             .query_row(
                 &format!("SELECT {SELECT_COLUMNS} FROM accounts WHERE id = ?1"),
@@ -109,7 +109,7 @@ impl AccountRepository for SqliteAccountRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let sql = if include_archived {
             format!("SELECT {SELECT_COLUMNS} FROM accounts ORDER BY created_at")
         } else {
@@ -126,7 +126,7 @@ impl AccountRepository for SqliteAccountRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
         let now = Utc::now();
 
@@ -159,7 +159,7 @@ impl AccountRepository for SqliteAccountRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
         let now = Utc::now();
 
@@ -183,7 +183,7 @@ impl AccountRepository for SqliteAccountRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
         let now = Utc::now();
 
@@ -207,7 +207,7 @@ impl AccountRepository for SqliteAccountRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
 
         let archived_at: Option<String> = tx

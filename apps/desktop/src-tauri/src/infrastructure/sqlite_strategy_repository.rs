@@ -76,7 +76,7 @@ impl StrategyRepository for SqliteStrategyRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
 
         let id = Uuid::now_v7().to_string();
@@ -114,7 +114,7 @@ impl StrategyRepository for SqliteStrategyRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let strategy = conn
             .query_row(
                 &format!("SELECT {SELECT_COLUMNS} FROM strategies WHERE id = ?1"),
@@ -129,7 +129,7 @@ impl StrategyRepository for SqliteStrategyRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let sql = if include_archived {
             format!("SELECT {SELECT_COLUMNS} FROM strategies ORDER BY sort_order")
         } else {
@@ -148,7 +148,7 @@ impl StrategyRepository for SqliteStrategyRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
         let now = Utc::now();
 
@@ -187,7 +187,7 @@ impl StrategyRepository for SqliteStrategyRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
 
         let new_id = Uuid::now_v7().to_string();
@@ -225,7 +225,7 @@ impl StrategyRepository for SqliteStrategyRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let now = Utc::now().to_rfc3339();
         let affected = conn.execute(
             "UPDATE strategies SET archived_at = ?1, updated_at = ?1 WHERE id = ?2 AND archived_at IS NULL",
@@ -244,7 +244,7 @@ impl StrategyRepository for SqliteStrategyRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let now = Utc::now().to_rfc3339();
         let affected = conn.execute(
             "UPDATE strategies SET archived_at = NULL, updated_at = ?1 WHERE id = ?2 AND archived_at IS NOT NULL",
@@ -263,7 +263,7 @@ impl StrategyRepository for SqliteStrategyRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
 
         let archived_at: Option<String> = tx

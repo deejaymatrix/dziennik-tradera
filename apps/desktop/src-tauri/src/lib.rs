@@ -48,6 +48,7 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
     }
 
     logging::init(app_data_dir);
+    logging::install_panic_logger();
 
     let db_path = app_data_dir.join(db::APP_DB_FILENAME);
     let backup_dir = app_data_dir.join("backups");

@@ -293,7 +293,7 @@ impl TradeRepository for SqliteTradeRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
 
         let id = Uuid::now_v7().to_string();
@@ -377,7 +377,7 @@ impl TradeRepository for SqliteTradeRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let trade = conn
             .query_row(
                 &format!("SELECT {SELECT_COLUMNS} FROM trades WHERE id = ?1"),
@@ -395,7 +395,7 @@ impl TradeRepository for SqliteTradeRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let sql = if include_deleted {
             format!(
                 "SELECT {SELECT_COLUMNS} FROM trades WHERE account_id = ?1 ORDER BY display_number DESC"
@@ -427,7 +427,7 @@ impl TradeRepository for SqliteTradeRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
         let now = Utc::now();
         let pnl = resolve_pnl(write);
@@ -522,7 +522,7 @@ impl TradeRepository for SqliteTradeRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let now = Utc::now().to_rfc3339();
         let affected = conn.execute(
             "UPDATE trades SET deleted_at = ?1, updated_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
@@ -541,7 +541,7 @@ impl TradeRepository for SqliteTradeRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let now = Utc::now().to_rfc3339();
         let affected = conn.execute(
             "UPDATE trades SET deleted_at = NULL, updated_at = ?1 WHERE id = ?2 AND deleted_at IS NOT NULL",
@@ -560,7 +560,7 @@ impl TradeRepository for SqliteTradeRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
 
         let deleted_at: Option<String> = tx
@@ -597,7 +597,7 @@ impl TradeAuditRepository for SqliteTradeRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let id = Uuid::now_v7().to_string();
         let now = Utc::now();
         let detail = serde_json::to_string(changes)
@@ -619,7 +619,7 @@ impl TradeAuditRepository for SqliteTradeRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let mut stmt = conn.prepare(
             "SELECT id, occurred_at, detail FROM audit_log
              WHERE entity_type = 'trade' AND entity_id = ?1 AND action = 'trade.updated'

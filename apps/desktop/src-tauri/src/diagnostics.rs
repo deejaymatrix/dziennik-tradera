@@ -111,9 +111,7 @@ pub fn get_data_overview(
         ));
     };
 
-    let guard = conn
-        .lock()
-        .expect("mutex bazy danych zatruty (poprzedni panik)");
+    let guard = conn.lock().unwrap_or_else(|zatruty| zatruty.into_inner());
 
     // Liczymy tylko wpisy NIE leżące w koszu - użytkownik pyta "ile mam danych", a nie
     // "ile wierszy fizycznie stoi w tabelach".
@@ -175,9 +173,7 @@ pub fn get_diagnostic_report(state: State<'_, AppState>) -> String {
 
     match &state.db {
         DbState::Ready { conn, .. } => {
-            let guard = conn
-                .lock()
-                .expect("mutex bazy danych zatruty (poprzedni panik)");
+            let guard = conn.lock().unwrap_or_else(|zatruty| zatruty.into_inner());
             let schema_version: i64 = guard
                 .query_row(
                     "SELECT COALESCE(MAX(version), 0) FROM schema_migrations",

@@ -106,9 +106,7 @@ pub fn create_from_connection(
     app_version: &str,
     attachments_dir: &Path,
 ) -> Result<BackupManifest, AppError> {
-    let guard = conn
-        .lock()
-        .expect("mutex bazy danych zatruty (poprzedni panik)");
+    let guard = conn.lock().unwrap_or_else(|zatruty| zatruty.into_inner());
     let sqlite_bytes = snapshot_to_bytes(&guard)?;
     drop(guard);
 

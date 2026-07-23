@@ -30,7 +30,7 @@ impl PreferencesRepository for SqlitePreferencesRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let raw: Option<String> = conn
             .query_row("SELECT data FROM app_settings WHERE id = 1", [], |row| {
                 row.get(0)
@@ -62,7 +62,7 @@ impl PreferencesRepository for SqlitePreferencesRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         conn.execute(
             "INSERT INTO app_settings (id, settings_version, data, updated_at)
              VALUES (1, ?1, ?2, ?3)

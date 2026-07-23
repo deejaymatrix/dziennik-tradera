@@ -275,7 +275,7 @@ impl InstrumentRepository for SqliteInstrumentRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
         let now = Utc::now();
         let now_str = now.to_rfc3339();
@@ -339,7 +339,7 @@ impl InstrumentRepository for SqliteInstrumentRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let details = conn
             .query_row(
                 &format!("{DETAILS_SELECT} WHERE i.id = ?1"),
@@ -354,7 +354,7 @@ impl InstrumentRepository for SqliteInstrumentRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
 
         let mut conditions: Vec<String> = Vec::new();
         let mut params: Vec<String> = Vec::new();
@@ -430,7 +430,7 @@ impl InstrumentRepository for SqliteInstrumentRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
 
         let exists: i64 = tx.query_row(
@@ -474,7 +474,7 @@ impl InstrumentRepository for SqliteInstrumentRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
 
         let factory_index: Option<i64> = tx
@@ -529,7 +529,7 @@ impl InstrumentRepository for SqliteInstrumentRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let affected = conn.execute(
             "UPDATE instrument_preferences SET is_visible = ?1 WHERE instrument_id = ?2",
             rusqlite::params![is_visible as i64, instrument_id],
@@ -553,7 +553,7 @@ impl InstrumentRepository for SqliteInstrumentRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let placeholders = instrument_ids
             .iter()
             .enumerate()
@@ -576,7 +576,7 @@ impl InstrumentRepository for SqliteInstrumentRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
         for (index, id) in ordered_instrument_ids.iter().enumerate() {
             tx.execute(
@@ -592,7 +592,7 @@ impl InstrumentRepository for SqliteInstrumentRepository {
         let conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let placeholders = DEFAULT_VISIBLE_DISPLAY_SYMBOLS
             .iter()
             .enumerate()
@@ -627,7 +627,7 @@ impl InstrumentRepository for SqliteInstrumentRepository {
         let mut conn = self
             .conn
             .lock()
-            .expect("mutex bazy danych zatruty (poprzedni panik)");
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
         let tx = conn.transaction()?;
 
         let factory_index: Option<i64> = tx
