@@ -37,7 +37,10 @@
   --color-border-strong: #3a4350;
   --color-text: #f3f4f6;
   --color-text-secondary: #a8b0bc;
-  --color-text-muted: #737d89;
+  /* Kontrast do tła kart wynosił 4,34:1 - poniżej progu WCAG AA (4,5:1) dla zwykłego
+     tekstu, a tym kolorem są etykiety pól, podpisy i podpowiedzi. Rozjaśnione tak, żeby
+     przechodziło na WSZYSTKICH trzech tłach: --color-bg, --color-surface i -surface-alt. */
+  --color-text-muted: #828c99;
   --color-accent: #c9a85a;
   --color-accent-hover: #d8ba72;
   --color-accent-contrast: #17130a;
@@ -135,9 +138,16 @@
   --color-border-strong: #beb7aa;
   --color-text: #1a1d22;
   --color-text-secondary: #5e6670;
-  --color-text-muted: #818892;
-  --color-accent: #8a681f;
-  --color-accent-hover: #745516;
+  /* Analogicznie w motywie jasnym: 3,58:1 na białej karcie i 3,20:1 na tle strony. Wartość jest
+     dobrana pod NAJTRUDNIEJSZE tło, czyli beżowe tło menu (--color-surface-nav) - na nim
+     kontrast wynosi 4,75:1, a na pozostałych powierzchniach jest wyższy. */
+  --color-text-muted: #5f666f;
+  /* Złoto motywu jasnego jest ciemniejsze niż szampańskie z motywu ciemnego, bo tamto nie ma
+     kontrastu na bieli. Ten odcień przechodzi AA także na NAJEHANYM wierszu (4,99:1) - przy
+     #8a681f wychodziło tam 4,37:1, więc akcent jako tekst w podświetlonym wierszu nie spełniał
+     progu. */
+  --color-accent: #805f16;
+  --color-accent-hover: #6b4f12;
   --color-accent-contrast: #ffffff;
   --color-neutral: #606a75;
   --color-profit: #087a4b;

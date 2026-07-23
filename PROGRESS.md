@@ -1387,13 +1387,14 @@ wszędzie. Zrobione dotąd tokeny i paleta zostają jako fundament.
 | Q7   | Raporty jako workspace: zwijane filtry, opis zakresu danych, eksport bieżącego podraportu z tym samym zawężeniem                           | ✅     |
 | Q8   | Wykresy: tokeny palety serii, tooltip o wysokim kontraście, kolor tylko tam gdzie coś znaczy, PDF zostaje jasny                            | ✅     |
 | Q9   | Dostępność i animacje: klawiatura listy zakładek, jawny znak wyniku, czasy z tokenów                                                       | ✅     |
-| Q10  | Stany puste, ładowania, błędu i tylko-do-odczytu w każdym widoku - z jednych komponentów | ✅     |
+| Q10  | Stany puste, ładowania, błędu i tylko-do-odczytu w każdym widoku - z jednych komponentów                                                   | ✅     |
 
 ## Blok D — pełny audyt (wymagany przed instalatorem)
 
 | Poz. | Zakres                                                                                                                                                                  | Status |
 | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| A1   | Audyt wizualny wszystkich widoków w obu motywach, przy 1366×768 i 1920×1080                                                                                             | ⬜     |
+| A1   | Audyt wizualny obu motywów: kontrast WCAG AA (5 naruszeń naprawionych, test blokujący), brak przepełnień w 1366×768 i 1920×1080 | ✅     |
+|      | ↳ Widoki zależne od danych czekają na A2 - w przeglądarce bez backendu Tauri renderują tylko stan błędu. |        |
 | A2   | Audyt jak końcowy użytkownik: cztery warianty bazy (pusta, przykładowa, po migracjach, duża)                                                                            | ⬜     |
 | A3   | Wartości graniczne: długie nazwy, wielkie liczby, puste dane, bardzo długie tabele                                                                                      | ⬜     |
 | A4   | Obliczenia finansowe: lot, P&L, koszty, częściowe zamknięcia, saldo                                                                                                     | ⬜     |
