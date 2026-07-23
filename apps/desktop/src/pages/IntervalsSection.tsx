@@ -16,6 +16,8 @@ import type { Interval } from "../app/types/interval";
 import { Badge } from "../ui/components/Badge/Badge";
 import { Button } from "../ui/components/Button/Button";
 import { IconButton } from "../ui/components/IconButton/IconButton";
+import { EmptyState } from "../ui/components/EmptyState/EmptyState";
+import { ErrorState } from "../ui/components/ErrorState/ErrorState";
 import { Skeleton } from "../ui/components/Skeleton/Skeleton";
 import { TextField } from "../ui/components/TextField/TextField";
 import { useToast } from "../ui/components/Toast/ToastProvider";
@@ -28,6 +30,7 @@ import settingsStyles from "./SettingsPage.module.css";
 export function IntervalsSection(): ReactElement {
   const { showToast } = useToast();
   const [intervals, setIntervals] = useState<Interval[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -40,8 +43,13 @@ export function IntervalsSection(): ReactElement {
         includeArchived: true,
       });
       setIntervals(data);
+      setLoadError(null);
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+      // Sam toast nie wystarczy: znika po chwili, a lista zostawała na `null`, przez co
+      // szkielet ładowania kręcił się w nieskończoność i wyglądał jak zawieszona aplikacja.
+      const komunikat = e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.";
+      setLoadError(komunikat);
+      showToast(komunikat, "error");
     }
   }
 
@@ -143,7 +151,26 @@ export function IntervalsSection(): ReactElement {
         można też przemianować i zarchiwizować.
       </p>
 
-      {intervals === null && <Skeleton height="2rem" />}
+      {loadError !== null && (
+        <ErrorState
+          title="Nie udało się wczytać interwałów"
+          description={loadError}
+          action={
+            <Button variant="secondary" size="sm" onClick={() => void load()}>
+              Spróbuj ponownie
+            </Button>
+          }
+        />
+      )}
+
+      {intervals === null && loadError === null && <Skeleton height="2rem" />}
+
+      {intervals !== null && intervals.length === 0 && (
+        <EmptyState
+          title="Brak interwałów"
+          description="Dodaj pierwszy interwał polem powyżej - pojawi się na liście wyboru w formularzu transakcji."
+        />
+      )}
 
       {intervals !== null && (
         <ul className={styles.list}>

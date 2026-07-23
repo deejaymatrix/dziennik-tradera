@@ -11,6 +11,8 @@ import type { Interval } from "../app/types/interval";
 import { invokeCommand } from "../app/invokeCommand";
 import { Button } from "../ui/components/Button/Button";
 import { Modal } from "../ui/components/Modal/Modal";
+import { ErrorState } from "../ui/components/ErrorState/ErrorState";
+import { Skeleton } from "../ui/components/Skeleton/Skeleton";
 import { SectionCard } from "../ui/components/SectionCard/SectionCard";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import {
@@ -398,15 +400,24 @@ export function SettingsPage(): ReactElement {
     }
   }
 
+  // Ładowanie i błąd korzystają z tych samych komponentów co reszta aplikacji - wcześniej
+  // Ustawienia miały własne akapity, więc ten sam rodzaj sytuacji wyglądał tu inaczej niż
+  // na każdym innym ekranie.
   if (loading) {
-    return <p className={styles.note}>Wczytywanie ustawień...</p>;
+    return <Skeleton height="12rem" />;
   }
 
   if (error || !draft) {
     return (
-      <SectionCard>
-        <p className={styles.note}>Nie udało się wczytać ustawień: {error ?? "brak danych"}.</p>
-      </SectionCard>
+      <ErrorState
+        title="Nie udało się wczytać ustawień"
+        description={error ?? "Brak danych ustawień."}
+        action={
+          <Button variant="secondary" onClick={() => window.location.reload()}>
+            Odśwież
+          </Button>
+        }
+      />
     );
   }
 

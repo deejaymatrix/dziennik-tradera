@@ -6,6 +6,8 @@ import type { EmotionalState } from "../app/types/emotional_state";
 import { Badge } from "../ui/components/Badge/Badge";
 import { Button } from "../ui/components/Button/Button";
 import { IconButton } from "../ui/components/IconButton/IconButton";
+import { EmptyState } from "../ui/components/EmptyState/EmptyState";
+import { ErrorState } from "../ui/components/ErrorState/ErrorState";
 import { Skeleton } from "../ui/components/Skeleton/Skeleton";
 import { TextField } from "../ui/components/TextField/TextField";
 import { useConfirm } from "../ui/components/ConfirmDialog/ConfirmDialog";
@@ -19,6 +21,7 @@ export function EmotionalStatesSection(): ReactElement {
   const { showToast } = useToast();
   const confirm = useConfirm();
   const [states, setStates] = useState<EmotionalState[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -28,8 +31,13 @@ export function EmotionalStatesSection(): ReactElement {
         includeHidden: true,
       });
       setStates(data);
+      setLoadError(null);
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+      // Sam toast nie wystarczy: znika po chwili, a lista zostawała na `null`, przez co
+      // szkielet ładowania kręcił się w nieskończoność i wyglądał jak zawieszona aplikacja.
+      const komunikat = e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.";
+      setLoadError(komunikat);
+      showToast(komunikat, "error");
     }
   }
 
@@ -86,7 +94,26 @@ export function EmotionalStatesSection(): ReactElement {
         stany można ukryć, własne można też usunąć.
       </p>
 
-      {states === null && <Skeleton height="2rem" />}
+      {loadError !== null && (
+        <ErrorState
+          title="Nie udało się wczytać stanów emocjonalnych"
+          description={loadError}
+          action={
+            <Button variant="secondary" size="sm" onClick={() => void load()}>
+              Spróbuj ponownie
+            </Button>
+          }
+        />
+      )}
+
+      {states === null && loadError === null && <Skeleton height="2rem" />}
+
+      {states !== null && states.length === 0 && (
+        <EmptyState
+          title="Brak stanów emocjonalnych"
+          description="Dodaj pierwszy stan polem powyżej - pojawi się do wyboru przy transakcji."
+        />
+      )}
 
       {states !== null && (
         <ul className={styles.list}>

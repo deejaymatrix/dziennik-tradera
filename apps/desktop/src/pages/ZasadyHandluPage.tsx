@@ -10,6 +10,7 @@ import { Checkbox } from "../ui/components/Checkbox/Checkbox";
 import { useConfirm } from "../ui/components/ConfirmDialog/ConfirmDialog";
 import { useOptionalConfirm } from "../app/useOptionalConfirm";
 import { EditModeActions } from "../ui/components/EditModeActions/EditModeActions";
+import { EmptyState } from "../ui/components/EmptyState/EmptyState";
 import { ErrorState } from "../ui/components/ErrorState/ErrorState";
 import { IconButton } from "../ui/components/IconButton/IconButton";
 import { Skeleton } from "../ui/components/Skeleton/Skeleton";
@@ -346,6 +347,18 @@ export function ZasadyHandluPage(): ReactElement {
             <Plus size={14} /> Dodaj kategorię
           </Button>
         </div>
+      )}
+
+      {categories.length === 0 && !editing && (
+        <EmptyState
+          title="Brak zasad handlu"
+          description="Zasady to Twoja checklista przed wejściem w pozycję. Włącz tryb edycji, żeby dodać pierwszą kategorię i jej zasady."
+          action={
+            <Button variant="primary" onClick={() => setEditing(true)}>
+              Dodaj pierwsze zasady
+            </Button>
+          }
+        />
       )}
 
       {categories.map((category, categoryIndex) => {
