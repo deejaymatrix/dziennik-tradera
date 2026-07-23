@@ -71,10 +71,12 @@
   --motion-slow: 180ms;
   --motion-easing: ease;
 
-  /* Layout */
-  --sidebar-width-expanded: 248px;
-  --sidebar-width-collapsed: 64px;
-  --header-height: 56px;
+  /* Layout - skaluje się razem z rozmiarem interfejsu. Sztywne wartości powodowały, że przy
+     120% nazwa aplikacji i podpisy pozycji nie mieściły się w menu bocznym i były ucinane.
+     Świadomie BEZ gęstości: gęstość zagęszcza treść, a nie zwęża nawigację. */
+  --sidebar-width-expanded: calc(248px * var(--ui-scale));
+  --sidebar-width-collapsed: calc(64px * var(--ui-scale));
+  --header-height: calc(56px * var(--ui-scale));
 }
 
 :root[data-theme="light"] {
