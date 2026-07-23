@@ -961,6 +961,11 @@ export function TradeFormModal({
                   <TextField
                     label="Swap"
                     inputMode="decimal"
+                    // Swap jest liczony jako KOSZT, tak samo jak prowizja - ale platformy
+                    // handlowe pokazują go ze znakiem odwrotnym (ujemny = naliczony).
+                    // Bez tej podpowiedzi przepisanie "-3,20" z historii brokera po cichu
+                    // ZAWYŻAŁOBY wynik transakcji o podwójną kwotę swapu.
+                    hint="Koszt: wpisz dodatnio, gdy broker go naliczył. Swap na Twoją korzyść wpisz ze znakiem minus."
                     value={fields.swap}
                     onChange={(e) => setField("swap", e.target.value)}
                     disabled={readOnly}

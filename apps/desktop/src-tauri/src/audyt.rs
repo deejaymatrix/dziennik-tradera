@@ -944,3 +944,407 @@ mod graniczne_zamkniecia {
         );
     }
 }
+
+/// Audyt A4: niezależne obliczenia referencyjne (sekcja 20.3 promptu).
+///
+/// Kluczowa zasada tego modułu: liczby oczekiwane są WYPROWADZONE Z DEFINICJI i wpisane wprost
+/// jako stałe, a nie policzone kodem aplikacji. Test, który liczy oczekiwaną wartość tą samą
+/// funkcją co sprawdzana, nie sprawdza niczego - potwierdzałby tylko, że funkcja robi to,
+/// co robi. Dlatego każda liczba poniżej ma obok siebie rachunek, z którego powstała.
+///
+/// Instrument referencyjny dobrany tak, żeby rachunek dało się wykonać w pamięci:
+/// tick 0,00001, wartość ticka 1,00 dla zysku i straty, punkt 0,0001, waluta zgodna z rachunkiem.
+/// Przy 1 locie ruch o 0,00001 to dokładnie 1,00 jednostki waluty.
+#[cfg(test)]
+mod obliczenia_referencyjne {
+    use crate::domain::trade::TradeSide;
+    use crate::domain::trade_calculations::{calculate, InstrumentCalcSpec, TradeCalculationInput};
+    use crate::domain::trade_partial_close::{self, PartialClose};
+    use rust_decimal::Decimal;
+    use rust_decimal_macros::dec;
+
+    fn spec() -> InstrumentCalcSpec {
+        InstrumentCalcSpec {
+            point: dec!(0.0001),
+            trade_tick_size: dec!(0.00001),
+            tick_value_profit: dec!(1),
+            tick_value_loss: dec!(1),
+            currency_profit: "USD".to_string(),
+        }
+    }
+
+    fn wejscie() -> TradeCalculationInput {
+        TradeCalculationInput {
+            side: Some(TradeSide::Buy),
+            instrument: Some(spec()),
+            account_currency: Some("USD".to_string()),
+            volume: Some(dec!(1)),
+            ..Default::default()
+        }
+    }
+
+    /// P&L BUY. Rachunek: wejście 1,10000, wyjście 1,10500, różnica 0,00500.
+    /// Ticków: 0,00500 / 0,00001 = 500. Wartość: 500 x 1,00 x 1 lot = 500,00.
+    #[test]
+    fn pnl_buy_zgadza_sie_z_rachunkiem_recznym() {
+        let wynik = calculate(&TradeCalculationInput {
+            entry_price: Some(dec!(1.10000)),
+            exit_price: Some(dec!(1.10500)),
+            ..wejscie()
+        });
+        assert_eq!(wynik.gross_pnl, Some(dec!(500)));
+        assert_eq!(wynik.net_pnl, Some(dec!(500)));
+    }
+
+    /// P&L SELL to LUSTRO transakcji BUY: ten sam ruch ceny w górę daje przy sprzedaży stratę
+    /// o tej samej wartości bezwzględnej. To najczęstsze miejsce na błąd znaku.
+    #[test]
+    fn pnl_sell_jest_lustrem_pnl_buy() {
+        let kupno = calculate(&TradeCalculationInput {
+            entry_price: Some(dec!(1.10000)),
+            exit_price: Some(dec!(1.10500)),
+            ..wejscie()
+        });
+        let sprzedaz = calculate(&TradeCalculationInput {
+            side: Some(TradeSide::Sell),
+            entry_price: Some(dec!(1.10000)),
+            exit_price: Some(dec!(1.10500)),
+            ..wejscie()
+        });
+        assert_eq!(kupno.gross_pnl, Some(dec!(500)));
+        assert_eq!(sprzedaz.gross_pnl, Some(dec!(-500)));
+    }
+
+    /// Punkty: różnica 0,00500 podzielona przez punkt 0,0001 to 50 punktów. Punkt celowo NIE
+    /// jest tym samym co tick - i właśnie dlatego liczba punktów (50) różni się od liczby
+    /// ticków (500) użytej do przeliczenia pieniędzy.
+    #[test]
+    fn punkty_licza_sie_z_punktu_a_nie_z_ticka() {
+        let wynik = calculate(&TradeCalculationInput {
+            entry_price: Some(dec!(1.10000)),
+            exit_price: Some(dec!(1.10500)),
+            ..wejscie()
+        });
+        assert_eq!(wynik.pnl_points, Some(dec!(50)));
+    }
+
+    /// Lot mnoży wynik liniowo. Rachunek: 500,00 przy 1 locie => 250,00 przy 0,5 lota
+    /// i 5,00 przy 0,01 lota.
+    #[test]
+    fn lot_skaluje_wynik_liniowo() {
+        for (lot, oczekiwane) in [
+            (dec!(1), dec!(500)),
+            (dec!(0.5), dec!(250)),
+            (dec!(0.01), dec!(5)),
+        ] {
+            let wynik = calculate(&TradeCalculationInput {
+                volume: Some(lot),
+                entry_price: Some(dec!(1.10000)),
+                exit_price: Some(dec!(1.10500)),
+                ..wejscie()
+            });
+            assert_eq!(wynik.gross_pnl, Some(oczekiwane), "lot {lot}");
+        }
+    }
+
+    /// Koszty. Rachunek: brutto 500,00 minus prowizja 7,00, swap 2,50 i opłaty 0,50
+    /// daje netto 490,00. Koszty ZMNIEJSZAJĄ wynik także wtedy, gdy jest ujemny.
+    #[test]
+    fn koszty_odejmuja_sie_od_brutto() {
+        let zysk = calculate(&TradeCalculationInput {
+            entry_price: Some(dec!(1.10000)),
+            exit_price: Some(dec!(1.10500)),
+            commission: dec!(7),
+            swap: dec!(2.5),
+            other_fees: dec!(0.5),
+            ..wejscie()
+        });
+        assert_eq!(zysk.gross_pnl, Some(dec!(500)));
+        assert_eq!(zysk.net_pnl, Some(dec!(490)));
+
+        // Strata 500,00 powiększona o te same koszty 10,00 daje -510,00.
+        let strata = calculate(&TradeCalculationInput {
+            entry_price: Some(dec!(1.10000)),
+            exit_price: Some(dec!(1.09500)),
+            commission: dec!(7),
+            swap: dec!(2.5),
+            other_fees: dec!(0.5),
+            ..wejscie()
+        });
+        assert_eq!(strata.gross_pnl, Some(dec!(-500)));
+        assert_eq!(strata.net_pnl, Some(dec!(-510)));
+    }
+
+    /// Swap jest KOSZTEM, dokładnie jak prowizja - liczba dodatnia zmniejsza wynik.
+    /// Rachunek: 500,00 - 3,00 = 497,00.
+    ///
+    /// To jest świadoma konwencja aplikacji i nie wolno jej zmienić bez przeliczenia
+    /// WSZYSTKICH zapisanych transakcji: odwrócenie znaku po cichu zmieniłoby wynik każdej
+    /// historycznej pozycji ze swapem. Pułapka polega na tym, że platformy handlowe pokazują
+    /// swap odwrotnie (ujemny = naliczony), więc przepisanie "-3,20" z historii brokera
+    /// zawyżyłoby wynik o podwójną kwotę. Dlatego pole w formularzu ma podpowiedź mówiącą
+    /// wprost, w którą stronę wpisywać - a ten test pilnuje, że matematyka się nie zmieni.
+    #[test]
+    fn swap_jest_kosztem_tak_jak_prowizja() {
+        let naliczony = calculate(&TradeCalculationInput {
+            entry_price: Some(dec!(1.10000)),
+            exit_price: Some(dec!(1.10500)),
+            swap: dec!(3),
+            ..wejscie()
+        });
+        assert_eq!(naliczony.net_pnl, Some(dec!(497)));
+
+        // Swap na korzyść użytkownika wpisuje się ze znakiem minus: 500,00 + 3,00 = 503,00.
+        let na_korzysc = calculate(&TradeCalculationInput {
+            entry_price: Some(dec!(1.10000)),
+            exit_price: Some(dec!(1.10500)),
+            swap: dec!(-3),
+            ..wejscie()
+        });
+        assert_eq!(na_korzysc.net_pnl, Some(dec!(503)));
+    }
+
+    /// Ryzyko: wejście 1,10000, SL 1,09800, dystans 0,00200 = 200 ticków = 200,00 przy 1 locie.
+    /// Potencjalny zysk: TP 1,10600, dystans 0,00600 = 600 ticków = 600,00.
+    /// R:R = 600,00 / 200,00 = 3.
+    #[test]
+    fn ryzyko_zysk_i_rr_zgadzaja_sie_z_rachunkiem() {
+        let wynik = calculate(&TradeCalculationInput {
+            entry_price: Some(dec!(1.10000)),
+            stop_loss: Some(dec!(1.09800)),
+            take_profit: Some(dec!(1.10600)),
+            ..wejscie()
+        });
+        assert_eq!(wynik.risk_amount, Some(dec!(200)));
+        assert_eq!(wynik.reward_amount, Some(dec!(600)));
+        assert_eq!(wynik.rr_planned, Some(dec!(3)));
+    }
+
+    /// R zrealizowane: wynik 500,00 przy ryzyku 200,00 to 2,5R.
+    #[test]
+    fn zrealizowane_r_to_wynik_podzielony_przez_ryzyko() {
+        let wynik = calculate(&TradeCalculationInput {
+            entry_price: Some(dec!(1.10000)),
+            exit_price: Some(dec!(1.10500)),
+            stop_loss: Some(dec!(1.09800)),
+            ..wejscie()
+        });
+        assert_eq!(wynik.risk_amount, Some(dec!(200)));
+        assert_eq!(wynik.pnl_r, Some(dec!(2.5)));
+    }
+
+    /// Procent ryzyka i procent wyniku liczone od salda rachunku.
+    /// Rachunek: ryzyko 200,00 przy saldzie 10 000,00 to 2%. Wynik 500,00 to 5%.
+    #[test]
+    fn procenty_licza_sie_od_salda_rachunku() {
+        let wynik = calculate(&TradeCalculationInput {
+            entry_price: Some(dec!(1.10000)),
+            exit_price: Some(dec!(1.10500)),
+            stop_loss: Some(dec!(1.09800)),
+            account_balance: Some(dec!(10000)),
+            ..wejscie()
+        });
+        assert_eq!(wynik.risk_percent, Some(dec!(2)));
+        assert_eq!(wynik.pnl_percent, Some(dec!(5)));
+    }
+
+    /// Różna wartość ticka dla zysku i straty (broker potrafi je rozróżniać). Rachunek:
+    /// 500 ticków x 0,90 = 450,00 na plusie, ale 500 ticków x 1,10 = -550,00 na minusie.
+    #[test]
+    fn osobna_wartosc_ticka_dla_zysku_i_straty() {
+        let asymetryczny = InstrumentCalcSpec {
+            tick_value_profit: dec!(0.9),
+            tick_value_loss: dec!(1.1),
+            ..spec()
+        };
+        let zysk = calculate(&TradeCalculationInput {
+            instrument: Some(asymetryczny.clone()),
+            entry_price: Some(dec!(1.10000)),
+            exit_price: Some(dec!(1.10500)),
+            ..wejscie()
+        });
+        let strata = calculate(&TradeCalculationInput {
+            instrument: Some(asymetryczny),
+            entry_price: Some(dec!(1.10000)),
+            exit_price: Some(dec!(1.09500)),
+            ..wejscie()
+        });
+        assert_eq!(zysk.gross_pnl, Some(dec!(450)));
+        assert_eq!(strata.gross_pnl, Some(dec!(-550)));
+    }
+
+    /// Przeliczenie walutowe. Rachunek: 500,00 EUR przy kursie 4,30 to 2150,00 PLN.
+    /// Bez kursu aplikacja NIE zgaduje - zostawia puste pola i podnosi flagę.
+    #[test]
+    fn przeliczenie_walutowe_nigdy_nie_zgaduje_kursu() {
+        let obcy = InstrumentCalcSpec {
+            currency_profit: "EUR".to_string(),
+            ..spec()
+        };
+
+        let bez_kursu = calculate(&TradeCalculationInput {
+            instrument: Some(obcy.clone()),
+            account_currency: Some("PLN".to_string()),
+            entry_price: Some(dec!(1.10000)),
+            exit_price: Some(dec!(1.10500)),
+            ..wejscie()
+        });
+        assert!(bez_kursu.requires_conversion_rate);
+        assert_eq!(bez_kursu.gross_pnl, None, "kurs zgadnięty po cichu");
+
+        let z_kursem = calculate(&TradeCalculationInput {
+            instrument: Some(obcy),
+            account_currency: Some("PLN".to_string()),
+            conversion_rate: Some(dec!(4.30)),
+            entry_price: Some(dec!(1.10000)),
+            exit_price: Some(dec!(1.10500)),
+            ..wejscie()
+        });
+        assert_eq!(z_kursem.gross_pnl, Some(dec!(2150)));
+    }
+
+    /// Częściowe zamknięcia: wynik brutto to SUMA wpisanych kwot zrealizowanych, a nie
+    /// przeliczenie z ceny wyjścia. Rachunek: 120,50 + (-40,25) + 10,00 = 90,25.
+    #[test]
+    fn czesciowe_zamkniecia_sumuja_kwoty_zrealizowane() {
+        let zamkniecia = vec![
+            PartialClose {
+                closed_volume: dec!(0.3),
+                realized_pnl: dec!(120.50),
+            },
+            PartialClose {
+                closed_volume: dec!(0.4),
+                realized_pnl: dec!(-40.25),
+            },
+            PartialClose {
+                closed_volume: dec!(0.3),
+                realized_pnl: dec!(10.00),
+            },
+        ];
+        assert_eq!(
+            trade_partial_close::realized_pnl(&zamkniecia),
+            dec!(90.25),
+            "suma kwot zrealizowanych"
+        );
+        assert_eq!(
+            trade_partial_close::closed_volume(&zamkniecia),
+            dec!(1.0),
+            "suma zamkniętych lotów"
+        );
+
+        let wynik = calculate(&TradeCalculationInput {
+            entry_price: Some(dec!(1.10000)),
+            // Cena wyjścia jest tu CELOWO sprzeczna z kwotami - gdyby silnik ją uwzględnił,
+            // wynik nie byłby równy 90,25 i test by to wykrył.
+            exit_price: Some(dec!(1.99999)),
+            commission: dec!(0.25),
+            partial_closes: zamkniecia,
+            ..wejscie()
+        });
+        assert_eq!(wynik.gross_pnl, Some(dec!(90.25)));
+        assert_eq!(wynik.net_pnl, Some(dec!(90.00)));
+    }
+
+    /// Ćwierć grosza w kwotach nie może zniknąć. Rachunek: 0,10 + 0,20 = 0,30 dokładnie.
+    /// W binarnym `f64` ta suma daje 0,30000000000000004 - dlatego pieniądze są na `Decimal`.
+    #[test]
+    fn dziesietne_kwoty_nie_gubia_groszy() {
+        let zamkniecia = vec![
+            PartialClose {
+                closed_volume: dec!(0.5),
+                realized_pnl: dec!(0.10),
+            },
+            PartialClose {
+                closed_volume: dec!(0.5),
+                realized_pnl: dec!(0.20),
+            },
+        ];
+        let suma = trade_partial_close::realized_pnl(&zamkniecia);
+        assert_eq!(suma, dec!(0.30));
+        assert_eq!(suma.to_string(), "0.30");
+
+        // Ta sama suma na f64 - pokazana wprost, żeby było widać, przed czym broni Decimal.
+        let f = 0.10_f64 + 0.20_f64;
+        assert_ne!(
+            f, 0.30_f64,
+            "gdyby f64 był dokładny, ten moduł nie byłby potrzebny"
+        );
+    }
+
+    /// Zerowy tick nie może spowodować dzielenia przez zero - instrument z niekompletną
+    /// specyfikacją musi dać zero, a nie panikę.
+    #[test]
+    fn zerowy_tick_nie_dzieli_przez_zero() {
+        let zepsuty = InstrumentCalcSpec {
+            trade_tick_size: Decimal::ZERO,
+            point: Decimal::ZERO,
+            ..spec()
+        };
+        let wynik = calculate(&TradeCalculationInput {
+            instrument: Some(zepsuty),
+            entry_price: Some(dec!(1.10000)),
+            exit_price: Some(dec!(1.10500)),
+            ..wejscie()
+        });
+        assert_eq!(wynik.gross_pnl, Some(Decimal::ZERO));
+    }
+
+    /// Zerowe ryzyko (SL dokładnie na cenie wejścia) nie może wyprodukować R jako
+    /// dzielenia przez zero ani nieskończoności.
+    #[test]
+    fn zerowe_ryzyko_nie_daje_nieskonczonego_r() {
+        let wynik = calculate(&TradeCalculationInput {
+            entry_price: Some(dec!(1.10000)),
+            exit_price: Some(dec!(1.10500)),
+            stop_loss: Some(dec!(1.10000)),
+            ..wejscie()
+        });
+        assert_eq!(wynik.risk_amount, Some(Decimal::ZERO));
+        assert_eq!(wynik.pnl_r, None, "R przy zerowym ryzyku musi zostać puste");
+    }
+}
+
+/// Audyt A4, część druga: zakaz binarnego `float` jako źródła prawdy dla pieniędzy
+/// (ostatnie zdanie sekcji 20.3).
+#[cfg(test)]
+mod pieniadze_bez_float {
+    /// Moduły domenowe, w których liczone są kwoty. Żaden nie ma prawa użyć `f64`/`f32`.
+    const MODULY_PIENIEZNE: [(&str, &str); 5] = [
+        (
+            "trade_calculations",
+            include_str!("domain/trade_calculations.rs"),
+        ),
+        (
+            "trade_partial_close",
+            include_str!("domain/trade_partial_close.rs"),
+        ),
+        ("balance", include_str!("domain/balance.rs")),
+        ("trade_stats", include_str!("domain/trade_stats.rs")),
+        ("cash_operation", include_str!("domain/cash_operation.rs")),
+    ];
+
+    /// Pojedynczy `f64` w tych plikach oznaczałby, że jakaś kwota przechodzi przez binarny
+    /// zmiennoprzecinkowy typ - a stamtąd wracają zaokrąglenia w rodzaju 0,30000000000000004.
+    /// Wyjątkiem są komentarze i testy: tam `f64` bywa pokazany WPROST, właśnie po to,
+    /// żeby udokumentować, przed czym broni `Decimal`.
+    #[test]
+    fn kwoty_nie_przechodza_przez_binarny_float() {
+        for (nazwa, zrodlo) in MODULY_PIENIEZNE {
+            let kod = zrodlo
+                .lines()
+                // Komentarze odpadają - opisują problem, nie liczą pieniędzy.
+                .filter(|l| !l.trim_start().starts_with("//"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            // Sekcja testów odpada z tego samego powodu.
+            let kod = kod.split("#[cfg(test)]").next().unwrap_or(&kod);
+
+            for typ in ["f64", "f32"] {
+                assert!(
+                    !kod.contains(typ),
+                    "moduł {nazwa} używa {typ} - pieniądze muszą być liczone na Decimal"
+                );
+            }
+        }
+    }
+}
