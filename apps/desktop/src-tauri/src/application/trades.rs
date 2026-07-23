@@ -92,6 +92,7 @@ impl TradesService {
             account_balance,
             account_currency,
             conversion_rate: input.conversion_rate,
+            partial_closes: input.partial_closes.clone(),
         };
 
         Ok(trade_calculations::calculate(&calc_input))
@@ -159,6 +160,7 @@ impl TradesService {
             account_balance: Some(account.balance),
             account_currency: Some(account.account.currency.clone()),
             conversion_rate: input.conversion_rate,
+            partial_closes: input.partial_closes.clone(),
         };
         let calculation = trade_calculations::calculate(&calc_input);
 
@@ -362,6 +364,7 @@ mod tests {
             }),
             emotions: None,
             checklist: None,
+            partial_closes: vec![],
         }
     }
 

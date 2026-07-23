@@ -7,6 +7,7 @@ use super::strategy::StrategySnapshot;
 use super::strategy_checklist::StrategyChecklist;
 use super::trade_calculations::TradeCalculation;
 use super::trade_emotions::TradeEmotions;
+use super::trade_partial_close::{self, PartialClose};
 use crate::error::AppError;
 
 /// Status NIGDY nie jest wybierany przez użytkownika - wynika wyłącznie z obecności danych
@@ -49,6 +50,30 @@ pub fn compute_status(
     if !has_open_data {
         TradeStatus::Draft
     } else if has_close_data {
+        TradeStatus::Closed
+    } else {
+        TradeStatus::Open
+    }
+}
+
+/// Nakłada regułę częściowych zamknięć na status wyliczony przez [`compute_status`] (sekcja 6.9):
+/// gdy pozostały lot spadnie do zera, transakcja jest zamknięta; przy pozostałym locie większym
+/// od zera pozostaje otwarta - nawet jeśli wpisano cenę i datę zamknięcia, bo część pozycji wciąż
+/// pracuje na rynku.
+///
+/// Szkicu nie rusza: brak kompletu danych otwarcia to nadal szkic, niezależnie od wpisów.
+pub fn apply_partial_closes_to_status(
+    base: TradeStatus,
+    partial_closes: &[PartialClose],
+    volume: Option<Decimal>,
+) -> TradeStatus {
+    if base == TradeStatus::Draft || partial_closes.is_empty() {
+        return base;
+    }
+    let Some(volume) = volume else {
+        return base;
+    };
+    if trade_partial_close::closes_position_fully(volume, partial_closes) {
         TradeStatus::Closed
     } else {
         TradeStatus::Open
@@ -154,6 +179,10 @@ pub struct Trade {
     /// transakcji") - `None` gdy transakcja nie ma przypisanej strategii albo pochodzi sprzed
     /// tej funkcji.
     pub checklist: Option<StrategyChecklist>,
+    /// Częściowe zamknięcia pozycji (sekcja 6.9), w kolejności dodania. Trzymane w osobnej
+    /// tabeli relacyjnej, nie w kolumnie JSON - patrz migracja 0012. Pusta lista = zwykła
+    /// transakcja licząca wynik z ceny wejścia i wyjścia.
+    pub partial_closes: Vec<PartialClose>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
@@ -203,6 +232,10 @@ pub struct TradeInput {
     pub pnl_override: Option<ManualPnlOverride>,
     pub emotions: Option<TradeEmotions>,
     pub checklist: Option<StrategyChecklist>,
+    /// Częściowe zamknięcia z formularza (sekcja 6.9). `#[serde(default)]`, bo starsze wywołania
+    /// i testy tego pola nie wysyłają, a brak wpisów to poprawny, najczęstszy przypadek.
+    #[serde(default)]
+    pub partial_closes: Vec<PartialClose>,
 }
 
 fn validate_positive(label: &str, value: Decimal) -> Result<(), AppError> {
@@ -217,14 +250,15 @@ fn validate_positive(label: &str, value: Decimal) -> Result<(), AppError> {
 impl TradeInput {
     /// Wylicza status z aktualnych pól tego wejścia - patrz [`compute_status`].
     pub fn compute_status(&self) -> TradeStatus {
-        compute_status(
+        let base = compute_status(
             self.instrument_id.is_some(),
             self.entry_price.is_some(),
             self.volume.is_some(),
             self.opened_at.is_some(),
             self.exit_price.is_some(),
             self.closed_at.is_some(),
-        )
+        );
+        apply_partial_closes_to_status(base, &self.partial_closes, self.volume)
     }
 
     pub fn validate(&self) -> Result<(), AppError> {
@@ -354,6 +388,8 @@ impl TradeInput {
             emotions.validate()?;
         }
 
+        trade_partial_close::validate(&self.partial_closes, self.volume)?;
+
         Ok(())
     }
 }
@@ -425,6 +461,7 @@ mod tests {
             pnl_override: None,
             emotions: None,
             checklist: None,
+            partial_closes: vec![],
         }
     }
 

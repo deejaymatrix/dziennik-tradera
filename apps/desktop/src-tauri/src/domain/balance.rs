@@ -226,6 +226,7 @@ mod tests {
             pnl_override_reason: None,
             emotions: None,
             checklist: None,
+            partial_closes: vec![],
             created_at: Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap(),
             updated_at: Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap(),
             deleted_at: None,

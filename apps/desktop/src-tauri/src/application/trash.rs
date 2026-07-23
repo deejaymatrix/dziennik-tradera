@@ -494,6 +494,7 @@ mod tests {
                     pnl_override: None,
                     emotions: None,
                     checklist: None,
+                    partial_closes: vec![],
                 },
                 calculation: crate::domain::trade_calculations::TradeCalculation::default(),
                 instrument_snapshot: None,

@@ -405,6 +405,7 @@ mod tests {
                     }),
                     emotions: None,
                     checklist: None,
+                    partial_closes: vec![],
                 },
                 calculation: TradeCalculation::default(),
                 instrument_snapshot: None,

@@ -353,6 +353,7 @@ mod tests {
             }),
             emotions: None,
             checklist: None,
+            partial_closes: vec![],
         };
         for override_value in [None, Some(dec!(42))] {
             trade_repo

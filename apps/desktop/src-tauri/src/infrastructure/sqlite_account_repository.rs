@@ -233,6 +233,12 @@ impl AccountRepository for SqliteAccountRepository {
             "DELETE FROM trade_executions WHERE trade_id IN (SELECT id FROM trades WHERE account_id = ?1)",
             [id],
         )?;
+        // Częściowe zamknięcia trzymają klucz obcy do `trades`, więc muszą zniknąć PRZED
+        // usunięciem transakcji - inaczej kasowanie konta wywala się na kontroli kluczy obcych.
+        tx.execute(
+            "DELETE FROM trade_partial_closes WHERE trade_id IN (SELECT id FROM trades WHERE account_id = ?1)",
+            [id],
+        )?;
         tx.execute("DELETE FROM trades WHERE account_id = ?1", [id])?;
         tx.execute("DELETE FROM cash_operations WHERE account_id = ?1", [id])?;
         let affected = tx.execute("DELETE FROM accounts WHERE id = ?1", [id])?;

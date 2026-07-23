@@ -1,6 +1,7 @@
 use rust_decimal::Decimal;
 
 use super::trade::TradeSide;
+use super::trade_partial_close::{self, PartialClose};
 
 /// Parametry instrumentu potrzebne wyłącznie do przeliczeń pieniężnych transakcji - podzbiór
 /// pełnej, wersjonowanej specyfikacji instrumentu, zamrożony w transakcji jako
@@ -97,6 +98,9 @@ pub struct TradeCalculationInput {
     /// Kurs z waluty instrumentu (`InstrumentCalcSpec::currency_profit`) na walutę rachunku,
     /// zapisany na transakcji przez użytkownika - wymagany tylko, gdy te waluty się różnią.
     pub conversion_rate: Option<Decimal>,
+    /// Częściowe zamknięcia (sekcja 6.9). Gdy lista NIE jest pusta, wynik brutto to suma
+    /// wpisanych kwot zrealizowanych, a nie przeliczenie z ceny wyjścia.
+    pub partial_closes: Vec<PartialClose>,
 }
 
 /// Silnik przeliczeń transakcji - czysta funkcja, żadnych efektów ubocznych ani zależności od
@@ -163,38 +167,62 @@ pub fn calculate(input: &TradeCalculationInput) -> TradeCalculation {
         }
     }
 
-    if let (Some(entry), Some(exit_price), Some(volume), Some(instrument)) = (
-        input.entry_price,
-        input.exit_price,
-        input.volume,
-        &input.instrument,
-    ) {
+    // Punkty liczymy z ceny wyjścia niezależnie od częściowych zamknięć - to metryka cenowa,
+    // nie pieniężna, więc nie ma tu ryzyka podwójnego liczenia wyniku.
+    if let (Some(entry), Some(exit_price), Some(instrument)) =
+        (input.entry_price, input.exit_price, &input.instrument)
+    {
         let diff = price_diff(side, entry, exit_price);
         result.pnl_points = Some(if instrument.point.is_zero() {
             Decimal::ZERO
         } else {
             diff / instrument.point
         });
+    }
 
-        let native_gross = native_money_from_price_diff(diff, instrument, volume);
-        match to_account_currency(native_gross, instrument) {
-            Some(gross_pnl) => {
-                let net_pnl = gross_pnl - input.commission - input.swap - input.other_fees;
-                result.gross_pnl = Some(gross_pnl);
-                result.net_pnl = Some(net_pnl);
-
-                if let Some(balance) = input.account_balance {
-                    if !balance.is_zero() {
-                        result.pnl_percent = Some(net_pnl / balance * Decimal::ONE_HUNDRED);
-                    }
-                }
-                if let Some(risk) = result.risk_amount {
-                    if !risk.is_zero() {
-                        result.pnl_r = Some(net_pnl / risk);
+    // Wynik pieniężny ma DOKŁADNIE JEDNO źródło (sekcja 6.9):
+    // - są częściowe zamknięcia -> suma wpisanych kwot zrealizowanych (w walucie rachunku,
+    //   więc bez przeliczania kursem; broker podaje je już w walucie konta),
+    // - nie ma ich -> dotychczasowe deterministyczne przeliczenie z ceny wejścia i wyjścia.
+    // Te gałęzie NIGDY się nie sumują - to byłoby policzenie wyniku dwa razy.
+    let gross_pnl = if input.partial_closes.is_empty() {
+        match (
+            input.entry_price,
+            input.exit_price,
+            input.volume,
+            &input.instrument,
+        ) {
+            (Some(entry), Some(exit_price), Some(volume), Some(instrument)) => {
+                let diff = price_diff(side, entry, exit_price);
+                let native_gross = native_money_from_price_diff(diff, instrument, volume);
+                match to_account_currency(native_gross, instrument) {
+                    Some(gross) => Some(gross),
+                    None => {
+                        result.requires_conversion_rate = true;
+                        None
                     }
                 }
             }
-            None => result.requires_conversion_rate = true,
+            _ => None,
+        }
+    } else {
+        Some(trade_partial_close::realized_pnl(&input.partial_closes))
+    };
+
+    if let Some(gross_pnl) = gross_pnl {
+        let net_pnl = gross_pnl - input.commission - input.swap - input.other_fees;
+        result.gross_pnl = Some(gross_pnl);
+        result.net_pnl = Some(net_pnl);
+
+        if let Some(balance) = input.account_balance {
+            if !balance.is_zero() {
+                result.pnl_percent = Some(net_pnl / balance * Decimal::ONE_HUNDRED);
+            }
+        }
+        if let Some(risk) = result.risk_amount {
+            if !risk.is_zero() {
+                result.pnl_r = Some(net_pnl / risk);
+            }
         }
     }
 
@@ -241,6 +269,7 @@ mod tests {
             account_balance: None,
             account_currency: None,
             conversion_rate: None,
+            partial_closes: vec![],
         }
     }
 
@@ -265,6 +294,58 @@ mod tests {
         assert_eq!(result.risk_percent, Some(dec!(5)));
         assert_eq!(result.pnl_percent, Some(dec!(4.95)));
         assert!(!result.requires_conversion_rate);
+    }
+
+    #[test]
+    fn czesciowe_zamkniecia_sa_jedynym_zrodlem_wyniku_pienieznego() {
+        // Ta sama transakcja co w `buy_profit_when_exit_above_entry` (z ceny wyjścia wyszłoby
+        // brutto 500), ale z częściowymi zamknięciami. Wynik MUSI pochodzić wyłącznie z sumy
+        // wpisanych kwot - dodanie do tego 500 z ceny wyjścia byłoby policzeniem wyniku dwa razy
+        // (sekcja 6.9).
+        let mut input = base_input(eurusd_spec());
+        input.entry_price = Some(dec!(1.10000));
+        input.exit_price = Some(dec!(1.10500));
+        input.stop_loss = Some(dec!(1.09500));
+        input.commission = dec!(5);
+        input.swap = dec!(2);
+        input.other_fees = dec!(1);
+        input.partial_closes = vec![
+            PartialClose {
+                closed_volume: dec!(0.6),
+                realized_pnl: dec!(180),
+            },
+            PartialClose {
+                closed_volume: dec!(0.4),
+                realized_pnl: dec!(-30),
+            },
+        ];
+
+        let result = calculate(&input);
+
+        assert_eq!(result.gross_pnl, Some(dec!(150)), "180 + (-30), nie 500");
+        assert_eq!(
+            result.net_pnl,
+            Some(dec!(142)),
+            "brutto 150 minus prowizja 5, swap 2 i opłaty 1"
+        );
+        // Punkty to metryka cenowa, nie pieniężna - liczą się dalej z ceny wyjścia.
+        assert_eq!(result.pnl_points, Some(dec!(500)));
+    }
+
+    #[test]
+    fn bez_czesciowych_zamkniec_wynik_liczy_sie_po_staremu() {
+        // Zabezpieczenie regresyjne: pusta lista wpisów nie może zmieniać niczego w dotychczasowym
+        // deterministycznym przeliczeniu z ceny wejścia i wyjścia.
+        let mut input = base_input(eurusd_spec());
+        input.entry_price = Some(dec!(1.10000));
+        input.exit_price = Some(dec!(1.10500));
+        input.commission = dec!(5);
+        input.partial_closes = vec![];
+
+        let result = calculate(&input);
+
+        assert_eq!(result.gross_pnl, Some(dec!(500)));
+        assert_eq!(result.net_pnl, Some(dec!(495)));
     }
 
     #[test]

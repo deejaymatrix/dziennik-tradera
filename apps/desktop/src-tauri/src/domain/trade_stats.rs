@@ -726,6 +726,7 @@ mod tests {
             pnl_override_reason: None,
             emotions: None,
             checklist: None,
+            partial_closes: vec![],
             created_at: Utc::now(),
             updated_at: Utc::now(),
             deleted_at: None,

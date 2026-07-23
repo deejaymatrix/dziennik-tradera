@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
@@ -12,6 +13,7 @@ use crate::domain::strategy_checklist::StrategyChecklist;
 use crate::domain::trade::{PnlSource, Trade, TradeRepository, TradeSide, TradeWrite};
 use crate::domain::trade_audit::{FieldChange, TradeAuditEntry, TradeAuditRepository};
 use crate::domain::trade_emotions::TradeEmotions;
+use crate::domain::trade_partial_close::PartialClose;
 use crate::error::AppError;
 
 pub struct SqliteTradeRepository {
@@ -48,6 +50,93 @@ fn parse_decimal(row: &Row, idx: &str) -> rusqlite::Result<Decimal> {
     Decimal::from_str(&raw).map_err(|e| {
         rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e))
     })
+}
+
+/// Zapisuje częściowe zamknięcia transakcji, ZASTĘPUJĄC dotychczasowe. Formularz przysyła zawsze
+/// pełną, aktualną listę (dodawanie, edycja i usuwanie wpisów dzieje się u niego przed zapisem),
+/// więc wymiana kompletu jest prostsza i bezpieczniejsza niż doszukiwanie się różnic. Działa w tej
+/// samej transakcji SQL co zapis samej transakcji, żeby nie dało się zostawić wpisów bez
+/// transakcji ani transakcji bez jej wpisów.
+fn replace_partial_closes(
+    tx: &rusqlite::Transaction<'_>,
+    trade_id: &str,
+    closes: &[PartialClose],
+    now: &str,
+) -> rusqlite::Result<()> {
+    tx.execute(
+        "DELETE FROM trade_partial_closes WHERE trade_id = ?1",
+        [trade_id],
+    )?;
+    for (position, close) in closes.iter().enumerate() {
+        tx.execute(
+            "INSERT INTO trade_partial_closes
+                (id, trade_id, position, closed_volume, realized_pnl, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            rusqlite::params![
+                Uuid::now_v7().to_string(),
+                trade_id,
+                position as i64,
+                close.closed_volume.to_string(),
+                close.realized_pnl.to_string(),
+                now,
+            ],
+        )?;
+    }
+    Ok(())
+}
+
+/// Dociąga częściowe zamknięcia do już wczytanych transakcji i poprawia ich status.
+///
+/// `map_row` liczy status z samego wiersza `trades`, więc nie wie nic o wpisach leżących w osobnej
+/// tabeli - dopiero tutaj wchodzi reguła z sekcji 6.9 (pozostały lot `0` => zamknięta, więcej
+/// niż `0` => otwarta). Wszystko idzie JEDNYM zapytaniem dla całej listy, żeby lista transakcji
+/// nie robiła zapytania na każdą pozycję z osobna.
+fn attach_partial_closes(conn: &Connection, trades: &mut [Trade]) -> rusqlite::Result<()> {
+    if trades.is_empty() {
+        return Ok(());
+    }
+
+    // Placeholdery generowane programowo - liczba transakcji jest zmienna, a sklejanie id
+    // bezpośrednio w SQL byłoby wstrzyknięciem.
+    let placeholders = std::iter::repeat_n("?", trades.len())
+        .collect::<Vec<_>>()
+        .join(", ");
+    let sql = format!(
+        "SELECT trade_id, closed_volume, realized_pnl FROM trade_partial_closes
+         WHERE trade_id IN ({placeholders}) ORDER BY trade_id, position"
+    );
+
+    let mut grouped: HashMap<String, Vec<PartialClose>> = HashMap::new();
+    {
+        let mut stmt = conn.prepare(&sql)?;
+        let ids = trades.iter().map(|t| t.id.clone()).collect::<Vec<_>>();
+        let rows = stmt.query_map(rusqlite::params_from_iter(ids), |row| {
+            Ok((
+                row.get::<_, String>("trade_id")?,
+                PartialClose {
+                    closed_volume: parse_decimal(row, "closed_volume")?,
+                    realized_pnl: parse_decimal(row, "realized_pnl")?,
+                },
+            ))
+        })?;
+        for row in rows {
+            let (trade_id, close) = row?;
+            grouped.entry(trade_id).or_default().push(close);
+        }
+    }
+
+    for trade in trades.iter_mut() {
+        if let Some(closes) = grouped.remove(&trade.id) {
+            trade.status = crate::domain::trade::apply_partial_closes_to_status(
+                trade.status,
+                &closes,
+                trade.volume,
+            );
+            trade.partial_closes = closes;
+        }
+    }
+
+    Ok(())
 }
 
 fn parse_json_opt<T: serde::de::DeserializeOwned>(
@@ -151,6 +240,10 @@ fn map_row(row: &Row) -> rusqlite::Result<Trade> {
         pnl_override_reason: row.get("pnl_override_reason")?,
         emotions: parse_json_opt::<TradeEmotions>(row, "emotions_json")?,
         checklist: parse_json_opt::<StrategyChecklist>(row, "checklist_json")?,
+        // Częściowe zamknięcia leżą w osobnej tabeli, więc nie ma ich w tym wierszu. Dociąga je
+        // (i poprawia wyliczony wyżej status) `attach_partial_closes` - jednym zapytaniem dla
+        // całej listy transakcji, żeby nie robić zapytania na każdą z osobna.
+        partial_closes: Vec::new(),
         created_at: row.get("created_at")?,
         updated_at: row.get("updated_at")?,
         deleted_at: row.get("deleted_at")?,
@@ -273,6 +366,7 @@ impl TradeRepository for SqliteTradeRepository {
                 now.to_rfc3339(),
             ],
         )?;
+        replace_partial_closes(&tx, &id, &write.input.partial_closes, &now.to_rfc3339())?;
         tx.commit()?;
         drop(conn);
 
@@ -291,7 +385,10 @@ impl TradeRepository for SqliteTradeRepository {
                 map_row,
             )
             .optional()?;
-        trade.ok_or_else(|| AppError::NotFound(format!("Nie znaleziono transakcji o id {id}.")))
+        let mut trade = vec![trade
+            .ok_or_else(|| AppError::NotFound(format!("Nie znaleziono transakcji o id {id}.")))?];
+        attach_partial_closes(&conn, &mut trade)?;
+        Ok(trade.remove(0))
     }
 
     fn list(&self, account_id: &str, include_deleted: bool) -> Result<Vec<Trade>, AppError> {
@@ -310,9 +407,12 @@ impl TradeRepository for SqliteTradeRepository {
             )
         };
         let mut stmt = conn.prepare(&sql)?;
-        let trades = stmt
+        let mut trades = stmt
             .query_map([account_id], map_row)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
+        // `stmt` pożycza `conn`, a `attach_partial_closes` potrzebuje go dla własnego zapytania.
+        drop(stmt);
+        attach_partial_closes(&conn, &mut trades)?;
         Ok(trades)
     }
 
@@ -411,6 +511,7 @@ impl TradeRepository for SqliteTradeRepository {
                 None => AppError::NotFound(format!("Nie znaleziono transakcji o id {id}.")),
             });
         }
+        replace_partial_closes(&tx, id, &write.input.partial_closes, &now.to_rfc3339())?;
         tx.commit()?;
         drop(conn);
 
@@ -476,6 +577,7 @@ impl TradeRepository for SqliteTradeRepository {
 
         tx.execute("DELETE FROM attachments WHERE trade_id = ?1", [id])?;
         tx.execute("DELETE FROM trade_executions WHERE trade_id = ?1", [id])?;
+        tx.execute("DELETE FROM trade_partial_closes WHERE trade_id = ?1", [id])?;
         tx.execute("DELETE FROM trades WHERE id = ?1", [id])?;
         tx.commit()?;
         Ok(())
@@ -629,6 +731,7 @@ mod tests {
                 pnl_override: None,
                 emotions: None,
                 checklist: None,
+                partial_closes: vec![],
             },
             calculation: TradeCalculation::default(),
             instrument_snapshot: None,
@@ -652,6 +755,156 @@ mod tests {
             "nowe transakcje nigdy nie dostają tagów - pole usunięte z formularza"
         );
         assert_eq!(first.status, TradeStatus::Draft);
+    }
+
+    /// Buduje transakcję z kompletem danych otwarcia (czyli taką, która nie jest szkicem),
+    /// z zadanym lotem i listą częściowych zamknięć.
+    fn open_write_with_partials(
+        account_id: &str,
+        instrument_id: &str,
+        volume: Decimal,
+        partial_closes: Vec<PartialClose>,
+    ) -> TradeWrite {
+        let mut write = draft_write(account_id);
+        write.input.instrument_id = Some(instrument_id.to_string());
+        write.input.entry_price = Some(dec!(1.10000));
+        write.input.volume = Some(volume);
+        write.input.opened_at = Some("2026-03-01T10:00:00Z".parse().unwrap());
+        write.input.partial_closes = partial_closes;
+        write
+    }
+
+    #[test]
+    fn czesciowe_zamkniecia_przezywaja_zapis_i_odczyt() {
+        let (repo, conn, _dir) = repo_with_fresh_db();
+        seed_account(&conn, "acc-1");
+        let instrument_id = any_instrument_id(&conn);
+
+        let created = repo
+            .create(&open_write_with_partials(
+                "acc-1",
+                &instrument_id,
+                dec!(1.0),
+                vec![
+                    PartialClose {
+                        closed_volume: dec!(0.3),
+                        realized_pnl: dec!(45.10),
+                    },
+                    PartialClose {
+                        closed_volume: dec!(0.2),
+                        realized_pnl: dec!(-12.40),
+                    },
+                ],
+            ))
+            .expect("create");
+
+        assert_eq!(created.partial_closes.len(), 2);
+        assert_eq!(created.partial_closes[0].closed_volume, dec!(0.3));
+        assert_eq!(created.partial_closes[1].realized_pnl, dec!(-12.40));
+        assert_eq!(
+            created.status,
+            TradeStatus::Open,
+            "pozostało 0.5 lota, więc pozycja wciąż jest otwarta"
+        );
+
+        // Kolejność wpisów musi być stabilna także przy ponownym odczycie z bazy.
+        let read_back = repo.get(&created.id).expect("get");
+        assert_eq!(read_back.partial_closes, created.partial_closes);
+
+        let listed = repo.list("acc-1", false).expect("list");
+        assert_eq!(listed[0].partial_closes.len(), 2);
+    }
+
+    #[test]
+    fn zamkniecie_calego_lota_czesciowymi_ustawia_status_zamkniety() {
+        let (repo, conn, _dir) = repo_with_fresh_db();
+        seed_account(&conn, "acc-1");
+        let instrument_id = any_instrument_id(&conn);
+
+        let created = repo
+            .create(&open_write_with_partials(
+                "acc-1",
+                &instrument_id,
+                dec!(1.0),
+                vec![
+                    PartialClose {
+                        closed_volume: dec!(0.4),
+                        realized_pnl: dec!(20),
+                    },
+                    PartialClose {
+                        closed_volume: dec!(0.6),
+                        realized_pnl: dec!(-5),
+                    },
+                ],
+            ))
+            .expect("create");
+
+        assert_eq!(
+            created.status,
+            TradeStatus::Closed,
+            "pozostały lot 0 domyka transakcję nawet bez ceny i daty zamknięcia"
+        );
+    }
+
+    #[test]
+    fn edycja_zastepuje_wpisy_zamiast_je_dokladac() {
+        let (repo, conn, _dir) = repo_with_fresh_db();
+        seed_account(&conn, "acc-1");
+        let instrument_id = any_instrument_id(&conn);
+
+        let created = repo
+            .create(&open_write_with_partials(
+                "acc-1",
+                &instrument_id,
+                dec!(1.0),
+                vec![PartialClose {
+                    closed_volume: dec!(0.3),
+                    realized_pnl: dec!(45),
+                }],
+            ))
+            .expect("create");
+
+        let updated = repo
+            .update(
+                &created.id,
+                &open_write_with_partials(
+                    "acc-1",
+                    &instrument_id,
+                    dec!(1.0),
+                    vec![PartialClose {
+                        closed_volume: dec!(0.5),
+                        realized_pnl: dec!(70),
+                    }],
+                ),
+                None,
+            )
+            .expect("update");
+
+        assert_eq!(
+            updated.partial_closes.len(),
+            1,
+            "edycja wymienia komplet wpisów - stary nie może zostać obok nowego"
+        );
+        assert_eq!(updated.partial_closes[0].closed_volume, dec!(0.5));
+    }
+
+    #[test]
+    fn odrzuca_sume_zamknietych_lotow_wieksza_niz_lot_transakcji() {
+        let (repo, conn, _dir) = repo_with_fresh_db();
+        seed_account(&conn, "acc-1");
+        let instrument_id = any_instrument_id(&conn);
+
+        let result = repo.create(&open_write_with_partials(
+            "acc-1",
+            &instrument_id,
+            dec!(1.0),
+            vec![PartialClose {
+                closed_volume: dec!(1.5),
+                realized_pnl: dec!(10),
+            }],
+        ));
+
+        assert!(matches!(result, Err(AppError::Validation(_))));
     }
 
     #[test]
