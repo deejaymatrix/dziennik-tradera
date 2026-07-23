@@ -1,5 +1,6 @@
 import { forwardRef, useId } from "react";
 import type { ReactElement, SelectHTMLAttributes } from "react";
+import { useOptionalPreferences } from "../../../app/PreferencesProvider";
 import styles from "./Select.module.css";
 
 export interface SelectOption {
@@ -20,7 +21,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   ref,
 ): ReactElement {
   const id = useId();
-  const hintId = hint ? `${id}-hint` : undefined;
+  // Podpowiedź pod polem można wyłączyć w Ustawieniach; komunikat błędu zostaje zawsze.
+  const preferences = useOptionalPreferences();
+  const hintsVisible = preferences?.behavior.show_field_hints ?? true;
+  const hintId = hint && hintsVisible ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
   const sizeClass = compact ? styles.sm : undefined;
@@ -47,7 +51,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
           </option>
         ))}
       </select>
-      {hint && !error && (
+      {hint && hintsVisible && !error && (
         <span id={hintId} className={styles.hint}>
           {hint}
         </span>

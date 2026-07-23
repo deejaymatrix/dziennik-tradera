@@ -1,5 +1,6 @@
 import { forwardRef, useId } from "react";
 import type { ReactElement, TextareaHTMLAttributes } from "react";
+import { useOptionalPreferences } from "../../../app/PreferencesProvider";
 import styles from "./Textarea.module.css";
 
 export interface TextareaProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "id"> {
@@ -13,7 +14,10 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
   ref,
 ): ReactElement {
   const id = useId();
-  const hintId = hint ? `${id}-hint` : undefined;
+  // Podpowiedź pod polem można wyłączyć w Ustawieniach; komunikat błędu zostaje zawsze.
+  const preferences = useOptionalPreferences();
+  const hintsVisible = preferences?.behavior.show_field_hints ?? true;
+  const hintId = hint && hintsVisible ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
 
@@ -40,7 +44,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
           .join(" ")}
         {...rest}
       />
-      {hint && !error && (
+      {hint && hintsVisible && !error && (
         <span id={hintId} className={styles.hint}>
           {hint}
         </span>

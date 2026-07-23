@@ -153,3 +153,13 @@ export function usePreferences(): PreferencesContextValue {
   }
   return context;
 }
+
+/**
+ * Wariant dla komponentów WSPÓLNYCH z `ui/components` (TextField, Select, Textarea...), które
+ * bywają renderowane poza dostawcą - choćby w testach jednostkowych samego komponentu. Zamiast
+ * rzucać wyjątkiem zwraca `null`, a komponent zachowuje się wtedy jak przy ustawieniach
+ * domyślnych. Ekrany aplikacji mają używać `usePreferences`, żeby brak dostawcy był błędem.
+ */
+export function useOptionalPreferences(): Preferences | null {
+  return useContext(PreferencesContext)?.preferences ?? null;
+}

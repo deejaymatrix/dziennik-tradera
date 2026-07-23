@@ -66,6 +66,51 @@ const SIDE_OPTIONS: { value: TradeSide; label: string }[] = [
   { value: "sell", label: "SELL (short)" },
 ];
 
+/** Które panele formularza są rozwinięte. Po otwarciu rozwinięte są dwa pierwsze (sekcja 6.1). */
+interface PanelsState {
+  basics: boolean;
+  params: boolean;
+  costs: boolean;
+  strategy: boolean;
+  notes: boolean;
+  attachments: boolean;
+}
+
+const DEFAULT_PANELS: PanelsState = {
+  basics: true,
+  params: true,
+  costs: false,
+  strategy: false,
+  notes: false,
+  attachments: false,
+};
+
+const PANELS_STORAGE_KEY = "dziennik-tradera.trade-form-panels";
+
+/** Zapamiętany układ paneli. To STAN interfejsu, nie ustawienie - ustawieniem jest przełącznik
+ * "zapamiętuj rozwinięte panele", który mieszka w preferencjach. */
+function loadRememberedPanels(): PanelsState | null {
+  try {
+    const raw = localStorage.getItem(PANELS_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as Partial<PanelsState>;
+    // Scalenie z domyślnymi: zapis z wcześniejszej wersji może nie znać nowego panelu.
+    return { ...DEFAULT_PANELS, ...parsed };
+  } catch {
+    return null;
+  }
+}
+
+function saveRememberedPanels(panels: PanelsState): void {
+  try {
+    localStorage.setItem(PANELS_STORAGE_KEY, JSON.stringify(panels));
+  } catch {
+    // Brak miejsca w localStorage nie może wywrócić formularza - to tylko wygoda.
+  }
+}
+
 const RATING_OPTIONS = [
   { value: "", label: "— bez oceny —" },
   { value: "1", label: "1 - bardzo słabo" },
@@ -161,17 +206,25 @@ export function TradeFormModal({
 
   // Po otwarciu rozwinięte są dokładnie dwa pierwsze panele (sekcja 6.1). Zwinięcie panelu nie
   // odmontowuje jego zawartości - patrz `FormPanel` - więc nic się nie gubi.
-  const [panels, setPanels] = useState({
-    basics: true,
-    params: true,
-    costs: false,
-    strategy: false,
-    notes: false,
-    attachments: false,
+  const [panels, setPanels] = useState<PanelsState>(() => {
+    // Zapamiętany układ paneli wczytujemy TYLKO wtedy, gdy użytkownik tego chce (Ustawienia →
+    // Zachowanie aplikacji). Przy wyłączonym ustawieniu formularz zawsze startuje tak samo.
+    // Preferencje są w tym momencie już wczytane - dostawca robi to przy starcie aplikacji,
+    // a formularz otwiera się znacznie później.
+    if (!(preferences?.behavior.remember_expanded_panels ?? true)) {
+      return DEFAULT_PANELS;
+    }
+    return loadRememberedPanels() ?? DEFAULT_PANELS;
   });
 
-  function togglePanel(panel: keyof typeof panels): void {
-    setPanels((current) => ({ ...current, [panel]: !current[panel] }));
+  function togglePanel(panel: keyof PanelsState): void {
+    setPanels((current) => {
+      const next = { ...current, [panel]: !current[panel] };
+      if (preferences?.behavior.remember_expanded_panels ?? true) {
+        saveRememberedPanels(next);
+      }
+      return next;
+    });
   }
 
   // Szybkie dodanie interwału wprost w formularzu (pełne zarządzanie jest w oknie "Interwały").
