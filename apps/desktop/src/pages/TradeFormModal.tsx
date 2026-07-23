@@ -53,9 +53,10 @@ export interface TradeFormModalProps {
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
+  /** Wszystkie aktywne konta - konto wybiera się wprost w formularzu (sekcja 6.2). */
+  accounts: AccountWithBalance[];
+  /** Konto podpowiadane na starcie (ostatnio używane na liście transakcji). */
   accountId: string;
-  accountCurrency: string;
-  accountBalance: string;
   trade?: Trade | undefined;
 }
 
@@ -83,12 +84,19 @@ export function TradeFormModal({
   open,
   onClose,
   onSaved,
+  accounts,
   accountId,
-  accountCurrency,
-  accountBalance,
   trade,
 }: TradeFormModalProps): ReactElement {
   const isEdit = Boolean(trade);
+
+  // Konto jest pierwszym wyborem formularza (sekcja 6.2). Przy edycji konto transakcji jest
+  // stałe (transakcja należy do konta), więc bierzemy je z transakcji i blokujemy zmianę.
+  const [selectedAccountId, setSelectedAccountId] = useState(() => trade?.account_id ?? accountId);
+  const selectedAccount = accounts.find((a) => a.id === selectedAccountId) ?? null;
+  const accountCurrency = selectedAccount?.currency ?? "";
+  const accountBalance = selectedAccount?.balance ?? "0";
+
   const { showToast } = useToast();
   const confirm = useConfirm();
   const [balanceContext, setBalanceContext] = useState<TradeBalanceContext | null>(null);
@@ -190,7 +198,7 @@ export function TradeFormModal({
         // z przypisania do konta tej transakcji.
         const [accountTemplates, ownerAccount] = await Promise.all([
           invokeCommand<BrokerTemplate[]>("list_broker_templates", { includeArchived: false }),
-          invokeCommand<AccountWithBalance>("get_account", { id: accountId }),
+          invokeCommand<AccountWithBalance>("get_account", { id: selectedAccountId }),
         ]);
         const templateForAccount = accountTemplates.find((t) => t.id === ownerAccount.template_id);
         const visibleFilter: InstrumentListFilter = {
@@ -268,8 +276,11 @@ export function TradeFormModal({
         // Brak list nie blokuje formularza - pola instrumentu/strategii po prostu będą puste.
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- jednorazowe pobranie przy montowaniu, `trade` jest stały dla tej instancji (key wymusza remount).
-  }, []);
+    // Przeładowanie przy ZMIANIE konta - inne konto = inny szablon = inna lista instrumentów
+    // (sekcja 6.2). Strategie/interwały/emocje są globalne, ich powtórne pobranie jest zbędne,
+    // ale nieszkodliwe i nie warto dla tego rozdzielać efektu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `trade` stały dla tej instancji (key wymusza remount); reagujemy tylko na zmianę konta.
+  }, [selectedAccountId]);
 
   useEffect(() => {
     // Autoszkic w localStorage dotyczy WYŁĄCZNIE edycji istniejącej transakcji - chroni
@@ -279,8 +290,8 @@ export function TradeFormModal({
     if (readOnly || !trade) {
       return;
     }
-    saveTradeDraft(accountId, trade.id, fields);
-  }, [fields, accountId, trade, readOnly]);
+    saveTradeDraft(selectedAccountId, trade.id, fields);
+  }, [fields, selectedAccountId, trade, readOnly]);
 
   useEffect(() => {
     // Migawka salda sprzed rozpoczęcia edycji - pobrana raz przy otwarciu (sekcja "Saldo
@@ -322,7 +333,7 @@ export function TradeFormModal({
     const timer = setTimeout(() => {
       void (async () => {
         try {
-          const input = buildTradeInput(fields, accountId);
+          const input = buildTradeInput(fields, selectedAccountId);
           const result = await invokeCommand<TradeCalculation>("preview_trade", { input });
           setPreview(result);
         } catch {
@@ -333,7 +344,7 @@ export function TradeFormModal({
     return () => {
       clearTimeout(timer);
     };
-  }, [fields, accountId]);
+  }, [fields, selectedAccountId]);
 
   function setField<K extends keyof TradeFormFields>(key: K, value: TradeFormFields[K]): void {
     setFields((current) => ({ ...current, [key]: value }));
@@ -398,7 +409,7 @@ export function TradeFormModal({
 
   async function handleStartEdit(): Promise<void> {
     if (trade) {
-      const draft = loadTradeDraft(accountId, trade.id);
+      const draft = loadTradeDraft(selectedAccountId, trade.id);
       const trueFields = tradeToFormFields(trade);
       if (draft && JSON.stringify(draft) !== JSON.stringify(trueFields)) {
         const useDraft = await confirm(
@@ -421,7 +432,7 @@ export function TradeFormModal({
     if (trade) {
       const trueFields = tradeToFormFields(trade);
       setFields(trueFields);
-      clearTradeDraft(accountId, trade.id);
+      clearTradeDraft(selectedAccountId, trade.id);
       initialSnapshot.current = JSON.stringify(trueFields);
       setFormError(null);
       setMode("view");
@@ -486,7 +497,7 @@ export function TradeFormModal({
       return;
     }
 
-    const input = buildTradeInput(fields, accountId);
+    const input = buildTradeInput(fields, selectedAccountId);
 
     setSubmitting(true);
     try {
@@ -510,7 +521,7 @@ export function TradeFormModal({
           showToast("Transakcja zapisana.", "success");
         }
       }
-      clearTradeDraft(accountId, trade?.id);
+      clearTradeDraft(selectedAccountId, trade?.id);
       onSaved();
       onClose();
     } catch (error) {
@@ -604,6 +615,26 @@ export function TradeFormModal({
               status={basicsStatus}
             >
               <div className={styles.grid}>
+                <Select
+                  label="Konto"
+                  value={selectedAccountId}
+                  onChange={(e) => {
+                    // Zmiana konta = inny szablon instrumentów: czyścimy wybrany instrument, bo
+                    // nie wolno zapisać instrumentu z jednego szablonu na koncie używającym
+                    // innego (sekcja 6.2). Instrumenty przeładuje efekt zależny od konta.
+                    setSelectedAccountId(e.target.value);
+                    setField("instrumentId", "");
+                  }}
+                  options={accounts.map((a) => ({
+                    value: a.id,
+                    label: `${a.name} (${a.currency})`,
+                  }))}
+                  // Konto transakcji jest stałe - przy edycji nie pozwalamy go zmienić.
+                  disabled={readOnly || isEdit}
+                  {...(isEdit
+                    ? { hint: "Konto zapisanej transakcji jest stałe i nie można go zmienić." }
+                    : {})}
+                />
                 <Select
                   label="Instrument"
                   value={fields.instrumentId}

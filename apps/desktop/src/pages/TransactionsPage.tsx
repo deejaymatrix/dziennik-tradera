@@ -376,9 +376,8 @@ export function TransactionsPage(): ReactElement {
           onSaved={() => {
             void loadTrades();
           }}
+          accounts={accounts}
           accountId={selectedAccount.id}
-          accountCurrency={selectedAccount.currency}
-          accountBalance={selectedAccount.balance}
           trade={editingTrade}
         />
       )}

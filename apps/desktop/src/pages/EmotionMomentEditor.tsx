@@ -64,7 +64,8 @@ export function EmotionMomentEditor({
         <>
           {states.length === 0 ? (
             <p className={styles.empty}>
-              Brak dostępnych stanów emocjonalnych - dodaj je w Ustawieniach.
+              Brak dostępnych stanów emocjonalnych - dodaj je w oknie „Stan emocjonalny" (grupa
+              Analiza).
             </p>
           ) : (
             <div className={styles.statesGrid}>
