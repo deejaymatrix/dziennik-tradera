@@ -1363,24 +1363,41 @@ zachowanie (nie atrapę), testy i przechodzące lint/typecheck.
 | U10 | Sekcja „Dane": stan danych (liczniki, rozmiar, integralność) + `Sprawdź integralność` | ✅ |
 | U11 | Diagnostyka użytkownika: kopiowanie i eksport raportu bez danych wrażliwych | ✅ |
 
-## Blok C — redesign motywu „Institutional Black & Gold"
+## Blok C — przebudowa designu „Institutional Adaptive Workspace"
+
+Zastępuje wcześniejszy, węższy blok „redesign motywu". Nowy prompt
+(`Prompt_nowy_redesign_Q_i_pelny_audyt.md`, 884 linie) wymaga przebudowy nie tylko palety,
+ale KONSTRUKCJI każdego ekranu: układ dobierany do rodzaju pracy, a nie jedna siatka kart
+wszędzie. Zrobione dotąd tokeny i paleta zostają jako fundament.
 
 | Poz. | Zakres | Status |
 | --- | --- | --- |
 | M1 | Tokeny: pełna paleta ciemna i jasna, semantyczne nazwy, wysokości kontrolek | ✅ |
-| M2 | Komponenty wspólne: Button (4 warianty), Input, Select, Card, Modal, Table, Badge, Tabs, Tooltip, Toast, EmptyState, Skeleton | ⬜ |
-| M3 | Nawigacja i górny pasek | ✅ |
-| M4 | Karty, panele, KPI | ⬜ |
-| M5 | Tabele i historia transakcji | ✅ |
-| M6 | Wykresy i raporty (paleta z tych samych tokenów, eksport PDF zostaje jasny) | ⬜ |
-| M7 | Ustawienia → Wygląd: miniatury podglądu wariantów, własny kolor dopiero po teście kontrastu | ⬜ |
-| M8 | Audyt wizualny wszystkich widoków w obu motywach | ⬜ |
+| M2 | Komponenty wspólne: Button (4 warianty), pola, Modal, Toast, Badge, Table | ✅ |
+| M3 | Nawigacja i górny pasek — obecny stan | ✅ |
+| M5 | Tabele: przyklejony nagłówek, dyskretne separatory, liczby do prawej | ✅ |
+| Q1 | Powłoka: nowe grupy menu (Start/Handel/Analiza/Zarządzanie/System), zapamiętywanie wyboru, tooltipy po zwinięciu, pełna obsługa klawiatury | ⬜ |
+| Q2 | Górny pasek: nazwa widoku, aktywne konto tylko gdy realnie wpływa, skrót „Nowa transakcja", centrum powiadomień | ⬜ |
+| Q3 | Paleta poleceń `Ctrl+K` (bez operacji niszczących) | ⬜ |
+| Q4 | Dashboard jako Executive Dashboard: 4–6 KPI, wykres kapitału, ostatnie transakcje, alerty; klikalne do źródła | ⬜ |
+| Q5 | Historia transakcji: Table-First + Split View z Inspectorem po prawej (tylko odczyt, jawny „Edytuj", przypinanie) | ⬜ |
+| Q6 | Nowa transakcja jako Guided Workflow ze swobodnym przechodzeniem między sekcjami | ⬜ |
+| Q7 | Raporty: szeroki workspace analityczny | ⬜ |
+| Q8 | Wykresy: paleta z tych samych tokenów, eksport PDF zostaje jasny | ⬜ |
+| Q9 | Dostępność i animacje (120–180 ms, obsługa ograniczenia ruchu, focus, klawiatura) | ⬜ |
+| Q10 | Stany puste, ładowania, błędu, disabled i tylko-do-odczytu w każdym widoku | ⬜ |
 
-## Blok D — audyt całej aplikacji (obowiązkowy przed instalatorem)
+## Blok D — pełny audyt (wymagany przed instalatorem)
 
-Pełny audyt z perspektywy użytkownika i kodu, wymagany wprost przez prompt redesignu:
-każdy przycisk, pole, filtr, stan pusty/ładowania/błędu, cztery warianty bazy danych.
-Wykryty błąd: odtworzyć, naprawić przyczynę, dodać test regresji, sprawdzić cały przepływ.
+| Poz. | Zakres | Status |
+| --- | --- | --- |
+| A1 | Audyt wizualny wszystkich widoków w obu motywach, przy 1366×768 i 1920×1080 | ⬜ |
+| A2 | Audyt jak końcowy użytkownik: cztery warianty bazy (pusta, przykładowa, po migracjach, duża) | ⬜ |
+| A3 | Wartości graniczne: długie nazwy, wielkie liczby, puste dane, bardzo długie tabele | ⬜ |
+| A4 | Obliczenia finansowe: lot, P&L, koszty, częściowe zamknięcia, saldo | ⬜ |
+| A5 | Audyt kodu linia po linii z LISTĄ sprawdzonych plików (martwy kod, puste catch, unwrap/expect, wycieki, wyścigi, hardkodowane kolory i ścieżki, dane prywatne w logach) | ⬜ |
+| A6 | Narzędzia: format, ESLint, typecheck, testy jednostkowe i integracyjne, cargo fmt --check, clippy, testy Rust | ⬜ |
+| A7 | Raport końcowy z macierzą audytową | ⬜ |
 
 ## Blok E — instalator (Cel 1.9)
 
