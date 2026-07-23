@@ -31,9 +31,6 @@ export interface TradeFormFields {
   postTradeSummary: string;
   conclusion: string;
   planAdherenceRating: string;
-  overrideEnabled: boolean;
-  overrideNetPnl: string;
-  overrideReason: string;
   emotions: TradeEmotions;
   checklist: StrategyChecklist;
 }
@@ -61,9 +58,6 @@ export function blankTradeFormFields(): TradeFormFields {
     postTradeSummary: "",
     conclusion: "",
     planAdherenceRating: "",
-    overrideEnabled: false,
-    overrideNetPnl: "",
-    overrideReason: "",
     emotions: blankTradeEmotions(),
     checklist: blankStrategyChecklist(),
   };
@@ -93,9 +87,6 @@ export function tradeToFormFields(trade: Trade): TradeFormFields {
     conclusion: trade.conclusion ?? "",
     planAdherenceRating:
       trade.plan_adherence_rating !== null ? String(trade.plan_adherence_rating) : "",
-    overrideEnabled: trade.pnl_source === "manual_override",
-    overrideNetPnl: trade.net_pnl ?? "",
-    overrideReason: trade.pnl_override_reason ?? "",
     emotions: trade.emotions ?? blankTradeEmotions(),
     checklist: trade.checklist ?? blankStrategyChecklist(),
   };
@@ -137,12 +128,6 @@ export function buildTradeInput(fields: TradeFormFields, accountId: string): Tra
     plan_adherence_rating: fields.planAdherenceRating
       ? Number.parseInt(fields.planAdherenceRating, 10)
       : null,
-    pnl_override: fields.overrideEnabled
-      ? {
-          net_pnl: normalizeDecimalInput(fields.overrideNetPnl) ?? "0",
-          reason: fields.overrideReason,
-        }
-      : null,
     emotions: fields.emotions,
     checklist: fields.checklist,
   };
@@ -179,14 +164,6 @@ export function validateTradeFormFormat(fields: TradeFormFields): string | null 
     const value = fields[key];
     if (value.trim() && !isValidDecimalString(value)) {
       return `${label} musi być liczbą (np. 1,23 albo 1.23).`;
-    }
-  }
-  if (fields.overrideEnabled) {
-    if (fields.overrideNetPnl.trim() && !isValidDecimalString(fields.overrideNetPnl)) {
-      return "Ręczna kwota wyniku musi być liczbą.";
-    }
-    if (!fields.overrideReason.trim()) {
-      return "Ręczna korekta wyniku wymaga podania uzasadnienia.";
     }
   }
   return null;

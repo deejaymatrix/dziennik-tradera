@@ -159,8 +159,11 @@ pub struct Trade {
     pub deleted_at: Option<DateTime<Utc>>,
 }
 
-/// Ręczna korekta wyniku - dozwolona wyłącznie jako świadomy wyjątek z uzasadnieniem
-/// (sekcja 8), nigdy jako domyślny tryb liczenia.
+/// Ręczna korekta wyniku. Opcja została USUNIĘTA z interfejsu użytkownika (sekcja 6.4: wynik
+/// wynika z danych transakcji, częściowych zamknięć i kosztów) - formularz jej nie wysyła, więc
+/// `TradeInput::pnl_override` jest w praktyce zawsze `None`. Typ zostaje, bo historyczne
+/// transakcje zapisane wcześniej z ręczną korektą nadal muszą dać się odczytać i pokazać
+/// w dzienniku zmian, a pełne wycięcie ze ścieżki zapisu wymagałoby destrukcyjnej migracji bazy.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ManualPnlOverride {
     pub net_pnl: Decimal,
@@ -194,6 +197,9 @@ pub struct TradeInput {
     pub post_trade_summary: Option<String>,
     pub conclusion: Option<String>,
     pub plan_adherence_rating: Option<i64>,
+    /// Ręczna korekta wyniku usunięta z UI (sekcja 6.4) - `#[serde(default)]`, bo formularz tego
+    /// pola już nie wysyła, a bez domyślnej wartości deserializacja by się wywalała.
+    #[serde(default)]
     pub pnl_override: Option<ManualPnlOverride>,
     pub emotions: Option<TradeEmotions>,
     pub checklist: Option<StrategyChecklist>,
@@ -520,22 +526,6 @@ mod tests {
         );
 
         input.closed_at = Some(opened_at + chrono::Duration::hours(1));
-        assert!(input.validate().is_ok());
-    }
-
-    #[test]
-    fn manual_override_requires_a_reason() {
-        let mut input = draft_input();
-        input.pnl_override = Some(ManualPnlOverride {
-            net_pnl: dec!(100),
-            reason: "   ".to_string(),
-        });
-        assert!(input.validate().is_err());
-
-        input.pnl_override = Some(ManualPnlOverride {
-            net_pnl: dec!(100),
-            reason: "Błąd danych brokera, korekta ręczna po weryfikacji wyciągu.".to_string(),
-        });
         assert!(input.validate().is_ok());
     }
 

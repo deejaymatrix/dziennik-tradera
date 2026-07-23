@@ -158,6 +158,9 @@ pub fn diff_trade_input(old: &Trade, new: &TradeInput) -> Vec<FieldChange> {
         new.plan_adherence_rating,
     );
 
+    // Ręczna korekta wyniku została usunięta z UI (sekcja 6.4), więc nowy zapis z formularza jej
+    // nie niesie. Porównanie zostaje, żeby edycja HISTORYCZNEJ transakcji zapisanej niegdyś
+    // z korektą pokazała w dzienniku, że korekta zniknęła (wynik wrócił do automatycznego).
     let old_override = if old.pnl_source == PnlSource::ManualOverride {
         old.net_pnl
             .zip(old.pnl_override_reason.clone())
@@ -303,19 +306,22 @@ mod tests {
         assert_eq!(changes[0].new_value, None);
     }
 
+    /// Ręczna korekta wyniku została usunięta z aplikacji, ale edycja HISTORYCZNEJ transakcji
+    /// zapisanej niegdyś z korektą musi zostawić w dzienniku ślad, że korekta zniknęła (wynik
+    /// wrócił do automatycznego) - inaczej cicha zmiana net_pnl nie byłaby udokumentowana.
     #[test]
-    fn enabling_manual_override_is_recorded() {
-        let old = base_trade();
-        let mut new = base_input(&old);
-        new.pnl_override = Some(ManualPnlOverride {
-            net_pnl: dec!(42),
-            reason: "korekta".to_string(),
-        });
+    fn editing_a_trade_that_had_a_manual_override_records_its_removal() {
+        let mut old = base_trade();
+        old.pnl_source = PnlSource::ManualOverride;
+        old.net_pnl = Some(dec!(42));
+        old.pnl_override_reason = Some("korekta".to_string());
+
+        let new = base_input(&old);
 
         let changes = diff_trade_input(&old, &new);
         assert_eq!(changes.len(), 1);
         assert_eq!(changes[0].field, "Ręczna korekta wyniku");
-        assert_eq!(changes[0].old_value, None);
-        assert_eq!(changes[0].new_value, Some("42 (korekta)".to_string()));
+        assert_eq!(changes[0].old_value, Some("42 (korekta)".to_string()));
+        assert_eq!(changes[0].new_value, None);
     }
 }

@@ -157,9 +157,10 @@ fn map_row(row: &Row) -> rusqlite::Result<Trade> {
     })
 }
 
-/// Wynik ostateczny do zapisu: jeśli użytkownik świadomie nadpisał wynik ręcznie, to on jest
-/// źródłem prawdy dla `net_pnl` (a `gross_pnl` z automatycznych przeliczeń zachowujemy jako
-/// informację pomocniczą) - w przeciwnym razie liczy silnik na podstawie migawki instrumentu.
+/// Wynik ostateczny do zapisu. Ręczna korekta wyniku została usunięta z interfejsu (sekcja 6.4),
+/// więc `pnl_override` z formularza jest zawsze `None` i wynik liczy silnik z danych transakcji
+/// i kosztów. Gałąź `Some` zostaje wyłącznie po to, żeby ewentualny zapis pochodzący spoza UI
+/// (albo test) zachował się przewidywalnie - w normalnym użyciu nigdy nie jest osiągana.
 struct ResolvedPnl {
     gross_pnl: Option<Decimal>,
     net_pnl: Option<Decimal>,

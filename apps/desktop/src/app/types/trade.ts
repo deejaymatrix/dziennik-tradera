@@ -41,11 +41,6 @@ export interface InstrumentSnapshot {
   calc_mode: string;
 }
 
-export interface ManualPnlOverride {
-  net_pnl: string;
-  reason: string;
-}
-
 /** Dane emocjonalne jednego z trzech momentów transakcji (przed/w trakcie/po) - wielokrotny
  * wybór stanu + natężenie 1-5 + notatka, z jawną flagą "nie uzupełniono" odróżniającą świadomy
  * brak danych od zwykłego pustego formularza. Patrz domain::trade_emotions::MomentEmotion. */
@@ -177,7 +172,6 @@ export interface TradeInput {
   post_trade_summary: string | null;
   conclusion: string | null;
   plan_adherence_rating: number | null;
-  pnl_override: ManualPnlOverride | null;
   emotions: TradeEmotions | null;
   checklist: StrategyChecklist | null;
 }
