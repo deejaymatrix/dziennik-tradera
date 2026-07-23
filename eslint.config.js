@@ -57,5 +57,17 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "error",
     },
   },
+  {
+    files: ["**/*.test.{ts,tsx}"],
+    rules: {
+      // `await act(async () => { vi.advanceTimersByTime(...) })` jest tu celowym idiomem
+      // przy fałszywych timerach: callback sam w sobie nie ma `await`, ale oznaczenie go
+      // `async` sprawia, że OTACZAJĄCY `await act(...)` odczekuje dodatkowy tik mikrozadań,
+      // w którym rozwiązują się mockowane obietnice (np. `invokeCommand`) wywołane przez
+      // timer. Usunięcie `async` zmieniłoby faktyczne zachowanie testów (ryzyko cichej
+      // niestabilności), więc reguła jest wyłączona tylko dla plików testowych.
+      "@typescript-eslint/require-await": "off",
+    },
+  },
   eslintConfigPrettier,
 );

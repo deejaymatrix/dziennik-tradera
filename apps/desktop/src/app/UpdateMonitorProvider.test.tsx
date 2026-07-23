@@ -7,6 +7,22 @@ import { INTERWAL_MS, MIN_ODSTEP_PIERWSZY_PLAN_MS, STARTOWE_OPOZNIENIE_MS } from
 const invokeCommand = vi.hoisted(() => vi.fn());
 vi.mock("./invokeCommand", () => ({ invokeCommand }));
 
+const useOptionalPreferencesMock = vi.hoisted(() => vi.fn<() => unknown>(() => null));
+vi.mock("./PreferencesProvider", () => ({
+  useOptionalPreferences: useOptionalPreferencesMock,
+}));
+
+const sendNotification = vi.hoisted(() => vi.fn());
+const isPermissionGranted = vi.hoisted(() => vi.fn(async () => true));
+vi.mock("@tauri-apps/plugin-notification", () => ({
+  sendNotification,
+  isPermissionGranted,
+  requestPermission: vi.fn(async () => "granted"),
+}));
+
+const checkUpdate = vi.hoisted(() => vi.fn());
+vi.mock("@tauri-apps/plugin-updater", () => ({ check: checkUpdate }));
+
 /**
  * Testy pilnują wymagań z obowiązkowego audytu Celu 1.8, sekcja 2: „zweryfikuj, że istnieje
  * DOKŁADNIE JEDEN centralny serwis" oraz „timery i nasłuchiwanie zdarzeń nie duplikują się
@@ -336,5 +352,99 @@ describe("UpdateMonitorProvider - stan dla użytkownika", () => {
       vi.advanceTimersByTime(INTERWAL_MS);
     });
     expect(invokeCommand).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("UpdateMonitorProvider - natywne powiadomienie respektuje preferencje", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    invokeCommand.mockReset();
+    checkUpdate.mockReset();
+    sendNotification.mockReset();
+    isPermissionGranted.mockReset().mockResolvedValue(true);
+    useOptionalPreferencesMock.mockReset().mockReturnValue(null);
+    localStorage.clear();
+
+    // Manifest zapowiada wersję WYŻSZĄ niż bieżąca, żeby dojść aż do wtyczki `check()`.
+    invokeCommand.mockResolvedValue({
+      kind: "nowy",
+      manifest: { version: "1.1.0" },
+      etag: null,
+    });
+    checkUpdate.mockResolvedValue({
+      version: "1.1.0",
+      currentVersion: "1.0.0",
+      body: null,
+      downloadAndInstall: vi.fn(),
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("znacznik i karta pokazują się zawsze, nawet gdy powiadomienia aktualizacji są wyłączone", async () => {
+    // Sekcja 6 audytu: trwały znacznik NIE jest gated przez preferencje - tylko natywne
+    // powiadomienie systemowe nimi steruje.
+    useOptionalPreferencesMock.mockReturnValue({
+      notifications: { update_available: false },
+    });
+
+    render(
+      <UpdateMonitorProvider wersjaBiezaca="1.0.0">
+        <Podglad />
+      </UpdateMonitorProvider>,
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(STARTOWE_OPOZNIENIE_MS);
+    });
+
+    expect(screen.getByTestId("znacznik").textContent).toBe("tak");
+    expect(screen.getByTestId("wersja").textContent).toBe("1.1.0");
+    expect(sendNotification).not.toHaveBeenCalled();
+  });
+
+  it("przełącznik update_available=false wycisza WYŁĄCZNIE natywne powiadomienie", async () => {
+    useOptionalPreferencesMock.mockReturnValue({
+      notifications: { update_available: true },
+    });
+
+    render(
+      <UpdateMonitorProvider wersjaBiezaca="1.0.0">
+        <Podglad />
+      </UpdateMonitorProvider>,
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(STARTOWE_OPOZNIENIE_MS);
+    });
+
+    expect(sendNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it("ciche godziny wyciszają natywne powiadomienie o aktualizacji tak samo jak inne niekrytyczne", async () => {
+    useOptionalPreferencesMock.mockReturnValue({
+      notifications: {
+        update_available: true,
+        quiet_hours_enabled: true,
+        quiet_hours_start: "00:00",
+        quiet_hours_end: "23:59",
+      },
+    });
+
+    render(
+      <UpdateMonitorProvider wersjaBiezaca="1.0.0">
+        <Podglad />
+      </UpdateMonitorProvider>,
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(STARTOWE_OPOZNIENIE_MS);
+    });
+
+    // Trwały znacznik zostaje mimo cichych godzin - tylko natywny popup jest wyciszony.
+    expect(screen.getByTestId("znacznik").textContent).toBe("tak");
+    expect(sendNotification).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { ReactElement, ReactNode } from "react";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { invokeCommand } from "./invokeCommand";
+import { useOptionalPreferences } from "./PreferencesProvider";
+import { shouldNotify } from "./quietHours";
 import { describeUpdateError } from "./updateErrors";
 import {
   czyPokazacNatywnePowiadomienie,
@@ -76,6 +78,10 @@ export function UpdateMonitorProvider({
   const [stan, setStan] = useState<StanAktualizacji>({ rodzaj: "bezczynny" });
   const [znacznikDostepnej, setZnacznikDostepnej] = useState(false);
   const [dostepnaWersja, setDostepnaWersja] = useState<string | null>(null);
+  // `useOptional...` - w App.tsx ten provider jest zagnieżdżony wewnątrz PreferencesProvider,
+  // więc zwykle preferencje są dostępne, ale własne testy renderują go samodzielnie, bez
+  // owijania w PreferencesProvider - `useOptionalPreferences` wtedy po prostu zwraca `null`.
+  const preferences = useOptionalPreferences();
 
   // Cały stan harmonogramu żyje w ref-ach, nie w stanie Reacta: zmiana tych wartości nie ma
   // powodować przerysowania, a przerysowanie nie ma resetować harmonogramu.
@@ -151,7 +157,14 @@ export function UpdateMonitorProvider({
         setDostepnaWersja(update.version);
         setZnacznikDostepnej(true);
         setStan({ rodzaj: "dostepna", update, odlozona: false });
-        void pokazNatywnePowiadomienie(update.version);
+        // Trwały znacznik i karta w Ustawieniach zostają widoczne ZAWSZE - to jest wymagane
+        // wprost (sekcja 6 Celu 1.8). Tylko NATYWNE powiadomienie systemowe respektuje
+        // przełącznik "aktualizacje dostępne" i ciche godziny z preferencji - dokładnie tak,
+        // jak wcześniej robił to usunięty toast w AppShell, zanim monitorowanie przeniosło się
+        // do centralnego serwisu.
+        if (shouldNotify(preferences?.notifications, "update_available")) {
+          void pokazNatywnePowiadomienie(update.version);
+        }
       } catch (error) {
         if (!odmontowanyRef.current) {
           monitorRef.current = poNieudanymSprawdzeniu(monitorRef.current);
@@ -165,7 +178,7 @@ export function UpdateMonitorProvider({
         wTrakcieRef.current = false;
       }
     },
-    [wersjaBiezaca, znacznikDostepnej],
+    [wersjaBiezaca, znacznikDostepnej, preferences],
   );
 
   /** Planuje następne sprawdzenie. Zawsze najpierw kasuje poprzedni licznik - stąd jeden timer. */
