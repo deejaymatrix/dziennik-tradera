@@ -68,9 +68,14 @@ Uczciwie, żeby nie było złudzeń co do zakresu:
   danych renderują tam wyłącznie stan błędu. Warstwa wizualna została sprawdzona na tym,
   co da się wyrenderować bez backendu: nawigacja, motywy, kontrast, siatka, stany puste
   i błędu.
-- **Import uszkodzonego pliku, uszkodzona kopia zapasowa, brak dostępu do pliku.**
-  Wymienione w sekcji 20.2; pokryte testami jednostkowymi odpowiednich modułów, ale nie
-  przećwiczone jako pełny przepływ z interfejsu.
+- ~~**Import uszkodzonego pliku, uszkodzona kopia zapasowa, brak dostępu do pliku.**~~
+  **Uzupełnione po raporcie:** 13 nowych testów. Kopia zapasowa broni się w ośmiu wariantach
+  uszkodzenia (brak manifestu, brak bazy, manifest niebędący JSON-em, ucięta baza ze ZGODNĄ sumą
+  kontrolną, zawartość niebędąca bazą SQLite, brak pliku, pusty plik) i odrzucone archiwum nie
+  zostawia oczekującego przywrócenia, więc następny start nie podmieni działającej bazy. Import
+  CSV odrzuca wiersze krótsze i dłuższe od nagłówka, puste i złożone z pustych wartości, a polskie
+  znaki w opisach przechodzą bez zniekształcenia. Żaden z tych wariantów nie ujawnił błędu —
+  weryfikacja była już poprawna, brakowało tylko dowodu.
 - **Brak internetu.** Sprawdzanie aktualizacji ma wyciszony błąd (celowo), ale nie było
   testowane przy odciętej sieci.
 

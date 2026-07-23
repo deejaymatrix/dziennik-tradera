@@ -739,4 +739,85 @@ mod tests {
         assert_eq!(preview.row_count, 2);
         assert!(preview.warnings.iter().any(|w| w.contains("MINI")));
     }
+
+    /// Wiersz KRÓTSZY od nagłówka - typowy efekt ucięcia pliku albo ręcznej edycji w notatniku.
+    /// `zip` w `parse_records` po cichu gubi brakujące kolumny, więc bez tego testu import mógłby
+    /// przyjąć niekompletny wiersz i zapisać instrument z brakującymi parametrami.
+    #[test]
+    fn wiersz_z_mniejsza_liczba_kolumn_nie_przechodzi_po_cichu() {
+        let naglowek = header();
+        let mut krotki = row("EURUSD", "EURUSD");
+        krotki.truncate(krotki.len() - 3);
+
+        let wynik = parse_records(&naglowek, &[krotki]);
+        assert!(
+            wynik.is_err(),
+            "niekompletny wiersz został przyjęty - instrument trafiłby do bazy bez części parametrów"
+        );
+    }
+
+    /// Wiersz DŁUŻSZY od nagłówka - efekt nieuciekniętego separatora wewnątrz wartości
+    /// (np. opis z przecinkiem). Nadmiarowe pola są odrzucane przez `zip`, więc dane od tego
+    /// miejsca w prawo mogłyby być PRZESUNIĘTE - a to najgorszy możliwy wynik, bo import by się
+    /// udał i dopiero wyniki transakcji wyszłyby niepoprawne.
+    #[test]
+    fn wiersz_z_wieksza_liczba_kolumn_nie_przesuwa_danych_po_cichu() {
+        let naglowek = header();
+        let mut dlugi = row("EURUSD", "EURUSD");
+        dlugi.push("nadmiarowa wartosc".to_string());
+
+        match parse_records(&naglowek, &[dlugi]) {
+            // Odrzucenie jest poprawną odpowiedzią.
+            Err(_) => {}
+            // Przyjęcie jest dopuszczalne TYLKO wtedy, gdy wartości nie zostały przesunięte -
+            // nadmiar jest na końcu, więc wszystkie rozpoznane kolumny muszą mieć swoje wartości.
+            Ok(instrumenty) => {
+                let i = instrumenty.first().expect("jeden instrument");
+                assert_eq!(i.display_symbol, "EURUSD", "dane zostały przesunięte");
+                assert_eq!(
+                    i.parameters.currency_profit, "USD",
+                    "dane zostały przesunięte"
+                );
+            }
+        }
+    }
+
+    /// Zupełnie pusty wiersz w środku pliku - efekt pustej linii na końcu eksportu albo
+    /// sklejenia dwóch plików. Musi zostać odrzucony ze wskazaniem numeru wiersza, żeby
+    /// użytkownik wiedział, gdzie szukać w pliku mającym tysiąc linii.
+    #[test]
+    fn pusty_wiersz_jest_odrzucany_ze_wskazaniem_miejsca() {
+        let naglowek = header();
+        let wiersze = vec![row("EURUSD", "EURUSD"), Vec::new()];
+
+        let blad = parse_records(&naglowek, &wiersze).expect_err("pusty wiersz musi być odrzucony");
+        assert!(
+            blad.to_string().contains('3'),
+            "komunikat musi wskazywać, KTÓRY wiersz jest pusty: {blad}"
+        );
+    }
+
+    /// Polskie znaki w opisie muszą przejść bez zniekształcenia.
+    #[test]
+    fn polskie_znaki_w_opisie_przechodza_bez_zmian() {
+        let naglowek = header();
+        let mut wiersz = row("EURUSD", "EURUSD");
+        wiersz[2] = "Euro / dolar amerykański - główna para walutowa".to_string();
+
+        let instrumenty = parse_records(&naglowek, &[wiersz]).expect("import");
+        assert_eq!(
+            instrumenty[0].description,
+            "Euro / dolar amerykański - główna para walutowa"
+        );
+    }
+
+    /// Wiersze złożone z samych pustych napisów wyglądają jak dane, a nimi nie są.
+    #[test]
+    fn wiersze_z_samych_pustych_wartosci_sa_odrzucane() {
+        let naglowek = header();
+        let pusty: Vec<String> = naglowek.iter().map(|_| String::new()).collect();
+
+        parse_records(&naglowek, &[pusty])
+            .expect_err("wiersz z samych pustych wartości nie jest instrumentem");
+    }
 }

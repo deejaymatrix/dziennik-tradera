@@ -542,4 +542,205 @@ mod tests {
         .expect("apply");
         assert!(!applied);
     }
+
+    /// Buduje archiwum "ręcznie", z dowolnym zestawem wpisów - do odtwarzania uszkodzeń,
+    /// których nie da się wyprodukować normalną ścieżką tworzenia kopii.
+    fn zbuduj_archiwum(sciezka: &Path, wpisy: &[(&str, Vec<u8>)]) {
+        let file = std::fs::File::create(sciezka).expect("utworzenie archiwum");
+        let mut zip = ZipWriter::new(file);
+        let options = SimpleFileOptions::default();
+        for (nazwa, bajty) in wpisy {
+            zip.start_file(*nazwa, options).expect("wpis");
+            zip.write_all(bajty).expect("zapis wpisu");
+        }
+        zip.finish().expect("domknięcie archiwum");
+    }
+
+    /// Poprawne archiwum rozłożone na części - punkt wyjścia do psucia pojedynczych elementów.
+    fn czesci_poprawnego_archiwum(dir: &Path) -> (String, Vec<u8>) {
+        let (conn, _db_path) = make_db(dir);
+        let archive_path = dir.join("wzor.dtjbackup");
+        create_from_connection(&conn, &archive_path, "0.1.0", &dir.join("attachments"))
+            .expect("create");
+
+        let file = std::fs::File::open(&archive_path).expect("otwarcie");
+        let mut archive = ZipArchive::new(file).expect("zip");
+
+        let mut manifest = String::new();
+        archive
+            .by_name(MANIFEST_ENTRY_NAME)
+            .expect("manifest")
+            .read_to_string(&mut manifest)
+            .expect("odczyt manifestu");
+
+        let mut sqlite = Vec::new();
+        archive
+            .by_name(SQLITE_ENTRY_NAME)
+            .expect("baza")
+            .read_to_end(&mut sqlite)
+            .expect("odczyt bazy");
+
+        (manifest, sqlite)
+    }
+
+    /// Każde przywrócenie zaczyna się od `open_and_verify`. Jeżeli ta funkcja przepuści
+    /// uszkodzone archiwum, użytkownik podmienia DZIAŁAJĄCĄ bazę na śmieci - dlatego każdy
+    /// wariant uszkodzenia ma tu własny przypadek, a nie jeden zbiorczy.
+    #[test]
+    fn archiwum_bez_manifestu_jest_odrzucane() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let (_manifest, sqlite) = czesci_poprawnego_archiwum(dir.path());
+
+        let sciezka = dir.path().join("bez-manifestu.dtjbackup");
+        zbuduj_archiwum(&sciezka, &[(SQLITE_ENTRY_NAME, sqlite)]);
+
+        let blad =
+            open_and_verify(&sciezka).expect_err("archiwum bez manifestu musi być odrzucone");
+        assert!(
+            blad.to_string().contains("manifest"),
+            "komunikat musi mówić, CZEGO brakuje: {blad}"
+        );
+    }
+
+    #[test]
+    fn archiwum_bez_bazy_danych_jest_odrzucane() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let (manifest, _sqlite) = czesci_poprawnego_archiwum(dir.path());
+
+        let sciezka = dir.path().join("bez-bazy.dtjbackup");
+        zbuduj_archiwum(&sciezka, &[(MANIFEST_ENTRY_NAME, manifest.into_bytes())]);
+
+        let blad = open_and_verify(&sciezka).expect_err("archiwum bez bazy musi być odrzucone");
+        assert!(
+            blad.to_string().contains("bazy danych"),
+            "komunikat musi mówić, CZEGO brakuje: {blad}"
+        );
+    }
+
+    #[test]
+    fn manifest_ktory_nie_jest_jsonem_jest_odrzucany() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let (_manifest, sqlite) = czesci_poprawnego_archiwum(dir.path());
+
+        let sciezka = dir.path().join("zly-manifest.dtjbackup");
+        zbuduj_archiwum(
+            &sciezka,
+            &[
+                (MANIFEST_ENTRY_NAME, b"{to nie jest JSON".to_vec()),
+                (SQLITE_ENTRY_NAME, sqlite),
+            ],
+        );
+
+        let blad = open_and_verify(&sciezka).expect_err("uszkodzony manifest musi być odrzucony");
+        assert!(
+            blad.to_string().contains("format"),
+            "komunikat musi wskazywać format manifestu: {blad}"
+        );
+    }
+
+    /// Najgroźniejszy wariant: plik został ucięty w połowie zapisu (brak miejsca na dysku,
+    /// wyjęty pendrive), a suma kontrolna w manifeście PASUJE do tego, co zostało - bo
+    /// manifest też został przeliczony na uciętej zawartości. Sumy kontrolne takiego pliku
+    /// nie wyłapią; wyłapuje go dopiero `PRAGMA integrity_check` na rozpakowanej bazie.
+    #[test]
+    fn ucieta_baza_ze_zgodna_suma_kontrolna_jest_odrzucana() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let (manifest_json, sqlite) = czesci_poprawnego_archiwum(dir.path());
+
+        let ucieta = sqlite[..sqlite.len() / 3].to_vec();
+        let mut manifest: BackupManifest =
+            serde_json::from_str(&manifest_json).expect("manifest wzorcowy");
+        manifest.sqlite_sha256 = sha256_hex(&ucieta);
+
+        let sciezka = dir.path().join("ucieta.dtjbackup");
+        zbuduj_archiwum(
+            &sciezka,
+            &[
+                (
+                    MANIFEST_ENTRY_NAME,
+                    serde_json::to_vec(&manifest).expect("serializacja"),
+                ),
+                (SQLITE_ENTRY_NAME, ucieta),
+            ],
+        );
+
+        open_and_verify(&sciezka)
+            .expect_err("ucięta baza ze zgodną sumą kontrolną musi zostać odrzucona");
+    }
+
+    /// Plik, który w ogóle nie jest bazą SQLite, ale ma poprawną sumę kontrolną.
+    #[test]
+    fn zawartosc_ktora_nie_jest_baza_sqlite_jest_odrzucana() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let (manifest_json, _sqlite) = czesci_poprawnego_archiwum(dir.path());
+
+        let smieci = b"to na pewno nie jest baza danych".to_vec();
+        let mut manifest: BackupManifest =
+            serde_json::from_str(&manifest_json).expect("manifest wzorcowy");
+        manifest.sqlite_sha256 = sha256_hex(&smieci);
+
+        let sciezka = dir.path().join("smieci.dtjbackup");
+        zbuduj_archiwum(
+            &sciezka,
+            &[
+                (
+                    MANIFEST_ENTRY_NAME,
+                    serde_json::to_vec(&manifest).expect("serializacja"),
+                ),
+                (SQLITE_ENTRY_NAME, smieci),
+            ],
+        );
+
+        open_and_verify(&sciezka).expect_err("zawartość niebędąca bazą musi zostać odrzucona");
+    }
+
+    /// Nieistniejący plik - użytkownik wskazał kopię, którą w międzyczasie przeniósł albo usunął.
+    #[test]
+    fn brak_pliku_daje_czytelny_komunikat_a_nie_panike() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let blad = open_and_verify(&dir.path().join("nie-ma-takiego.dtjbackup"))
+            .expect_err("brakujący plik musi dać błąd");
+        assert!(
+            blad.to_string().contains("Nie można otworzyć pliku"),
+            "komunikat musi mówić o pliku, nie o wewnętrznym błędzie: {blad}"
+        );
+    }
+
+    /// Pusty plik (0 bajtów) - typowy efekt przerwanego zapisu na dysk.
+    #[test]
+    fn pusty_plik_jest_odrzucany() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let sciezka = dir.path().join("pusty.dtjbackup");
+        std::fs::write(&sciezka, b"").expect("zapis");
+
+        open_and_verify(&sciezka).expect_err("pusty plik nie jest archiwum");
+    }
+
+    /// Odrzucone archiwum NIE MOŻE zostawić po sobie oczekującego przywrócenia - inaczej przy
+    /// następnym starcie aplikacja podmieniłaby działającą bazę na tę, którą właśnie odrzuciła.
+    #[test]
+    fn odrzucone_archiwum_nie_zostawia_oczekujacego_przywrocenia() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let app_data = dir.path().join("app");
+        std::fs::create_dir_all(&app_data).expect("katalog danych");
+
+        let sciezka = dir.path().join("uszkodzone.dtjbackup");
+        std::fs::write(&sciezka, b"to nie jest zip").expect("zapis");
+
+        prepare_restore(&app_data, &sciezka).expect_err("uszkodzone archiwum musi być odrzucone");
+
+        // Po nieudanej próbie start aplikacji nie ma czego stosować.
+        let db_path = app_data.join("dziennik.sqlite3");
+        std::fs::write(&db_path, b"oryginalna baza").expect("zapis bazy");
+        let backup_dir = app_data.join("backups");
+        let zastosowano =
+            apply_pending_restore_if_present(&app_data, &db_path, &backup_dir, "0.1.0")
+                .expect("start aplikacji");
+        assert!(!zastosowano, "nie ma czego stosować po odrzuconym archiwum");
+        assert_eq!(
+            std::fs::read(&db_path).expect("odczyt"),
+            b"oryginalna baza",
+            "odrzucone archiwum podmieniło bazę przy starcie"
+        );
+    }
 }
