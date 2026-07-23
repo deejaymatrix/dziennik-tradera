@@ -1,5 +1,6 @@
 import { fromDatetimeLocalValue, toDatetimeLocalValue } from "./datetime";
 import { isValidDecimalString, normalizeDecimalInput } from "./decimal";
+import type { DefaultsPreferences } from "./types/preferences";
 import type { StrategyChecklist, Trade, TradeEmotions, TradeInput, TradeSide } from "./types/trade";
 import { blankStrategyChecklist, blankTradeEmotions } from "./types/trade";
 
@@ -82,6 +83,48 @@ export function blankTradeFormFields(): TradeFormFields {
     checklist: blankStrategyChecklist(),
     partialCloses: [],
   };
+}
+
+/**
+ * Nakłada na PUSTY formularz domyślne wartości z ustawień (Ustawienia → Domyślne wartości).
+ *
+ * Świadomie dotyczy wyłącznie interwału i sesji. Instrument, kierunek BUY/SELL i strategia
+ * NIE mają domyślnych wartości - specyfikacja wymaga, żeby te trzy pola zawsze wymagały
+ * świadomego wyboru, bo wpisane z przyzwyczajenia fałszują cały dziennik.
+ *
+ * Nie stosuje się do edycji istniejącej transakcji - tam wartości pochodzą z zapisu.
+ */
+export function applyNewTradeDefaults(
+  fields: TradeFormFields,
+  defaults: DefaultsPreferences | undefined,
+): TradeFormFields {
+  if (!defaults) {
+    return fields;
+  }
+  return {
+    ...fields,
+    intervalId: defaults.default_interval_id ?? fields.intervalId,
+    session: defaults.default_session ?? fields.session,
+  };
+}
+
+/** Konto podpowiadane w nowej transakcji (Ustawienia → Domyślne wartości → Domyślne konto).
+ * `lastUsedAccountId` to konto ostatnio wybrane na liście transakcji. */
+export function resolveDefaultAccountId(
+  defaults: DefaultsPreferences | undefined,
+  lastUsedAccountId: string,
+): string {
+  if (!defaults) {
+    return lastUsedAccountId;
+  }
+  switch (defaults.default_account.kind) {
+    case "specific":
+      return defaults.default_account.account_id;
+    case "none":
+      return "";
+    case "last_used":
+      return lastUsedAccountId;
+  }
 }
 
 export function tradeToFormFields(trade: Trade): TradeFormFields {

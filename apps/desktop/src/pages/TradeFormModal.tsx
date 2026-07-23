@@ -4,10 +4,12 @@ import { Plus } from "lucide-react";
 import { invokeCommand } from "../app/invokeCommand";
 import { usePreferences } from "../app/PreferencesProvider";
 import {
+  applyNewTradeDefaults,
   blankTradeFormFields,
   buildTradeInput,
   clearTradeDraft,
   loadTradeDraft,
+  resolveDefaultAccountId,
   saveTradeDraft,
   tradeToFormFields,
   validateTradeFormFormat,
@@ -138,13 +140,15 @@ export function TradeFormModal({
 
   // Konto jest pierwszym wyborem formularza (sekcja 6.2). Przy edycji konto transakcji jest
   // stałe (transakcja należy do konta), więc bierzemy je z transakcji i blokujemy zmianę.
-  const [selectedAccountId, setSelectedAccountId] = useState(() => trade?.account_id ?? accountId);
+  const { preferences } = usePreferences();
+  const [selectedAccountId, setSelectedAccountId] = useState(
+    () => trade?.account_id ?? resolveDefaultAccountId(preferences?.defaults, accountId),
+  );
   const selectedAccount = accounts.find((a) => a.id === selectedAccountId) ?? null;
   const accountCurrency = selectedAccount?.currency ?? "";
   const accountBalance = selectedAccount?.balance ?? "0";
 
   const { showToast } = useToast();
-  const { preferences } = usePreferences();
 
   /** Komunikat o UDANYM zapisie - użytkownik może go wyłączyć w Ustawieniach. Błędy i częściowe
    * niepowodzenia (np. nieudane załączniki) pokazujemy zawsze, bo to nie jest potwierdzenie. */
@@ -174,7 +178,11 @@ export function TradeFormModal({
     // Nowa transakcja startuje ZAWSZE pusta. Wcześniej wczytywaliśmy tu lokalny autoszkic, przez
     // co formularz podpowiadał wartości z poprzedniej niezapisanej transakcji - mylące. Odkąd jest
     // jawny przycisk "Zapisz szkic", ten automatyczny szkic jest zbędny.
-    return blankTradeFormFields();
+    //
+    // Pusta = bez danych poprzedniej transakcji, ale Z domyślnymi wartościami wybranymi przez
+    // użytkownika w Ustawieniach (interwał, sesja). Instrument, kierunek i strategia zostają
+    // puste zawsze - patrz `applyNewTradeDefaults`.
+    return applyNewTradeDefaults(blankTradeFormFields(), preferences?.defaults);
   });
   const initialSnapshot = useRef(JSON.stringify(fields));
 
