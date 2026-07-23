@@ -396,7 +396,7 @@ integrity_check` na wypakowanej bazie — dopiero gdy wszystko się zgadza, dane
 **Następny krok:** Cel 1.8 — produkcyjna autoaktualizacja (Tauri updater, podpis Ed25519,
 GitHub Releases).
 
-## Cel 1.8 — Produkcyjna autoaktualizacja — ✅ ukończony (⚠️ wymaga konfiguracji przed wydaniem)
+## Cel 1.8 — Publiczny mechanizm autoaktualizacji i powiadomień — 🔒 **NIEGOTOWY** (kod kompletny, cztery blokady poza kodem)
 
 **Co działa:**
 
@@ -473,8 +473,59 @@ trzeba go podmienić i dodać dwa sekrety (`TAURI_SIGNING_PRIVATE_KEY`,
 zadziała naprawdę. Do tego czasu przycisk "Sprawdź aktualizacje" będzie zwracał błąd - to
 oczekiwane.
 
-**Następny krok:** Cel 1.9 — instalator NSIS `.exe` i wydanie 1.0 fundamentu (smoke test na
-czystym Windows 10/11).
+### Rozszerzenie zakresu (2026-07-23/24): dokument uzupełniający z obowiązkowym audytem
+
+Użytkownik przysłał zaktualizowany, znacznie szerszy Cel 1.8 („Publiczny mechanizm
+autoaktualizacji i powiadomień"), a potem osobny dokument „Uzupełnienie... obowiązkowy audyt
+autoaktualizacji" zabraniający rozpoczęcia Celu 1.9 dopóki cała macierz audytowa nie ma statusu
+PASS. Poniższe zostało zbudowane w ośmiu krokach (commity „Cel 1.8 (1/n)"–„(8/n)"):
+
+1. **Logika harmonogramu** (`app/updateMonitor.ts`, 25 testów) — interwał 10 minut, jitter ±10%,
+   narastający backoff do 60 minut, próg 5 minut dla powrotu na pierwszy plan, porównywanie
+   wersji liczbowe (nie tekstowe), `last_notified_version` w `localStorage`.
+2. **Lekkie sprawdzanie manifestu** (`src-tauri/src/infrastructure/update_manifest.rs`, 13 testów,
+   6 na realnym HTTP przez własny serwer TCP w `std` — zero nowych zależności w buildzie) —
+   żądanie warunkowe z `If-None-Match`/`ETag`, świadomie BEZ weryfikacji podpisu (to zostaje
+   wyłącznie po stronie `tauri-plugin-updater`).
+3. **`tauri-plugin-notification`** dodana (Rust + frontend + uprawnienie).
+4. **Jeden centralny serwis** (`app/UpdateMonitorProvider.tsx`, 17 testów) — zastąpił
+   jednorazowe sprawdzenie w `AppShell`; dokładnie jeden timer, przeżywa zmiany widoku,
+   nie duplikuje się przy przerysowaniu (zweryfikowane licznikiem wywołań, nie przeglądem kodu).
+5. Karta w Ustawieniach i TRWAŁY znacznik w górnym pasku podpięte pod centralny serwis
+   (usunięty zdublowany, niezależny `useUpdater`).
+6. Testy realnych odpowiedzi HTTP (404/500/304/uszkodzony JSON/ETag/DNS) + dwie poprawki
+   we WŁASNYCH testach (brakujący dostawca kryptografii rustls, złe założenie o treści błędu).
+7. Natywne powiadomienie systemowe respektuje przełącznik `update_available` i ciche godziny
+   (wcześniej to zgubione po przejściu na centralny serwis) — trwały znacznik i karta w
+   Ustawieniach zostają widoczne ZAWSZE, tylko popup jest wyciszany.
+8. Kliknięcie natywnego powiadomienia nawiguje do Ustawień → Aktualizacje
+   (`zadanieOtwarciaUstawien` + `AppShell`, bo centralny serwis stoi nad routerem i nie ma
+   własnego dostępu do nawigacji).
+
+Po drodze naprawiony też realny dług: 21 nieujawnionych błędów lintu w pliku testowym
+z kroku 4 (`require-await` na wzorcu `act(async () => { vi.advanceTimersByTime(...) })`) —
+wyłączone świadomie dla plików testowych w `eslint.config.js` z uzasadnieniem w komentarzu,
+zamiast usuwać `async` i ryzykować cichą niestabilność testów z fałszywymi timerami.
+
+**Pełna macierz audytowa wymagana przez dokument uzupełniający:**
+[`MACIERZ_AUDYTU_CEL_1_8.md`](MACIERZ_AUDYTU_CEL_1_8.md).
+
+**Werdykt: CEL 1.8 — NIEGOTOWY.** Cztery blokady, żadna nie jest luką w kodzie:
+
+1. Certyfikat Authenticode — brak (decyzja i wydatek użytkownika).
+2. Sekrety GitHub Actions (`TAURI_SIGNING_PRIVATE_KEY`, `..._PASSWORD`) — nie ustawione;
+   celowo NIE zrobione przeze mnie, bo to klucz prywatny użytkownika (`docs/KLUCZE_I_WYDANIE.md`).
+3. Żadne wydanie nigdy nie zostało opublikowane (`gh release list` puste).
+4. Test na niezależnym komputerze Windows 10/11 x64 — fizycznie niemożliwy z tego środowiska.
+
+Zgodnie z dokumentem uzupełniającym: **nie rozpoczynam Celu 1.9 i nie przygotowuję instalatora**,
+dopóki użytkownik nie zamknie tych czterech punktów. Po ich zamknięciu pozostałe pozycje
+macierzy są już PASS i pełny test z sekcji 3 macierzy powinien przejść bez dodatkowych zmian
+w kodzie.
+
+**Następny krok:** zablokowany do czasu decyzji użytkownika w sprawie certyfikatu Authenticode
+i wykonania kroków z `docs/KLUCZE_I_WYDANIE.md`. Do tego czasu kontynuuję pracę nad pozostałymi
+otwartymi pozycjami planu, które nie zależą od tej blokady.
 
 ## Modyfikacja przed instalatorem (dokument `Prompt_modyfikacja_Dziennika_Tradera.docx`)
 
@@ -1364,15 +1415,15 @@ zachowanie (nie atrapę), testy i przechodzące lint/typecheck.
 
 ## Blok A — seria B ze specyfikacji formularza transakcji
 
-| Poz.  | Zakres                                               | Status                                   |
-| ----- | ---------------------------------------------------- | ---------------------------------------- |
-| B1–B3 | Szablony brokerów, ekran szablonów, import CSV       | ✅                                       |
-| B4    | Kalkulator wielkości pozycji                         | ✅                                       |
-| B5    | Kolory strategii, szczegóły konta, emocje w Analizie | ✅                                       |
-| B6    | Przebudowa formularza transakcji (cz. 1–3)           | ✅                                       |
-| B7    | Częściowe zamknięcia (wchłonięte do B6 cz. 3)        | ✅                                       |
-| B8    | Interwały do kosza + konflikt nazw przy przywracaniu | ✅                                       |
-| B9    | Autoaktualizacja produkcyjna (Cel 1.8)               | ✅ resprawdzone po audycie — patrz niżej |
+| Poz.  | Zakres                                               | Status                                                                                |
+| ----- | ---------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| B1–B3 | Szablony brokerów, ekran szablonów, import CSV       | ✅                                                                                    |
+| B4    | Kalkulator wielkości pozycji                         | ✅                                                                                    |
+| B5    | Kolory strategii, szczegóły konta, emocje w Analizie | ✅                                                                                    |
+| B6    | Przebudowa formularza transakcji (cz. 1–3)           | ✅                                                                                    |
+| B7    | Częściowe zamknięcia (wchłonięte do B6 cz. 3)        | ✅                                                                                    |
+| B8    | Interwały do kosza + konflikt nazw przy przywracaniu | ✅                                                                                    |
+| B9    | Autoaktualizacja produkcyjna (Cel 1.8)               | 🔒 NIEGOTOWY — kod kompletny, 4 blokady poza kodem, patrz `MACIERZ_AUDYTU_CEL_1_8.md` |
 
 ## Blok B — bezpieczny panel ustawień
 
