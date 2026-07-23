@@ -1,5 +1,6 @@
 import { useSearchParams } from "react-router";
 import { NEW_TRADE_PARAM } from "../shell/Header";
+import { TradeInspector } from "./TradeInspector";
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { ArchiveRestore, Flag, Pencil, Plus, Search, Trash2, TrendingUp } from "lucide-react";
@@ -79,6 +80,11 @@ export function TransactionsPage(): ReactElement {
   const [tradesError, setTradesError] = useState<string | null>(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
+  // Split View: kliknięcie wiersza otwiera panel szczegółów OBOK tabeli, bez opuszczania listy.
+  const [inspectedTrade, setInspectedTrade] = useState<Trade | null>(null);
+  // Przypięcie panelu zostawia go otwartym po zapisaniu transakcji, zamiast zamykać razem
+  // z formularzem - przy przeglądaniu wielu pozycji po kolei to oszczędza klikanie.
+  const [inspectorPinned, setInspectorPinned] = useState(false);
   // Skrót "Nowa transakcja" z górnego paska wchodzi tu parametrem adresu - formularz otwiera
   // się od razu, a parametr jest natychmiast czyszczony, żeby odświeżenie strony nie otwierało
   // go po raz drugi.
@@ -126,6 +132,15 @@ export function TransactionsPage(): ReactElement {
         includeDeleted,
       });
       setTrades(data);
+      // Panel szczegółów musi pokazywać AKTUALNE dane po każdym odświeżeniu listy (np. po
+      // zapisie edycji). Odpięty zamyka się, gdy transakcja zniknęła z listy; przypięty
+      // zostaje otwarty, ale też z odświeżonymi danymi.
+      setInspectedTrade((current) => {
+        if (!current) {
+          return null;
+        }
+        return data.find((t) => t.id === current.id) ?? null;
+      });
     } catch (e) {
       setTradesError(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.");
     }
@@ -299,6 +314,7 @@ export function TransactionsPage(): ReactElement {
       )}
 
       {!tradesError && filteredTrades !== null && filteredTrades.length > 0 && selectedAccount && (
+        <div className={inspectedTrade ? styles.splitView : undefined}>
         <Table>
           <thead>
             <tr>
@@ -318,7 +334,16 @@ export function TransactionsPage(): ReactElement {
             {filteredTrades.map((trade) => {
               const netPnl = trade.net_pnl !== null ? Number(trade.net_pnl) : null;
               return (
-                <tr key={trade.id}>
+                <tr
+                  key={trade.id}
+                  className={[
+                    styles.clickableRow,
+                    inspectedTrade?.id === trade.id ? styles.selectedRow : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onClick={() => setInspectedTrade(trade)}
+                >
                   <td>{trade.display_number}</td>
                   <td>{trade.instrument_spec_snapshot?.display_symbol ?? "—"}</td>
                   <td>{trade.strategy_snapshot?.name ?? "—"}</td>
@@ -349,7 +374,13 @@ export function TransactionsPage(): ReactElement {
                       : "—"}
                   </td>
                   <td>
-                    <div className={tableStyles.actions}>
+                    {/* Kliknięcie przycisku akcji NIE może przy okazji otwierać panelu
+                        szczegółów - to dwie różne intencje w tym samym wierszu. */}
+                    <div
+                      className={tableStyles.actions}
+                      onClick={(event) => event.stopPropagation()}
+                      role="presentation"
+                    >
                       <IconButton
                         icon={<Pencil size={16} />}
                         aria-label={`Edytuj transakcję #${trade.display_number}`}
@@ -387,6 +418,19 @@ export function TransactionsPage(): ReactElement {
             })}
           </tbody>
         </Table>
+
+        {inspectedTrade && (
+          <TradeInspector
+            trade={inspectedTrade}
+            currency={selectedAccount.currency}
+            pinned={inspectorPinned}
+            onTogglePin={() => setInspectorPinned((v) => !v)}
+            onClose={() => setInspectedTrade(null)}
+            onEdit={() => openEditForm(inspectedTrade)}
+            onOpenFull={() => openEditForm(inspectedTrade)}
+          />
+        )}
+        </div>
       )}
 
       {selectedAccount && (

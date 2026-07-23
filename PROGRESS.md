@@ -1380,7 +1380,7 @@ wszędzie. Zrobione dotąd tokeny i paleta zostają jako fundament.
 | Q2 | Górny pasek: nazwa widoku i skrót „Nowa transakcja" (centrum powiadomień osobno) | ✅ |
 | Q3 | Paleta poleceń `Ctrl+K` (bez operacji niszczących) | ✅ |
 | Q4 | Dashboard jako Executive Dashboard: 6 KPI w górnym rzędzie, wskaźniki uzupełniające ciszej, kafelki klikalne do źródła | ✅ |
-| Q5 | Historia transakcji: Table-First + Split View z Inspectorem po prawej (tylko odczyt, jawny „Edytuj", przypinanie) | ⬜ |
+| Q5 | Historia transakcji: Table-First + Split View z Inspectorem po prawej (tylko odczyt, jawny „Edytuj", przypinanie) | ✅ |
 | Q6 | Nowa transakcja jako Guided Workflow ze swobodnym przechodzeniem między sekcjami | ⬜ |
 | Q7 | Raporty: szeroki workspace analityczny | ⬜ |
 | Q8 | Wykresy: paleta z tych samych tokenów, eksport PDF zostaje jasny | ⬜ |

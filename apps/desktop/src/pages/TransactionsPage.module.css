@@ -35,3 +35,33 @@
 .loss {
   color: var(--color-loss);
 }
+
+/* Split View: tabela po lewej, panel szczegółów po prawej. `minmax(0, 1fr)` na kolumnie tabeli
+   jest konieczne - bez tego szeroka tabela rozpycha siatkę i wypycha panel poza ekran. */
+.splitView {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 26rem);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+/* Przy wąskim oknie panel schodzi POD tabelę zamiast ściskać obie kolumny do nieczytelności. */
+@media (max-width: 75rem) {
+  .splitView {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.clickableRow {
+  cursor: pointer;
+}
+
+/* Zaznaczony wiersz musi być odróżnialny od zwykłego najechania - stąd złoty pasek, a nie samo
+   tło, które zlewałoby się z hoverem sąsiada. */
+.selectedRow td {
+  background-color: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+
+.selectedRow td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
