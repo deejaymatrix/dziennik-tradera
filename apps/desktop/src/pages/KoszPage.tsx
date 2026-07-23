@@ -127,6 +127,14 @@ export function KoszPage(): ReactElement {
     });
   }
 
+  /** Nazwa proponowana przez backend przy konflikcie - wyciągana z komunikatu w cudzysłowie
+   * drukarskim, np. ...(np. „M15 (2)”)... Gdy jej nie ma, po prostu pokazujemy błąd. */
+  function suggestedLabelFrom(message: string): string | null {
+    const matches = [...message.matchAll(/„([^”]+)”/g)];
+    // Pierwszy cudzysłów to zajęta nazwa, drugi to propozycja.
+    return matches[1]?.[1] ?? null;
+  }
+
   async function handleRestore(item: TrashItem): Promise<void> {
     setBusy(true);
     try {
@@ -134,7 +142,43 @@ export function KoszPage(): ReactElement {
       showToast(`Przywrócono: ${item.label}.`, "success");
       await load();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+      const message = e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.";
+
+      // Konflikt nazw interwału (sekcja 7): zamiast zostawić użytkownika z samym błędem,
+      // proponujemy przywrócenie pod wolną nazwą albo rezygnację.
+      const suggestion =
+        item.entity_type === "interval" ? suggestedLabelFrom(message) : null;
+      if (suggestion) {
+        setBusy(false);
+        const restoreUnderNewName = await confirm({
+          title: "Nazwa jest już zajęta",
+          message: `${message}\n\nPrzywrócić pod nazwą „${suggestion}”?`,
+          confirmLabel: `Przywróć jako „${suggestion}”`,
+          cancelLabel: "Anuluj",
+        });
+        if (!restoreUnderNewName) {
+          return;
+        }
+        setBusy(true);
+        try {
+          await invokeCommand("restore_interval_with_label", {
+            id: item.id,
+            label: suggestion,
+          });
+          showToast(`Przywrócono jako „${suggestion}”.`, "success");
+          await load();
+        } catch (renameError) {
+          showToast(
+            renameError instanceof Error ? renameError.message : "Wystąpił nieoczekiwany błąd.",
+            "error",
+          );
+        } finally {
+          setBusy(false);
+        }
+        return;
+      }
+
+      showToast(message, "error");
     } finally {
       setBusy(false);
     }

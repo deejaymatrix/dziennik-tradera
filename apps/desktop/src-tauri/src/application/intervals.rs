@@ -45,6 +45,17 @@ impl IntervalsService {
         self.repository.restore(id)
     }
 
+    /// Przywrócenie z kosza pod inną nazwą - używane po odrzuceniu zwykłego przywrócenia
+    /// z powodu konfliktu nazw (sekcja 7).
+    pub fn restore_with_label(&self, id: &str, label: &str) -> Result<Interval, AppError> {
+        self.repository.restore_with_label(id, label)
+    }
+
+    /// Podpowiedź wolnej nazwy dla interfejsu proponującego przywrócenie pod inną nazwą.
+    pub fn suggest_free_label(&self, label: &str) -> Result<String, AppError> {
+        self.repository.suggest_free_label(label)
+    }
+
     pub fn delete_permanently(&self, id: &str) -> Result<(), AppError> {
         self.repository.delete_permanently(id)
     }

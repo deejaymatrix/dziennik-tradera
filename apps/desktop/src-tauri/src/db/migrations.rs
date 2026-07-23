@@ -71,6 +71,11 @@ const MIGRATIONS: &[Migration] = &[
         name: "0012_trade_partial_closes",
         sql: include_str!("migrations/0012_trade_partial_closes.sql"),
     },
+    Migration {
+        version: 13,
+        name: "0013_intervals_unique_active_label",
+        sql: include_str!("migrations/0013_intervals_unique_active_label.sql"),
+    },
 ];
 
 #[derive(Debug, Error)]
@@ -270,7 +275,10 @@ mod tests {
 
         let report = run_migrations(&mut conn, &dir.path().join("backups")).expect("migrate");
 
-        assert_eq!(report.applied, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+        assert_eq!(
+            report.applied,
+            vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+        );
         assert!(
             report.backup_path.is_none(),
             "świeża baza nie powinna być kopiowana"
@@ -360,7 +368,7 @@ mod tests {
 
         let report = run_migrations_against(&mut conn, &backup_dir, MIGRATIONS)
             .expect("apply v3 on top of real prior data");
-        assert_eq!(report.applied, vec![3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+        assert_eq!(report.applied, vec![3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
 
         let instrument_count: i64 = conn
             .query_row("SELECT count(*) FROM instruments", [], |row| row.get(0))
@@ -439,7 +447,7 @@ mod tests {
 
         let report = run_migrations_against(&mut conn, &backup_dir, MIGRATIONS)
             .unwrap_or_else(|e| panic!("migration 3 failed against realistic prior data: {e}"));
-        assert_eq!(report.applied, vec![3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+        assert_eq!(report.applied, vec![3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
 
         let instrument_count: i64 = conn
             .query_row("SELECT count(*) FROM instruments", [], |row| row.get(0))

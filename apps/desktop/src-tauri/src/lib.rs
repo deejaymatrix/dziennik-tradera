@@ -230,6 +230,7 @@ pub fn run() {
             commands::intervals::set_interval_hidden,
             commands::intervals::archive_interval,
             commands::intervals::restore_interval,
+            commands::intervals::restore_interval_with_label,
             commands::intervals::reorder_intervals,
             commands::strategies::create_strategy,
             commands::strategies::get_strategy,

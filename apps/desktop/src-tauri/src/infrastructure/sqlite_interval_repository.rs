@@ -15,6 +15,24 @@ impl SqliteIntervalRepository {
     pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
         Self { conn }
     }
+
+    /// Czy istnieje AKTYWNY (nie w koszu) interwał o tej nazwie. Porównanie bez rozróżniania
+    /// wielkości liter, bo „M15" i „m15" byłyby dla użytkownika tą samą nazwą.
+    fn active_label_exists(&self, label: &str) -> Result<bool, AppError> {
+        let conn = self
+            .conn
+            .lock()
+            .expect("mutex bazy danych zatruty (poprzedni panik)");
+        let found: Option<i64> = conn
+            .query_row(
+                "SELECT 1 FROM intervals
+                 WHERE archived_at IS NULL AND lower(label) = lower(?1) LIMIT 1",
+                [label],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(found.is_some())
+    }
 }
 
 const SELECT_COLUMNS: &str =
@@ -206,14 +224,61 @@ impl IntervalRepository for SqliteIntervalRepository {
     }
 
     fn restore(&self, id: &str) -> Result<Interval, AppError> {
+        // Nazwa jest unikalna tylko wśród AKTYWNYCH interwałów (migracja 0013), więc kosz nie
+        // blokuje nazwy. Konflikt może się jednak pojawić przy przywracaniu, jeżeli w międzyczasie
+        // powstał nowy interwał o tej samej nazwie - wtedy odrzucamy operację z propozycją
+        // wolnej nazwy zamiast wywalać się surowym błędem bazy (sekcja 7).
+        let archived_label: String = {
+            let conn = self
+                .conn
+                .lock()
+                .expect("mutex bazy danych zatruty (poprzedni panik)");
+            conn.query_row(
+                "SELECT label FROM intervals WHERE id = ?1 AND archived_at IS NOT NULL",
+                [id],
+                |row| row.get(0),
+            )
+            .optional()?
+            .ok_or_else(|| {
+                AppError::NotFound(format!(
+                    "Nie znaleziono zarchiwizowanego interwału o id {id}."
+                ))
+            })?
+        };
+
+        if self.active_label_exists(&archived_label)? {
+            let suggestion = self.suggest_free_label(&archived_label)?;
+            return Err(AppError::Conflict(format!(
+                "Istnieje już aktywny interwał o nazwie „{archived_label}”. Przywróć ten z kosza \
+                 pod inną nazwą (np. „{suggestion}”) albo zrezygnuj z przywracania."
+            )));
+        }
+
+        self.restore_with_label(id, &archived_label)
+    }
+
+    fn restore_with_label(&self, id: &str, label: &str) -> Result<Interval, AppError> {
+        let trimmed = label.trim();
+        if trimmed.is_empty() {
+            return Err(AppError::Validation(
+                "Nazwa interwału nie może być pusta.".to_string(),
+            ));
+        }
+        if self.active_label_exists(trimmed)? {
+            return Err(AppError::Conflict(format!(
+                "Istnieje już aktywny interwał o nazwie „{trimmed}”. Wybierz inną nazwę."
+            )));
+        }
+
         let conn = self
             .conn
             .lock()
             .expect("mutex bazy danych zatruty (poprzedni panik)");
         let now = Utc::now().to_rfc3339();
         let affected = conn.execute(
-            "UPDATE intervals SET archived_at = NULL, updated_at = ?1 WHERE id = ?2 AND archived_at IS NOT NULL",
-            rusqlite::params![now, id],
+            "UPDATE intervals SET archived_at = NULL, label = ?1, updated_at = ?2
+             WHERE id = ?3 AND archived_at IS NOT NULL",
+            rusqlite::params![trimmed, now, id],
         )?;
         drop(conn);
         if affected == 0 {
@@ -222,6 +287,19 @@ impl IntervalRepository for SqliteIntervalRepository {
             )));
         }
         self.get(id)
+    }
+
+    fn suggest_free_label(&self, label: &str) -> Result<String, AppError> {
+        let base = label.trim();
+        // Górna granica jest tylko zabezpieczeniem przed nieskończoną pętlą przy uszkodzonych
+        // danych - w praktyce wolna nazwa znajduje się przy pierwszej albo drugiej próbie.
+        for suffix in 2..1000 {
+            let candidate = format!("{base} ({suffix})");
+            if !self.active_label_exists(&candidate)? {
+                return Ok(candidate);
+            }
+        }
+        Ok(format!("{base} ({})", Utc::now().timestamp()))
     }
 
     fn delete_permanently(&self, id: &str) -> Result<(), AppError> {
@@ -442,5 +520,105 @@ mod tests {
         let reordered = repo.list(true, true).expect("list after reorder");
         let reordered_ids: Vec<String> = reordered.iter().map(|i| i.id.clone()).collect();
         assert_eq!(reordered_ids, ids);
+    }
+}
+
+#[cfg(test)]
+mod tests_kosz_nazwy {
+    use super::*;
+    use crate::db::{connection, migrations};
+
+    fn repo_with_fresh_db() -> (SqliteIntervalRepository, tempfile::TempDir) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut conn = connection::open(&dir.path().join("db.sqlite3")).expect("open");
+        migrations::run_migrations(&mut conn, &dir.path().join("backups")).expect("migrate");
+        (
+            SqliteIntervalRepository::new(Arc::new(Mutex::new(conn))),
+            dir,
+        )
+    }
+
+    fn utworz(repo: &SqliteIntervalRepository, label: &str) -> Interval {
+        repo.create(&NewInterval {
+            label: label.to_string(),
+        })
+        .unwrap_or_else(|e| panic!("tworzenie interwału {label}: {e}"))
+    }
+
+    #[test]
+    fn interwal_w_koszu_zwalnia_swoja_nazwe() {
+        // Przed migracją 0013 indeks unikalności obejmował też kosz, więc skasowany "H3"
+        // blokował utworzenie nowego "H3". Kosz ma zwalniać nazwę, a nie trzymać ją w zakładnikach.
+        let (repo, _dir) = repo_with_fresh_db();
+        let pierwszy = utworz(&repo, "H3");
+        repo.archive(&pierwszy.id).expect("do kosza");
+
+        let drugi = utworz(&repo, "H3");
+
+        assert_eq!(drugi.label, "H3");
+        assert_ne!(drugi.id, pierwszy.id);
+    }
+
+    #[test]
+    fn przywrocenie_przy_zajetej_nazwie_odrzucane_z_propozycja() {
+        let (repo, _dir) = repo_with_fresh_db();
+        let pierwszy = utworz(&repo, "H3");
+        repo.archive(&pierwszy.id).expect("do kosza");
+        utworz(&repo, "H3");
+
+        let blad = repo.restore(&pierwszy.id).expect_err("konflikt nazw");
+
+        assert!(matches!(blad, AppError::Conflict(_)));
+        let tekst = blad.to_string();
+        assert!(
+            tekst.contains("H3 (2)"),
+            "komunikat ma PROPONOWAĆ wolną nazwę, było: {tekst}"
+        );
+    }
+
+    #[test]
+    fn przywrocenie_pod_inna_nazwa_dziala() {
+        let (repo, _dir) = repo_with_fresh_db();
+        let pierwszy = utworz(&repo, "H3");
+        repo.archive(&pierwszy.id).expect("do kosza");
+        utworz(&repo, "H3");
+
+        let przywrocony = repo
+            .restore_with_label(&pierwszy.id, "H3 (2)")
+            .expect("przywrócenie pod inną nazwą");
+
+        assert_eq!(przywrocony.id, pierwszy.id);
+        assert_eq!(przywrocony.label, "H3 (2)");
+        assert!(przywrocony.archived_at.is_none());
+        // Oba istnieją równocześnie i nie ma duplikatu nazwy.
+        let aktywne = repo.list(true, false).expect("lista");
+        assert_eq!(aktywne.iter().filter(|i| i.label == "H3").count(), 1);
+        assert_eq!(aktywne.iter().filter(|i| i.label == "H3 (2)").count(), 1);
+    }
+
+    #[test]
+    fn przywrocenie_pod_zajeta_nazwa_jest_odrzucane() {
+        let (repo, _dir) = repo_with_fresh_db();
+        let pierwszy = utworz(&repo, "H3");
+        repo.archive(&pierwszy.id).expect("do kosza");
+        utworz(&repo, "H3");
+
+        let blad = repo
+            .restore_with_label(&pierwszy.id, "h3")
+            .expect_err("nazwa zajęta, tylko inna wielkość liter");
+
+        assert!(matches!(blad, AppError::Conflict(_)));
+    }
+
+    #[test]
+    fn przywrocenie_bez_konfliktu_zachowuje_oryginalna_nazwe() {
+        let (repo, _dir) = repo_with_fresh_db();
+        let interwal = utworz(&repo, "H3");
+        repo.archive(&interwal.id).expect("do kosza");
+
+        let przywrocony = repo.restore(&interwal.id).expect("przywrócenie");
+
+        assert_eq!(przywrocony.label, "H3");
+        assert!(przywrocony.archived_at.is_none());
     }
 }

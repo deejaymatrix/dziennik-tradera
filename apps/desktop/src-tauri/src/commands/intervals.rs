@@ -64,6 +64,17 @@ pub fn restore_interval(state: State<'_, AppState>, id: String) -> Result<Interv
     require_db(&state)?.restore(&id)
 }
 
+/// Przywrócenie interwału z kosza pod INNĄ nazwą - wywoływane po tym, jak zwykłe przywrócenie
+/// zostało odrzucone z powodu konfliktu nazw (sekcja 7).
+#[tauri::command]
+pub fn restore_interval_with_label(
+    state: State<'_, AppState>,
+    id: String,
+    label: String,
+) -> Result<Interval, AppError> {
+    require_db(&state)?.restore_with_label(&id, &label)
+}
+
 #[tauri::command]
 pub fn reorder_intervals(
     state: State<'_, AppState>,

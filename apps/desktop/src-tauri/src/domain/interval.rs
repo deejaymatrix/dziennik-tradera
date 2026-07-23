@@ -47,7 +47,16 @@ pub trait IntervalRepository {
     /// Odrzuca archiwizację wpisu wbudowanego (`AppError::Validation`) - można go wyłącznie
     /// ukryć.
     fn archive(&self, id: &str) -> Result<Interval, AppError>;
+    /// Przywraca interwał z kosza. Zwraca `AppError::Conflict`, jeżeli w międzyczasie powstał
+    /// AKTYWNY interwał o tej samej nazwie - komunikat niesie wtedy propozycję wolnej nazwy,
+    /// żeby interfejs mógł zaproponować przywrócenie pod nią albo rezygnację (sekcja 7).
     fn restore(&self, id: &str) -> Result<Interval, AppError>;
+    /// Przywraca interwał z kosza pod INNĄ nazwą - użycie po odrzuceniu zwykłego przywrócenia
+    /// z powodu konfliktu nazw.
+    fn restore_with_label(&self, id: &str, label: &str) -> Result<Interval, AppError>;
+    /// Pierwsza wolna nazwa oparta na podanej, np. `M15` -> `M15 (2)`. Używane do podpowiedzi
+    /// przy konflikcie przywracania.
+    fn suggest_free_label(&self, label: &str) -> Result<String, AppError>;
     fn reorder(&self, ordered_ids: &[String]) -> Result<(), AppError>;
     /// Trwałe usunięcie interwału (uniwersalny Kosz, Faza 5) - dozwolone tylko dla już
     /// zarchiwizowanego interwału (co samo w sobie wyklucza wbudowane - nie można ich
