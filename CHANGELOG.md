@@ -153,6 +153,82 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   z transakcją po kliknięciu "Zapisz"; zamknięcie formularza z niezapisanymi załącznikami
   wymaga potwierdzenia.
 
+#### Szablony brokerów, instrumenty i kalkulator (seria B1–B5)
+
+- Szablony brokerów: schemat, ekran "Szablony instrumentów" i import instrumentów wprost
+  z pliku CSV eksportowanego przez platformę brokera. Import rozumie konwencje nazw kolumn
+  różnych brokerów (`tick_size` u Vantage vs `TradeTickSize` w MT5), rozpoznaje warianty
+  `-MINI`, buduje kategorię ze ścieżki drzewa instrumentów i odrzuca plik z powtarzającymi się
+  symbolami zamiast tworzyć nierozróżnialne pozycje.
+- Jeden szablon może obsługiwać wiele kont. Przypisanie szablonu do konta jest **nieodwracalne**
+  (świadoma decyzja użytkownika): pomyłkę naprawia się usunięciem konta, nie podmianą szablonu.
+- Kalkulator wielkości pozycji jako osobne okno w nawigacji.
+- Pełny selektor koloru strategii (HSV) z automatycznym doborem czytelnego koloru tekstu.
+- "Stan emocjonalny" i "Interwały" jako własne okna w nawigacji, poza Ustawieniami — to listy
+  wyboru używane przy transakcji, więc ich miejsce jest obok Strategii i Instrumentów.
+
+#### Formularz transakcji (seria B6)
+
+- Formularz przebudowany w pięć zwijanych paneli z widocznym stanem uzupełnienia, szerokim
+  oknem i stałym panelem obliczeń po prawej stronie.
+- Wybór konta wprost w formularzu (przy edycji zablokowany — transakcja należy do konta).
+- Emocje jako płaska lista: dodawane pojedynczo, każda z własną skalą występowania.
+- Wymagana zasada oznaczona jako niespełniona wymaga podania powodu; bez niego finalny zapis
+  jest zablokowany z komunikatem wskazującym **konkretną** zasadę. Szkic zapisuje się bez tego.
+- **Częściowe zamykanie pozycji**: osobna tabela relacyjna, wpis to zamknięty lot + zrealizowana
+  kwota. Wynik ma dokładnie jedno źródło — przy obecnych zamknięciach częściowych jest sumą
+  wpisanych kwot, bez nich liczy się z ceny wyjścia; nigdy jedno i drugie. Status wylicza się
+  z pozostałego lota, a nie z wyboru użytkownika.
+- Formularz jako **Guided Workflow**: konto i jego aktualne saldo widoczne przez cały czas
+  wypełniania, dolny pasek akcji (Anuluj / Zapisz szkic / Zapisz transakcję) przyklejony do dołu.
+
+#### Bezpieczny panel ustawień (seria U1–U11)
+
+- Ustawienia przebudowane w sześć sekcji jako osobne widoki z lokalnym menu, zapisem osobno dla
+  każdej sekcji, przyciskami Anuluj i "Przywróć domyślne" oraz ostrzeżeniem przy wyjściu
+  z niezapisanymi zmianami.
+- Wygląd faktycznie działa: motyw, skala interfejsu, gęstość, promienie, ograniczenie ruchu
+  i kolor akcentu stosują się na żywo, a stają się trwałe dopiero po zapisie.
+- Wpięte w aplikację: domyślne konto/interwał/sesja nowej transakcji, domyślne ryzyko i sposób
+  podawania SL w kalkulatorze, podpowiedzi przy polach, zapamiętywanie rozwiniętych paneli,
+  potwierdzenia operacji, widok startowy i stan menu bocznego.
+- Powiadomienia z cichymi godzinami (obsługa zakresu przechodzącego przez północ).
+- Sekcja "Dane": liczniki i kontrola integralności bazy.
+- Diagnostyka: kopiowanie i eksport raportu **bez danych wrażliwych**.
+
+#### Przebudowa "Institutional Adaptive Workspace" (seria M i Q)
+
+- Nowa paleta i tokeny semantyczne (Institutional Black & Gold), pełnoprawny motyw jasny.
+  Skalowanie interfejsu realizowane mnożnikami i `calc()`, nie kopiami zestawów wartości.
+- Menu przegrupowane według rodzaju pracy (Start / Handel / Analiza / Zarządzanie / System).
+- Skrót "Nowa transakcja" w górnym pasku, dostępny z każdego widoku.
+- **Paleta poleceń `Ctrl+K`** — bez zależności zewnętrznych i bez ani jednej operacji
+  niszczącej (pilnuje tego osobny test).
+- Dashboard jako Executive Dashboard: sześć wskaźników na górze, każdy klikalny do swojego
+  źródła; reszta wyraźnie ciszej.
+- Historia transakcji jako Split View z panelem szczegółów obok tabeli — tylko do odczytu,
+  z jawnym "Edytuj" i możliwością przypięcia.
+- Raporty jako workspace: zwijane filtry, stale widoczny opis zakresu pokazywanych danych oraz
+  eksport bieżącego podraportu **zawężony dokładnie tak jak widok** (do tej pory eksport
+  zawsze zrzucał całą historię konta).
+- Wspólny wygląd wykresów: główna seria w kolorze akcentu, celowo ograniczona paleta czterech
+  kolorów dla serii dodatkowych, tooltip o wysokim kontraście. Eksport PDF zawsze pozostaje
+  jasny — powstaje w Rust i nie zna motywu aplikacji, co pilnuje test.
+- Dostępność: lista zakładek obsługiwana strzałkami, Home i End zgodnie ze wzorcem ARIA;
+  kwoty wyników z jawnym znakiem `+`, żeby kolor nie był jedynym nośnikiem informacji.
+- Stany puste, ładowania i błędu w każdym widoku, budowane z tych samych komponentów.
+
+#### Audyt (blok D)
+
+- `RAPORT_AUDYTU.md` i `AUDYT_KODU.md` — macierz audytowa, lista sprawdzonych plików i wykaz
+  tego, czego audyt **nie** objął.
+- Testy zamykające obowiązkową listę przypadków granicznych: cztery warianty bazy na pełnym
+  stosie usług, wartości graniczne, szesnaście niezależnych rachunków referencyjnych, uszkodzona
+  kopia zapasowa, uszkodzony import, brak dostępu do pliku i brak internetu.
+- Testy blokujące powrót błędów: kontrast tokenów czytany wprost z `tokens.css`, zakaz `f64`
+  w modułach liczących pieniądze, zgodność numeru wersji między `Cargo.toml`, `tauri.conf.json`
+  i `package.json`.
+
 ### Changed
 
 - Etykieta "TPowne" zmieniona na "Zyskowne" we wszystkich raportach.
@@ -238,3 +314,46 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   poza szerokość modala. Naprawione przez `min-width: 0` (+ `width: 100%`) na `TextField`,
   `Select` i `Textarea` w bibliotece UI — naprawia to każdy przyszły formularz w siatce
   wielokolumnowej, nie tylko formularz transakcji.
+
+#### Poprawki znalezione podczas audytu (blok D)
+
+- **Dashboard i wszystkie raporty konta wywalały się** na pozycji domkniętej w całości
+  częściowymi zamknięciami. Taka pozycja ma status "zamknięta", ale nie musi mieć daty
+  zamknięcia — a sześć miejsc w statystykach zakładało, że ma. Ta sama sytuacja została
+  wcześniej naprawiona przy saldzie, ale poprawka nie została przeniesiona do statystyk;
+  teraz obie ścieżki używają jednej reguły, bo przy różnych znacznikach raport i saldo
+  przypisałyby tę samą pozycję do różnych okresów.
+- Krzywa kapitału i kalendarz **po cichu pomijały** tę samą pozycję — bez błędu i bez
+  komunikatu, po prostu rozjeżdżając się z saldem konta.
+- Cztery miejsca liczyły pieniądze binarnym `float` (suma narastająca wykresu skumulowanego,
+  suma narastająca kalendarza miesiąca, wiersz podsumowania w porównaniu kont i suma roczna
+  przed policzeniem średniej). Kwoty przychodzą z Rust jako napisy właśnie po to, żeby tam
+  nie trafiały.
+- Pięć par kolorów nie spełniało kontrastu WCAG AA — w tym kolor etykiet pól i podpowiedzi
+  w obu motywach oraz kolor akcentu jako tekst na podświetlonym wierszu.
+- Wyłączenie ustawienia "zapamiętuj filtry raportów" niczego nie czyściło, więc ponowne
+  włączenie przywracało zakres sprzed miesięcy.
+- Komunikat błędu zapisu/odczytu obiecywał, że "szczegóły zapisano w logu diagnostycznym",
+  ale dwadzieścia miejsc tworzyło ten błąd z pominięciem logowania — obietnica była pusta
+  dokładnie tam, gdzie kontekst jest najcenniejszy przy zgłaszaniu problemu.
+- Licznik zdejmujący blokadę zapisu w formularzu transakcji nie był sprzątany po zamknięciu
+  okna (jedyny taki w aplikacji).
+
+#### Wydajność i odporność
+
+- **Opróżnianie kosza trwało 69 sekund** i wyglądało jak zawieszenie aplikacji. Przyczyną była
+  automatyczna kopia bazy robiona po pięć stron z ćwierćsekundową pauzą między krokami; baza
+  5,5 MB to ~1360 stron, czyli ~272 kroki. Kopia robi się teraz w jednym kroku — 0,8 sekundy.
+  Ten sam wzorzec siedział w kopii przed migracją, przez co start aplikacji z oczekującą
+  migracją też był bardzo wolny.
+- Jedna panika nie zabija już całej aplikacji: około sześćdziesięciu miejsc blokujących mutex
+  odzyskuje się z zatrucia zamiast panikować w łańcuchu (wcześniej jeden błąd sprawiał, że
+  **każde** późniejsze wywołanie bazy panikowało — jedna usterka zamieniała się w trwale
+  martwą aplikację). Paniki trafiają do logu diagnostycznego razem z miejscem w kodzie.
+- Kosz zwalnia nazwę interwału: unikalny indeks obejmował też wiersze zarchiwizowane, więc
+  interwał leżący w koszu blokował własną nazwę. Konflikt pojawia się teraz tam, gdzie jego
+  miejsce — przy przywracaniu, z podpowiedzianą wolną nazwą.
+- Wynik pozycji domkniętej w całości częściowymi zamknięciami trafia na saldo konta (wcześniej
+  nie trafiał tam nigdy, mimo że pieniądze realnie się zmieniły).
+- Zapytanie o zrzuty ekranu konta pobierało załączniki osobno dla każdej transakcji (N+1);
+  teraz jedno zapytanie ze złączeniem.
