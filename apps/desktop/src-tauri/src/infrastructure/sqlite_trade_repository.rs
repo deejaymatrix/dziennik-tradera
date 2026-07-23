@@ -1108,4 +1108,40 @@ mod tests {
         assert!(matches!(result, Err(AppError::Validation(_))));
         assert!(repo.list("acc-1", true).expect("list").is_empty());
     }
+
+    /// Obowiązkowy test z sekcji 9: „przywrócenie transakcji z kosza odtwarza częściowe
+    /// zamknięcia". Miękkie usunięcie ustawia tylko `deleted_at` i nie rusza osobnej tabeli
+    /// wpisów - to założenie musi być pilnowane, bo przy zmianie sposobu usuwania łatwo je
+    /// zgubić razem z danymi użytkownika.
+    #[test]
+    fn przywrocenie_transakcji_z_kosza_odtwarza_czesciowe_zamkniecia() {
+        let (repo, conn, _dir) = repo_with_fresh_db();
+        seed_account(&conn, "acc-1");
+        let instrument_id = any_instrument_id(&conn);
+
+        let created = repo
+            .create(&open_write_with_partials(
+                "acc-1",
+                &instrument_id,
+                dec!(1.0),
+                vec![
+                    PartialClose {
+                        closed_volume: dec!(0.3),
+                        realized_pnl: dec!(45),
+                    },
+                    PartialClose {
+                        closed_volume: dec!(0.2),
+                        realized_pnl: dec!(-12),
+                    },
+                ],
+            ))
+            .expect("create");
+
+        repo.soft_delete(&created.id).expect("do kosza");
+        let restored = repo.restore(&created.id).expect("przywrócenie");
+
+        assert_eq!(restored.partial_closes, created.partial_closes);
+        assert_eq!(restored.status, TradeStatus::Open, "pozostało 0.5 lota");
+        assert!(restored.deleted_at.is_none());
+    }
 }
