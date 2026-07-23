@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { Bell, Database, Info, Palette, RotateCcw, SlidersHorizontal } from "lucide-react";
 import { useTauriQuery, type TauriQueryState } from "../app/useTauriQuery";
 import { useUpdater } from "../app/useUpdater";
-import { usePreferences } from "../app/usePreferences";
+import { usePreferences } from "../app/PreferencesProvider";
 import type { AppStatus, DatabaseStatus } from "../app/tauriTypes";
 import type { Preferences, PreferencesSectionKey } from "../app/types/preferences";
 import type { AccountWithBalance } from "../app/types/account";
@@ -227,7 +227,8 @@ function sectionChanged(
 }
 
 export function SettingsPage(): ReactElement {
-  const { preferences, loading, error, saveSection, resetSection } = usePreferences();
+  const { preferences, loading, error, saveSection, resetSection, previewAppearance } =
+    usePreferences();
   const { showToast } = useToast();
 
   const [active, setActive] = useState<SectionKey>("appearance");
@@ -276,6 +277,9 @@ export function SettingsPage(): ReactElement {
       setPendingSection(next);
       return;
     }
+    // Wyjście z sekcji bez zmian nie ma czego podglądać - podgląd i tak zdejmujemy, żeby nie
+    // został po nim wygląd niezgodny z zapisanym stanem.
+    previewAppearance(null);
     setSaveError(null);
     setActive(next);
   }
@@ -303,6 +307,8 @@ export function SettingsPage(): ReactElement {
     if (preferences) {
       setDraft(preferences);
     }
+    // Zdjęcie podglądu przywraca wygląd zapisany w bazie.
+    previewAppearance(null);
     setSaveError(null);
   }
 
@@ -375,7 +381,12 @@ export function SettingsPage(): ReactElement {
         {active === "appearance" && (
           <AppearanceSection
             value={draft.appearance}
-            onChange={(appearance) => setDraft({ ...draft, appearance })}
+            onChange={(appearance) => {
+              setDraft({ ...draft, appearance });
+              // Podgląd na żywo - zmiana widoczna od razu w całej aplikacji, ale trwała dopiero
+              // po zapisaniu. „Anuluj" i wyjście z sekcji ją zdejmują.
+              previewAppearance(appearance);
+            }}
           />
         )}
         {active === "behavior" && (

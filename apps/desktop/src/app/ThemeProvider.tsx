@@ -1,9 +1,8 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useMemo } from "react";
 import type { ReactElement, ReactNode } from "react";
+import { usePreferences } from "./PreferencesProvider";
 
 export type Theme = "dark" | "light";
-
-const STORAGE_KEY = "dziennik-tradera.theme";
 
 interface ThemeContextValue {
   theme: Theme;
@@ -12,33 +11,47 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-function readStoredTheme(): Theme {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  return stored === "light" ? "light" : "dark";
-}
-
 /**
- * Motyw ciemny jest domyślny (sekcja 11 specyfikacji). Trwałość preferencji w localStorage
- * jest tymczasowa - docelowo (Cel 1.6, Ustawienia) przechodzi przez tabelę `app_settings`
- * w backendzie Rust, żeby ustawienia miały jedno, wersjonowane źródło prawdy.
+ * Cienka nakładka na preferencje, wyłącznie dla szybkiego przełącznika motywu w nagłówku.
+ *
+ * Motyw NIE jest już trzymany w localStorage. Jego jedynym źródłem prawdy są preferencje
+ * użytkownika w bazie (`app_settings`), a nakładanie go na dokument robi `PreferencesProvider` -
+ * ten komponent tylko odczytuje aktualną wartość i zapisuje przeciwną. Dwa niezależne źródła
+ * prawdy dla tego samego ustawienia rozjeżdżały się przy pierwszej zmianie w Ustawieniach.
+ *
+ * Przełącznik w nagłówku celowo przeskakuje wyłącznie między ciemnym a jasnym. Trzecia opcja,
+ * „zgodny z systemem", zostaje w Ustawieniach - w jednoklikowym przełączniku byłaby myląca.
  */
 export function ThemeProvider({ children }: { children: ReactNode }): ReactElement {
-  const [theme, setTheme] = useState<Theme>(readStoredTheme);
+  const { preferences, saveSection } = usePreferences();
 
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem(STORAGE_KEY, theme);
-  }, [theme]);
+  const value = useMemo<ThemeContextValue>(() => {
+    const appearance = preferences?.appearance;
+    const resolved: Theme =
+      appearance?.theme === "light"
+        ? "light"
+        : appearance?.theme === "system"
+          ? window.matchMedia("(prefers-color-scheme: light)").matches
+            ? "light"
+            : "dark"
+          : "dark";
 
-  const value = useMemo<ThemeContextValue>(
-    () => ({
-      theme,
+    return {
+      theme: resolved,
       toggleTheme: () => {
-        setTheme((current) => (current === "dark" ? "light" : "dark"));
+        if (!preferences) {
+          return;
+        }
+        void saveSection("appearance", {
+          ...preferences,
+          appearance: {
+            ...preferences.appearance,
+            theme: resolved === "dark" ? "light" : "dark",
+          },
+        });
       },
-    }),
-    [theme],
-  );
+    };
+  }, [preferences, saveSection]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

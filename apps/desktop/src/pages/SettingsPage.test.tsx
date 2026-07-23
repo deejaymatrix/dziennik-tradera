@@ -4,6 +4,7 @@ import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router";
 import { SettingsPage } from "./SettingsPage";
+import { PreferencesProvider } from "../app/PreferencesProvider";
 import { ConfirmProvider } from "../ui/components/ConfirmDialog/ConfirmDialog";
 import { ToastProvider } from "../ui/components/Toast/ToastProvider";
 import type { Preferences } from "../app/types/preferences";
@@ -114,11 +115,13 @@ beforeEach(() => {
 function renderPage(): ReactElement {
   return render(
     <MemoryRouter>
-      <ToastProvider>
-        <ConfirmProvider>
-          <SettingsPage />
-        </ConfirmProvider>
-      </ToastProvider>
+      <PreferencesProvider>
+        <ToastProvider>
+          <ConfirmProvider>
+            <SettingsPage />
+          </ConfirmProvider>
+        </ToastProvider>
+      </PreferencesProvider>
     </MemoryRouter>,
   ) as unknown as ReactElement;
 }
@@ -255,6 +258,66 @@ describe("SettingsPage", () => {
 
     expect(unsavedDialogIsHidden()).toBe(true);
     expect(screen.getByRole("heading", { name: "Ciche godziny" })).toBeInTheDocument();
+  });
+
+  it("nakłada zapisany wygląd na dokument, a nie tylko go przechowuje", async () => {
+    stored.appearance = {
+      ...stored.appearance,
+      theme: "light",
+      accent_color: "#4f8ef7",
+      ui_scale: "120",
+      density: "compact",
+      corner_radius: "large",
+      animations: false,
+      reduce_motion: true,
+    };
+    renderPage();
+    await waitForLoaded();
+
+    const root = document.documentElement;
+    await waitFor(() => {
+      expect(root.getAttribute("data-theme")).toBe("light");
+    });
+    expect(root.getAttribute("data-ui-scale")).toBe("120");
+    expect(root.getAttribute("data-density")).toBe("compact");
+    expect(root.getAttribute("data-radius")).toBe("large");
+    expect(root.getAttribute("data-animations")).toBe("off");
+    expect(root.getAttribute("data-reduce-motion")).toBe("true");
+    expect(root.style.getPropertyValue("--color-accent")).toBe("#4f8ef7");
+  });
+
+  it("podgląd wyglądu działa na żywo, a „Anuluj” go cofa", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await waitForLoaded();
+
+    const root = document.documentElement;
+    await waitFor(() => {
+      expect(root.getAttribute("data-density")).toBe("standard");
+    });
+
+    await user.selectOptions(screen.getByLabelText("Gęstość"), "spacious");
+
+    // Podgląd NA ŻYWO - widoczny natychmiast, jeszcze przed zapisaniem.
+    expect(root.getAttribute("data-density")).toBe("spacious");
+    expect(stored.appearance.density).toBe("standard");
+
+    await user.click(screen.getByRole("button", { name: "Anuluj" }));
+
+    expect(root.getAttribute("data-density")).toBe("standard");
+  });
+
+  it("kolor akcentu dobiera kontrastowy kolor tekstu z luminancji", async () => {
+    stored.appearance = { ...stored.appearance, accent_color: "#f5e6a8" };
+    renderPage();
+    await waitForLoaded();
+
+    // Jasny akcent musi dostać CIEMNY tekst - inaczej napis na przycisku byłby nieczytelny.
+    await waitFor(() => {
+      expect(document.documentElement.style.getPropertyValue("--color-accent-contrast")).toBe(
+        "#10151d",
+      );
+    });
   });
 
   it("sekcja informacyjna nie ma paska zapisu", async () => {
