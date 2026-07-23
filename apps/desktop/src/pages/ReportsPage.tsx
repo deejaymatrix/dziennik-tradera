@@ -4,6 +4,7 @@ import { loadRememberedFilter, saveRememberedFilter } from "../app/reportFilterM
 import type { ReactElement } from "react";
 import { LineChart } from "lucide-react";
 import { invokeCommand } from "../app/invokeCommand";
+import { nextTabIndex } from "../app/tablistKeys";
 import { exportTrades, toExportFilter } from "../app/exportTrades";
 import type { ExportFormat } from "../app/exportTrades";
 import { Button } from "../ui/components/Button/Button";
@@ -160,16 +161,37 @@ export function ReportsPage(): ReactElement {
       />
 
       <div className={styles.tabs} role="tablist" aria-label="Podraporty">
-        {TABS.map((tab) => (
+        {TABS.map((tab, index) => (
           <button
             key={tab.id}
+            id={`podraport-tab-${tab.id}`}
             type="button"
             role="tab"
             aria-selected={activeTab === tab.id}
+            aria-controls="podraport-panel"
+            // Roving tabindex: z całej grupy tylko AKTYWNA zakładka jest w kolejności Tab.
+            // Dzięki temu Tab wychodzi poza listę zamiast przechodzić po pięciu przyciskach,
+            // a przełącza się strzałkami - tak jak obiecuje rola "tablist".
+            tabIndex={activeTab === tab.id ? 0 : -1}
             className={[styles.tab, activeTab === tab.id && styles.tabActive]
               .filter(Boolean)
               .join(" ")}
             onClick={() => selectTab(tab.id)}
+            onKeyDown={(event) => {
+              const target = nextTabIndex(event.key, index, TABS.length);
+              if (target === null) {
+                return;
+              }
+              event.preventDefault();
+              const nastepna = TABS[target];
+              if (!nastepna) {
+                return;
+              }
+              selectTab(nastepna.id);
+              // Focus musi POJŚĆ za zaznaczeniem, inaczej kolejna strzałka liczyłaby od
+              // starej pozycji i użytkownik utknąłby między dwiema zakładkami.
+              document.getElementById(`podraport-tab-${nastepna.id}`)?.focus();
+            }}
           >
             {tab.label}
           </button>
@@ -191,59 +213,70 @@ export function ReportsPage(): ReactElement {
         )}
       </div>
 
-      {activeTab === "compare" && (
-        <ReportAccountComparisonTab rows={comparisonRows} accounts={accounts} />
-      )}
+      {/* Panel zakładek: `aria-labelledby` wiąże go z aktywną zakładką, więc czytnik ekranu po
+          przełączeniu strzałką od razu mówi, czego dotyczy zawartość pod spodem. */}
+      <div
+        id="podraport-panel"
+        role="tabpanel"
+        aria-labelledby={`podraport-tab-${activeTab}`}
+        className={styles.panel}
+      >
+        {activeTab === "compare" && (
+          <ReportAccountComparisonTab rows={comparisonRows} accounts={accounts} />
+        )}
 
-      {activeTab !== "compare" && reportError && (
-        <ErrorState title="Nie udało się wczytać raportu" description={reportError} />
-      )}
+        {activeTab !== "compare" && reportError && (
+          <ErrorState title="Nie udało się wczytać raportu" description={reportError} />
+        )}
 
-      {activeTab !== "compare" && !reportError && report === null && <Skeleton height="12rem" />}
+        {activeTab !== "compare" && !reportError && report === null && <Skeleton height="12rem" />}
 
-      {activeTab !== "compare" && !reportError && report !== null && selectedAccount && (
-        <>
-          {activeTab === "monthly" &&
-            (filter.year && filter.month ? (
-              <ReportMonthlyTab
-                report={report}
+        {activeTab !== "compare" && !reportError && report !== null && selectedAccount && (
+          <>
+            {activeTab === "monthly" &&
+              (filter.year && filter.month ? (
+                <ReportMonthlyTab
+                  report={report}
+                  currency={selectedAccount.currency}
+                  monthLabel={monthYearLabel(filter)}
+                />
+              ) : (
+                <ReportMonthlyTab report={null} currency={selectedAccount.currency} monthLabel="" />
+              ))}
+            {activeTab === "yearly" &&
+              (filter.year ? (
+                <ReportYearlyTab
+                  report={report}
+                  currency={selectedAccount.currency}
+                  year={filter.year}
+                />
+              ) : (
+                <EmptyState
+                  title="Wybierz rok"
+                  description="Roczne podsumowanie wyników, rytmu miesięcy i kwartałów oraz najmocniejszych punktów całego roku wymaga wybrania konkretnego roku w filtrze."
+                />
+              ))}
+            {activeTab === "instrument" && (
+              <ReportSymbolTab
+                report={filter.instrumentId ? report : null}
                 currency={selectedAccount.currency}
-                monthLabel={monthYearLabel(filter)}
+                selectedLabel={
+                  instruments.find((i) => i.id === filter.instrumentId)?.display_symbol
+                }
               />
-            ) : (
-              <ReportMonthlyTab report={null} currency={selectedAccount.currency} monthLabel="" />
-            ))}
-          {activeTab === "yearly" &&
-            (filter.year ? (
-              <ReportYearlyTab
-                report={report}
+            )}
+            {activeTab === "strategy" && (
+              <ReportStrategyTab
+                report={filter.strategyId ? report : null}
                 currency={selectedAccount.currency}
-                year={filter.year}
+                selectedLabel={strategies.find((s) => s.id === filter.strategyId)?.name}
+                accounts={accounts}
+                accountFilter={filter.strategyId ? toAccountComparisonFilter(filter) : null}
               />
-            ) : (
-              <EmptyState
-                title="Wybierz rok"
-                description="Roczne podsumowanie wyników, rytmu miesięcy i kwartałów oraz najmocniejszych punktów całego roku wymaga wybrania konkretnego roku w filtrze."
-              />
-            ))}
-          {activeTab === "instrument" && (
-            <ReportSymbolTab
-              report={filter.instrumentId ? report : null}
-              currency={selectedAccount.currency}
-              selectedLabel={instruments.find((i) => i.id === filter.instrumentId)?.display_symbol}
-            />
-          )}
-          {activeTab === "strategy" && (
-            <ReportStrategyTab
-              report={filter.strategyId ? report : null}
-              currency={selectedAccount.currency}
-              selectedLabel={strategies.find((s) => s.id === filter.strategyId)?.name}
-              accounts={accounts}
-              accountFilter={filter.strategyId ? toAccountComparisonFilter(filter) : null}
-            />
-          )}
-        </>
-      )}
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

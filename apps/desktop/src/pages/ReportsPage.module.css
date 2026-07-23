@@ -122,3 +122,11 @@
   gap: var(--space-1);
   margin-left: auto;
 }
+
+/* Panel zakładek jest wyłącznie kontenerem semantycznym (role="tabpanel") - nie może zmieniać
+   układu, który podraporty budują same. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}

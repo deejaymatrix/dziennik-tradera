@@ -1385,8 +1385,8 @@ wszędzie. Zrobione dotąd tokeny i paleta zostają jako fundament.
 | Q5   | Historia transakcji: Table-First + Split View z Inspectorem po prawej (tylko odczyt, jawny „Edytuj", przypinanie)                          | ✅     |
 | Q6   | Nowa transakcja jako Guided Workflow: stały nagłówek z kontem i saldem, przyklejony pasek akcji, swobodne przechodzenie między sekcjami    | ✅     |
 | Q7   | Raporty jako workspace: zwijane filtry, opis zakresu danych, eksport bieżącego podraportu z tym samym zawężeniem                           | ✅     |
-| Q8   | Wykresy: tokeny palety serii, tooltip o wysokim kontraście, kolor tylko tam gdzie coś znaczy, PDF zostaje jasny | ✅     |
-| Q9   | Dostępność i animacje (120–180 ms, obsługa ograniczenia ruchu, focus, klawiatura)                                                          | ⬜     |
+| Q8   | Wykresy: tokeny palety serii, tooltip o wysokim kontraście, kolor tylko tam gdzie coś znaczy, PDF zostaje jasny                            | ✅     |
+| Q9   | Dostępność i animacje: klawiatura listy zakładek, jawny znak wyniku, czasy z tokenów | ✅     |
 | Q10  | Stany puste, ładowania, błędu, disabled i tylko-do-odczytu w każdym widoku                                                                 | ⬜     |
 
 ## Blok D — pełny audyt (wymagany przed instalatorem)

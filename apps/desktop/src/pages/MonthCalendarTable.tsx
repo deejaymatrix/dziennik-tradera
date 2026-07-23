@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { formatMoney } from "../app/decimal";
+import { formatSignedMoney } from "../app/decimal";
 import type { DailyPnl } from "../app/types/report";
 import { Table, tableStyles } from "../ui/components/Table/Table";
 import styles from "./BreakdownTable.module.css";
@@ -60,7 +60,7 @@ export function MonthCalendarTable({ days, currency }: MonthCalendarTableProps):
                   Number(day.net_pnl) >= 0 ? styles.profit : styles.loss,
                 ].join(" ")}
               >
-                {formatMoney(day.net_pnl, currency)}
+                {formatSignedMoney(day.net_pnl, currency)}
               </td>
               <td
                 className={[
@@ -68,7 +68,7 @@ export function MonthCalendarTable({ days, currency }: MonthCalendarTableProps):
                   cumulative >= 0 ? styles.profit : styles.loss,
                 ].join(" ")}
               >
-                {formatMoney(String(cumulative), currency)}
+                {formatSignedMoney(String(cumulative), currency)}
               </td>
             </tr>
           );

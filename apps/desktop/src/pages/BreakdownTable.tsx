@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { formatMoney } from "../app/decimal";
+import { formatSignedMoney } from "../app/decimal";
 import { formatPercent } from "../app/reportFormat";
 import type { GroupBreakdown } from "../app/types/report";
 import { Table, tableStyles } from "../ui/components/Table/Table";
@@ -45,7 +45,7 @@ export function BreakdownTable({ rows, currency, onRowClick }: BreakdownTablePro
                 Number(row.net_pnl) >= 0 ? styles.profit : styles.loss,
               ].join(" ")}
             >
-              {formatMoney(row.net_pnl, currency)}
+              {formatSignedMoney(row.net_pnl, currency)}
             </td>
           </tr>
         ))}

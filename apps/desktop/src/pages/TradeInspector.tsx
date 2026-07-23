@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { Pencil, Pin, PinOff, X } from "lucide-react";
-import { formatMoney } from "../app/decimal";
+import { formatMoney, formatSignedMoney } from "../app/decimal";
 import type { Trade } from "../app/types/trade";
 import { TRADE_SIDE_LABELS, TRADE_STATUS_LABELS } from "../app/types/trade";
 import { Badge } from "../ui/components/Badge/Badge";
@@ -87,7 +87,7 @@ export function TradeInspector({
               .filter(Boolean)
               .join(" ")}
           >
-            {netto === null ? "Brak danych" : formatMoney(netto, currency)}
+            {netto === null ? "Brak danych" : formatSignedMoney(netto, currency)}
           </p>
           <dl className={styles.list}>
             <Row label="Brutto" value={trade.gross_pnl && formatMoney(trade.gross_pnl, currency)} />

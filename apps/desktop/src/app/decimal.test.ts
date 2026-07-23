@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   decimalSign,
+  formatSignedMoney,
   isValidDecimalString,
   normalizeDecimalInput,
   subtractDecimalStrings,
@@ -120,5 +121,30 @@ describe("dokładna arytmetyka dziesiętna (licznik lotów)", () => {
     expect(decimalSign("0.00")).toBe(0);
     expect(decimalSign("-0.2")).toBe(-1);
     expect(decimalSign("0.2")).toBe(1);
+  });
+});
+
+describe("formatSignedMoney", () => {
+  it("zysk dostaje jawny plus, żeby kolor nie był jedynym nośnikiem informacji", () => {
+    // pl-PL rozdziela tysiące spacją nierozdzielającą, więc porównujemy wzorcem, a nie
+    // dosłownym napisem - inaczej test łamałby się na niewidocznym znaku.
+    expect(formatSignedMoney("1234.56", "USD")).toMatch(/^\+1\s?234,56 USD$/);
+  });
+
+  it("strata zachowuje minus", () => {
+    expect(formatSignedMoney("-50", "USD")).toBe("-50,00 USD");
+  });
+
+  it("zero zostaje bez znaku - break even to nie zysk", () => {
+    expect(formatSignedMoney("0", "USD")).toBe("0,00 USD");
+    expect(formatSignedMoney("-0", "USD")).toBe("0,00 USD");
+  });
+
+  it("bez waluty zwraca samą liczbę", () => {
+    expect(formatSignedMoney("12.5")).toBe("+12,50");
+  });
+
+  it("wartość, która nie jest liczbą, wraca bez zmian", () => {
+    expect(formatSignedMoney("brak")).toBe("brak");
   });
 });

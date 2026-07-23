@@ -28,7 +28,7 @@
 
 .chevron {
   flex-shrink: 0;
-  transition: transform 120ms ease;
+  transition: transform var(--motion-fast) var(--motion-easing);
 }
 
 .chevronOpen {

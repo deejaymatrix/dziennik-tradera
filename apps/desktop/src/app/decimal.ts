@@ -127,3 +127,27 @@ export function formatMoney(value: string, currency?: string): string {
   }).format(num);
   return currency ? `${formatted} ${currency}` : formatted;
 }
+
+/**
+ * Kwota WYNIKU z jawnym znakiem: zysk dostaje „+", strata „-", zero zostaje bez znaku.
+ *
+ * Używana wszędzie tam, gdzie wartość jest dodatkowo KOLOROWANA na zielono/czerwono. Sam kolor
+ * nie może być jedynym nośnikiem informacji (WCAG, sekcja 18 promptu): przy daltonizmie
+ * czerwono-zielonym „1 234,56" na zielono i „-1 234,56" na czerwono różnią się wtedy tylko
+ * minusem, który łatwo przeoczyć obok cyfr. Jawny plus robi z tego różnicę widoczną od razu.
+ *
+ * Nie zmieniamy `formatMoney`, bo salda, ceny i prowizje NIE są wynikami - plus przy saldzie
+ * konta nic nie znaczy i tylko dodawałby szumu.
+ */
+export function formatSignedMoney(value: string, currency?: string): string {
+  const num = Number(value);
+  if (Number.isNaN(num)) {
+    return value;
+  }
+  const formatted = new Intl.NumberFormat("pl-PL", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    signDisplay: "exceptZero",
+  }).format(num);
+  return currency ? `${formatted} ${currency}` : formatted;
+}

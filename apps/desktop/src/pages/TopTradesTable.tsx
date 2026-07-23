@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { formatMoney } from "../app/decimal";
+import { formatSignedMoney } from "../app/decimal";
 import type { TopTradeRow } from "../app/types/report";
 import { Table, tableStyles } from "../ui/components/Table/Table";
 import styles from "./BreakdownTable.module.css";
@@ -46,7 +46,7 @@ export function TopTradesTable({ rows, currency }: TopTradesTableProps): ReactEl
                 Number(row.net_pnl) >= 0 ? styles.profit : styles.loss,
               ].join(" ")}
             >
-              {formatMoney(row.net_pnl, currency)}
+              {formatSignedMoney(row.net_pnl, currency)}
             </td>
           </tr>
         ))}

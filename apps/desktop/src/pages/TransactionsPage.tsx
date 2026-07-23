@@ -4,7 +4,7 @@ import { TradeInspector } from "./TradeInspector";
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { ArchiveRestore, Flag, Pencil, Plus, Search, Trash2, TrendingUp } from "lucide-react";
-import { formatMoney } from "../app/decimal";
+import { formatSignedMoney } from "../app/decimal";
 import { invokeCommand } from "../app/invokeCommand";
 import type { AccountWithBalance } from "../app/types/account";
 import type { Trade, TradeSide, TradeStatus } from "../app/types/trade";
@@ -370,7 +370,7 @@ export function TransactionsPage(): ReactElement {
                         .join(" ")}
                     >
                       {trade.net_pnl !== null
-                        ? formatMoney(trade.net_pnl, selectedAccount.currency)
+                        ? formatSignedMoney(trade.net_pnl, selectedAccount.currency)
                         : "—"}
                     </td>
                     <td>
