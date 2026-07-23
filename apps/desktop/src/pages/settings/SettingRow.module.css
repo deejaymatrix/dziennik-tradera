@@ -1,0 +1,74 @@
+/* Etykieta z opisem po lewej, kontrolka po prawej. `minmax(0, 1fr)` zamiast `1fr` - bez tego
+   długi opis rozpycha siatkę i wypycha kontrolkę poza kartę (pułapka `min-width: auto`). */
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.row:first-child {
+  padding-top: 0;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-weight: 600;
+}
+
+.description {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.restartTag,
+.lockedTag {
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.restartTag {
+  color: var(--color-warning, #d9a441);
+  background: color-mix(in srgb, var(--color-warning, #d9a441) 14%, transparent);
+}
+
+.lockedTag {
+  color: var(--color-text-secondary);
+  background: var(--color-surface-alt, rgb(255 255 255 / 6%));
+}
+
+.control {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+/* Wąskie okno: kontrolka schodzi pod opis zamiast ściskać oba do nieczytelnej szerokości. */
+@container (max-width: 30rem) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .control {
+    justify-self: stretch;
+  }
+}

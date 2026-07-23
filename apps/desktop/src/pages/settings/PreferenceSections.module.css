@@ -1,0 +1,93 @@
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  /* Wiersze ustawień reagują na szerokość KARTY, nie okna - patrz SettingRow.module.css. */
+  container-type: inline-size;
+}
+
+.cardTitle {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+
+.cardNote {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.swatch {
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+}
+
+.swatch:hover {
+  border-color: var(--color-text-secondary);
+}
+
+.swatchActive {
+  border-color: var(--color-text);
+  box-shadow: 0 0 0 2px var(--color-surface);
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-alt, rgb(255 255 255 / 3%));
+}
+
+.previewLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.previewRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.previewButton {
+  padding: 0.35rem 0.9rem;
+  border-radius: var(--radius-sm);
+  color: #0b0b0c;
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+}
+
+.previewNavItem {
+  padding: 0.25rem 0.6rem;
+  border-left: 3px solid;
+  font-size: var(--font-size-sm);
+}
+
+/* Kolory semantyczne w podglądzie są CELOWO stałe - pokazują, że wybrany akcent ich nie zmienia. */
+.previewProfit {
+  color: var(--color-profit);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.previewLoss {
+  color: var(--color-loss);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

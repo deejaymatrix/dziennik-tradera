@@ -1,24 +1,112 @@
+/* Menu po lewej o stałej szerokości, treść po prawej z KONTROLOWANĄ maksymalną szerokością -
+   bez tego przełączniki rozciągałyby się przez cały ekran i były nieczytelne. */
 .page {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  position: sticky;
+  top: var(--space-3);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menuItem:hover {
+  background: var(--color-surface-alt, rgb(255 255 255 / 5%));
+  color: inherit;
+}
+
+.menuItem:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+/* Aktywna pozycja wyróżniona tłem, wagą czcionki ORAZ paskiem - sam kolor tekstu bywa
+   nieczytelny przy niektórych kolorach akcentu. */
+.menuItemActive {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: inherit;
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.menuIcon {
+  flex-shrink: 0;
+}
+
+.menuLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.content {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  max-width: 640px;
+  /* Treść nie rozciąga się bez końca na szerokim monitorze. */
+  max-width: 52rem;
+  min-width: 0;
 }
 
-.section {
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
+.header {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: 0.2rem;
 }
 
-.sectionTitle {
+.title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  container-type: inline-size;
+}
+
+.cardTitle {
+  margin: 0 0 var(--space-3);
   font-size: var(--font-size-md);
   font-weight: 600;
+}
+
+.cardNote,
+.note {
   margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
 .row {
@@ -26,26 +114,26 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
 .statusList {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-2) var(--space-3);
   margin: 0;
 }
 
 .statusList dt {
   color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
 }
 
 .statusList dd {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-sm);
-}
-
-.placeholderNote {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
   margin: 0;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
 }
 
 .updateCard {
@@ -65,4 +153,67 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   white-space: pre-wrap;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-loss);
+  font-size: var(--font-size-sm);
+}
+
+/* Pasek zapisu należy do AKTUALNEJ sekcji - przykleja się do dołu, żeby przy długiej sekcji
+   nie trzeba było przewijać na sam koniec, aby zapisać. */
+.saveBar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.saveBarActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* Wąskie okno: menu zamienia się w poziomy, przewijany pasek zakładek. Nadal widać dokładnie
+   jedną sekcję, a CAŁA aplikacja nie dostaje poziomego paska przewijania. */
+@media (max-width: 60rem) {
+  .page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .menu {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: var(--space-1);
+  }
+
+  .menuItem {
+    width: auto;
+    white-space: nowrap;
+  }
+
+  .menuItemActive {
+    box-shadow: inset 0 -3px 0 var(--color-accent);
+  }
+
+  .content {
+    max-width: none;
+  }
 }

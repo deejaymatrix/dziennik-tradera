@@ -673,3 +673,20 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod serializacja_decimal {
+    use super::*;
+
+    /// Kontrakt z frontendem: liczby dziesiętne muszą jechać do TypeScriptu jako STRING, bo
+    /// przekazanie ich jako `number` gubiłoby precyzję i rozjeżdżało typy po stronie UI.
+    #[test]
+    fn ryzyko_kalkulatora_jedzie_jako_string() {
+        let prefs = Preferences::default();
+        let json = serde_json::to_string(&prefs).expect("zapis");
+        assert!(
+            json.contains("\"calculator_risk_percent\":\"1\""),
+            "oczekiwano stringa, było: {json}"
+        );
+    }
+}

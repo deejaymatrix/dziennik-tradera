@@ -1,0 +1,42 @@
+/* Strefa konserwacji - oddzielona wizualnie i domyślnie zwinięta, żeby operacje, których nie
+   robi się na co dzień, nie leżały pod ręką obok zwykłych przełączników. */
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.icon {
+  flex-shrink: 0;
+  color: var(--color-warning, #d9a441);
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+
+.chevron {
+  flex-shrink: 0;
+  transition: transform 120ms ease;
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.body {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-warning, #d9a441);
+}
