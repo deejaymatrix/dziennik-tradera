@@ -17,6 +17,13 @@
 
 .main {
   flex: 1;
+  /* Ten sam pułapek co gdzie indziej w apce ("min-width: auto" we flex/grid), tylko na osi
+     krzyżowej kolumnowego flexa: bez tego `.main` domyślnie liczy swoją minimalną szerokość
+     z TREŚCI (np. z nieowijającego się wiersza filtrów albo tabeli), więc mógł zrobić się
+     szerszy niż dostępne miejsce. Nadmiar nie był ani zawijany, ani przewijany - `.layout`
+     ma `overflow: hidden`, więc po prostu ucinał prawą krawędź bez paska przewijania
+     (dokładnie to widać na zrzutach: kolumny "Kierunek"/"P&L netto" ucięte równo, bez scrolla). */
+  min-width: 0;
   overflow-y: auto;
   padding: var(--space-4);
 }
