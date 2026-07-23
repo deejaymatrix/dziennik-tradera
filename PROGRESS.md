@@ -1400,7 +1400,7 @@ wszędzie. Zrobione dotąd tokeny i paleta zostają jako fundament.
 | A4   | Obliczenia finansowe: 16 niezależnych rachunków referencyjnych (lot, tick, punkt, ryzyko, R:R, P&L BUY/SELL, koszty, waluty, częściowe zamknięcia) + test blokujący f64 w modułach pieniężnych   | ✅     |
 | A5   | Audyt kodu: 206 plików sprawdzonych 17 klasami defektów, lista w [AUDYT_KODU.md](AUDYT_KODU.md). Znalezione i naprawione: panika statystyk, ciche pomijanie pozycji, 4x float na pieniądzach     | ✅     |
 | A6   | Narzędzia: prettier ✓, ESLint 0 błędów (8 ostrzeżeń react-refresh o HMR), typecheck ✓, 149 testów frontu, cargo fmt --check ✓, clippy 0 błędów, 390 testów Rust                                  | ✅     |
-| A7   | Raport końcowy z macierzą audytową                                                                                                                                                               | ⬜     |
+| A7   | Raport końcowy z macierzą audytową: [RAPORT_AUDYTU.md](RAPORT_AUDYTU.md) - 12 znalezisk, wszystkie zamknięte, każde z testem blokującym powrót                                                   | ✅     |
 
 ## Blok E — instalator (Cel 1.9)
 
