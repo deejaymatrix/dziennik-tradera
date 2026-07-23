@@ -8,6 +8,7 @@ pub mod instrument_import;
 pub mod instruments;
 pub mod intervals;
 pub mod position_sizing;
+pub mod preferences;
 pub mod reports;
 pub mod strategies;
 pub mod trades;

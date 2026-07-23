@@ -21,6 +21,7 @@ use application::export::ExportService;
 use application::instrument_import::InstrumentImportService;
 use application::instruments::InstrumentsService;
 use application::intervals::IntervalsService;
+use application::preferences::PreferencesService;
 use application::reports::ReportsService;
 use application::strategies::StrategiesService;
 use application::trades::TradesService;
@@ -33,6 +34,7 @@ use infrastructure::sqlite_cash_operation_repository::SqliteCashOperationReposit
 use infrastructure::sqlite_emotional_state_repository::SqliteEmotionalStateRepository;
 use infrastructure::sqlite_instrument_repository::SqliteInstrumentRepository;
 use infrastructure::sqlite_interval_repository::SqliteIntervalRepository;
+use infrastructure::sqlite_preferences_repository::SqlitePreferencesRepository;
 use infrastructure::sqlite_strategy_repository::SqliteStrategyRepository;
 use infrastructure::sqlite_trade_repository::SqliteTradeRepository;
 use infrastructure::sqlite_trading_rules_repository::SqliteTradingRulesRepository;
@@ -157,6 +159,9 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
         BackupService::new(conn.clone(), app_data_dir.to_path_buf()),
     );
 
+    let preferences =
+        PreferencesService::new(Arc::new(SqlitePreferencesRepository::new(conn.clone())));
+
     DbState::Ready {
         conn,
         db_path,
@@ -174,6 +179,7 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
         broker_templates,
         instrument_import,
         trash,
+        preferences,
     }
 }
 
@@ -257,6 +263,9 @@ pub fn run() {
             commands::trash::restore_trash_item,
             commands::trash::purge_trash_item,
             commands::trash::empty_trash,
+            commands::preferences::get_preferences,
+            commands::preferences::update_preferences_section,
+            commands::preferences::reset_preferences_section,
             commands::attachments::list_attachments,
             commands::attachments::add_screenshot_attachment_from_path,
             commands::attachments::add_screenshot_attachment_from_bytes,

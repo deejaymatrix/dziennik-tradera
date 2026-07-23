@@ -12,6 +12,7 @@ use crate::application::export::ExportService;
 use crate::application::instrument_import::InstrumentImportService;
 use crate::application::instruments::InstrumentsService;
 use crate::application::intervals::IntervalsService;
+use crate::application::preferences::PreferencesService;
 use crate::application::reports::ReportsService;
 use crate::application::strategies::StrategiesService;
 use crate::application::trades::TradesService;
@@ -44,6 +45,7 @@ pub enum DbState {
         broker_templates: Arc<BrokerTemplatesService>,
         instrument_import: InstrumentImportService,
         trash: TrashService,
+        preferences: PreferencesService,
     },
     Failed {
         reason: String,
