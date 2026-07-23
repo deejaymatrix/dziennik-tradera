@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { usePreferences } from "../app/PreferencesProvider";
+import { loadRememberedFilter, saveRememberedFilter } from "../app/reportFilterMemory";
 import type { ReactElement } from "react";
 import { LineChart } from "lucide-react";
 import { invokeCommand } from "../app/invokeCommand";
@@ -39,11 +41,30 @@ export function ReportsPage(): ReactElement {
     reportError,
     selectedAccount,
   } = useReportFilter();
+  const { preferences } = usePreferences();
   const [activeTab, setActiveTab] = useState<TabId>("monthly");
   const [comparisonRows, setComparisonRows] = useState<AccountComparisonRow[] | null>(null);
 
+  const rememberFilters = preferences?.defaults.report_remember_filters ?? true;
+
+  // Zapis filtru bieżącej zakładki po każdej jego zmianie. Osobno dla każdego raportu, bo tego
+  // wprost wymaga ustawienie - miesięczny i roczny mają zwykle inny sens filtrowania.
+  useEffect(() => {
+    if (rememberFilters && filter.accountId) {
+      saveRememberedFilter(activeTab, filter);
+    }
+  }, [rememberFilters, activeTab, filter]);
+
   function selectTab(tab: TabId): void {
     setActiveTab(tab);
+    // Przy przejściu na inną zakładkę przywracamy JEJ zapamiętany filtr, jeśli istnieje.
+    if (rememberFilters) {
+      const remembered = loadRememberedFilter(tab);
+      if (remembered) {
+        setFilter(remembered);
+        return;
+      }
+    }
     // Pole "Miesiąc" jest ukryte w Raporcie Rocznym (patrz ReportFilterBar), ale gdyby zostało
     // ustawione na innej zakładce, po przełączeniu na Roczny zawężałoby raport do jednego
     // miesiąca w tle, niewidocznie dla użytkownika - trzeba je tu jawnie wyczyścić.
