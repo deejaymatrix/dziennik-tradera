@@ -16,7 +16,7 @@ import styles from "./PreferenceSections.module.css";
 /** Bezpieczna paleta akcentów - wszystkie mają wystarczający kontrast na ciemnym i jasnym tle.
  * Własny kolor nadal można wybrać niżej, ale te są gotowe i sprawdzone. */
 const ACCENT_PALETTE = [
-  { hex: "#d7b45a", name: "Złoty" },
+  { hex: "#c9a85a", name: "Złoty" },
   { hex: "#4f8ef7", name: "Niebieski" },
   { hex: "#3fae7a", name: "Zielony" },
   { hex: "#a879e6", name: "Fioletowy" },

@@ -39,6 +39,13 @@ function contrastColorFor(hex: string): string {
   return luminance > 0.45 ? "#10151d" : "#ffffff";
 }
 
+/** Domyślne złoto - musi zgadzać się z `default_accent()` w `domain/preferences.rs`. */
+const DEFAULT_ACCENT = "#c9a85a";
+
+function isDefaultAccent(hex: string): boolean {
+  return hex.toLowerCase() === DEFAULT_ACCENT;
+}
+
 /** Rozwiązuje motyw „zgodny z systemem" na konkretny. */
 function resolveTheme(theme: AppearancePreferences["theme"]): "dark" | "light" {
   if (theme !== "system") {
@@ -55,9 +62,19 @@ function applyAppearance(appearance: AppearancePreferences): void {
   root.setAttribute("data-radius", appearance.corner_radius);
   root.setAttribute("data-reduce-motion", String(appearance.reduce_motion));
   root.setAttribute("data-animations", appearance.animations ? "on" : "off");
-  // Styl inline wygrywa z regułą motywu jasnego, i o to chodzi - to świadomy wybór użytkownika.
-  root.style.setProperty("--color-accent", appearance.accent_color);
-  root.style.setProperty("--color-accent-contrast", contrastColorFor(appearance.accent_color));
+  // Przy DOMYŚLNYM złocie nie nadpisujemy tokenu, tylko zostawiamy ten z motywu: ciemny ma
+  // szampańskie złoto, jasny ciemniejsze, bo szampańskie na białym tle nie ma kontrastu.
+  // Dopiero WŁASNY kolor użytkownika wchodzi inline i wygrywa z regułą motywu - to jego
+  // świadomy wybór, więc obowiązuje w obu wariantach.
+  if (isDefaultAccent(appearance.accent_color)) {
+    root.style.removeProperty("--color-accent");
+    root.style.removeProperty("--color-accent-hover");
+    root.style.removeProperty("--color-accent-contrast");
+  } else {
+    root.style.setProperty("--color-accent", appearance.accent_color);
+    root.style.setProperty("--color-accent-hover", appearance.accent_color);
+    root.style.setProperty("--color-accent-contrast", contrastColorFor(appearance.accent_color));
+  }
 }
 
 /**
