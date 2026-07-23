@@ -1,0 +1,132 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.searchRow {
+  position: relative;
+}
+
+/* Lista podpowiedzi renderuje się W NORMALNYM PRZEPŁYWIE, a NIE jako absolutny dropdown.
+   Powód: FormPanel (zwijana sekcja formularza) ma `overflow: hidden`, który ucinał absolutnie
+   pozycjonowaną listę - przy wielu emocjach widać było tylko kilka pierwszych i żaden z-index
+   tego nie naprawiał. W przepływie nic jej nie przycina.
+
+   Siatka zamiast jednej kolumny, żeby przy wielu emocjach widzieć naraz jak najwięcej. */
+.suggestions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: var(--space-1);
+  max-height: 18rem;
+  overflow-y: auto;
+  margin: var(--space-1) 0 0;
+  padding: var(--space-2);
+  list-style: none;
+  background: var(--color-surface-alt, rgb(255 255 255 / 4%));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.suggestion {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  /* Długa nazwa emocji nie może rozpychać kolumny siatki. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestion:hover {
+  border-color: var(--color-accent);
+}
+
+.emptyHint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* Lista dodanych emocji - każda jako kompaktowa karta. Układ PIONOWY w karcie (nazwa+usuń u góry,
+   skala pod spodem) mieści się nawet w wąskiej kolumnie i nie zawija chaotycznie, gdy emocji jest
+   wiele. */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-alt, rgb(255 255 255 / 3%));
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.name {
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scale {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.scaleEnd {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.scaleButtons {
+  display: flex;
+  gap: var(--space-1);
+  flex: 1;
+}
+
+.scaleButton {
+  flex: 1;
+  min-width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.scaleButton:hover {
+  border-color: var(--color-accent);
+}
+
+.scaleButtonActive {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent, #0b0b0c);
+  font-weight: 700;
+}

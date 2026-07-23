@@ -41,35 +41,22 @@ export interface InstrumentSnapshot {
   calc_mode: string;
 }
 
-/** Dane emocjonalne jednego z trzech momentów transakcji (przed/w trakcie/po) - wielokrotny
- * wybór stanu + natężenie 1-5 + notatka, z jawną flagą "nie uzupełniono" odróżniającą świadomy
- * brak danych od zwykłego pustego formularza. Patrz domain::trade_emotions::MomentEmotion. */
-export interface MomentEmotion {
-  state_ids: string[];
+/** Jedna emocja przypisana do transakcji: stan emocjonalny + skala natężenia 1-5 (sekcja 6.8).
+ * `intensity` jest `null`, dopóki użytkownik nie wybierze na skali. Patrz
+ * domain::trade_emotions::EmotionEntry. */
+export interface EmotionEntry {
+  state_id: string;
   intensity: number | null;
-  note: string | null;
-  not_filled: boolean;
 }
 
-export function blankMomentEmotion(): MomentEmotion {
-  // "Nie uzupełniono" domyślnie ODZNACZONE - nowa transakcja od razu pokazuje listę emocji do
-  // zaznaczenia, zamiast najpierw wymuszać odklikanie ptaszka. Ptaszek zostaje dostępny na
-  // wypadek, gdyby ktoś chciał świadomie oznaczyć moment jako pominięty.
-  return { state_ids: [], intensity: null, note: null, not_filled: false };
-}
-
+/** Emocje jako płaska lista wpisów - dowolnie wiele, każda dodawana pojedynczo z własną skalą.
+ * Pusta lista = brak danych; nie ma żadnego "nie uzupełniono". */
 export interface TradeEmotions {
-  before: MomentEmotion;
-  during: MomentEmotion;
-  after: MomentEmotion;
+  entries: EmotionEntry[];
 }
 
 export function blankTradeEmotions(): TradeEmotions {
-  return {
-    before: blankMomentEmotion(),
-    during: blankMomentEmotion(),
-    after: blankMomentEmotion(),
-  };
+  return { entries: [] };
 }
 
 /** Stan jednej pozycji checklisty - dla zasad wejścia czytany jako Spełniona/Niespełniona/Nie

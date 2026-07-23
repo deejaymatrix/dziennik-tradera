@@ -23,7 +23,6 @@ import type {
 import type { Interval } from "../app/types/interval";
 import type { Strategy } from "../app/types/strategy";
 import type {
-  MomentEmotion,
   Trade,
   TradeAuditEntry,
   TradeBalanceContext,
@@ -41,7 +40,7 @@ import { Select } from "../ui/components/Select/Select";
 import { Textarea } from "../ui/components/Textarea/Textarea";
 import { TextField } from "../ui/components/TextField/TextField";
 import { useToast } from "../ui/components/Toast/ToastProvider";
-import { EmotionMomentEditor } from "./EmotionMomentEditor";
+import { EmotionsEditor } from "./EmotionsEditor";
 import { StrategyChecklistEditor } from "./StrategyChecklistEditor";
 import { TradeAttachments } from "./TradeAttachments";
 import { TradeAuditLog } from "./TradeAuditLog";
@@ -348,13 +347,6 @@ export function TradeFormModal({
 
   function setField<K extends keyof TradeFormFields>(key: K, value: TradeFormFields[K]): void {
     setFields((current) => ({ ...current, [key]: value }));
-  }
-
-  function setEmotionMoment(moment: "before" | "during" | "after", value: MomentEmotion): void {
-    setFields((current) => ({
-      ...current,
-      emotions: { ...current.emotions, [moment]: value },
-    }));
   }
 
   function handleStrategyChange(newStrategyId: string): void {
@@ -891,24 +883,9 @@ export function TradeFormModal({
 
               <div className={styles.emotionsSection}>
                 <h3 className={styles.emotionsTitle}>Emocje</h3>
-                <EmotionMomentEditor
-                  label="Przed transakcją"
-                  value={fields.emotions.before}
-                  onChange={(value) => setEmotionMoment("before", value)}
-                  states={emotionalStates}
-                  disabled={readOnly}
-                />
-                <EmotionMomentEditor
-                  label="W trakcie transakcji"
-                  value={fields.emotions.during}
-                  onChange={(value) => setEmotionMoment("during", value)}
-                  states={emotionalStates}
-                  disabled={readOnly}
-                />
-                <EmotionMomentEditor
-                  label="Po transakcji"
-                  value={fields.emotions.after}
-                  onChange={(value) => setEmotionMoment("after", value)}
+                <EmotionsEditor
+                  value={fields.emotions}
+                  onChange={(value) => setField("emotions", value)}
                   states={emotionalStates}
                   disabled={readOnly}
                 />
