@@ -5,7 +5,6 @@ import { useUpdater } from "../app/useUpdater";
 import type { AppStatus, DatabaseStatus } from "../app/tauriTypes";
 import { Button } from "../ui/components/Button/Button";
 import { Switch } from "../ui/components/Switch/Switch";
-import { IntervalsSection } from "./IntervalsSection";
 import styles from "./SettingsPage.module.css";
 
 const ENV_LABELS: Record<string, string> = {
@@ -144,10 +143,9 @@ export function SettingsPage(): ReactElement {
 
       <UpdateSection />
 
-      {/* Stany emocjonalne przeniesione do grupy nawigacyjnej "Analiza" jako osobne okno
-          "Stan emocjonalny" (sekcja 5 specyfikacji) - tutaj celowo nie zostaje po nich ani
-          pozycja, ani odsyłacz. */}
-      <IntervalsSection />
+      {/* Stany emocjonalne (grupa Analiza → "Stan emocjonalny") i interwały (grupa Konfiguracja
+          → "Interwały") przeniesione z Ustawień do własnych okien - to listy wyboru transakcji,
+          nie konfiguracja aplikacji. Celowo nie zostaje po nich tu ani pozycja, ani odsyłacz. */}
 
       <section className={styles.section} aria-labelledby="settings-diagnostics">
         <h2 id="settings-diagnostics" className={styles.sectionTitle}>

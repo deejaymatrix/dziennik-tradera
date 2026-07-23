@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
+import { Plus } from "lucide-react";
 import { invokeCommand } from "../app/invokeCommand";
 import {
   blankTradeFormFields,
@@ -149,6 +150,26 @@ export function TradeFormModal({
 
   function togglePanel(panel: keyof typeof panels): void {
     setPanels((current) => ({ ...current, [panel]: !current[panel] }));
+  }
+
+  // Szybkie dodanie interwału wprost w formularzu (pełne zarządzanie jest w oknie "Interwały").
+  const [addingInterval, setAddingInterval] = useState(false);
+  const [newIntervalLabel, setNewIntervalLabel] = useState("");
+
+  async function handleAddInterval(): Promise<void> {
+    const label = newIntervalLabel.trim();
+    if (!label) {
+      return;
+    }
+    try {
+      const created = await invokeCommand<Interval>("create_interval", { input: { label } });
+      setIntervals((current) => [...current, created]);
+      setField("intervalId", created.id);
+      setNewIntervalLabel("");
+      setAddingInterval(false);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Nie udało się dodać interwału.");
+    }
   }
 
   // Id strategii, dla której `fields.checklist` została ostatnio zbudowana - pozwala odróżnić
@@ -615,6 +636,55 @@ export function TradeFormModal({
                   options={intervalOptions}
                   disabled={readOnly}
                 />
+                {!readOnly &&
+                  (addingInterval ? (
+                    <div className={styles.intervalAddRow}>
+                      <TextField
+                        label="Nazwa nowego interwału"
+                        value={newIntervalLabel}
+                        onChange={(e) => setNewIntervalLabel(e.target.value)}
+                        onKeyDown={(e) => {
+                          // Enter tworzy interwał, ale NIE wysyła całego formularza transakcji.
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            void handleAddInterval();
+                          }
+                        }}
+                        placeholder="np. M10, sesja poranna"
+                      />
+                      <div className={styles.intervalAddActions}>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setAddingInterval(false);
+                            setNewIntervalLabel("");
+                          }}
+                        >
+                          Anuluj
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          disabled={!newIntervalLabel.trim()}
+                          onClick={() => void handleAddInterval()}
+                        >
+                          Dodaj
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setAddingInterval(true)}
+                    >
+                      <Plus size={14} aria-hidden="true" /> Nowy interwał
+                    </Button>
+                  ))}
               </div>
 
               <div className={styles.grid}>

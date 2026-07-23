@@ -9,6 +9,7 @@ import {
   SlidersHorizontal,
   BarChart3,
   HeartPulse,
+  Clock,
   DatabaseBackup,
   Trash2,
   Settings,
@@ -53,6 +54,9 @@ export const NAV_GROUPS: NavGroup[] = [
       // a pełne zarządzanie (zmiana nazwy, kopia, przypisanie konta, Kosz) jest dostępne stamtąd
       // pod trasą /szablony-instrumentow. Jeden ekran mniej zamiast dwóch robiących to samo.
       { to: "/instrumenty", label: "Instrumenty", icon: SlidersHorizontal },
+      // Interwały to lista wyboru transakcji - miejsce obok Strategii/Instrumentów, a nie
+      // w Ustawieniach. Szybkie dodanie nowego jest też wprost w formularzu transakcji.
+      { to: "/interwaly", label: "Interwały", icon: Clock },
     ],
   },
   {
