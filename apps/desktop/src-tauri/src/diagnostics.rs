@@ -63,6 +63,95 @@ pub fn get_database_status(state: State<'_, AppState>) -> DatabaseStatus {
     }
 }
 
+/// Bezpieczne podsumowanie stanu danych dla Ustawień → Dane i kopie bezpieczeństwa.
+///
+/// Świadomie zawiera WYŁĄCZNIE liczby i wynik kontroli integralności - żadnych nazw kont,
+/// symboli, kwot ani edytowalnej ścieżki bazy. Specyfikacja wprost zabrania pokazywania tu
+/// ścieżki bazy SQLite do edycji i przenoszenia aktywnej bazy z poziomu ustawień.
+#[derive(Serialize)]
+pub struct DataOverview {
+    pub accounts: i64,
+    pub trades: i64,
+    pub strategies: i64,
+    pub attachments: i64,
+    /// Rozmiar pliku bazy razem z plikami WAL/SHM, w bajtach. `None`, gdy nie da się go odczytać.
+    pub database_size_bytes: Option<u64>,
+    /// Łączny rozmiar katalogu załączników w bajtach.
+    pub attachments_size_bytes: Option<u64>,
+    pub integrity_ok: bool,
+}
+
+fn file_size(path: &std::path::Path) -> u64 {
+    std::fs::metadata(path).map(|m| m.len()).unwrap_or(0)
+}
+
+/// Rozmiar katalogu liczony rekurencyjnie. Błędy odczytu pojedynczych wpisów są pomijane -
+/// to informacja poglądowa, a nie powód, żeby cały ekran ustawień przestał działać.
+fn directory_size(path: &std::path::Path) -> u64 {
+    let Ok(entries) = std::fs::read_dir(path) else {
+        return 0;
+    };
+    entries
+        .flatten()
+        .map(|entry| match entry.file_type() {
+            Ok(kind) if kind.is_dir() => directory_size(&entry.path()),
+            Ok(_) => file_size(&entry.path()),
+            Err(_) => 0,
+        })
+        .sum()
+}
+
+#[tauri::command]
+pub fn get_data_overview(
+    state: State<'_, AppState>,
+) -> Result<DataOverview, crate::error::AppError> {
+    let DbState::Ready { conn, db_path, .. } = &state.db else {
+        return Err(crate::error::AppError::Database(
+            "Baza danych nie została poprawnie otwarta przy starcie aplikacji.".to_string(),
+        ));
+    };
+
+    let guard = conn
+        .lock()
+        .expect("mutex bazy danych zatruty (poprzedni panik)");
+
+    // Liczymy tylko wpisy NIE leżące w koszu - użytkownik pyta "ile mam danych", a nie
+    // "ile wierszy fizycznie stoi w tabelach".
+    let count = |sql: &str| -> i64 { guard.query_row(sql, [], |row| row.get(0)).unwrap_or(0) };
+    let accounts = count("SELECT count(*) FROM accounts");
+    let trades = count("SELECT count(*) FROM trades WHERE deleted_at IS NULL");
+    let strategies = count("SELECT count(*) FROM strategies WHERE archived_at IS NULL");
+    let attachments = count("SELECT count(*) FROM attachments");
+
+    let integrity_ok = guard
+        .pragma_query_value(None, "integrity_check", |row| row.get::<_, String>(0))
+        .map(|result| result.eq_ignore_ascii_case("ok"))
+        .unwrap_or(false);
+    drop(guard);
+
+    // W trybie WAL sam plik `.sqlite3` to nie całość - dziennik `-wal` potrafi ważyć tyle samo.
+    let mut database_size_bytes = file_size(db_path);
+    for suffix in ["-wal", "-shm"] {
+        let mut companion = db_path.as_os_str().to_owned();
+        companion.push(suffix);
+        database_size_bytes += file_size(std::path::Path::new(&companion));
+    }
+
+    let attachments_size_bytes = db_path
+        .parent()
+        .map(|dir| directory_size(&dir.join("attachments")));
+
+    Ok(DataOverview {
+        accounts,
+        trades,
+        strategies,
+        attachments,
+        database_size_bytes: Some(database_size_bytes),
+        attachments_size_bytes,
+        integrity_ok,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

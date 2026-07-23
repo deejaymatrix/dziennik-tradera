@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { Link } from "react-router";
 import { AlertTriangle, ChevronRight } from "lucide-react";
+import { invokeCommand } from "../../app/invokeCommand";
 import type { DataPreferences } from "../../app/types/preferences";
 import { Button } from "../../ui/components/Button/Button";
 import { SectionCard } from "../../ui/components/SectionCard/SectionCard";
@@ -47,6 +48,31 @@ export interface DataSectionProps {
   onResetAllSettings: () => Promise<void>;
 }
 
+/** Bezpieczne podsumowanie stanu danych - lustro `diagnostics::DataOverview` z Rusta. */
+interface DataOverview {
+  accounts: number;
+  trades: number;
+  strategies: number;
+  attachments: number;
+  database_size_bytes: number | null;
+  attachments_size_bytes: number | null;
+  integrity_ok: boolean;
+}
+
+function formatBytes(bytes: number | null): string {
+  if (bytes === null) {
+    return "Brak danych";
+  }
+  const units = ["B", "kB", "MB", "GB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${new Intl.NumberFormat("pl-PL", { maximumFractionDigits: unit === 0 ? 0 : 1 }).format(value)} ${units[unit]}`;
+}
+
 export function DataSection({
   value,
   onChange,
@@ -56,6 +82,26 @@ export function DataSection({
   const { showToast } = useToast();
   const [maintenanceOpen, setMaintenanceOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [overview, setOverview] = useState<DataOverview | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(true);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
+
+  const loadOverview = useCallback(async (): Promise<void> => {
+    setOverviewLoading(true);
+    try {
+      setOverview(await invokeCommand<DataOverview>("get_data_overview"));
+      setOverviewError(null);
+    } catch (e) {
+      setOverviewError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setOverviewLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadOverview();
+  }, [loadOverview]);
 
   function set<K extends keyof DataPreferences>(key: K, next: DataPreferences[K]): void {
     onChange({ ...value, [key]: next });
@@ -146,7 +192,68 @@ export function DataSection({
       </SectionCard>
 
       <SectionCard>
-        <h3 className={styles.cardTitle}>Operacje ręczne i stan danych</h3>
+        <h3 className={styles.cardTitle}>Stan danych</h3>
+        <p className={styles.cardNote}>
+          Wyłącznie bezpieczne informacje poglądowe. Ścieżka bazy nie jest tu edytowalna, a bazy
+          nie da się przenieść z poziomu ustawień.
+        </p>
+        {overviewError && <p className={maintenance.error}>{overviewError}</p>}
+        {overview ? (
+          <>
+            <dl className={maintenance.stats}>
+              <div>
+                <dt>Konta</dt>
+                <dd>{overview.accounts}</dd>
+              </div>
+              <div>
+                <dt>Transakcje</dt>
+                <dd>{overview.trades}</dd>
+              </div>
+              <div>
+                <dt>Strategie</dt>
+                <dd>{overview.strategies}</dd>
+              </div>
+              <div>
+                <dt>Załączniki</dt>
+                <dd>{overview.attachments}</dd>
+              </div>
+              <div>
+                <dt>Rozmiar bazy</dt>
+                <dd>{formatBytes(overview.database_size_bytes)}</dd>
+              </div>
+              <div>
+                <dt>Rozmiar załączników</dt>
+                <dd>{formatBytes(overview.attachments_size_bytes)}</dd>
+              </div>
+            </dl>
+            <SettingRow
+              label="Kontrola integralności"
+              description={
+                overview.integrity_ok
+                  ? "Ostatnie sprawdzenie zakończyło się wynikiem poprawnym."
+                  : "Ostatnie sprawdzenie WYKRYŁO problem. Zrób kopię zapasową i sprawdź ponownie."
+              }
+            >
+              <Button
+                variant="secondary"
+                disabled={overviewLoading}
+                onClick={() => {
+                  void loadOverview();
+                }}
+              >
+                {overviewLoading ? "Sprawdzanie..." : "Sprawdź integralność danych"}
+              </Button>
+            </SettingRow>
+          </>
+        ) : (
+          <p className={styles.cardNote}>
+            {overviewLoading ? "Wczytywanie stanu danych..." : "Brak danych do pokazania."}
+          </p>
+        )}
+      </SectionCard>
+
+      <SectionCard>
+        <h3 className={styles.cardTitle}>Operacje ręczne</h3>
         <p className={styles.cardNote}>
           Tworzenie kopii, eksport, import, przywracanie i sprawdzanie integralności mają własną
           zakładkę. Nie dublujemy ich tutaj, żeby istniało jedno miejsce, w którym się to robi.

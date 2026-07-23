@@ -205,6 +205,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             diagnostics::get_app_status,
             diagnostics::get_database_status,
+            diagnostics::get_data_overview,
             commands::accounts::create_account,
             commands::accounts::get_account,
             commands::accounts::list_accounts,
