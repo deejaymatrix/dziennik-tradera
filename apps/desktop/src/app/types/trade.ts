@@ -52,7 +52,10 @@ export interface MomentEmotion {
 }
 
 export function blankMomentEmotion(): MomentEmotion {
-  return { state_ids: [], intensity: null, note: null, not_filled: true };
+  // "Nie uzupełniono" domyślnie ODZNACZONE - nowa transakcja od razu pokazuje listę emocji do
+  // zaznaczenia, zamiast najpierw wymuszać odklikanie ptaszka. Ptaszek zostaje dostępny na
+  // wypadek, gdyby ktoś chciał świadomie oznaczyć moment jako pominięty.
+  return { state_ids: [], intensity: null, note: null, not_filled: false };
 }
 
 export interface TradeEmotions {
