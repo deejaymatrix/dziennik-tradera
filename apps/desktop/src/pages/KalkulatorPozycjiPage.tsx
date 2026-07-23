@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { Calculator, Copy } from "lucide-react";
 import { normalizeDecimalInput } from "../app/decimal";
+import { usePreferences } from "../app/PreferencesProvider";
 import { invokeCommand } from "../app/invokeCommand";
 import type { AccountWithBalance } from "../app/types/account";
 import type { BrokerTemplate, InstrumentWithDetails } from "../app/types/instrument";
@@ -73,6 +74,7 @@ function formatLot(value: string): string {
  */
 export function KalkulatorPozycjiPage(): ReactElement {
   const { showToast } = useToast();
+  const { preferences } = usePreferences();
 
   const [accounts, setAccounts] = useState<AccountWithBalance[] | null>(null);
   const [templates, setTemplates] = useState<BrokerTemplate[] | null>(null);
@@ -83,9 +85,15 @@ export function KalkulatorPozycjiPage(): ReactElement {
   const [instrumentId, setInstrumentId] = useState("");
   const [side, setSide] = useState<TradeSide>("buy");
   const [riskMode, setRiskMode] = useState<RiskMode>("percent");
-  const [riskValue, setRiskValue] = useState("1");
+  // Wartości startowe z Ustawień → Domyślne wartości → Kalkulator. To wyłącznie podpowiedź
+  // w formularzu, nigdy narzucona reguła inwestycyjna - użytkownik zmienia je swobodnie.
+  const [riskValue, setRiskValue] = useState(
+    () => preferences?.defaults.calculator_risk_percent ?? "1",
+  );
   const [entryPrice, setEntryPrice] = useState("");
-  const [stopMode, setStopMode] = useState<StopMode>("price");
+  const [stopMode, setStopMode] = useState<StopMode>(
+    () => preferences?.defaults.calculator_sl_mode ?? "price",
+  );
   const [stopValue, setStopValue] = useState("");
   const [takeProfit, setTakeProfit] = useState("");
   const [conversionRate, setConversionRate] = useState("");
