@@ -9,6 +9,7 @@ mod error;
 mod infrastructure;
 mod logging;
 mod state;
+mod wersja;
 
 use std::sync::{Arc, Mutex};
 

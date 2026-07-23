@@ -440,6 +440,31 @@ GitHub Releases).
   "Wymaga uwagi" poniżej) oraz cały pipeline GitHub Actions (nie mam dostępu do GitHuba z tego
   środowiska, żeby faktycznie wypchnąć tag i obejrzeć wynik).
 
+### Resprawdzenie po audycie (2026-07-23)
+
+Sprawdzone na żywo, nie z pamięci:
+
+- Repozytorium `deejaymatrix/dziennik-tradera` jest **PUBLICZNE** (`gh repo view`), więc endpoint
+  `releases/latest/download/latest.json` będzie pobieralny bez logowania. To był realny warunek —
+  w prywatnym repozytorium zasoby wydania wymagają uwierzytelnienia i aktualizacje by nie działały.
+- Placeholder nazwy repozytorium w `tauri.conf.json` jest już podmieniony na prawdziwy adres.
+- `.github/workflows/release.yml` używa `tauri-apps/tauri-action@v1`; sprawdzone przez API
+  GitHuba — `v1.0.0` jest najnowszym wydaniem akcji, a `v1` to ruchomy tag głównej wersji.
+- **`gh secret list` nie zwraca nic, `gh release list` nie zwraca nic.** Czyli: sekrety podpisu
+  nie są ustawione i nie ma żadnego wydania. Dopóki to się nie zmieni, każde sprawdzenie
+  aktualizacji kończy się błędem — oczekiwanym, ale do tej pory pokazywanym użytkownikowi jako
+  surowy angielski komunikat wtyczki.
+
+Dodane (bez zmiany MECHANIZMU aktualizacji, czego zabrania sekcja 3 promptu redesignu):
+
+- `describeUpdateError` w `app/useUpdater.ts` — tłumaczy błąd na zdanie, z którym da się coś
+  zrobić: brak sieci („aplikacja działa normalnie bez sieci"), brak wydania („to normalne przed
+  pierwszym wydaniem"), niezgodny podpis (ostrzeżenie i zakaz ręcznej instalacji). 5 testów.
+- `src-tauri/src/wersja.rs` — test zgodności numeru wersji w `Cargo.toml`, `tauri.conf.json`
+  i `package.json`. Rozjazd psuje aktualizacje niewidocznie: gdy `tauri.conf.json` zostaje
+  w tyle, aktualizacja jest proponowana w kółko po zainstalowaniu; gdy wyprzedza — nigdy się
+  nie pokaże. Diagnostyka czyta wersję z tej samej stałej, więc nie ma drugiego źródła.
+
 **⚠️ Wymaga uwagi użytkownika przed pierwszym wydaniem** (szczegóły w
 `docs/adr/0005-autoaktualizacja.md`): `tauri.conf.json` ma placeholder
 `TWOJA-NAZWA-UZYTKOWNIKA/dziennik-tradera` zamiast prawdziwego adresu repozytorium GitHub -
@@ -1339,15 +1364,15 @@ zachowanie (nie atrapę), testy i przechodzące lint/typecheck.
 
 ## Blok A — seria B ze specyfikacji formularza transakcji
 
-| Poz.  | Zakres                                               | Status                                            |
-| ----- | ---------------------------------------------------- | ------------------------------------------------- |
-| B1–B3 | Szablony brokerów, ekran szablonów, import CSV       | ✅                                                |
-| B4    | Kalkulator wielkości pozycji                         | ✅                                                |
-| B5    | Kolory strategii, szczegóły konta, emocje w Analizie | ✅                                                |
-| B6    | Przebudowa formularza transakcji (cz. 1–3)           | ✅                                                |
-| B7    | Częściowe zamknięcia (wchłonięte do B6 cz. 3)        | ✅                                                |
-| B8    | Interwały do kosza + konflikt nazw przy przywracaniu | ✅                                                |
-| B9    | Autoaktualizacja produkcyjna (Cel 1.8)               | ✅ wg ROADMAP; do ponownego sprawdzenia w audycie |
+| Poz.  | Zakres                                               | Status                                   |
+| ----- | ---------------------------------------------------- | ---------------------------------------- |
+| B1–B3 | Szablony brokerów, ekran szablonów, import CSV       | ✅                                       |
+| B4    | Kalkulator wielkości pozycji                         | ✅                                       |
+| B5    | Kolory strategii, szczegóły konta, emocje w Analizie | ✅                                       |
+| B6    | Przebudowa formularza transakcji (cz. 1–3)           | ✅                                       |
+| B7    | Częściowe zamknięcia (wchłonięte do B6 cz. 3)        | ✅                                       |
+| B8    | Interwały do kosza + konflikt nazw przy przywracaniu | ✅                                       |
+| B9    | Autoaktualizacja produkcyjna (Cel 1.8)               | ✅ resprawdzone po audycie — patrz niżej |
 
 ## Blok B — bezpieczny panel ustawień
 

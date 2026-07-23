@@ -67,6 +67,33 @@ bezpiecznym miejscu (np. menedżer haseł) zanim coś się z nim stanie. Zgubien
 zepsuje już opublikowanych wersji, ale wymusi wygenerowanie nowej pary kluczy i zmianę
 `pubkey` w konfiguracji dla wszystkich przyszłych wydań.**
 
+## Zabezpieczenia dodane po audycie (2026-07-23)
+
+**Zgodność numeru wersji.** Wersja żyje w trzech plikach (`Cargo.toml`, `tauri.conf.json`,
+`package.json`) i nic w narzędziach nie pilnowało, żeby były zgodne. Rozjazd nie jest
+kosmetyczny — psuje aktualizacje w sposób niewidoczny przy wydawaniu, a widoczny dopiero
+u użytkownika: gdy `tauri.conf.json` zostaje w tyle, aplikacja przedstawia się starszą wersją
+i po zainstalowaniu aktualizacji **dalej proponuje ją w kółko**; gdy wyprzedza, aktualizacja
+**nigdy się nie pokaże**. Pilnuje tego teraz `src-tauri/src/wersja.rs` (test zgodności trzech
+plików + sprawdzenie kształtu semver). Diagnostyka czyta wersję z tej samej stałej, więc nie
+ma drugiego źródła.
+
+**Czytelne komunikaty błędów.** Wtyczka zwraca błędy po angielsku, w rodzaju „Could not fetch
+a valid release JSON from the remote" — dla użytkownika nietechnicznego to brzmi jak awaria
+aplikacji, choć zwykle oznacza brak sieci albo brak opublikowanego jeszcze wydania.
+`describeUpdateError` w `app/useUpdater.ts` rozpoznaje trzy przypadki:
+
+| Sytuacja         | Co widzi użytkownik                                                             |
+| ---------------- | ------------------------------------------------------------------------------- |
+| brak internetu   | „Aplikacja działa normalnie bez sieci; spróbuj później" — bo to nie jest awaria |
+| brak wydania     | „To normalne przed pierwszym wydaniem - nie jest to błąd aplikacji"             |
+| niezgodny podpis | ostrzeżenie i **wyraźny zakaz** ręcznej instalacji pobranego pliku              |
+
+Surowa treść błędu zostaje dołączona przy nieznanych przypadkach, żeby dało się je zgłosić.
+
+**Wersja `tauri-action`.** Workflow używa `@v1`; sprawdzone 2026-07-23 — `v1.0.0` jest
+najnowszym wydaniem akcji, a `v1` to ruchomy tag głównej wersji.
+
 ## Konsekwencje
 
 - Aplikacja nigdy nie instaluje niczego bez wyraźnego kliknięcia użytkownika.

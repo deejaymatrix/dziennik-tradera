@@ -18,7 +18,9 @@ pub fn get_app_status() -> AppStatus {
 
 fn build_app_status() -> AppStatus {
     AppStatus {
-        version: env!("CARGO_PKG_VERSION").to_string(),
+        // Jedno źródło numeru wersji - `wersja::WERSJA_CARGO` jest pilnowane testem
+        // zgodności z `tauri.conf.json` i `package.json`.
+        version: crate::wersja::WERSJA_CARGO.to_string(),
         env: if cfg!(debug_assertions) {
             "development"
         } else {
