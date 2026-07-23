@@ -9,8 +9,14 @@
   line-height: var(--line-height-tight);
   border-radius: var(--radius-md);
   border: 1px solid transparent;
-  padding: var(--space-2) var(--space-3);
   cursor: pointer;
+  white-space: nowrap;
+  /* Wysokość ze WSPÓLNEGO tokenu - input, select, pole daty i przycisk muszą mieć dokładnie tę
+     samą wysokość, inaczej formularz wygląda na poskładany z przypadkowych elementów.
+     Pionowy padding zastąpiony przez min-height + wyśrodkowanie, bo padding rósł niezależnie
+     od pól i rozjeżdżał wiersze. */
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-3);
   transition:
     background-color var(--motion-fast) var(--motion-easing),
     border-color var(--motion-fast) var(--motion-easing),
@@ -22,18 +28,22 @@
   outline-offset: 2px;
 }
 
+/* Stan nieaktywny ma zostać CZYTELNY, ale jednoznacznie nieaktywny. Samo `opacity: 0.5`
+   spychało tekst poniżej progu czytelności, zwłaszcza w motywie jasnym. */
 .button:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.6;
+  filter: saturate(0.35);
 }
 
+/* JEDYNY przycisk ze złotym tłem - główna akcja widoku. W jednym panelu występuje zwykle jeden. */
 .primary {
   background-color: var(--color-accent);
   color: var(--color-accent-contrast);
 }
 
 .primary:hover:not(:disabled) {
-  filter: brightness(1.08);
+  background-color: var(--color-accent-hover);
 }
 
 .secondary {
@@ -43,18 +53,23 @@
 }
 
 .secondary:hover:not(:disabled) {
-  border-color: var(--color-accent);
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
 }
 
+/* Akcje lekkie, pomocnicze - bez tła i ramki w spoczynku, żeby nie konkurowały z główną akcją. */
 .ghost {
   background-color: transparent;
-  color: var(--color-text);
+  color: var(--color-text-secondary);
 }
 
 .ghost:hover:not(:disabled) {
-  background-color: var(--color-surface-alt);
+  background-color: var(--color-surface-hover);
+  color: var(--color-text);
 }
 
+/* Wyłącznie operacje niszczące. Świadomie NIE wypełniony na czerwono w spoczynku - czerwona
+   plama przyciąga wzrok mocniej niż główna akcja i kusi do kliknięcia. */
 .danger {
   background-color: transparent;
   color: var(--color-loss);
@@ -67,10 +82,12 @@
 }
 
 .sm {
-  padding: var(--space-1) var(--space-2);
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-2);
   font-size: var(--font-size-xs);
 }
 
 .md {
-  padding: var(--space-2) var(--space-3);
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-3);
 }
