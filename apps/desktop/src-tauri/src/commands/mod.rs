@@ -14,3 +14,4 @@ pub mod strategies;
 pub mod trades;
 pub mod trading_rules;
 pub mod trash;
+pub mod updates;

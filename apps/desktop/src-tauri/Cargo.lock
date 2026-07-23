@@ -848,6 +848,7 @@ dependencies = [
  "chrono",
  "csv",
  "lopdf",
+ "reqwest",
  "rusqlite",
  "rust_decimal",
  "rust_decimal_macros",

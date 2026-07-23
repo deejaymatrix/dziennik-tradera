@@ -270,6 +270,7 @@ pub fn run() {
             commands::trash::restore_trash_item,
             commands::trash::purge_trash_item,
             commands::trash::empty_trash,
+            commands::updates::check_update_manifest,
             commands::preferences::get_preferences,
             commands::preferences::update_preferences_section,
             commands::preferences::reset_preferences_section,

@@ -11,3 +11,4 @@ pub mod sqlite_preferences_repository;
 pub mod sqlite_strategy_repository;
 pub mod sqlite_trade_repository;
 pub mod sqlite_trading_rules_repository;
+pub mod update_manifest;
