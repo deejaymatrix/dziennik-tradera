@@ -1,3 +1,5 @@
+import { useSearchParams } from "react-router";
+import { NEW_TRADE_PARAM } from "../shell/Header";
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { ArchiveRestore, Flag, Pencil, Plus, Search, Trash2, TrendingUp } from "lucide-react";
@@ -76,7 +78,26 @@ export function TransactionsPage(): ReactElement {
   const [trades, setTrades] = useState<Trade[] | null>(null);
   const [tradesError, setTradesError] = useState<string | null>(null);
 
-  const [formOpen, setFormOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Skrót "Nowa transakcja" z górnego paska wchodzi tu parametrem adresu - formularz otwiera
+  // się od razu, a parametr jest natychmiast czyszczony, żeby odświeżenie strony nie otwierało
+  // go po raz drugi.
+  const [formOpen, setFormOpen] = useState(() => searchParams.has(NEW_TRADE_PARAM));
+
+  useEffect(() => {
+    if (!searchParams.has(NEW_TRADE_PARAM)) {
+      return;
+    }
+    // Otwarcie formularza obsługuje stan początkowy, ale nie wtedy, gdy użytkownik jest JUŻ na
+    // tym ekranie - zmiana samego parametru adresu nie montuje komponentu ponownie.
+    // Czyszczenie parametru to z definicji efekt uboczny na adresie, więc reguła o ustawianiu
+    // stanu w efekcie jest tu wyłączona świadomie.
+    const bezParametru = new URLSearchParams(searchParams);
+    bezParametru.delete(NEW_TRADE_PARAM);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFormOpen(true);
+    setSearchParams(bezParametru, { replace: true });
+  }, [searchParams, setSearchParams]);
   const [editingTrade, setEditingTrade] = useState<Trade | undefined>(undefined);
   const [closingTrade, setClosingTrade] = useState<Trade | null>(null);
 
