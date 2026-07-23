@@ -41,6 +41,8 @@ tauri-plugin-notification = "2.3.3"
 
 [dev-dependencies]
 rust_decimal_macros = "1.40.0"
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros"] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-updater = "2.10.1"

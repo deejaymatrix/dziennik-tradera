@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { EmotionalStatesSection } from "./EmotionalStatesSection";
-import styles from "./SettingsPage.module.css";
+import styles from "./StanEmocjonalnyPage.module.css";
 
 /**
  * Okno nawigacyjne "Stan emocjonalny" (sekcja 5 specyfikacji) - zarządzanie listą stanów

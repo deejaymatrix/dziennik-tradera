@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { IntervalsSection } from "./IntervalsSection";
-import styles from "./SettingsPage.module.css";
+import styles from "./InterwalyPage.module.css";
 
 /**
  * Okno nawigacyjne "Interwały" (grupa Konfiguracja). Zarządzanie interwałami przeniesione

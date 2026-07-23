@@ -1,0 +1,11 @@
+/* WŁASNY, prosty kontener strony - NIE `SettingsPage.module.css`. Tamten `.page` to
+   siatka dwukolumnowa (menu 15rem + treść) dla panelu Ustawień; ta strona ma tylko jedną
+   sekcję, więc wpadała w pierwszą, wąską kolumnę menu, a reszta ekranu zostawała pusta. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  /* Ta sama granica co `.content` w Ustawieniach - lista krótkich wierszy nie ma się
+     rozciągać przez cały szeroki monitor. */
+  max-width: 52rem;
+}

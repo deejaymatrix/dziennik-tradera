@@ -1,8 +1,7 @@
 import { useLocation, useNavigate } from "react-router";
 import type { ReactElement } from "react";
-import { ArrowDownToLine, Moon, Plus, Sun } from "lucide-react";
+import { ArrowDownToLine, Moon, Sun } from "lucide-react";
 import { useTheme } from "../app/ThemeProvider";
-import { Button } from "../ui/components/Button/Button";
 import { IconButton } from "../ui/components/IconButton/IconButton";
 import { useOptionalUpdateMonitor } from "../app/UpdateMonitorProvider";
 import { NAV_GROUPS } from "./nav";
@@ -35,16 +34,9 @@ export function Header(): ReactElement {
     <header className={styles.header}>
       <h1 className={styles.title}>{title}</h1>
       <div className={styles.actions}>
-        {/* Skrót dostępny z każdego widoku - prompt wymaga go w górnym pasku i jednocześnie
-            zabrania duplikowania tej samej funkcji w menu bocznym. */}
-        <Button
-          variant="primary"
-          onClick={() => {
-            void navigate(`/transakcje?${NEW_TRADE_PARAM}=1`);
-          }}
-        >
-          <Plus size={16} aria-hidden="true" /> Nowa transakcja
-        </Button>
+        {/* Przycisk „Nowa transakcja" usunięty z górnego paska na wyraźną prośbę użytkownika -
+            akcja zostaje dostępna przez Paletę Poleceń (Ctrl+K, patrz CommandPalette.tsx),
+            która używa tego samego `NEW_TRADE_PARAM`. */}
         {/* TRWAŁY znacznik dostępnej aktualizacji. Zostaje po wybraniu „Później" - dopiero
             instalacja go zdejmuje. Wymaganie mówi o tym wprost, bo bez tego jedno kliknięcie
             „Później" chowałoby aktualizację na zawsze. */}
