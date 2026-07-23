@@ -16,7 +16,9 @@
 }
 
 .dialog::backdrop {
-  background-color: rgba(3, 6, 10, 0.6);
+  /* Przyciemnienie bez rozmycia - specyfikacja wprost odradza ciężki glassmorphism, a rozmycie
+     całego tła kosztuje wydajność przy każdym otwarciu okna. Kolor zamiast dosłownej wartości. */
+  background-color: color-mix(in srgb, var(--color-bg) 72%, transparent);
 }
 
 .header {
