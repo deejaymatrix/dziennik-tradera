@@ -1326,3 +1326,68 @@ mają trafiać do aplikacji jako aktualizacje.
 ## Pozostałe cele Etapu 1
 
 Patrz [ROADMAP.md](ROADMAP.md) — jeszcze nierozpoczęte.
+
+---
+
+# PLAN PRACY — skonsolidowany ze wszystkich dokumentów (2026-07-23)
+
+Zestawienie tego, co zostało do zrobienia, złożone z trzech promptów wdrożeniowych, ROADMAP.md
+i stanu kodu. Kolejność jest wiążąca. Pozycja jest „gotowa" dopiero wtedy, gdy ma działające
+zachowanie (nie atrapę), testy i przechodzące lint/typecheck.
+
+## Blok A — seria B ze specyfikacji formularza transakcji
+
+| Poz. | Zakres | Status |
+| --- | --- | --- |
+| B1–B3 | Szablony brokerów, ekran szablonów, import CSV | ✅ |
+| B4 | Kalkulator wielkości pozycji | ✅ |
+| B5 | Kolory strategii, szczegóły konta, emocje w Analizie | ✅ |
+| B6 | Przebudowa formularza transakcji (cz. 1–3) | ✅ |
+| B7 | Częściowe zamknięcia (wchłonięte do B6 cz. 3) | ✅ |
+| B8 | Interwały do kosza + konflikt nazw przy przywracaniu | ✅ |
+| B9 | Autoaktualizacja produkcyjna (Cel 1.8) | ✅ wg ROADMAP; do ponownego sprawdzenia w audycie |
+
+## Blok B — bezpieczny panel ustawień
+
+| Poz. | Zakres | Status |
+| --- | --- | --- |
+| U1 | Wersjonowany model preferencji + walidacja per sekcja | ✅ |
+| U2 | Repozytorium, serwis z zapisem atomowym, komendy | ✅ |
+| U3 | Szkielet: menu, jedna sekcja naraz, zapis/anuluj/reset, pytanie o niezapisane | ✅ |
+| U4 | Wygląd realnie nakładany na aplikację + podgląd na żywo | ✅ |
+| U5 | Nawigacja i widok startowy wpięte w powłokę | ✅ |
+| U6 | Potwierdzenia, potwierdzenie zapisu, częstotliwość autozapisu szkicu | ✅ |
+| U7 | Pozostałe ustawienia zachowania: podpowiedzi przy polach, otwieranie szczegółów po zapisie, zapamiętywanie rozwiniętych paneli, ostatnie konto, szerokości kolumn | ⬜ |
+| U8 | Domyślne wartości: nowa transakcja, kalkulator, raporty — realnie stosowane | ⬜ |
+| U9 | Powiadomienia: systemowe, przypomnienia, ciche godziny — realnie działające | ⬜ |
+| U10 | Sekcja „Dane": stan danych (liczniki, rozmiar, integralność) + `Sprawdź integralność` | ⬜ |
+| U11 | Diagnostyka użytkownika: kopiowanie i eksport raportu bez danych wrażliwych | ⬜ |
+
+## Blok C — redesign motywu „Institutional Black & Gold"
+
+| Poz. | Zakres | Status |
+| --- | --- | --- |
+| M1 | Tokeny: pełna paleta ciemna i jasna, semantyczne nazwy, wysokości kontrolek | ⬜ |
+| M2 | Komponenty wspólne: Button (4 warianty), Input, Select, Card, Modal, Table, Badge, Tabs, Tooltip, Toast, EmptyState, Skeleton | ⬜ |
+| M3 | Nawigacja i górny pasek | ⬜ |
+| M4 | Karty, panele, KPI | ⬜ |
+| M5 | Tabele i historia transakcji | ⬜ |
+| M6 | Wykresy i raporty (paleta z tych samych tokenów, eksport PDF zostaje jasny) | ⬜ |
+| M7 | Ustawienia → Wygląd: miniatury podglądu wariantów, własny kolor dopiero po teście kontrastu | ⬜ |
+| M8 | Audyt wizualny wszystkich widoków w obu motywach | ⬜ |
+
+## Blok D — audyt całej aplikacji (obowiązkowy przed instalatorem)
+
+Pełny audyt z perspektywy użytkownika i kodu, wymagany wprost przez prompt redesignu:
+każdy przycisk, pole, filtr, stan pusty/ładowania/błędu, cztery warianty bazy danych.
+Wykryty błąd: odtworzyć, naprawić przyczynę, dodać test regresji, sprawdzić cały przepływ.
+
+## Blok E — instalator (Cel 1.9)
+
+Zablokowany do decyzji użytkownika: wymaga certyfikatu Authenticode. Nie budować bez zgody.
+
+## Zasady pracy przy tym planie
+
+- Commit małymi krokami, po polsku, push po każdym commicie.
+- Nie oznaczać pozycji jako gotowej bez testów i przechodzącego lint/typecheck.
+- Nie budować instalatora bez wyraźnej zgody użytkownika.
