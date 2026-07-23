@@ -42,7 +42,8 @@ fn snapshot_to_bytes(conn: &Connection) -> Result<Vec<u8>, AppError> {
     {
         let mut dst = Connection::open(temp.path())?;
         let backup = rusqlite::backup::Backup::new(conn, &mut dst)?;
-        backup.run_to_completion(5, Duration::from_millis(250), None)?;
+        // Cała baza w jednym kroku - patrz komentarz przy tym samym wywołaniu w migrations.rs.
+        backup.run_to_completion(WSZYSTKIE_STRONY, Duration::ZERO, None)?;
     }
     Ok(std::fs::read(temp.path())?)
 }
@@ -100,6 +101,8 @@ fn write_archive(
 /// Tworzy kopię zapasową `.dtjbackup` z żywego, otwartego połączenia (normalny przypadek -
 /// wywoływane z komendy `create_backup` przez działającą aplikację). Dołącza też pliki z
 /// `attachments_dir`, jeśli katalog istnieje (Faza 6 - "backup/restore zachowuje obrazy").
+const WSZYSTKIE_STRONY: std::ffi::c_int = i32::MAX;
+
 pub fn create_from_connection(
     conn: &Mutex<Connection>,
     destination: &Path,

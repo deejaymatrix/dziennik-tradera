@@ -108,12 +108,13 @@ impl TrashService {
             .collect())
     }
 
+    /// JEDNO zapytanie zamiast osobnego na każdą transakcję konta.
+    ///
+    /// Wcześniej ta funkcja pobierała wszystkie transakcje konta i dla KAŻDEJ odpytywała bazę
+    /// o załączniki. Przy koncie z tysiącami transakcji opróżnianie kosza zajmowało przez to
+    /// kilkadziesiąt sekund, a aplikacja wyglądała na zawieszoną i bywała ubijana przez system.
     fn screenshot_files_for_account(&self, account_id: &str) -> Result<Vec<String>, AppError> {
-        let mut files = Vec::new();
-        for trade in self.trades.list(account_id, true)? {
-            files.extend(self.screenshot_files_for_trade(&trade.id)?);
-        }
-        Ok(files)
+        self.attachments.file_paths_for_account(account_id)
     }
 
     /// Wszystkie transakcje na wszystkich kontach (aktywnych i zarchiwizowanych), usunięte i
@@ -335,7 +336,8 @@ mod tests {
 
     fn setup() -> (TrashService, Arc<AccountsService>, tempfile::TempDir) {
         let dir = tempfile::tempdir().expect("tempdir");
-        let mut conn = connection::open(&dir.path().join("db.sqlite3")).expect("open");
+        let db_path = dir.path().join("db.sqlite3");
+        let mut conn = connection::open(&db_path).expect("open");
         migrations::run_migrations(&mut conn, &dir.path().join("backups")).expect("migrate");
         let conn = Arc::new(Mutex::new(conn));
 

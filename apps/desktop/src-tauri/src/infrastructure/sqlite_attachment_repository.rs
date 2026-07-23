@@ -101,6 +101,22 @@ impl AttachmentRepository for SqliteAttachmentRepository {
         Ok(attachments)
     }
 
+    fn file_paths_for_account(&self, account_id: &str) -> Result<Vec<String>, AppError> {
+        let conn = self
+            .conn
+            .lock()
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
+        let mut stmt = conn.prepare(
+            "SELECT a.file_path FROM attachments a
+             JOIN trades t ON t.id = a.trade_id
+             WHERE t.account_id = ?1 AND a.file_path IS NOT NULL",
+        )?;
+        let paths = stmt
+            .query_map([account_id], |row| row.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(paths)
+    }
+
     fn update_label(&self, id: &str, label: Option<&str>) -> Result<Attachment, AppError> {
         let conn = self
             .conn

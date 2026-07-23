@@ -67,6 +67,12 @@ pub trait AttachmentRepository {
     fn get(&self, id: &str) -> Result<Attachment, AppError>;
     /// Zwraca załączniki jednej transakcji, uporządkowane po `sort_order`.
     fn list_for_trade(&self, trade_id: &str) -> Result<Vec<Attachment>, AppError>;
+    /// Nazwy plików WSZYSTKICH zdjęć należących do transakcji danego konta - JEDNYM zapytaniem.
+    ///
+    /// Istnieje wyłącznie po to, żeby trwałe usunięcie konta nie odpytywało bazy osobno o każdą
+    /// jego transakcję. Przy koncie z tysiącami transakcji tamto podejście zajmowało dziesiątki
+    /// sekund i wyglądało jak zawieszenie aplikacji.
+    fn file_paths_for_account(&self, account_id: &str) -> Result<Vec<String>, AppError>;
     fn update_label(&self, id: &str, label: Option<&str>) -> Result<Attachment, AppError>;
     /// Nadpisuje `sort_order` wszystkich podanych id kolejnością ich wystąpienia na liście -
     /// musi obejmować WSZYSTKIE załączniki danej transakcji (patrz walidacja w `AttachmentsService`).

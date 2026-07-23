@@ -4,6 +4,12 @@ use rusqlite::Connection;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
+/// Liczba stron kopiowanych za jednym razem przy tworzeniu kopii bazy. Celowo bardzo duża:
+/// chodzi o skopiowanie CAŁEJ bazy w jednym kroku, bez pauz. `rusqlite` nie przyjmuje `-1`
+/// (panikuje na "pages_per_step must be positive"), więc zamiast tego dajemy wartość większą
+/// niż jakakolwiek realna liczba stron.
+const WSZYSTKIE_STRONY: std::ffi::c_int = i32::MAX;
+
 struct Migration {
     version: i64,
     name: &'static str,
@@ -205,7 +211,11 @@ fn backup_before_migration(
     let backup_path = backup_dir.join(format!("pre-migration-{timestamp}.sqlite3"));
     let mut dst = Connection::open(&backup_path)?;
     let backup = rusqlite::backup::Backup::new(conn, &mut dst)?;
-    backup.run_to_completion(5, std::time::Duration::from_millis(250), None)?;
+    // Cała baza w jednym kroku. Wcześniej było 5 stron na raz z pauzą 250 ms,
+    // czyli przy bazie 5,5 MB ponad 270 porcji i ponad minuta czekania - aplikacja wyglądała
+    // wtedy na zawieszoną. Pauza ma sens tylko przy współdzieleniu bazy z innym pisarzem;
+    // tutaj połączenie jest wyłącznie nasze, a użytkownik czeka.
+    backup.run_to_completion(WSZYSTKIE_STRONY, std::time::Duration::ZERO, None)?;
     Ok(backup_path)
 }
 

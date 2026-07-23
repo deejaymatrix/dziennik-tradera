@@ -102,6 +102,12 @@ impl AttachmentsService {
         self.repository.list_for_trade(trade_id)
     }
 
+    /// Nazwy plików zdjęć wszystkich transakcji konta - jednym zapytaniem, do sprzątania plików
+    /// po trwałym usunięciu konta.
+    pub fn file_paths_for_account(&self, account_id: &str) -> Result<Vec<String>, AppError> {
+        self.repository.file_paths_for_account(account_id)
+    }
+
     /// Dodaje zdjęcie z pliku na dysku - używane przy wyborze z systemowego okna dialogowego
     /// oraz przy upuszczeniu pliku (drag&drop), bo obie ścieżki dają Tauri realną ścieżkę na
     /// dysku. Odrzuca dowiązania symboliczne u źródła (ochrona przed odczytem poza oczekiwany
