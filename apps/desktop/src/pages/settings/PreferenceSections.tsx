@@ -106,10 +106,7 @@ export function AppearanceSection({
             <span className={styles.previewButton} style={{ background: value.accent_color }}>
               Przycisk
             </span>
-            <span
-              className={styles.previewNavItem}
-              style={{ borderLeftColor: value.accent_color }}
-            >
+            <span className={styles.previewNavItem} style={{ borderLeftColor: value.accent_color }}>
               Aktywna pozycja menu
             </span>
             <span className={styles.previewProfit}>+128,40</span>
@@ -419,7 +416,9 @@ export function DefaultsSection({
   }
 
   const accountValue =
-    value.default_account.kind === "specific" ? value.default_account.account_id : value.default_account.kind;
+    value.default_account.kind === "specific"
+      ? value.default_account.account_id
+      : value.default_account.kind;
 
   return (
     <div className={styles.cards}>
@@ -427,8 +426,8 @@ export function DefaultsSection({
         <CardTitle>Nowa transakcja</CardTitle>
         <p className={styles.cardNote}>
           Instrument, kierunek BUY/SELL i strategia celowo nie mają wartości domyślnych - przy
-          każdej transakcji wymagają świadomego wyboru, żeby nie zapisać błędnych danych
-          z przyzwyczajenia.
+          każdej transakcji wymagają świadomego wyboru, żeby nie zapisać błędnych danych z
+          przyzwyczajenia.
         </p>
         <SettingRow label="Domyślne konto">
           <Select
@@ -606,7 +605,10 @@ export function DefaultsSection({
             compact
             value={value.report_ranking_size}
             onChange={(e) =>
-              set("report_ranking_size", e.target.value as DefaultsPreferences["report_ranking_size"])
+              set(
+                "report_ranking_size",
+                e.target.value as DefaultsPreferences["report_ranking_size"],
+              )
             }
             options={[
               { value: "5", label: "5" },

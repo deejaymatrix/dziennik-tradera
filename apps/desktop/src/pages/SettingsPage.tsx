@@ -155,9 +155,9 @@ function UpdatesInfoSection(): ReactElement {
       <SectionCard>
         <h3 className={styles.cardTitle}>Aktualizacje</h3>
         <p className={styles.cardNote}>
-          Sprawdzanie aktualizacji przy starcie i w trakcie działania aplikacji jest zawsze
-          aktywne. Adres serwera aktualizacji, klucz podpisu i kanał wydań nie są konfigurowalne -
-          to gwarancje bezpieczeństwa, a nie ustawienia.
+          Sprawdzanie aktualizacji przy starcie i w trakcie działania aplikacji jest zawsze aktywne.
+          Adres serwera aktualizacji, klucz podpisu i kanał wydań nie są konfigurowalne - to
+          gwarancje bezpieczeństwa, a nie ustawienia.
         </p>
 
         {(state.kind === "idle" || state.kind === "error") && (
@@ -253,8 +253,8 @@ function UpdatesInfoSection(): ReactElement {
         <h3 className={styles.cardTitle}>Diagnostyka użytkownika</h3>
         <p className={styles.cardNote}>
           Raport zawiera wyłącznie: wersję aplikacji, system i architekturę, wersję schematu bazy,
-          status migracji oraz techniczne wpisy diagnostyczne z podmienioną nazwą użytkownika.
-          Nie ma w nim transakcji, notatek, emocji, danych kont, załączników ani żadnych kluczy.
+          status migracji oraz techniczne wpisy diagnostyczne z podmienioną nazwą użytkownika. Nie
+          ma w nim transakcji, notatek, emocji, danych kont, załączników ani żadnych kluczy.
         </p>
         <div className={styles.row}>
           <Button
@@ -283,11 +283,7 @@ function UpdatesInfoSection(): ReactElement {
 
 /** Porównanie „czy sekcja się zmieniła". Oba obiekty pochodzą z tego samego kształtu, więc
  * kolejność kluczy jest identyczna i porównanie tekstowe wystarcza. */
-function sectionChanged(
-  a: Preferences,
-  b: Preferences,
-  section: PreferencesSectionKey,
-): boolean {
+function sectionChanged(a: Preferences, b: Preferences, section: PreferencesSectionKey): boolean {
   return JSON.stringify(a[section]) !== JSON.stringify(b[section]);
 }
 

@@ -436,7 +436,10 @@ export function ZasadyHandluPage(): ReactElement {
                             onClick={() => {
                               void (async () => {
                                 if (
-                                  await optionalConfirm("trash", `Przenieść pytanie "${rule.question}" do kosza?`)
+                                  await optionalConfirm(
+                                    "trash",
+                                    `Przenieść pytanie "${rule.question}" do kosza?`,
+                                  )
                                 ) {
                                   updateRule(categoryIndex, ruleIndex, { archived: true });
                                 }

@@ -146,7 +146,6 @@ export function DashboardPage(): ReactElement {
             <ReportAccountComparisonTab rows={accountRankingRows} accounts={accounts} />
           )}
 
-
           {!isAllAccounts && reportError && (
             <ErrorState title="Nie udało się wczytać podsumowania" description={reportError} />
           )}

@@ -194,8 +194,8 @@ export function DataSection({
       <SectionCard>
         <h3 className={styles.cardTitle}>Stan danych</h3>
         <p className={styles.cardNote}>
-          Wyłącznie bezpieczne informacje poglądowe. Ścieżka bazy nie jest tu edytowalna, a bazy
-          nie da się przenieść z poziomu ustawień.
+          Wyłącznie bezpieczne informacje poglądowe. Ścieżka bazy nie jest tu edytowalna, a bazy nie
+          da się przenieść z poziomu ustawień.
         </p>
         {overviewError && <p className={maintenance.error}>{overviewError}</p>}
         {overview ? (

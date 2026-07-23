@@ -117,9 +117,10 @@ export function PartialClosesEditor({
             ))}
           </ol>
 
-          <dl className={[styles.counter, overClosed ? styles.counterError : null]
-            .filter(Boolean)
-            .join(" ")}
+          <dl
+            className={[styles.counter, overClosed ? styles.counterError : null]
+              .filter(Boolean)
+              .join(" ")}
           >
             <div className={styles.counterItem}>
               <dt>Lot początkowy</dt>

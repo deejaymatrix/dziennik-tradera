@@ -31,7 +31,11 @@ describe("ciche godziny", () => {
   });
 
   it("przedział przechodzący przez północ obejmuje obie strony doby", () => {
-    const nocne = prefs({ quiet_hours_enabled: true, quiet_hours_start: "22:00", quiet_hours_end: "07:00" });
+    const nocne = prefs({
+      quiet_hours_enabled: true,
+      quiet_hours_start: "22:00",
+      quiet_hours_end: "07:00",
+    });
 
     expect(isWithinQuietHours(nocne, at(23))).toBe(true);
     expect(isWithinQuietHours(nocne, at(3))).toBe(true);
@@ -41,7 +45,11 @@ describe("ciche godziny", () => {
   });
 
   it("zwykły przedział w ciągu dnia działa bez zawijania", () => {
-    const dzienne = prefs({ quiet_hours_enabled: true, quiet_hours_start: "09:00", quiet_hours_end: "17:00" });
+    const dzienne = prefs({
+      quiet_hours_enabled: true,
+      quiet_hours_start: "09:00",
+      quiet_hours_end: "17:00",
+    });
 
     expect(isWithinQuietHours(dzienne, at(12))).toBe(true);
     expect(isWithinQuietHours(dzienne, at(8))).toBe(false);
@@ -49,14 +57,22 @@ describe("ciche godziny", () => {
   });
 
   it("równe krańce znaczą 'nic', a nie 'cała doba'", () => {
-    const puste = prefs({ quiet_hours_enabled: true, quiet_hours_start: "22:00", quiet_hours_end: "22:00" });
+    const puste = prefs({
+      quiet_hours_enabled: true,
+      quiet_hours_start: "22:00",
+      quiet_hours_end: "22:00",
+    });
 
     expect(isWithinQuietHours(puste, at(23))).toBe(false);
     expect(isWithinQuietHours(puste, at(10))).toBe(false);
   });
 
   it("niepoprawna godzina nie wycisza niczego", () => {
-    const zepsute = prefs({ quiet_hours_enabled: true, quiet_hours_start: "25:00", quiet_hours_end: "07:00" });
+    const zepsute = prefs({
+      quiet_hours_enabled: true,
+      quiet_hours_start: "25:00",
+      quiet_hours_end: "07:00",
+    });
 
     expect(isWithinQuietHours(zepsute, at(23))).toBe(false);
   });
@@ -64,7 +80,9 @@ describe("ciche godziny", () => {
 
 describe("decyzja o powiadomieniu", () => {
   it("wyłączony przełącznik wycisza niezależnie od pory", () => {
-    expect(shouldNotify(prefs({ update_available: false }), "update_available", { now: at(12) })).toBe(false);
+    expect(
+      shouldNotify(prefs({ update_available: false }), "update_available", { now: at(12) }),
+    ).toBe(false);
   });
 
   it("ciche godziny wyciszają powiadomienie niekrytyczne", () => {

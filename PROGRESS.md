@@ -1035,13 +1035,13 @@ wraca do zwykłego widoku Dashboardu z jego saldem.
    `ReportsPage` wraca do stanu sprzed czwartej poprawki: `onChange={setFilter}` bez
    `handleFilterChange`, `selectTab` bez synchronizacji Konto↔zakładka, brak propa
    `allowAllAccounts` na `<ReportFilterBar>`. `ReportFilterBar` przywraca `showAccount =
-   reportKind !== "compare"` (pole "Konto" znowu ukryte na zakładce "Porównanie kont", bo tam
+reportKind !== "compare"` (pole "Konto" znowu ukryte na zakładce "Porównanie kont", bo tam
    nie miałoby żadnego efektu). Opcja **zostaje na Dashboardzie** - tam się sprawdziła, bo
    Dashboard nie ma zakładek, więc to jedyny sposób na porównanie kont w tym widoku.
 2. **Lista startowa "Start pracy" na Dashboardzie chowa się teraz automatycznie**, gdy użytkownik
    zrobił realny postęp - nie tylko po ręcznym kliknięciu "×". Warunek: istnieje co najmniej
    jedna własna strategia ORAZ co najmniej jedna transakcja (`strategies.length > 0 && report !==
-   null && report.stats.total_trades > 0`). Konto i instrumenty NIE są częścią tego warunku -
+null && report.stats.total_trades > 0`). Konto i instrumenty NIE są częścią tego warunku -
    konto musi już istnieć, żeby Dashboard się w ogóle wyrenderował, a fabryczny katalog 350
    instrumentów istnieje zawsze od instalacji, więc nie ma tam żadnego "zrobiłem to" do wykrycia
    (samo sprawdzenie strony Instrumenty nie jest mierzalnym stanem danych). Zweryfikowane w
@@ -1131,7 +1131,7 @@ wraca do zwykłego widoku Dashboardu z jego saldem.
 
 - **Migracja `0008_attachments`**: tabela `attachments` (istniejąca od 0001_init, dotąd pusta)
   dostała w miejscu (`ALTER TABLE`) kolumny `label` (opis zdjęcia / nazwa linku) i `sort_order`
-  + indeks `(trade_id, sort_order)`.
+  - indeks `(trade_id, sort_order)`.
 - **`domain::attachment`**: `Attachment`/`AttachmentWrite`/`AttachmentKind` (screenshot|link),
   trait `AttachmentRepository` (create/get/list_for_trade/update_label/reorder/delete) i walidator
   `is_valid_https_url` - linki wyłącznie `https://` (odrzuca `http:`, `javascript:`, `data:`,
@@ -1189,8 +1189,9 @@ edycja opisu/kolejności/usuwanie bez żadnych komend) i wysyłane na serwer dop
 zgłaszane. Nowa komenda `read_screenshot_candidate` (odczyt + pełna walidacja zdjęcia z dysku BEZ
 zapisywania - dla podglądu przed utworzeniem transakcji; 235 testów Rust, +2). Zamknięcie
 formularza z oczekującymi załącznikami pyta o potwierdzenie (nie trafiają do szkicu localStorage
+
 - za duże). Zweryfikowane na żywo w przeglądarce: dodanie linku lokalnie nie woła żadnej komendy,
-po "Zapisz" leci `create_trade` + `add_link_attachment` z id nowej transakcji.
+  po "Zapisz" leci `create_trade` + `add_link_attachment` z id nowej transakcji.
 
 **Następny krok:** Faza 8 — nowa zakładka "Zasady handlu" (Faza 7 - lokalny asystent AI - jawnie
 odroczona przez użytkownika na osobną aktualizację po instalatorze v1.0).
@@ -1241,6 +1242,7 @@ DataTable zbędny (wszystkie tabele używają wspólnego `Table`), KpiCard/Chart
 istnieją z Fazy 9 (StatCard/ChartCard/ReportFilterBar).
 
 **Zbudowane i wdrożone:**
+
 - `SectionCard` (wspólna otoczka karty - tło/ramka/zaokrąglenie powtarzane dotąd w wielu CSS).
 - `ReadOnlyField` (siatka etykieta→wartość - `TradeBalanceCard` i `TradePreviewCard` miały
   bajt-w-bajt identyczne CSS; obie przepisane na nowe komponenty).
@@ -1337,31 +1339,31 @@ zachowanie (nie atrapę), testy i przechodzące lint/typecheck.
 
 ## Blok A — seria B ze specyfikacji formularza transakcji
 
-| Poz. | Zakres | Status |
-| --- | --- | --- |
-| B1–B3 | Szablony brokerów, ekran szablonów, import CSV | ✅ |
-| B4 | Kalkulator wielkości pozycji | ✅ |
-| B5 | Kolory strategii, szczegóły konta, emocje w Analizie | ✅ |
-| B6 | Przebudowa formularza transakcji (cz. 1–3) | ✅ |
-| B7 | Częściowe zamknięcia (wchłonięte do B6 cz. 3) | ✅ |
-| B8 | Interwały do kosza + konflikt nazw przy przywracaniu | ✅ |
-| B9 | Autoaktualizacja produkcyjna (Cel 1.8) | ✅ wg ROADMAP; do ponownego sprawdzenia w audycie |
+| Poz.  | Zakres                                               | Status                                            |
+| ----- | ---------------------------------------------------- | ------------------------------------------------- |
+| B1–B3 | Szablony brokerów, ekran szablonów, import CSV       | ✅                                                |
+| B4    | Kalkulator wielkości pozycji                         | ✅                                                |
+| B5    | Kolory strategii, szczegóły konta, emocje w Analizie | ✅                                                |
+| B6    | Przebudowa formularza transakcji (cz. 1–3)           | ✅                                                |
+| B7    | Częściowe zamknięcia (wchłonięte do B6 cz. 3)        | ✅                                                |
+| B8    | Interwały do kosza + konflikt nazw przy przywracaniu | ✅                                                |
+| B9    | Autoaktualizacja produkcyjna (Cel 1.8)               | ✅ wg ROADMAP; do ponownego sprawdzenia w audycie |
 
 ## Blok B — bezpieczny panel ustawień
 
-| Poz. | Zakres | Status |
-| --- | --- | --- |
-| U1 | Wersjonowany model preferencji + walidacja per sekcja | ✅ |
-| U2 | Repozytorium, serwis z zapisem atomowym, komendy | ✅ |
-| U3 | Szkielet: menu, jedna sekcja naraz, zapis/anuluj/reset, pytanie o niezapisane | ✅ |
-| U4 | Wygląd realnie nakładany na aplikację + podgląd na żywo | ✅ |
-| U5 | Nawigacja i widok startowy wpięte w powłokę | ✅ |
-| U6 | Potwierdzenia, potwierdzenie zapisu, częstotliwość autozapisu szkicu | ✅ |
-| U7 | Podpowiedzi przy polach, zapamiętywanie rozwiniętych paneli | ✅ |
-| U8 | Domyślne: konto/interwał/sesja, ryzyko i tryb SL kalkulatora, zapamiętywanie filtrów raportów | ✅ |
-| U9 | Przełączniki powiadomień + ciche godziny (przypomnienia czekają na centrum powiadomień) | ✅ |
-| U10 | Sekcja „Dane": stan danych (liczniki, rozmiar, integralność) + `Sprawdź integralność` | ✅ |
-| U11 | Diagnostyka użytkownika: kopiowanie i eksport raportu bez danych wrażliwych | ✅ |
+| Poz. | Zakres                                                                                        | Status |
+| ---- | --------------------------------------------------------------------------------------------- | ------ |
+| U1   | Wersjonowany model preferencji + walidacja per sekcja                                         | ✅     |
+| U2   | Repozytorium, serwis z zapisem atomowym, komendy                                              | ✅     |
+| U3   | Szkielet: menu, jedna sekcja naraz, zapis/anuluj/reset, pytanie o niezapisane                 | ✅     |
+| U4   | Wygląd realnie nakładany na aplikację + podgląd na żywo                                       | ✅     |
+| U5   | Nawigacja i widok startowy wpięte w powłokę                                                   | ✅     |
+| U6   | Potwierdzenia, potwierdzenie zapisu, częstotliwość autozapisu szkicu                          | ✅     |
+| U7   | Podpowiedzi przy polach, zapamiętywanie rozwiniętych paneli                                   | ✅     |
+| U8   | Domyślne: konto/interwał/sesja, ryzyko i tryb SL kalkulatora, zapamiętywanie filtrów raportów | ✅     |
+| U9   | Przełączniki powiadomień + ciche godziny (przypomnienia czekają na centrum powiadomień)       | ✅     |
+| U10  | Sekcja „Dane": stan danych (liczniki, rozmiar, integralność) + `Sprawdź integralność`         | ✅     |
+| U11  | Diagnostyka użytkownika: kopiowanie i eksport raportu bez danych wrażliwych                   | ✅     |
 
 ## Blok C — przebudowa designu „Institutional Adaptive Workspace"
 
@@ -1370,34 +1372,34 @@ Zastępuje wcześniejszy, węższy blok „redesign motywu". Nowy prompt
 ale KONSTRUKCJI każdego ekranu: układ dobierany do rodzaju pracy, a nie jedna siatka kart
 wszędzie. Zrobione dotąd tokeny i paleta zostają jako fundament.
 
-| Poz. | Zakres | Status |
-| --- | --- | --- |
-| M1 | Tokeny: pełna paleta ciemna i jasna, semantyczne nazwy, wysokości kontrolek | ✅ |
-| M2 | Komponenty wspólne: Button (4 warianty), pola, Modal, Toast, Badge, Table | ✅ |
-| M3 | Nawigacja i górny pasek — obecny stan | ✅ |
-| M5 | Tabele: przyklejony nagłówek, dyskretne separatory, liczby do prawej | ✅ |
-| Q1 | Powłoka: nowe grupy menu (Start/Handel/Analiza/Zarządzanie/System), zapamiętywanie wyboru, tooltipy po zwinięciu, pełna obsługa klawiatury | ✅ |
-| Q2 | Górny pasek: nazwa widoku i skrót „Nowa transakcja" (centrum powiadomień osobno) | ✅ |
-| Q3 | Paleta poleceń `Ctrl+K` (bez operacji niszczących) | ✅ |
-| Q4 | Dashboard jako Executive Dashboard: 6 KPI w górnym rzędzie, wskaźniki uzupełniające ciszej, kafelki klikalne do źródła | ✅ |
-| Q5 | Historia transakcji: Table-First + Split View z Inspectorem po prawej (tylko odczyt, jawny „Edytuj", przypinanie) | ✅ |
-| Q6 | Nowa transakcja jako Guided Workflow ze swobodnym przechodzeniem między sekcjami | ⬜ |
-| Q7 | Raporty: szeroki workspace analityczny | ⬜ |
-| Q8 | Wykresy: paleta z tych samych tokenów, eksport PDF zostaje jasny | ⬜ |
-| Q9 | Dostępność i animacje (120–180 ms, obsługa ograniczenia ruchu, focus, klawiatura) | ⬜ |
-| Q10 | Stany puste, ładowania, błędu, disabled i tylko-do-odczytu w każdym widoku | ⬜ |
+| Poz. | Zakres                                                                                                                                     | Status |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
+| M1   | Tokeny: pełna paleta ciemna i jasna, semantyczne nazwy, wysokości kontrolek                                                                | ✅     |
+| M2   | Komponenty wspólne: Button (4 warianty), pola, Modal, Toast, Badge, Table                                                                  | ✅     |
+| M3   | Nawigacja i górny pasek — obecny stan                                                                                                      | ✅     |
+| M5   | Tabele: przyklejony nagłówek, dyskretne separatory, liczby do prawej                                                                       | ✅     |
+| Q1   | Powłoka: nowe grupy menu (Start/Handel/Analiza/Zarządzanie/System), zapamiętywanie wyboru, tooltipy po zwinięciu, pełna obsługa klawiatury | ✅     |
+| Q2   | Górny pasek: nazwa widoku i skrót „Nowa transakcja" (centrum powiadomień osobno)                                                           | ✅     |
+| Q3   | Paleta poleceń `Ctrl+K` (bez operacji niszczących)                                                                                         | ✅     |
+| Q4   | Dashboard jako Executive Dashboard: 6 KPI w górnym rzędzie, wskaźniki uzupełniające ciszej, kafelki klikalne do źródła                     | ✅     |
+| Q5   | Historia transakcji: Table-First + Split View z Inspectorem po prawej (tylko odczyt, jawny „Edytuj", przypinanie)                          | ✅     |
+| Q6   | Nowa transakcja jako Guided Workflow: stały nagłówek z kontem i saldem, przyklejony pasek akcji, swobodne przechodzenie między sekcjami    | ✅     |
+| Q7   | Raporty: szeroki workspace analityczny                                                                                                     | ⬜     |
+| Q8   | Wykresy: paleta z tych samych tokenów, eksport PDF zostaje jasny                                                                           | ⬜     |
+| Q9   | Dostępność i animacje (120–180 ms, obsługa ograniczenia ruchu, focus, klawiatura)                                                          | ⬜     |
+| Q10  | Stany puste, ładowania, błędu, disabled i tylko-do-odczytu w każdym widoku                                                                 | ⬜     |
 
 ## Blok D — pełny audyt (wymagany przed instalatorem)
 
-| Poz. | Zakres | Status |
-| --- | --- | --- |
-| A1 | Audyt wizualny wszystkich widoków w obu motywach, przy 1366×768 i 1920×1080 | ⬜ |
-| A2 | Audyt jak końcowy użytkownik: cztery warianty bazy (pusta, przykładowa, po migracjach, duża) | ⬜ |
-| A3 | Wartości graniczne: długie nazwy, wielkie liczby, puste dane, bardzo długie tabele | ⬜ |
-| A4 | Obliczenia finansowe: lot, P&L, koszty, częściowe zamknięcia, saldo | ⬜ |
-| A5 | Audyt kodu linia po linii z LISTĄ sprawdzonych plików (martwy kod, puste catch, unwrap/expect, wycieki, wyścigi, hardkodowane kolory i ścieżki, dane prywatne w logach) | ⬜ |
-| A6 | Narzędzia: format, ESLint, typecheck, testy jednostkowe i integracyjne, cargo fmt --check, clippy, testy Rust | ⬜ |
-| A7 | Raport końcowy z macierzą audytową | ⬜ |
+| Poz. | Zakres                                                                                                                                                                  | Status |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| A1   | Audyt wizualny wszystkich widoków w obu motywach, przy 1366×768 i 1920×1080                                                                                             | ⬜     |
+| A2   | Audyt jak końcowy użytkownik: cztery warianty bazy (pusta, przykładowa, po migracjach, duża)                                                                            | ⬜     |
+| A3   | Wartości graniczne: długie nazwy, wielkie liczby, puste dane, bardzo długie tabele                                                                                      | ⬜     |
+| A4   | Obliczenia finansowe: lot, P&L, koszty, częściowe zamknięcia, saldo                                                                                                     | ⬜     |
+| A5   | Audyt kodu linia po linii z LISTĄ sprawdzonych plików (martwy kod, puste catch, unwrap/expect, wycieki, wyścigi, hardkodowane kolory i ścieżki, dane prywatne w logach) | ⬜     |
+| A6   | Narzędzia: format, ESLint, typecheck, testy jednostkowe i integracyjne, cargo fmt --check, clippy, testy Rust                                                           | ⬜     |
+| A7   | Raport końcowy z macierzą audytową                                                                                                                                      | ⬜     |
 
 ## Blok E — instalator (Cel 1.9)
 

@@ -146,8 +146,7 @@ export function KoszPage(): ReactElement {
 
       // Konflikt nazw interwału (sekcja 7): zamiast zostawić użytkownika z samym błędem,
       // proponujemy przywrócenie pod wolną nazwą albo rezygnację.
-      const suggestion =
-        item.entity_type === "interval" ? suggestedLabelFrom(message) : null;
+      const suggestion = item.entity_type === "interval" ? suggestedLabelFrom(message) : null;
       if (suggestion) {
         setBusy(false);
         const restoreUnderNewName = await confirm({

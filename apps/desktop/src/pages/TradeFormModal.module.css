@@ -152,13 +152,51 @@
   margin: 0;
 }
 
+/* Pasek akcji jest STAŁY (sekcja 8 promptu): przy długim formularzu „Zapisz transakcję" ma być
+   pod ręką bez przewijania na sam dół. Ujemne marginesy boczne i tło rozciągają go na całą
+   szerokość okna, żeby przewijana treść nie prześwitywała po bokach. */
 .actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
   margin-top: var(--space-2);
+  padding: var(--space-3) 0 0;
+  background-color: var(--color-surface);
+  border-top: 1px solid var(--color-border);
   position: sticky;
   bottom: 0;
   background-color: var(--color-surface);
   padding-top: var(--space-2);
+}
+
+/* Nagłówek prowadzonego przepływu - konto i saldo widoczne przez cały czas wypełniania
+   formularza, a nie tylko po rozwinięciu pierwszego panelu. */
+.workflowHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+  background-color: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.workflowAccount {
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workflowBalance {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }

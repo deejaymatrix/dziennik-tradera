@@ -140,7 +140,9 @@ export function CommandPalette(): ReactElement | null {
               }
               if (event.key === "ArrowUp") {
                 event.preventDefault();
-                setActive((i) => (wyniki.length === 0 ? 0 : (i - 1 + wyniki.length) % wyniki.length));
+                setActive((i) =>
+                  wyniki.length === 0 ? 0 : (i - 1 + wyniki.length) % wyniki.length,
+                );
                 return;
               }
               if (event.key === "Enter") {

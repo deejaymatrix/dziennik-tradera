@@ -315,121 +315,121 @@ export function TransactionsPage(): ReactElement {
 
       {!tradesError && filteredTrades !== null && filteredTrades.length > 0 && selectedAccount && (
         <div className={inspectedTrade ? styles.splitView : undefined}>
-        <Table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Instrument</th>
-              <th>Strategia</th>
-              <th>Kierunek</th>
-              <th>Status</th>
-              <th>Otwarcie</th>
-              <th>Zamknięcie</th>
-              <th className={tableStyles.numeric}>Lot</th>
-              <th className={tableStyles.numeric}>Wynik netto</th>
-              <th aria-hidden="true" />
-            </tr>
-          </thead>
-          <tbody>
-            {filteredTrades.map((trade) => {
-              const netPnl = trade.net_pnl !== null ? Number(trade.net_pnl) : null;
-              return (
-                <tr
-                  key={trade.id}
-                  className={[
-                    styles.clickableRow,
-                    inspectedTrade?.id === trade.id ? styles.selectedRow : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  onClick={() => setInspectedTrade(trade)}
-                >
-                  <td>{trade.display_number}</td>
-                  <td>{trade.instrument_spec_snapshot?.display_symbol ?? "—"}</td>
-                  <td>{trade.strategy_snapshot?.name ?? "—"}</td>
-                  <td>
-                    <Badge variant={trade.side === "buy" ? "profit" : "loss"}>
-                      {TRADE_SIDE_LABELS[trade.side]}
-                    </Badge>
-                  </td>
-                  <td>
-                    <Badge variant={STATUS_BADGE_VARIANT[trade.status]}>
-                      {TRADE_STATUS_LABELS[trade.status]}
-                    </Badge>
-                    {trade.deleted_at && <span className={styles.trashHint}> (w koszu)</span>}
-                  </td>
-                  <td>{formatDateTime(trade.opened_at)}</td>
-                  <td>{formatDateTime(trade.closed_at)}</td>
-                  <td className={tableStyles.numeric}>{trade.volume ?? "—"}</td>
-                  <td
+          <Table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Instrument</th>
+                <th>Strategia</th>
+                <th>Kierunek</th>
+                <th>Status</th>
+                <th>Otwarcie</th>
+                <th>Zamknięcie</th>
+                <th className={tableStyles.numeric}>Lot</th>
+                <th className={tableStyles.numeric}>Wynik netto</th>
+                <th aria-hidden="true" />
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTrades.map((trade) => {
+                const netPnl = trade.net_pnl !== null ? Number(trade.net_pnl) : null;
+                return (
+                  <tr
+                    key={trade.id}
                     className={[
-                      tableStyles.numeric,
-                      netPnl !== null && (netPnl >= 0 ? styles.profit : styles.loss),
+                      styles.clickableRow,
+                      inspectedTrade?.id === trade.id ? styles.selectedRow : null,
                     ]
                       .filter(Boolean)
                       .join(" ")}
+                    onClick={() => setInspectedTrade(trade)}
                   >
-                    {trade.net_pnl !== null
-                      ? formatMoney(trade.net_pnl, selectedAccount.currency)
-                      : "—"}
-                  </td>
-                  <td>
-                    {/* Kliknięcie przycisku akcji NIE może przy okazji otwierać panelu
-                        szczegółów - to dwie różne intencje w tym samym wierszu. */}
-                    <div
-                      className={tableStyles.actions}
-                      onClick={(event) => event.stopPropagation()}
-                      role="presentation"
+                    <td>{trade.display_number}</td>
+                    <td>{trade.instrument_spec_snapshot?.display_symbol ?? "—"}</td>
+                    <td>{trade.strategy_snapshot?.name ?? "—"}</td>
+                    <td>
+                      <Badge variant={trade.side === "buy" ? "profit" : "loss"}>
+                        {TRADE_SIDE_LABELS[trade.side]}
+                      </Badge>
+                    </td>
+                    <td>
+                      <Badge variant={STATUS_BADGE_VARIANT[trade.status]}>
+                        {TRADE_STATUS_LABELS[trade.status]}
+                      </Badge>
+                      {trade.deleted_at && <span className={styles.trashHint}> (w koszu)</span>}
+                    </td>
+                    <td>{formatDateTime(trade.opened_at)}</td>
+                    <td>{formatDateTime(trade.closed_at)}</td>
+                    <td className={tableStyles.numeric}>{trade.volume ?? "—"}</td>
+                    <td
+                      className={[
+                        tableStyles.numeric,
+                        netPnl !== null && (netPnl >= 0 ? styles.profit : styles.loss),
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
                     >
-                      <IconButton
-                        icon={<Pencil size={16} />}
-                        aria-label={`Edytuj transakcję #${trade.display_number}`}
-                        onClick={() => openEditForm(trade)}
-                        disabled={Boolean(trade.deleted_at)}
-                      />
-                      {trade.status === "open" && !trade.deleted_at && (
+                      {trade.net_pnl !== null
+                        ? formatMoney(trade.net_pnl, selectedAccount.currency)
+                        : "—"}
+                    </td>
+                    <td>
+                      {/* Kliknięcie przycisku akcji NIE może przy okazji otwierać panelu
+                        szczegółów - to dwie różne intencje w tym samym wierszu. */}
+                      <div
+                        className={tableStyles.actions}
+                        onClick={(event) => event.stopPropagation()}
+                        role="presentation"
+                      >
                         <IconButton
-                          icon={<Flag size={16} />}
-                          aria-label={`Zamknij pozycję #${trade.display_number}`}
-                          onClick={() => setClosingTrade(trade)}
+                          icon={<Pencil size={16} />}
+                          aria-label={`Edytuj transakcję #${trade.display_number}`}
+                          onClick={() => openEditForm(trade)}
+                          disabled={Boolean(trade.deleted_at)}
                         />
-                      )}
-                      {trade.deleted_at ? (
-                        <IconButton
-                          icon={<ArchiveRestore size={16} />}
-                          aria-label={`Przywróć transakcję #${trade.display_number}`}
-                          onClick={() => {
-                            void handleRestore(trade);
-                          }}
-                        />
-                      ) : (
-                        <IconButton
-                          icon={<Trash2 size={16} />}
-                          aria-label={`Usuń transakcję #${trade.display_number}`}
-                          onClick={() => {
-                            void handleSoftDelete(trade);
-                          }}
-                        />
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </Table>
+                        {trade.status === "open" && !trade.deleted_at && (
+                          <IconButton
+                            icon={<Flag size={16} />}
+                            aria-label={`Zamknij pozycję #${trade.display_number}`}
+                            onClick={() => setClosingTrade(trade)}
+                          />
+                        )}
+                        {trade.deleted_at ? (
+                          <IconButton
+                            icon={<ArchiveRestore size={16} />}
+                            aria-label={`Przywróć transakcję #${trade.display_number}`}
+                            onClick={() => {
+                              void handleRestore(trade);
+                            }}
+                          />
+                        ) : (
+                          <IconButton
+                            icon={<Trash2 size={16} />}
+                            aria-label={`Usuń transakcję #${trade.display_number}`}
+                            onClick={() => {
+                              void handleSoftDelete(trade);
+                            }}
+                          />
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
 
-        {inspectedTrade && (
-          <TradeInspector
-            trade={inspectedTrade}
-            currency={selectedAccount.currency}
-            pinned={inspectorPinned}
-            onTogglePin={() => setInspectorPinned((v) => !v)}
-            onClose={() => setInspectedTrade(null)}
-            onEdit={() => openEditForm(inspectedTrade)}
-            onOpenFull={() => openEditForm(inspectedTrade)}
-          />
-        )}
+          {inspectedTrade && (
+            <TradeInspector
+              trade={inspectedTrade}
+              currency={selectedAccount.currency}
+              pinned={inspectorPinned}
+              onTogglePin={() => setInspectorPinned((v) => !v)}
+              onClose={() => setInspectedTrade(null)}
+              onEdit={() => openEditForm(inspectedTrade)}
+              onOpenFull={() => openEditForm(inspectedTrade)}
+            />
+          )}
         </div>
       )}
 

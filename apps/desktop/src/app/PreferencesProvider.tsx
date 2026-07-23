@@ -138,15 +138,12 @@ export function PreferencesProvider({ children }: { children: ReactNode }): Reac
     [],
   );
 
-  const resetSection = useCallback(
-    async (section: PreferencesSectionKey): Promise<Preferences> => {
-      const saved = await invokeCommand<Preferences>("reset_preferences_section", { section });
-      setPreferences(saved);
-      setPreview(null);
-      return saved;
-    },
-    [],
-  );
+  const resetSection = useCallback(async (section: PreferencesSectionKey): Promise<Preferences> => {
+    const saved = await invokeCommand<Preferences>("reset_preferences_section", { section });
+    setPreferences(saved);
+    setPreview(null);
+    return saved;
+  }, []);
 
   const value = useMemo<PreferencesContextValue>(
     () => ({

@@ -48,6 +48,7 @@ import { PartialClosesEditor } from "./PartialClosesEditor";
 import { StrategyChecklistEditor } from "./StrategyChecklistEditor";
 import { TradeAttachments } from "./TradeAttachments";
 import { TradeAuditLog } from "./TradeAuditLog";
+import { formatMoney } from "../app/decimal";
 import { TradeBalanceCard } from "./TradeBalanceCard";
 import { TradePreviewCard } from "./TradePreviewCard";
 import styles from "./TradeFormModal.module.css";
@@ -728,6 +729,18 @@ export function TradeFormModal({
           void handleSubmit(event, "final");
         }}
       >
+        {/* Nagłówek prowadzonego przepływu: konto i jego aktualne saldo widoczne PRZEZ CAŁY CZAS,
+            niezależnie od tego, który panel jest rozwinięty. Wcześniej jedno i drugie dało się
+            zobaczyć tylko po rozwinięciu pierwszego panelu albo w bocznym panelu obliczeń. */}
+        {selectedAccount && (
+          <div className={styles.workflowHeader}>
+            <span className={styles.workflowAccount}>{selectedAccount.name}</span>
+            <span className={styles.workflowBalance}>
+              Saldo: <strong>{formatMoney(accountBalance, accountCurrency)}</strong>
+            </span>
+          </div>
+        )}
+
         <div className={styles.layout}>
           <div className={styles.panels}>
             <FormPanel

@@ -49,9 +49,7 @@ export interface BehaviorPreferences {
 }
 
 export type DefaultAccount =
-  | { kind: "last_used" }
-  | { kind: "none" }
-  | { kind: "specific"; account_id: string };
+  { kind: "last_used" } | { kind: "none" } | { kind: "specific"; account_id: string };
 
 export type PriceOrPoints = "price" | "points";
 export type DecimalSeparator = "comma" | "dot";
@@ -111,8 +109,4 @@ export interface Preferences {
 /** Sekcje zapisywane atomowo. "Aktualizacje i informacje" nie ma tu wpisu, bo nie zawiera
  * niczego, co użytkownik mógłby zapisać - to widok wyłącznie informacyjny. */
 export type PreferencesSectionKey =
-  | "appearance"
-  | "behavior"
-  | "defaults"
-  | "notifications"
-  | "data";
+  "appearance" | "behavior" | "defaults" | "notifications" | "data";
