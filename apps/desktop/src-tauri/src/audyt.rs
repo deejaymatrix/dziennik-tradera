@@ -451,3 +451,496 @@ mod tests {
         przejdz_po_wszystkich_ekranach(&state);
     }
 }
+
+/// Audyt A3: wartości graniczne z sekcji 20.2 promptu, sprawdzane na PEŁNYM stosie.
+///
+/// Testy jednostkowe pilnują pojedynczych reguł walidacji. Tutaj chodzi o coś innego: czy przy
+/// wartości granicznej aplikacja zachowuje się przewidywalnie od formularza aż do bazy - czyli
+/// czy odrzuca z czytelnym komunikatem ALBO przyjmuje i poprawnie liczy, a nigdy nie przyjmuje
+/// po cichu czegoś, co zepsuje dane.
+#[cfg(test)]
+mod wartosci_graniczne {
+    use super::*;
+    use crate::domain::account::UpdateAccount;
+
+    /// Puste i złożone z samych spacji nazwy muszą być odrzucone - inaczej na liście kont
+    /// pojawiłby się pusty wiersz, którego nie da się zidentyfikować.
+    #[test]
+    fn pusta_nazwa_i_same_spacje_sa_odrzucane() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let (accounts, ..) = uslugi!(&state);
+
+        for nazwa in ["", "   ", "\t", "\n"] {
+            let wynik = accounts.create(NewAccount {
+                name: nazwa.to_string(),
+                description: None,
+                account_type: None,
+                currency: "USD".to_string(),
+                initial_balance: dec!(0),
+            });
+            assert!(
+                wynik.is_err(),
+                "nazwa {nazwa:?} nie powinna zostać przyjęta"
+            );
+        }
+    }
+
+    /// Polskie znaki muszą przejść przez cały łańcuch bez zniekształcenia. To nie jest oczywiste:
+    /// wymaga poprawnego kodowania w SQLite, w serializacji i przy odczycie.
+    #[test]
+    fn polskie_znaki_wracaja_z_bazy_bez_zmian() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let (accounts, ..) = uslugi!(&state);
+
+        let nazwa = "Zażółć gęślą jaźń ĄĆĘŁŃÓŚŹŻ";
+        let opis = "Opis z cudzysłowem \u{201e}tak\u{201d}, myślnikiem \u{2013} i emoji \u{1f4c8}";
+        let id = accounts
+            .create(NewAccount {
+                name: nazwa.to_string(),
+                description: Some(opis.to_string()),
+                account_type: None,
+                currency: "USD".to_string(),
+                initial_balance: dec!(0),
+            })
+            .expect("konto")
+            .account
+            .id;
+
+        let odczytane = accounts.get(&id).expect("konto");
+        assert_eq!(odczytane.account.name, nazwa);
+        assert_eq!(odczytane.account.description.as_deref(), Some(opis));
+    }
+
+    /// Bardzo długa nazwa nie może wywalić zapisu ani zostać po cichu obcięta - obcięcie
+    /// oznaczałoby, że użytkownik widzi w formularzu co innego niż jest w bazie.
+    #[test]
+    fn bardzo_dluga_nazwa_zapisuje_sie_w_calosci_albo_jest_odrzucona() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let (accounts, ..) = uslugi!(&state);
+
+        let dluga = "K".repeat(5000);
+        match accounts.create(NewAccount {
+            name: dluga.clone(),
+            description: None,
+            account_type: None,
+            currency: "USD".to_string(),
+            initial_balance: dec!(0),
+        }) {
+            Ok(konto) => assert_eq!(
+                konto.account.name.len(),
+                dluga.len(),
+                "nazwa została po cichu obcięta"
+            ),
+            Err(_) => { /* jawne odrzucenie też jest poprawną odpowiedzią */ }
+        }
+    }
+
+    /// Ujemne saldo początkowe jest bez sensu (konto nie może zacząć na debecie) i musi
+    /// zostać odrzucone, a nie zapisane jako liczba ujemna psująca wszystkie późniejsze sumy.
+    #[test]
+    fn ujemne_saldo_poczatkowe_jest_odrzucane() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let (accounts, ..) = uslugi!(&state);
+
+        assert!(accounts
+            .create(NewAccount {
+                name: "Konto na minusie".to_string(),
+                description: None,
+                account_type: None,
+                currency: "USD".to_string(),
+                initial_balance: dec!(-1),
+            })
+            .is_err());
+    }
+
+    /// Saldo `0` jest poprawne i musi przejść - to zwykły przypadek konta demo bez wpłaty.
+    #[test]
+    fn zerowe_saldo_poczatkowe_jest_dozwolone() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let (accounts, ..) = uslugi!(&state);
+
+        let konto = accounts
+            .create(NewAccount {
+                name: "Konto zerowe".to_string(),
+                description: None,
+                account_type: None,
+                currency: "USD".to_string(),
+                initial_balance: dec!(0),
+            })
+            .expect("konto z saldem 0 musi być dozwolone");
+        assert_eq!(konto.balance, dec!(0));
+    }
+
+    /// Bardzo duże saldo nie może się przepełnić ani stracić precyzji. `Decimal` jest tu
+    /// wybrany właśnie po to i test pilnuje, że nikt nie podmieni go na `f64`.
+    #[test]
+    fn bardzo_duze_saldo_zachowuje_precyzje() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let (accounts, ..) = uslugi!(&state);
+
+        let ogromne = dec!(999999999999.99);
+        let konto = accounts
+            .create(NewAccount {
+                name: "Konto instytucjonalne".to_string(),
+                description: None,
+                account_type: None,
+                currency: "USD".to_string(),
+                initial_balance: ogromne,
+            })
+            .expect("konto");
+        assert_eq!(
+            accounts.get(&konto.account.id).expect("konto").balance,
+            ogromne,
+            "duża kwota straciła precyzję w drodze przez bazę"
+        );
+    }
+
+    /// Loty wymienione wprost w sekcji 20.2. Ten sam ruch ceny przy dziesięciokrotnie większym
+    /// locie musi dać dziesięciokrotnie większy wynik - dokładnie, nie "mniej więcej". To jest
+    /// miejsce, w którym arytmetyka zmiennoprzecinkowa gubi grosze.
+    #[test]
+    fn loty_dziesietne_licza_sie_proporcjonalnie() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let konto = nowe_konto(&state, "Konto lotowe", dec!(100000));
+        let instrument = jakis_instrument(&state);
+        let (.., trades, _, _, _, _, _, _) = uslugi!(&state);
+
+        let mut wyniki = Vec::new();
+        for lot in [dec!(0.01), dec!(0.10), dec!(1.00), dec!(1.23)] {
+            let otwarcie = Utc::now() - Duration::days(1);
+            let t = trades
+                .create(TradeInput {
+                    account_id: konto.clone(),
+                    instrument_id: Some(instrument.clone()),
+                    strategy_id: None,
+                    side: TradeSide::Buy,
+                    opened_at: Some(otwarcie),
+                    closed_at: Some(otwarcie + Duration::hours(1)),
+                    interval_id: None,
+                    session: None,
+                    volume: Some(lot),
+                    entry_price: Some(dec!(100)),
+                    exit_price: Some(dec!(110)),
+                    stop_loss: None,
+                    take_profit: None,
+                    commission: dec!(0),
+                    swap: dec!(0),
+                    other_fees: dec!(0),
+                    conversion_rate: None,
+                    plan_before: None,
+                    management_notes: None,
+                    post_trade_summary: None,
+                    conclusion: None,
+                    plan_adherence_rating: None,
+                    pnl_override: None,
+                    emotions: None,
+                    checklist: None,
+                    partial_closes: vec![],
+                })
+                .unwrap_or_else(|e| panic!("lot {lot} musi być dozwolony: {e:?}"));
+            wyniki.push(t.net_pnl.expect("wynik zamkniętej pozycji"));
+        }
+
+        assert_eq!(wyniki[1], wyniki[0] * dec!(10), "lot 0,10 vs 0,01");
+        assert_eq!(wyniki[2], wyniki[0] * dec!(100), "lot 1,00 vs 0,01");
+        assert_eq!(wyniki[3], wyniki[0] * dec!(123), "lot 1,23 vs 0,01");
+        assert!(wyniki.iter().all(|w| *w > Decimal::ZERO));
+    }
+
+    /// Data zamknięcia PRZED datą otwarcia jest niemożliwa fizycznie. Przyjęcie takiej pozycji
+    /// zatruwałoby każdy raport okresowy, bo trafiałaby do niewłaściwego miesiąca.
+    #[test]
+    fn zamkniecie_przed_otwarciem_jest_odrzucane() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let konto = nowe_konto(&state, "Konto z datami", dec!(1000));
+        let instrument = jakis_instrument(&state);
+        let (.., trades, _, _, _, _, _, _) = uslugi!(&state);
+
+        let teraz = Utc::now();
+        let wynik = trades.create(TradeInput {
+            account_id: konto,
+            instrument_id: Some(instrument),
+            strategy_id: None,
+            side: TradeSide::Buy,
+            opened_at: Some(teraz),
+            closed_at: Some(teraz - Duration::days(1)),
+            interval_id: None,
+            session: None,
+            volume: Some(dec!(1)),
+            entry_price: Some(dec!(100)),
+            exit_price: Some(dec!(101)),
+            stop_loss: None,
+            take_profit: None,
+            commission: dec!(0),
+            swap: dec!(0),
+            other_fees: dec!(0),
+            conversion_rate: None,
+            plan_before: None,
+            management_notes: None,
+            post_trade_summary: None,
+            conclusion: None,
+            plan_adherence_rating: None,
+            pnl_override: None,
+            emotions: None,
+            checklist: None,
+            partial_closes: vec![],
+        });
+        assert!(
+            wynik.is_err(),
+            "transakcja zamknięta przed otwarciem została przyjęta"
+        );
+    }
+
+    /// Duplikat nazwy konta: aplikacja albo go blokuje, albo dopuszcza - ale MUSI zachować
+    /// dwa rozróżnialne rekordy, a nie nadpisać pierwszego.
+    #[test]
+    fn duplikat_nazwy_konta_nie_nadpisuje_pierwszego() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let (accounts, ..) = uslugi!(&state);
+
+        let nowe = |nazwa: &str| NewAccount {
+            name: nazwa.to_string(),
+            description: None,
+            account_type: None,
+            currency: "USD".to_string(),
+            initial_balance: dec!(100),
+        };
+
+        let pierwsze = accounts
+            .create(nowe("Ten sam"))
+            .expect("pierwsze konto")
+            .account
+            .id;
+        match accounts.create(nowe("Ten sam")) {
+            Ok(drugie) => {
+                assert_ne!(
+                    drugie.account.id, pierwsze,
+                    "drugie konto o tej samej nazwie nadpisało pierwsze"
+                );
+                assert_eq!(accounts.list(true).expect("konta").len(), 2);
+            }
+            Err(_) => {
+                assert_eq!(
+                    accounts.list(true).expect("konta").len(),
+                    1,
+                    "odrzucony duplikat nie może zostawić śmieci w bazie"
+                );
+            }
+        }
+    }
+
+    /// Waluta spoza listy obsługiwanych musi zostać odrzucona - inaczej raporty pokazywałyby
+    /// kwoty z symbolem, którego aplikacja nie umie przeliczyć.
+    #[test]
+    fn nieobslugiwana_waluta_jest_odrzucana() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let (accounts, ..) = uslugi!(&state);
+
+        assert!(accounts
+            .create(NewAccount {
+                name: "Konto w jenach".to_string(),
+                description: None,
+                account_type: None,
+                currency: "JPY".to_string(),
+                initial_balance: dec!(100),
+            })
+            .is_err());
+
+        let id = nowe_konto(&state, "Konto zwykłe", dec!(100));
+        assert!(accounts
+            .update(
+                &id,
+                UpdateAccount {
+                    name: "Konto zwykłe".to_string(),
+                    description: None,
+                    account_type: None,
+                    currency: "XXX".to_string(),
+                }
+            )
+            .is_err());
+    }
+}
+
+/// Audyt A3, część druga: częściowe zamknięcia i wielokrotny zapis. Wydzielone, bo to jedyne
+/// miejsce w aplikacji, gdzie użytkownik podaje kilka kwot naraz i gdzie łatwo o cichy błąd -
+/// pojedyncza pomyłka w sumie lotów przekłada się wprost na fałszywe saldo konta.
+#[cfg(test)]
+mod graniczne_zamkniecia {
+    use super::*;
+    use crate::domain::trade_partial_close::PartialClose;
+
+    fn wejscie_z_zamknieciami(
+        konto: &str,
+        instrument: &str,
+        lot: Decimal,
+        zamkniecia: Vec<PartialClose>,
+    ) -> TradeInput {
+        let otwarcie = Utc::now() - Duration::days(1);
+        TradeInput {
+            account_id: konto.to_string(),
+            instrument_id: Some(instrument.to_string()),
+            strategy_id: None,
+            side: TradeSide::Buy,
+            opened_at: Some(otwarcie),
+            closed_at: None,
+            interval_id: None,
+            session: None,
+            volume: Some(lot),
+            entry_price: Some(dec!(100)),
+            exit_price: None,
+            stop_loss: None,
+            take_profit: None,
+            commission: dec!(0),
+            swap: dec!(0),
+            other_fees: dec!(0),
+            conversion_rate: None,
+            plan_before: None,
+            management_notes: None,
+            post_trade_summary: None,
+            conclusion: None,
+            plan_adherence_rating: None,
+            pnl_override: None,
+            emotions: None,
+            checklist: None,
+            partial_closes: zamkniecia,
+        }
+    }
+
+    /// Suma częściowych zamknięć większa od lota pozycji jest niemożliwa - nie da się zamknąć
+    /// więcej, niż się otworzyło. Przyjęcie tego zawyżyłoby wynik i saldo konta.
+    #[test]
+    fn zamkniecie_wieksze_od_lota_jest_odrzucane() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let konto = nowe_konto(&state, "Konto częściowe", dec!(10000));
+        let instrument = jakis_instrument(&state);
+        let (.., trades, _, _, _, _, _, _) = uslugi!(&state);
+
+        let wynik = trades.create(wejscie_z_zamknieciami(
+            &konto,
+            &instrument,
+            dec!(1),
+            vec![
+                PartialClose {
+                    closed_volume: dec!(0.6),
+                    realized_pnl: dec!(50),
+                },
+                PartialClose {
+                    closed_volume: dec!(0.6),
+                    realized_pnl: dec!(50),
+                },
+            ],
+        ));
+        assert!(
+            wynik.is_err(),
+            "suma zamknięć 1,2 lota przy pozycji 1 lot została przyjęta"
+        );
+
+        // Odrzucona transakcja nie może zostawić śladu w bazie ani ruszyć salda.
+        let (accounts, .., trades2, _, _, _, _, _, _) = uslugi!(&state);
+        assert!(trades2.list(&konto, true).expect("lista").is_empty());
+        assert_eq!(accounts.get(&konto).expect("konto").balance, dec!(10000));
+    }
+
+    /// Zamknięcie zerowe albo ujemne nie ma sensu - to pomyłka przy wpisywaniu, a nie operacja.
+    #[test]
+    fn zerowe_i_ujemne_zamkniecie_jest_odrzucane() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let konto = nowe_konto(&state, "Konto częściowe 2", dec!(10000));
+        let instrument = jakis_instrument(&state);
+        let (.., trades, _, _, _, _, _, _) = uslugi!(&state);
+
+        for lot in [dec!(0), dec!(-0.5)] {
+            let wynik = trades.create(wejscie_z_zamknieciami(
+                &konto,
+                &instrument,
+                dec!(1),
+                vec![PartialClose {
+                    closed_volume: lot,
+                    realized_pnl: dec!(10),
+                }],
+            ));
+            assert!(wynik.is_err(), "zamknięcie {lot} zostało przyjęte");
+        }
+    }
+
+    /// Zamknięcie dokładnie równe lotowi domyka pozycję w CAŁOŚCI - i wtedy jej wynik musi
+    /// wejść do salda konta. To jest ta ścieżka, na której saldo długo się nie zgadzało.
+    #[test]
+    fn zamkniecie_calego_lota_trafia_na_saldo() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let konto = nowe_konto(&state, "Konto domknięte", dec!(10000));
+        let instrument = jakis_instrument(&state);
+        let (accounts, .., trades, _, _, _, _, _, _) = uslugi!(&state);
+
+        trades
+            .create(wejscie_z_zamknieciami(
+                &konto,
+                &instrument,
+                dec!(1),
+                vec![
+                    PartialClose {
+                        closed_volume: dec!(0.4),
+                        realized_pnl: dec!(40),
+                    },
+                    PartialClose {
+                        closed_volume: dec!(0.6),
+                        realized_pnl: dec!(20),
+                    },
+                ],
+            ))
+            .expect("pozycja domknięta częściowymi zamknięciami");
+
+        assert_eq!(
+            accounts.get(&konto).expect("konto").balance,
+            dec!(10060),
+            "wynik pozycji domkniętej częściowymi zamknięciami nie trafił na saldo"
+        );
+    }
+
+    /// Wielokrotne szybkie kliknięcie „Zapisz" (sekcja 20.2) - każdy zapis musi utworzyć
+    /// ODRĘBNĄ transakcję z własnym numerem, a nie nadpisać poprzednią ani zdublować numeru.
+    #[test]
+    fn wielokrotny_zapis_daje_odrebne_numery() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let konto = nowe_konto(&state, "Konto szybkie", dec!(10000));
+        let instrument = jakis_instrument(&state);
+
+        for _ in 0..10 {
+            zamknieta_transakcja(
+                &state,
+                &konto,
+                Some(instrument.clone()),
+                1,
+                dec!(100),
+                dec!(101),
+            );
+        }
+
+        let (.., trades, _, _, _, _, _, _) = uslugi!(&state);
+        let lista = trades.list(&konto, false).expect("lista");
+        assert_eq!(lista.len(), 10);
+
+        let mut numery: Vec<i64> = lista.iter().map(|t| t.display_number).collect();
+        numery.sort_unstable();
+        numery.dedup();
+        assert_eq!(
+            numery.len(),
+            10,
+            "numery transakcji się zdublowały przy szybkim zapisie"
+        );
+    }
+}
