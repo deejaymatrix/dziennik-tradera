@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeUpdateError } from "./useUpdater";
+import { describeUpdateError } from "./updateErrors";
 
 describe("describeUpdateError", () => {
   it("brak sieci opisuje jako brak sieci i uspokaja, że aplikacja działa", () => {

@@ -5,20 +5,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router";
 import { SettingsPage } from "./SettingsPage";
 import { PreferencesProvider } from "../app/PreferencesProvider";
+import { UpdateMonitorProvider } from "../app/UpdateMonitorProvider";
 import { ConfirmProvider } from "../ui/components/ConfirmDialog/ConfirmDialog";
 import { ToastProvider } from "../ui/components/Toast/ToastProvider";
 import type { Preferences } from "../app/types/preferences";
 
 const invokeCommand = vi.hoisted(() => vi.fn());
 vi.mock("../app/invokeCommand", () => ({ invokeCommand }));
-vi.mock("../app/useUpdater", () => ({
-  useUpdater: () => ({
-    state: { kind: "idle" },
-    checkForUpdates: vi.fn(),
-    downloadAndInstall: vi.fn(),
-    restartNow: vi.fn(),
-  }),
-}));
 vi.mock("../app/useTauriQuery", () => ({
   useTauriQuery: () => ({ state: { kind: "loading" } }),
 }));
@@ -118,7 +111,11 @@ function renderPage(): ReactElement {
       <PreferencesProvider>
         <ToastProvider>
           <ConfirmProvider>
-            <SettingsPage />
+            {/* Ustawienia czytają stan aktualizacji z centralnego serwisu, więc test musi go
+                dostarczyć - inaczej strona nie ma skąd wziąć tej informacji. */}
+            <UpdateMonitorProvider>
+              <SettingsPage />
+            </UpdateMonitorProvider>
           </ConfirmProvider>
         </ToastProvider>
       </PreferencesProvider>

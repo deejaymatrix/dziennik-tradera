@@ -1,9 +1,10 @@
 import { useLocation, useNavigate } from "react-router";
 import type { ReactElement } from "react";
-import { Moon, Plus, Sun } from "lucide-react";
+import { ArrowDownToLine, Moon, Plus, Sun } from "lucide-react";
 import { useTheme } from "../app/ThemeProvider";
 import { Button } from "../ui/components/Button/Button";
 import { IconButton } from "../ui/components/IconButton/IconButton";
+import { useOptionalUpdateMonitor } from "../app/UpdateMonitorProvider";
 import { NAV_GROUPS } from "./nav";
 import styles from "./Header.module.css";
 
@@ -27,6 +28,8 @@ export function Header(): ReactElement {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const title = resolvePageTitle(location.pathname);
+  // `useOptional...`, bo Header bywa renderowany w testach bez providera aktualizacji.
+  const monitor = useOptionalUpdateMonitor();
 
   return (
     <header className={styles.header}>
@@ -42,6 +45,22 @@ export function Header(): ReactElement {
         >
           <Plus size={16} aria-hidden="true" /> Nowa transakcja
         </Button>
+        {/* TRWAŁY znacznik dostępnej aktualizacji. Zostaje po wybraniu „Później" - dopiero
+            instalacja go zdejmuje. Wymaganie mówi o tym wprost, bo bez tego jedno kliknięcie
+            „Później" chowałoby aktualizację na zawsze. */}
+        {monitor?.znacznikDostepnej === true && (
+          <IconButton
+            icon={<ArrowDownToLine className={styles.iconAkcent} />}
+            aria-label={
+              monitor.dostepnaWersja === null
+                ? "Dostępna jest aktualizacja - przejdź do Ustawień"
+                : `Dostępna jest aktualizacja ${monitor.dostepnaWersja} - przejdź do Ustawień`
+            }
+            onClick={() => {
+              void navigate("/ustawienia");
+            }}
+          />
+        )}
         <IconButton
           icon={
             theme === "dark" ? <Sun className={styles.icon} /> : <Moon className={styles.icon} />

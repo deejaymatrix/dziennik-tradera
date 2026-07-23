@@ -21,6 +21,15 @@
   height: 1.125rem;
 }
 
+/* Znacznik dostępnej aktualizacji - ten sam rozmiar co pozostałe ikony, ale w kolorze
+   akcentu, żeby był zauważalny bez krzykliwej kropki. Pojawia się tylko wtedy, gdy
+   aktualizacja faktycznie czeka, więc nie konkuruje na stałe z główną akcją. */
+.iconAkcent {
+  width: 1.125rem;
+  height: 1.125rem;
+  color: var(--color-accent);
+}
+
 /* Akcje po prawej stronie paska. Prompt każe ograniczyć liczbę jednocześnie widocznych
    elementów, więc jest tu wyłącznie główna akcja i przełącznik motywu. */
 .actions {

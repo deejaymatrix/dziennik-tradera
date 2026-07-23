@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { Bell, Database, Info, Palette, RotateCcw, SlidersHorizontal } from "lucide-react";
 import { useTauriQuery, type TauriQueryState } from "../app/useTauriQuery";
-import { useUpdater } from "../app/useUpdater";
+import { useUpdateMonitor } from "../app/UpdateMonitorProvider";
 import { usePreferences } from "../app/PreferencesProvider";
 import type { AppStatus, DatabaseStatus } from "../app/tauriTypes";
 import type { Preferences, PreferencesSectionKey } from "../app/types/preferences";
@@ -112,7 +112,17 @@ function renderDatabaseStatus(state: TauriQueryState<DatabaseStatus>): string {
 }
 
 function UpdatesInfoSection(): ReactElement {
-  const { state, checkForUpdates, downloadAndInstall, restartNow } = useUpdater();
+  // Ustawienia NIE mają własnego hooka aktualizacji - czytają stan z jednego centralnego
+  // serwisu. Dwa niezależne źródła pokazywałyby użytkownikowi sprzeczne odpowiedzi
+  // („masz najnowszą wersję" obok znacznika dostępnej aktualizacji).
+  const {
+    stan,
+    znacznikDostepnej,
+    dostepnaWersja,
+    sprawdzTeraz,
+    pobierzIZainstaluj,
+    uruchomPonownie,
+  } = useUpdateMonitor();
   const { state: appStatus } = useTauriQuery<AppStatus>("get_app_status");
   const { state: dbStatus } = useTauriQuery<DatabaseStatus>("get_database_status");
   const { showToast } = useToast();
@@ -162,17 +172,19 @@ function UpdatesInfoSection(): ReactElement {
           gwarancje bezpieczeństwa, a nie ustawienia.
         </p>
 
-        {(state.kind === "idle" || state.kind === "error") && (
+        {(stan.rodzaj === "bezczynny" || stan.rodzaj === "blad") && (
           <div className={styles.row}>
             <span className={styles.note}>
-              {state.kind === "error"
-                ? `Błąd: ${state.message}`
-                : "Sprawdź, czy dostępna jest nowa wersja."}
+              {stan.rodzaj === "blad"
+                ? stan.komunikat
+                : znacznikDostepnej && dostepnaWersja !== null
+                  ? `Dostępna jest wersja ${dostepnaWersja}.`
+                  : "Sprawdź, czy dostępna jest nowa wersja."}
             </span>
             <Button
               variant="secondary"
               onClick={() => {
-                void checkForUpdates();
+                void sprawdzTeraz();
               }}
             >
               Sprawdź aktualizacje teraz
@@ -180,15 +192,15 @@ function UpdatesInfoSection(): ReactElement {
           </div>
         )}
 
-        {state.kind === "checking" && <p className={styles.note}>Sprawdzanie...</p>}
+        {stan.rodzaj === "sprawdzanie" && <p className={styles.note}>Sprawdzanie...</p>}
 
-        {state.kind === "up-to-date" && (
+        {stan.rodzaj === "aktualna" && (
           <div className={styles.row}>
             <span className={styles.note}>Masz najnowszą wersję.</span>
             <Button
               variant="secondary"
               onClick={() => {
-                void checkForUpdates();
+                void sprawdzTeraz();
               }}
             >
               Sprawdź ponownie
@@ -196,17 +208,17 @@ function UpdatesInfoSection(): ReactElement {
           </div>
         )}
 
-        {state.kind === "available" && (
+        {stan.rodzaj === "dostepna" && (
           <div className={styles.updateCard}>
             <p className={styles.updateVersion}>
-              Dostępna wersja <strong>{state.update.version}</strong> (obecna:{" "}
-              {state.update.currentVersion})
+              Dostępna wersja <strong>{stan.update.version}</strong> (obecna:{" "}
+              {stan.update.currentVersion})
             </p>
-            {state.update.body && <p className={styles.updateNotes}>{state.update.body}</p>}
+            {stan.update.body && <p className={styles.updateNotes}>{stan.update.body}</p>}
             <Button
               variant="primary"
               onClick={() => {
-                void downloadAndInstall();
+                void pobierzIZainstaluj();
               }}
             >
               Aktualizuj teraz
@@ -214,13 +226,13 @@ function UpdatesInfoSection(): ReactElement {
           </div>
         )}
 
-        {state.kind === "downloading" && (
+        {stan.rodzaj === "pobieranie" && (
           <p className={styles.note}>
-            Pobieranie...{state.progress !== null ? ` ${state.progress}%` : ""}
+            Pobieranie...{stan.postep !== null ? ` ${stan.postep}%` : ""}
           </p>
         )}
 
-        {state.kind === "ready-to-restart" && (
+        {stan.rodzaj === "gotowa-do-restartu" && (
           <div className={styles.row}>
             <span className={styles.note}>
               Aktualizacja pobrana. Uruchom aplikację ponownie, aby ją zastosować.
@@ -228,7 +240,7 @@ function UpdatesInfoSection(): ReactElement {
             <Button
               variant="primary"
               onClick={() => {
-                void restartNow();
+                void uruchomPonownie();
               }}
             >
               Uruchom ponownie

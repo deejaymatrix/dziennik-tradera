@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { ReactElement, ReactNode } from "react";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { invokeCommand } from "./invokeCommand";
-import { describeUpdateError } from "./useUpdater";
+import { describeUpdateError } from "./updateErrors";
 import {
   czyPokazacNatywnePowiadomienie,
   czySprawdzicPoPowrocieNaPierwszyPlan,
