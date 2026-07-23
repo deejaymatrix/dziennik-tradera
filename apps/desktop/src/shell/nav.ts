@@ -28,55 +28,63 @@ export interface NavGroup {
 }
 
 /**
- * Grupy nawigacji wg sekcji 11.3 specyfikacji. Celowo pominięta: "Psychologia" (Etap 2, §2.3)
- * - nie ma jeszcze żadnej realnej funkcji za sobą, więc się jej nie pokazuje jako martwej/
- * "wkrótce" pozycji, tylko po prostu ukrywa do czasu Etapu 2. "Zasady handlu" (Faza 8
- * modyfikacji) to osobisty regulamin użytkownika - patrz ZasadyHandluPage.
+ * Grupy nawigacji wg sekcji 5.1 promptu „Institutional Adaptive Workspace": Start, Handel,
+ * Analiza, Zarządzanie, System - grupowane po RODZAJU PRACY, a nie po tym, czy coś jest
+ * „konfiguracją".
+ *
+ * Dwie świadome decyzje względem listy z promptu:
+ *
+ * 1. „Nowa transakcja" NIE ma tu pozycji, mimo że prompt wymienia ją w grupie Handel. To akcja,
+ *    a nie widok - otwiera się jako okno nad historią transakcji. Prompt w tej samej sekcji
+ *    wymaga skrótu „Nowa transakcja" w GÓRNYM PASKU i zabrania duplikowania tej samej funkcji
+ *    w dwóch miejscach, więc zostaje wyłącznie tam.
+ * 2. Kalendarz, Interwały oraz Eksport i kopie nie występują na liście z promptu, ale są
+ *    działającymi widokami. Redesign nie może usuwać istniejących funkcji, więc zamiast je
+ *    ukrywać, trafiają do grupy pasującej do rodzaju pracy.
+ *
+ * Nadal celowo pominięta „Psychologia" (Etap 2) - nie ma za sobą żadnej realnej funkcji, więc
+ * nie pokazujemy jej jako martwej pozycji „wkrótce".
  */
 export const NAV_GROUPS: NavGroup[] = [
   {
-    label: "Główne",
-    items: [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard },
-      { to: "/transakcje", label: "Transakcje", icon: ListChecks },
-      { to: "/kalendarz", label: "Kalendarz", icon: CalendarDays },
-      { to: "/kalkulator-pozycji", label: "Kalkulator pozycji", icon: Calculator },
-    ],
+    label: "Start",
+    items: [{ to: "/", label: "Dashboard", icon: LayoutDashboard }],
   },
   {
-    label: "Konfiguracja",
+    label: "Handel",
     items: [
-      { to: "/konta", label: "Konta", icon: Wallet },
-      { to: "/strategie", label: "Strategie", icon: BookMarked },
-      { to: "/zasady-handlu", label: "Zasady handlu", icon: ScrollText },
-      // "Szablony instrumentów" celowo NIE ma już własnej pozycji w nawigacji - zakładanie
-      // szablonu i import danych brokera dzieją się przy polu "Szablon" na ekranie Instrumenty,
-      // a pełne zarządzanie (zmiana nazwy, kopia, przypisanie konta, Kosz) jest dostępne stamtąd
-      // pod trasą /szablony-instrumentow. Jeden ekran mniej zamiast dwóch robiących to samo.
-      { to: "/instrumenty", label: "Instrumenty", icon: SlidersHorizontal },
-      // Interwały to lista wyboru transakcji - miejsce obok Strategii/Instrumentów, a nie
-      // w Ustawieniach. Szybkie dodanie nowego jest też wprost w formularzu transakcji.
-      { to: "/interwaly", label: "Interwały", icon: Clock },
+      { to: "/transakcje", label: "Historia transakcji", icon: ListChecks },
+      { to: "/kalkulator-pozycji", label: "Kalkulator pozycji", icon: Calculator },
     ],
   },
   {
     label: "Analiza",
     items: [
       { to: "/raporty", label: "Raporty", icon: BarChart3 },
-      // Sekcja 5 specyfikacji: zarządzanie emocjami należy do analizy własnego handlu, a nie do
-      // konfiguracji aplikacji - przeniesione z Ustawień, bez zostawiania tam martwego wpisu.
+      { to: "/kalendarz", label: "Kalendarz", icon: CalendarDays },
+      // Zarządzanie emocjami należy do analizy własnego handlu, a nie do konfiguracji aplikacji.
       { to: "/stan-emocjonalny", label: "Stan emocjonalny", icon: HeartPulse },
     ],
   },
   {
-    label: "Dane",
+    label: "Zarządzanie",
     items: [
-      { to: "/dane", label: "Eksport i kopie", icon: DatabaseBackup },
-      { to: "/kosz", label: "Kosz", icon: Trash2 },
+      { to: "/konta", label: "Konta", icon: Wallet },
+      { to: "/strategie", label: "Strategie", icon: BookMarked },
+      // Szablony brokerów nie mają osobnej pozycji - zakładanie szablonu i import danych dzieją
+      // się przy polu „Szablon" na ekranie Instrumenty, a pełne zarządzanie jest dostępne
+      // stamtąd pod trasą /szablony-instrumentow. Jeden ekran zamiast dwóch robiących to samo.
+      { to: "/instrumenty", label: "Instrumenty i szablony", icon: SlidersHorizontal },
+      { to: "/interwaly", label: "Interwały", icon: Clock },
+      { to: "/zasady-handlu", label: "Zasady handlu", icon: ScrollText },
     ],
   },
   {
     label: "System",
-    items: [{ to: "/ustawienia", label: "Ustawienia", icon: Settings }],
+    items: [
+      { to: "/dane", label: "Eksport i kopie", icon: DatabaseBackup },
+      { to: "/kosz", label: "Kosz", icon: Trash2 },
+      { to: "/ustawienia", label: "Ustawienia", icon: Settings },
+    ],
   },
 ];

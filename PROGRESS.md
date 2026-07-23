@@ -1376,7 +1376,7 @@ wszędzie. Zrobione dotąd tokeny i paleta zostają jako fundament.
 | M2 | Komponenty wspólne: Button (4 warianty), pola, Modal, Toast, Badge, Table | ✅ |
 | M3 | Nawigacja i górny pasek — obecny stan | ✅ |
 | M5 | Tabele: przyklejony nagłówek, dyskretne separatory, liczby do prawej | ✅ |
-| Q1 | Powłoka: nowe grupy menu (Start/Handel/Analiza/Zarządzanie/System), zapamiętywanie wyboru, tooltipy po zwinięciu, pełna obsługa klawiatury | ⬜ |
+| Q1 | Powłoka: nowe grupy menu (Start/Handel/Analiza/Zarządzanie/System), zapamiętywanie wyboru, tooltipy po zwinięciu, pełna obsługa klawiatury | ✅ |
 | Q2 | Górny pasek: nazwa widoku, aktywne konto tylko gdy realnie wpływa, skrót „Nowa transakcja", centrum powiadomień | ⬜ |
 | Q3 | Paleta poleceń `Ctrl+K` (bez operacji niszczących) | ⬜ |
 | Q4 | Dashboard jako Executive Dashboard: 4–6 KPI, wykres kapitału, ostatnie transakcje, alerty; klikalne do źródła | ⬜ |
