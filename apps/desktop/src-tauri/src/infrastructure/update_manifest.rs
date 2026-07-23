@@ -304,11 +304,20 @@ mod tests {
             tresc: String::new(),
         });
 
+        // `AppError::Io` celowo pokazuje na zewnątrz tylko ogólny komunikat - kod HTTP
+        // trafia do SZCZEGÓŁÓW błędu (zalogowanych), nie do `Display`/`to_string()`.
+        // Dopasowanie do wariantu sprawdza to samo miejsce, które faktycznie loguje.
         let blad = sprawdz_pod_adresem(&adres, None)
             .await
             .expect_err("404 musi dać błąd");
-        assert!(blad.to_string().contains("404"));
-        uchwyt.join().expect("wątek serwera").expect("żądanie odebrane");
+        match &blad {
+            AppError::Io(szczegoly) => assert!(szczegoly.contains("404")),
+            inny => panic!("oczekiwano AppError::Io, jest {inny:?}"),
+        }
+        uchwyt
+            .join()
+            .expect("wątek serwera")
+            .expect("żądanie odebrane");
     }
 
     #[tokio::test]
@@ -323,8 +332,14 @@ mod tests {
         let blad = sprawdz_pod_adresem(&adres, None)
             .await
             .expect_err("500 musi dać błąd");
-        assert!(blad.to_string().contains("500"));
-        uchwyt.join().expect("wątek serwera").expect("żądanie odebrane");
+        match &blad {
+            AppError::Io(szczegoly) => assert!(szczegoly.contains("500")),
+            inny => panic!("oczekiwano AppError::Io, jest {inny:?}"),
+        }
+        uchwyt
+            .join()
+            .expect("wątek serwera")
+            .expect("żądanie odebrane");
     }
 
     #[tokio::test]
@@ -342,8 +357,12 @@ mod tests {
         assert_eq!(wynik, WynikSprawdzenia::BezZmian);
 
         let zadanie = uchwyt.join().expect("wątek serwera").expect("żądanie");
+        // Nazwy nagłówków HTTP nie rozróżniają wielkości liter - reqwest wysyła je małymi
+        // literami, więc porównanie musi to uwzględniać zamiast zakładać konkretną pisownię.
         assert!(
-            zadanie.contains("If-None-Match: \"stary-etag\""),
+            zadanie
+                .to_lowercase()
+                .contains("if-none-match: \"stary-etag\""),
             "żądanie warunkowe musi wysyłać ETag: {zadanie}"
         );
     }
@@ -360,7 +379,10 @@ mod tests {
         sprawdz_pod_adresem(&adres, None)
             .await
             .expect_err("uszkodzona treść musi zostać odrzucona nawet przy statusie 200");
-        uchwyt.join().expect("wątek serwera").expect("żądanie odebrane");
+        uchwyt
+            .join()
+            .expect("wątek serwera")
+            .expect("żądanie odebrane");
     }
 
     #[tokio::test]
@@ -372,7 +394,9 @@ mod tests {
             tresc: POPRAWNY.to_string(),
         });
 
-        let wynik = sprawdz_pod_adresem(&adres, None).await.expect("sprawdzenie");
+        let wynik = sprawdz_pod_adresem(&adres, None)
+            .await
+            .expect("sprawdzenie");
         match wynik {
             WynikSprawdzenia::Nowy { etag, manifest } => {
                 assert_eq!(etag.as_deref(), Some("\"nowy-etag-123\""));
@@ -380,7 +404,10 @@ mod tests {
             }
             inny => panic!("oczekiwano Nowy, jest {inny:?}"),
         }
-        uchwyt.join().expect("wątek serwera").expect("żądanie odebrane");
+        uchwyt
+            .join()
+            .expect("wątek serwera")
+            .expect("żądanie odebrane");
     }
 
     /// Błąd DNS - host, który na pewno nie istnieje. Musi zakończyć się BŁĘDEM zwróconym
