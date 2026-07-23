@@ -8,9 +8,19 @@ import styles from "./Sidebar.module.css";
 export interface SidebarProps {
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  /** Ustawienie „pokazuj podpisy przy ikonach" (Ustawienia → Wygląd → Nawigacja). Wyłączone
+   * zostawia same ikony także w rozwiniętym menu. */
+  showLabels?: boolean;
 }
 
-export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps): ReactElement {
+export function Sidebar({
+  collapsed,
+  onToggleCollapsed,
+  showLabels = true,
+}: SidebarProps): ReactElement {
+  // Zwinięte menu i tak pokazuje same ikony - podpisy mają sens wyłącznie w rozwiniętym.
+  const labelsVisible = !collapsed && showLabels;
+
   return (
     <aside className={[styles.sidebar, collapsed && styles.collapsed].filter(Boolean).join(" ")}>
       <div className={styles.brandRow}>
@@ -39,10 +49,12 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps): ReactEl
                 className={({ isActive }) =>
                   [styles.navLink, isActive && styles.navLinkActive].filter(Boolean).join(" ")
                 }
-                title={collapsed ? item.label : undefined}
+                title={labelsVisible ? undefined : item.label}
               >
                 <item.icon className={styles.icon} aria-hidden="true" />
-                <span className={styles.navLabel}>{item.label}</span>
+                {/* Bez podpisu nazwa musi zostać dla czytników ekranu - inaczej nawigacja
+                    zamienia się w zestaw nieopisanych ikon. */}
+                <span className={labelsVisible ? styles.navLabel : "sr-only"}>{item.label}</span>
               </NavLink>
             ))}
           </div>
