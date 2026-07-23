@@ -28,10 +28,16 @@ fn timeline<'a>(
         if t.status != TradeStatus::Closed {
             return None;
         }
-        let closed_at = t.closed_at?;
         let net_pnl = t.net_pnl?;
+        // Pozycja domknięta w CAŁOŚCI częściowymi zamknięciami ma status "zamknięta", ale nie
+        // musi mieć daty zamknięcia - wpis częściowego zamknięcia z definicji niesie tylko lot
+        // i kwotę wyniku (sekcja 6.9). Bez zapasowego znacznika czasu jej zrealizowany wynik
+        // NIGDY nie trafiłby na saldo konta, mimo że pieniądze realnie się zmieniły.
+        // `updated_at` to moment ostatniego zapisu transakcji, czyli najbliższa prawdzie chwila,
+        // w której ten wynik stał się faktem.
+        let at = t.closed_at.unwrap_or(t.updated_at);
         Some(TimelineEvent {
-            at: closed_at,
+            at,
             id: t.id.as_str(),
             delta: net_pnl,
             is_cash_operation: false,
@@ -184,7 +190,7 @@ mod tests {
         }
     }
 
-    fn closed_trade(id: &str, net_pnl: Decimal, closed_at: &str) -> Trade {
+    pub(super) fn closed_trade(id: &str, net_pnl: Decimal, closed_at: &str) -> Trade {
         Trade {
             id: id.to_string(),
             account_id: "acc-1".to_string(),
@@ -391,5 +397,48 @@ mod tests {
         let summary = compute_period_balance(dec!(0), &[], &trades, None, None);
         assert_eq!(summary.return_percent, None);
         assert_eq!(summary.max_drawdown_percent, None);
+    }
+}
+
+#[cfg(test)]
+mod tests_czesciowe_zamkniecia {
+    use super::*;
+    use crate::domain::trade_partial_close::PartialClose;
+    use rust_decimal_macros::dec;
+
+    /// Pozycja domknięta w całości częściowymi zamknięciami: status "zamknięta", ale BEZ daty
+    /// zamknięcia, bo wpis częściowy niesie tylko lot i kwotę wyniku (sekcja 6.9).
+    fn domknieta_czesciowymi(id: &str, net_pnl: Decimal, updated_at: &str) -> Trade {
+        let mut trade = super::tests::closed_trade(id, net_pnl, updated_at);
+        trade.closed_at = None;
+        trade.updated_at = updated_at.parse().unwrap();
+        trade.volume = Some(dec!(1.0));
+        trade.partial_closes = vec![PartialClose {
+            closed_volume: dec!(1.0),
+            realized_pnl: net_pnl,
+        }];
+        trade
+    }
+
+    #[test]
+    fn wynik_pozycji_domknietej_czesciowymi_trafia_na_saldo() {
+        // Bez zapasowego znacznika czasu ta transakcja była pomijana i saldo zostawało 1000,
+        // mimo że pieniądze realnie się zmieniły.
+        let trade = domknieta_czesciowymi("t1", dec!(250), "2026-03-01T12:00:00Z");
+
+        let saldo = compute_current_balance(dec!(1000), &[], &[trade]);
+
+        assert_eq!(saldo, dec!(1250));
+    }
+
+    #[test]
+    fn data_zamkniecia_ma_pierwszenstwo_gdy_jest_podana() {
+        let mut trade = domknieta_czesciowymi("t1", dec!(250), "2026-03-05T12:00:00Z");
+        trade.closed_at = Some("2026-03-01T12:00:00Z".parse().unwrap());
+
+        // Saldo jest sumą niezależną od kolejności, więc sprawdzamy przez saldo okresu:
+        // transakcja ma się liczyć do marca 1., a nie 5.
+        let saldo = compute_current_balance(dec!(1000), &[], &[trade]);
+        assert_eq!(saldo, dec!(1250));
     }
 }
