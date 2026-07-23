@@ -1348,3 +1348,152 @@ mod pieniadze_bez_float {
         }
     }
 }
+
+/// Audyt A3, część trzecia: brak dostępu do pliku (sekcja 20.2 promptu).
+///
+/// Chodzi o zachowanie przy operacjach na plikach, których użytkownik nie kontroluje w pełni:
+/// wskazał katalog, którego nie ma (wyjęty pendrive), miejsce bez prawa zapisu, albo podał
+/// ścieżkę katalogu tam, gdzie oczekiwany jest plik. W ŻADNYM z tych przypadków aplikacja nie
+/// może paniкować ani pokazać surowego komunikatu systemowego po angielsku - użytkownik ma
+/// dostać zdanie po polsku, a szczegóły mają trafić do logu diagnostycznego.
+#[cfg(test)]
+mod brak_dostepu_do_pliku {
+    use super::*;
+    use crate::error::AppError;
+
+    /// Komunikat, który zobaczy użytkownik - to jest ta treść, którą `AppError` serializuje
+    /// do frontendu, a nie treść wewnętrzna z `to_string()`.
+    fn komunikat_dla_uzytkownika(blad: &AppError) -> String {
+        serde_json::to_value(blad)
+            .expect("serializacja błędu")
+            .get("message")
+            .and_then(|m| m.as_str())
+            .expect("błąd musi mieć pole message")
+            .to_string()
+    }
+
+    fn nieistniejacy_katalog(dir: &Path) -> std::path::PathBuf {
+        dir.join("nie-ma-takiego-katalogu").join("plik.csv")
+    }
+
+    #[test]
+    fn eksport_csv_do_nieistniejacego_katalogu_daje_polski_komunikat() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let konto = nowe_konto(&state, "Konto eksportowe", dec!(1000));
+        let DbState::Ready { export, .. } = &state else {
+            panic!("baza nie wystartowała");
+        };
+
+        let cel = nieistniejacy_katalog(dir.path());
+        let blad = export
+            .export_csv(&konto, cel.to_str().expect("ścieżka"), None)
+            .expect_err("zapis do nieistniejącego katalogu musi się nie udać");
+
+        let komunikat = komunikat_dla_uzytkownika(&blad);
+        assert!(
+            komunikat.contains("uprawnienia") || komunikat.contains("miejsce na dysku"),
+            "użytkownik musi dostać wskazówkę, co sprawdzić, a nie surowy błąd systemu: \
+             {komunikat}"
+        );
+        assert!(
+            !komunikat.contains("os error"),
+            "surowy komunikat systemowy nie może trafić do użytkownika: {komunikat}"
+        );
+    }
+
+    #[test]
+    fn eksport_xlsx_i_pdf_zachowuja_sie_tak_samo() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let konto = nowe_konto(&state, "Konto eksportowe", dec!(1000));
+        let DbState::Ready { export, .. } = &state else {
+            panic!("baza nie wystartowała");
+        };
+
+        let cel = nieistniejacy_katalog(dir.path());
+        let sciezka = cel.to_str().expect("ścieżka");
+
+        for (nazwa, wynik) in [
+            ("xlsx", export.export_xlsx(&konto, sciezka, None)),
+            ("pdf", export.export_pdf(&konto, sciezka, None)),
+        ] {
+            let blad = wynik.expect_err(&format!(
+                "{nazwa}: zapis do nieistniejącego katalogu musi się nie udać"
+            ));
+            let komunikat = komunikat_dla_uzytkownika(&blad);
+            assert!(
+                !komunikat.contains("os error"),
+                "{nazwa}: surowy komunikat systemowy nie może trafić do użytkownika: {komunikat}"
+            );
+            assert!(
+                !cel.exists(),
+                "{nazwa}: po nieudanym eksporcie został plik udający poprawny wynik"
+            );
+        }
+    }
+
+    /// Kopia zapasowa do miejsca, którego nie ma. To najważniejszy z tych przypadków: użytkownik
+    /// klika „utwórz kopię", dostaje błąd i MUSI wiedzieć, że kopia NIE powstała - inaczej uzna,
+    /// że jest zabezpieczony, a nie jest.
+    #[test]
+    fn nieudana_kopia_zapasowa_nie_zostawia_pliku_udajacego_kopie() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let DbState::Ready { backup, .. } = &state else {
+            panic!("baza nie wystartowała");
+        };
+
+        let cel = dir.path().join("nie-ma-katalogu").join("kopia.dtjbackup");
+        backup
+            .create_backup(cel.to_str().expect("ścieżka"))
+            .expect_err("kopia do nieistniejącego katalogu musi się nie udać");
+
+        assert!(
+            !cel.exists(),
+            "po nieudanej kopii został plik, który wygląda jak kopia zapasowa"
+        );
+    }
+
+    /// Ścieżka wskazująca KATALOG tam, gdzie oczekiwany jest plik - typowa pomyłka przy ręcznym
+    /// wpisywaniu ścieżki.
+    #[test]
+    fn zapis_pod_sciezke_katalogu_jest_odrzucany_bez_paniki() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let konto = nowe_konto(&state, "Konto eksportowe", dec!(1000));
+        let DbState::Ready { export, .. } = &state else {
+            panic!("baza nie wystartowała");
+        };
+
+        let katalog = dir.path().join("to-jest-katalog");
+        std::fs::create_dir_all(&katalog).expect("utworzenie katalogu");
+
+        export
+            .export_csv(&konto, katalog.to_str().expect("ścieżka"), None)
+            .expect_err("zapis pliku pod ścieżką katalogu musi się nie udać");
+    }
+
+    /// Odczyt kopii zapasowej z katalogu, do którego wskazano ścieżkę pliku - lustrzany
+    /// przypadek do powyższego, po stronie przywracania.
+    #[test]
+    fn przywracanie_z_katalogu_zamiast_pliku_jest_odrzucane() {
+        let dir = TempDir::new().expect("katalog");
+        let state = otworz(dir.path());
+        let DbState::Ready { backup, .. } = &state else {
+            panic!("baza nie wystartowała");
+        };
+
+        let katalog = dir.path().join("katalog-nie-archiwum");
+        std::fs::create_dir_all(&katalog).expect("utworzenie katalogu");
+
+        let blad = backup
+            .prepare_restore(katalog.to_str().expect("ścieżka"))
+            .expect_err("katalog nie jest archiwum kopii zapasowej");
+        let komunikat = komunikat_dla_uzytkownika(&blad);
+        assert!(
+            !komunikat.is_empty(),
+            "użytkownik musi dostać jakikolwiek komunikat"
+        );
+    }
+}

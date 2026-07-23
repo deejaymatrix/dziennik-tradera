@@ -76,8 +76,17 @@ Uczciwie, żeby nie było złudzeń co do zakresu:
   CSV odrzuca wiersze krótsze i dłuższe od nagłówka, puste i złożone z pustych wartości, a polskie
   znaki w opisach przechodzą bez zniekształcenia. Żaden z tych wariantów nie ujawnił błędu —
   weryfikacja była już poprawna, brakowało tylko dowodu.
-- **Brak internetu.** Sprawdzanie aktualizacji ma wyciszony błąd (celowo), ale nie było
-  testowane przy odciętej sieci.
+- ~~**Brak internetu.**~~ **Uzupełnione po raporcie:** `describeUpdateError` rozpoznaje brak
+  sieci, brak opublikowanego wydania i niezgodny podpis, i tłumaczy każdy na zdanie po polsku,
+  z którym użytkownik może coś zrobić (5 testów). Brak sieci mówi wprost, że aplikacja działa
+  normalnie offline — bo to nie jest awaria.
+- ~~**Brak dostępu do pliku.**~~ **Uzupełnione po raporcie:** 5 testów na eksport CSV/XLSX/PDF
+  i kopię zapasową do nieistniejącego katalogu oraz pod ścieżkę katalogu zamiast pliku.
+  Sprawdzane jest nie tylko to, że operacja się nie udaje, ale też że **nie zostaje po niej plik
+  udający poprawny wynik** i że użytkownik dostaje polską podpowiedź, a nie surowy kod systemowy.
+  Przy okazji znaleziony realny defekt: komunikat obiecywał „szczegóły zapisano w logu
+  diagnostycznym", a 20 miejsc tworzyło błąd wejścia/wyjścia z pominięciem logowania — obietnica
+  była pusta. Nowy konstruktor `AppError::io` loguje zawsze.
 
 ---
 

@@ -68,13 +68,13 @@ fn write_archive(
     let options = SimpleFileOptions::default();
 
     zip.start_file(MANIFEST_ENTRY_NAME, options)
-        .map_err(|e| AppError::Io(e.to_string()))?;
+        .map_err(|e| AppError::io(e.to_string()))?;
     let manifest_json = serde_json::to_vec_pretty(manifest)
-        .map_err(|e| AppError::Io(format!("nie można zserializować manifestu kopii: {e}")))?;
+        .map_err(|e| AppError::io(format!("nie można zserializować manifestu kopii: {e}")))?;
     zip.write_all(&manifest_json)?;
 
     zip.start_file(SQLITE_ENTRY_NAME, options)
-        .map_err(|e| AppError::Io(e.to_string()))?;
+        .map_err(|e| AppError::io(e.to_string()))?;
     zip.write_all(sqlite_bytes)?;
 
     if attachments_dir.is_dir() {
@@ -89,12 +89,12 @@ fn write_archive(
                 entry.file_name().to_string_lossy()
             );
             zip.start_file(entry_name, options)
-                .map_err(|e| AppError::Io(e.to_string()))?;
+                .map_err(|e| AppError::io(e.to_string()))?;
             zip.write_all(&bytes)?;
         }
     }
 
-    zip.finish().map_err(|e| AppError::Io(e.to_string()))?;
+    zip.finish().map_err(|e| AppError::io(e.to_string()))?;
     Ok(())
 }
 

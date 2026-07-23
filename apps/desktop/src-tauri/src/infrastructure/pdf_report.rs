@@ -152,7 +152,7 @@ pub fn generate(input: &PdfReportInput, destination: &Path) -> Result<(), AppErr
         let content = Content { operations: ops };
         let content_bytes = content
             .encode()
-            .map_err(|e| AppError::Io(format!("nie można zakodować strony PDF: {e}")))?;
+            .map_err(|e| AppError::io(format!("nie można zakodować strony PDF: {e}")))?;
         let content_id = doc.add_object(Stream::new(dictionary! {}, content_bytes));
 
         let page_id = doc.add_object(dictionary! {
@@ -182,7 +182,7 @@ pub fn generate(input: &PdfReportInput, destination: &Path) -> Result<(), AppErr
     doc.trailer.set("Root", catalog_id);
     doc.compress();
     doc.save(destination)
-        .map_err(|e| AppError::Io(format!("nie można zapisać pliku PDF: {e}")))?;
+        .map_err(|e| AppError::io(format!("nie można zapisać pliku PDF: {e}")))?;
     Ok(())
 }
 

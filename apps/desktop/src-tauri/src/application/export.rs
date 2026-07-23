@@ -128,14 +128,14 @@ impl ExportService {
         let trades = export_filter::apply(self.trades.list(account_id, false)?, filter);
         let mut writer = csv::WriterBuilder::new()
             .from_path(destination)
-            .map_err(|e| AppError::Io(e.to_string()))?;
+            .map_err(|e| AppError::io(e.to_string()))?;
         writer
             .write_record(CSV_HEADERS)
-            .map_err(|e| AppError::Io(e.to_string()))?;
+            .map_err(|e| AppError::io(e.to_string()))?;
         for trade in &trades {
             writer
                 .write_record(csv_row(trade))
-                .map_err(|e| AppError::Io(e.to_string()))?;
+                .map_err(|e| AppError::io(e.to_string()))?;
         }
         writer.flush()?;
         Ok(())
@@ -155,17 +155,17 @@ impl ExportService {
         for (col, header) in CSV_HEADERS.iter().enumerate() {
             worksheet
                 .write_with_format(0, col as u16, *header, &bold)
-                .map_err(|e| AppError::Io(e.to_string()))?;
+                .map_err(|e| AppError::io(e.to_string()))?;
             worksheet
                 .set_column_width(col as u16, 14)
-                .map_err(|e| AppError::Io(e.to_string()))?;
+                .map_err(|e| AppError::io(e.to_string()))?;
         }
 
         for (row_index, trade) in trades.iter().enumerate() {
             let row = (row_index + 1) as u32;
             worksheet
                 .write_number(row, 0, trade.display_number as f64)
-                .map_err(|e| AppError::Io(e.to_string()))?;
+                .map_err(|e| AppError::io(e.to_string()))?;
             let strings = [
                 trade
                     .instrument_spec_snapshot
@@ -185,7 +185,7 @@ impl ExportService {
             for (offset, value) in strings.iter().enumerate() {
                 worksheet
                     .write_string(row, (1 + offset) as u16, value)
-                    .map_err(|e| AppError::Io(e.to_string()))?;
+                    .map_err(|e| AppError::io(e.to_string()))?;
             }
             let numbers: [(u16, Option<Decimal>); 8] = [
                 (7, trade.volume),
@@ -201,26 +201,26 @@ impl ExportService {
                 if let Some(value) = value {
                     worksheet
                         .write_number(row, col, decimal_to_f64(value))
-                        .map_err(|e| AppError::Io(e.to_string()))?;
+                        .map_err(|e| AppError::io(e.to_string()))?;
                 }
             }
             worksheet
                 .write_number(row, 12, decimal_to_f64(trade.commission))
-                .map_err(|e| AppError::Io(e.to_string()))?;
+                .map_err(|e| AppError::io(e.to_string()))?;
             worksheet
                 .write_number(row, 13, decimal_to_f64(trade.swap))
-                .map_err(|e| AppError::Io(e.to_string()))?;
+                .map_err(|e| AppError::io(e.to_string()))?;
             worksheet
                 .write_number(row, 14, decimal_to_f64(trade.other_fees))
-                .map_err(|e| AppError::Io(e.to_string()))?;
+                .map_err(|e| AppError::io(e.to_string()))?;
             worksheet
                 .write_string(row, 18, trade.tags.join("; "))
-                .map_err(|e| AppError::Io(e.to_string()))?;
+                .map_err(|e| AppError::io(e.to_string()))?;
         }
 
         workbook
             .save(destination)
-            .map_err(|e| AppError::Io(e.to_string()))?;
+            .map_err(|e| AppError::io(e.to_string()))?;
         Ok(())
     }
 
