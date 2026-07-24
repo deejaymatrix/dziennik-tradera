@@ -139,16 +139,6 @@ pub enum DraftAutosaveSeconds {
     Thirty,
 }
 
-impl DraftAutosaveSeconds {
-    pub fn as_seconds(self) -> i64 {
-        match self {
-            DraftAutosaveSeconds::Five => 5,
-            DraftAutosaveSeconds::Ten => 10,
-            DraftAutosaveSeconds::Thirty => 30,
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BehaviorPreferences {
     #[serde(default)]
@@ -542,7 +532,7 @@ mod tests {
             ThemeMode::Light,
             "jasny jest domyślnym motywem (świadoma decyzja użytkownika, nie ciemny)"
         );
-        assert_eq!(prefs.behavior.draft_autosave_seconds.as_seconds(), 10);
+        assert_eq!(prefs.behavior.draft_autosave_seconds, DraftAutosaveSeconds::Ten);
         assert!(prefs.defaults.report_include_costs);
         assert!(
             !prefs.defaults.report_include_open,
