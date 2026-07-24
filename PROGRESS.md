@@ -3949,6 +3949,30 @@ dokładnie przewidzianym objawem: 0 pustych komórek zamiast 6. Po każdym cofni
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **613/613** (84 pliki, +5 nowych testów).
 
+**O7, część 118: `DashboardPage` (lista startowa "Start pracy") - zero testów.** Dashboard składa
+się głównie z już przetestowanych osobno komponentów (StatCard, ChartCard, GroupBarChart,
+HeatmapTable, EquityCurveChart, ReportAccountComparisonTab) - jedyna WŁASNA logika tego ekranu to
+lista startowa. Dwie nieoczywiste rzeczy: (1) lista chowa się automatycznie TYLKO gdy istnieje
+PIERWSZA własna strategia ORAZ pierwsza transakcja naraz (`strategies.length > 0 &&
+report.stats.total_trades > 0`) - jeden warunek bez drugiego nie wystarczy; (2) ręczne zamknięcie
+przez "×" zapisuje się do `localStorage`, więc lista nie wraca po odświeżeniu, nawet zanim warunki
+auto-ukrycia zostaną spełnione. Sekcja renderuje się NIEZALEŻNIE od stanu kont/raportu (zawsze na
+samej górze) - pierwsze trzy testy nie muszą w ogóle mockować kont ani budować pełnego raportu.
+
+Nowy `pages/DashboardPage.test.tsx` (5 testów): lista pokazuje się bez flagi i bez postępu; NIE
+pokazuje się, gdy flaga w `localStorage` już ustawiona; klik w "×" chowa listę I zapisuje flagę;
+**chowa się automatycznie TYLKO gdy oba warunki naraz** (strategia + zamknięta transakcja); NIE
+chowa się, gdy spełniony jest tylko jeden z dwóch warunków.
+
+Zweryfikowane 3 niezależnymi mutacjami: (1) warunek auto-ukrycia zredukowany do samego
+`strategies.length > 0` (pominięty `report.stats.total_trades > 0`) - **dokładnie 1 z 5 testów
+padł**; (2) `dismiss()` bez zapisu do `localStorage` - **dokładnie 1 z 5 padł**; (3) odczyt
+początkowego stanu z `localStorage` zablokowany `false &&` - **dokładnie 1 z 5 padł**. Po każdym
+cofnięciu: `git diff --stat` na `DashboardPage.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **618/618** (85 plików, +5 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
