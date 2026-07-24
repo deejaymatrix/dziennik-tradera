@@ -2911,6 +2911,17 @@ break-all` dla długich ścieżek plików), `NewTemplateModal`, `ImportBrokerMod
 
 Weryfikacja: `pnpm test -- --run` 283/283 (bez nowych zmian kodu w tym zadaniu).
 
+**Interwały i Stan emocjonalny (zadanie 13, zamknięte) - BEZ zmian kodu.** `IntervalsSection`/
+`EmotionalStatesSection` (współdzielony `EmotionalStatesSection.module.css`) - `.name` bez
+wymuszonego `white-space: nowrap`, więc długa własna nazwa interwału/stanu swobodnie zawija się na
+słowach zamiast łamać wiersz (ten sam bezpieczny wzorzec co `.itemName` w `StrategyChecklistEditor`,
+sprawdzony w zadaniu 11). `EmotionsEditor` (edytor emocji osadzony w karcie transakcji) już
+WCZEŚNIEJ, przed tym audytem, miał wzorcowo poprawne `.name`/`.suggestion` (pełne `min-width:0` +
+`overflow:hidden` + `text-overflow:ellipsis` + `white-space:nowrap`, z komentarzem tłumaczącym
+dlaczego) - potwierdzone ponownym, dokładnym przeczytaniem, bez potrzeby żadnej zmiany.
+
+Weryfikacja: `pnpm test -- --run` 283/283 (bez zmian kodu w tym zadaniu).
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.
