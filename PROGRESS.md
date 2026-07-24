@@ -1918,6 +1918,18 @@ przeglądarkami (ryzyko rozjechania layoutu), więc dla wierszy zostaje sam `out
 
 Weryfikacja: `pnpm format:check`, `pnpm typecheck`, `pnpm test` 271/271, brak błędów konsoli.
 
+**O7, weryfikacja runtime całego pakietu części 43-45.** Port 1430 akurat wolny (użytkownik nie
+miał uruchomionego własnego serwera) - okazja do sprawdzenia, czy wszystkie 18 reguł `:active`
+i obie nowe reguły `.clickableRow:focus-visible` (`TransactionsPage`, `BreakdownTable`)
+faktycznie skompilowały się przez CSS Modules/Vite bez literówek czy pomyłek w selektorach, nie
+tylko że wyglądają poprawnie w źródle. `preview_start` + `javascript_tool` przeszukujący
+`document.styleSheets` po dosłowny `cssText` każdej reguły w serwowanym budce - wszystkie 20
+reguł znalezione dokładnie takie, jak oczekiwano (np. `._trigger_1b5ip_5:active { transform:
+scale(0.97); }`), `--color-focus-ring` rozwiązany do realnego, widocznego koloru `#7ea1ff` (nie
+`undefined`/przezroczysty), zero błędów konsoli na `/` i `/transakcje`. Zrzuty ekranu dalej
+niedostępne w tym środowisku - trzecie potwierdzenie tego samego ograniczenia narzędzia
+("Browser pane is not displayed"), nie nowa usterka. `preview_stop` po zakończeniu.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
