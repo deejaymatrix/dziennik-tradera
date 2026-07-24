@@ -3806,6 +3806,38 @@ includeArchived: false }` - **dokładnie 1 z 5 padł** (timeout w `waitFor`). Po
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **591/591** (80 plików, +5 nowych testów).
 
+**O7, część 114: `KoszPage` (uniwersalny Kosz: konta/transakcje/strategie/interwały) - zero
+testów.** Najbogatszy w logikę ekran audytowany dotąd. Trzy nieoczywiste rzeczy: (1) filtr
+wyszukiwania i filtr typu działają RAZEM (AND) - element musi przejść oba, nie wystarczy jeden;
+(2) "Zaznacz wszystkie widoczne" jest przełącznikiem zależnym od aktualnego stanu zaznaczenia -
+zaznacza wszystko TYLKO gdy nie wszystko jest już zaznaczone, inaczej odznacza; (3) przy konflikcie
+nazwy interwału backend zwraca komunikat z DWOMA nazwami w cudzysłowie drukarskim (zajętą i
+proponowaną) - `suggestedLabelFrom` bierze DRUGIE dopasowanie regexu (`matches[1]`), nie pierwsze;
+pomylenie indeksu przywróciłoby interwał pod nazwą, która jest właśnie zajęta, czyli dokładnie tym,
+czemu ta funkcja ma zapobiegać.
+
+Testy celowo NIE budują pełnego obiektu `Preferences` - `get_preferences` jest odrzucane, więc
+`PreferencesProvider` zostaje przy `preferences === null`, co `useOptionalConfirm` (używane przez
+akcje trwałego usuwania) traktuje jak bezpieczny stan domyślny "potwierdzenie zawsze pokazywane"
+(dokładnie zachowanie tuż po starcie aplikacji, zanim ustawienia się wczytają).
+
+Nowy `pages/KoszPage.test.tsx` (6 testów): pusta lista pokazuje "Kosz jest pusty"; filtr
+wyszukiwania i typu działają razem, nie osobno; "Zaznacz wszystkie widoczne" zaznacza/odznacza
+zależnie od bieżącego stanu; **konflikt nazwy interwału proponuje DRUGĄ (wolną) nazwę, nie
+pierwszą (zajętą)**; brak `dependency_note` pokazuje "—"; "Opróżnij kosz" wyłączony dla pustej
+listy.
+
+Zweryfikowane 4 niezależnymi mutacjami: (1) `matches[1]?.[1]` zastąpione `matches[0]?.[1]` (indeks
+o jeden za mały) - **dokładnie 1 z 6 testów padł**, i to z DOKŁADNIE przewidzianym objawem: okno
+zaproponowało przywrócenie pod zajętą nazwą "M15" zamiast wolnej "M15 (2)"; (2) warunek filtra typu
+zablokowany `false &&` - **dokładnie 1 z 6 padł**; (3) `allSelected` na sztywno `false` (zawsze
+zaznacza, nigdy nie odznacza) - **dokładnie 1 z 6 padł**; (4) warunek wyłączenia "Opróżnij kosz"
+zredukowany do samego `busy` - **dokładnie 1 z 6 padł**. Po każdym cofnięciu: `git diff --stat` na
+`KoszPage.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **597/597** (81 plików, +6 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
