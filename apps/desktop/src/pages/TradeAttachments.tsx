@@ -419,17 +419,20 @@ export function TradeAttachments({
                     icon={<ArrowUp size={14} />}
                     aria-label="Przesuń wyżej"
                     disabled={index === 0}
+                    loading={busy}
                     onClick={() => handleMove(index, -1)}
                   />
                   <IconButton
                     icon={<ArrowDown size={14} />}
                     aria-label="Przesuń niżej"
                     disabled={index === items.length - 1}
+                    loading={busy}
                     onClick={() => handleMove(index, 1)}
                   />
                   <IconButton
                     icon={<Trash2 size={14} />}
                     aria-label="Usuń załącznik"
+                    loading={busy}
                     onClick={() => {
                       void handleDelete(
                         item.id,

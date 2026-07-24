@@ -2370,6 +2370,40 @@ Stan sekcji 24 (pełny test z prawdziwymi danymi): 13 z 14 tras z prawdziwymi da
 stanem błędu, `/ustawienia` udokumentowane jako jedyny wyjątek z jasnym uzasadnieniem
 technicznym - blokada uznana za zamkniętą w praktycznym zakresie dostępnym z tego narzędzia.
 
+**O7, część 58: wyczerpujący sweep WSZYSTKICH 24 plików używających `IconButton` w całym
+`apps/desktop/src` (nie tylko stron dotkniętych wcześniej w częściach 52-56) - znalezione 4 KOLEJNE
+pliki z tym samym brakiem `busy`.** Metoda: `grep -rl "IconButton" apps/desktop/src`, każdy plik
+sprawdzony ręcznie - czy `onClick` wywołuje `invokeCommand` (bezpośrednio albo przez hook), i czy
+istnieje zmienna stanu podpięta jako `loading=`. Rozróżnione od poprawnych przypadków bez potrzeby
+`loading`: dialog-openery (`Pencil`/`ArrowLeftRight` itd.), czyste edycje lokalnego stanu bez
+backendu (`RuleListEditor`, `EmotionsEditor`, `PartialClosesEditor`, `TradeInspector` pin/zamknij),
+nawigacja/motyw w `Sidebar`/`Header`. Wszystkie modale formularzy (`AccountFormModal`,
+`StrategyFormModal`, `CashOperationsModal`, `CloseTradeModal`, `NewTemplateModal`,
+`AccountDetailsModal`) sprawdzone i potwierdzone jako JUŻ poprawne - własny `submitting`/`busy`
+podpięty pod `loading=` na przycisku zapisu.
+
+Znalezione i naprawione 4 pliki, ten sam wzorzec `useState<boolean>` + `setBusy(true)`/
+`finally setBusy(false)` + `loading={busy}`:
+- `TradeAttachments.tsx` - `busy` JUŻ ISTNIAŁ (użyty na "Dodaj zdjęcie"/"Wklej ze schowka"/"Dodaj"
+  z części 52) i faktycznie się ustawiał przez `withBusy()` przy przesuwaniu/usuwaniu załącznika -
+  ale 3 `IconButton` (przesuń wyżej/niżej, usuń) nie miały `loading={busy}` w JSX, więc stan był
+  śledzony, tylko niewidoczny. Najbardziej podstępny wariant tego błędu w całym audycie.
+- `TransactionsPage.tsx` (główna lista transakcji!) - `handleSoftDelete`/`handleRestore` (Kosz/
+  Przywróć transakcję) nie miały ŻADNEJ zmiennej `busy`. Dodana nowa.
+- `AccountsPage.tsx` - `handleArchive`/`handleRestore` konta bez `busy`. Dodana nowa.
+- `StrategiesPage.tsx` - `handleDuplicate`/`handleArchive`/`handleRestore` strategii bez `busy`.
+  Dodana nowa.
+
+Zweryfikowane w przeglądarce `/transakcje` (usunięcie transakcji do kosza, fałszywe opóźnienie
+700ms) i `/konta` (archiwizacja konta, 700ms): `aria-busy`/`disabled` poprawnie `true` przez cały
+czas trwania operacji (jeden atomowy skrypt, punkt 9 pamięci), wraca po zakończeniu, status
+wiersza transakcji poprawnie zmienił się na "Zamknięta (w koszu)" po operacji. Zero błędów
+konsoli na obu trasach.
+
+Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check`, `pnpm test`
+275/275 - wszystkie czyste. To zamyka sweep `IconButton`/`busy` w całej aplikacji - wszystkie 24
+pliki z `IconButton` sprawdzone, nie tylko te dotknięte wcześniejszymi częściami.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat

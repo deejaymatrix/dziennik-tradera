@@ -24,6 +24,7 @@ export function StrategiesPage(): ReactElement {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingStrategy, setEditingStrategy] = useState<Strategy | undefined>(undefined);
+  const [busy, setBusy] = useState(false);
 
   async function load(): Promise<void> {
     setError(null);
@@ -54,32 +55,41 @@ export function StrategiesPage(): ReactElement {
   }
 
   async function handleDuplicate(strategy: Strategy): Promise<void> {
+    setBusy(true);
     try {
       await invokeCommand("duplicate_strategy", { id: strategy.id });
       showToast("Strategia zduplikowana.", "success");
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
   async function handleArchive(strategy: Strategy): Promise<void> {
+    setBusy(true);
     try {
       await invokeCommand("archive_strategy", { id: strategy.id });
       showToast("Strategia zarchiwizowana.", "success");
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
   async function handleRestore(strategy: Strategy): Promise<void> {
+    setBusy(true);
     try {
       await invokeCommand("restore_strategy", { id: strategy.id });
       showToast("Strategia przywrócona.", "success");
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -177,6 +187,7 @@ export function StrategiesPage(): ReactElement {
                     <IconButton
                       icon={<Copy size={16} />}
                       aria-label={`Duplikuj ${strategy.name}`}
+                      loading={busy}
                       onClick={() => {
                         void handleDuplicate(strategy);
                       }}
@@ -185,6 +196,7 @@ export function StrategiesPage(): ReactElement {
                       <IconButton
                         icon={<ArchiveRestore size={16} />}
                         aria-label={`Przywróć ${strategy.name}`}
+                        loading={busy}
                         onClick={() => {
                           void handleRestore(strategy);
                         }}
@@ -193,6 +205,7 @@ export function StrategiesPage(): ReactElement {
                       <IconButton
                         icon={<Archive size={16} />}
                         aria-label={`Archiwizuj ${strategy.name}`}
+                        loading={busy}
                         onClick={() => {
                           void handleArchive(strategy);
                         }}

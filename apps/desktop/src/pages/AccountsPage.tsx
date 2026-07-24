@@ -28,6 +28,7 @@ export function AccountsPage(): ReactElement {
   const [editingAccount, setEditingAccount] = useState<AccountWithBalance | undefined>(undefined);
   const [operationsAccount, setOperationsAccount] = useState<AccountWithBalance | null>(null);
   const [detailsAccount, setDetailsAccount] = useState<AccountWithBalance | null>(null);
+  const [busy, setBusy] = useState(false);
 
   async function load(): Promise<AccountWithBalance[] | null> {
     setError(null);
@@ -60,22 +61,28 @@ export function AccountsPage(): ReactElement {
   }
 
   async function handleArchive(account: AccountWithBalance): Promise<void> {
+    setBusy(true);
     try {
       await invokeCommand("archive_account", { id: account.id });
       showToast("Konto zarchiwizowane.", "success");
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
   async function handleRestore(account: AccountWithBalance): Promise<void> {
+    setBusy(true);
     try {
       await invokeCommand("restore_account", { id: account.id });
       showToast("Konto przywrócone.", "success");
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -189,6 +196,7 @@ export function AccountsPage(): ReactElement {
                       <IconButton
                         icon={<ArchiveRestore size={16} />}
                         aria-label={`Przywróć ${account.name}`}
+                        loading={busy}
                         onClick={() => {
                           void handleRestore(account);
                         }}
@@ -197,6 +205,7 @@ export function AccountsPage(): ReactElement {
                       <IconButton
                         icon={<Archive size={16} />}
                         aria-label={`Archiwizuj ${account.name}`}
+                        loading={busy}
                         onClick={() => {
                           void handleArchive(account);
                         }}

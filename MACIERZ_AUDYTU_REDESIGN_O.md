@@ -496,6 +496,27 @@ Blokada (sekcja 24, pełny test z prawdziwymi danymi) uznana za zamkniętą w za
 się to zrobić z dostępnych narzędzi: 13 z 14 tras z prawdziwymi danymi, 14 z 14 ze stanem błędu,
 `/ustawienia` udokumentowane jako strukturalny wyjątek z jasnym uzasadnieniem technicznym.
 
+**Część 58: wyczerpujący sweep WSZYSTKICH 24 plików z `IconButton` w całym `apps/desktop/src`
+(nie tylko stron dotkniętych częściami 52-56) - znalezione 4 KOLEJNE pliki z brakiem `busy`.**
+`grep -rl "IconButton" apps/desktop/src`, każdy plik ręcznie sprawdzony: czy `onClick` wywołuje
+`invokeCommand` (wprost albo przez hook), czy istnieje zmienna stanu podpięta jako `loading=`.
+Poprawnie odróżnione od przypadków bez potrzeby `loading`: dialog-openery, czyste edycje
+lokalnego stanu bez backendu (`RuleListEditor`, `EmotionsEditor`, `PartialClosesEditor`,
+`TradeInspector`), nawigacja/motyw (`Sidebar`, `Header`). Wszystkie modale formularzy
+(`AccountFormModal`, `StrategyFormModal`, `CashOperationsModal`, `CloseTradeModal`,
+`NewTemplateModal`, `AccountDetailsModal`) potwierdzone jako już poprawne.
+
+Naprawione 4 pliki: `TradeAttachments.tsx` (`busy` JUŻ ISTNIAŁ i faktycznie się ustawiał przez
+`withBusy()` przy przesuwaniu/usuwaniu załącznika, ale 3 `IconButton` nie miały `loading={busy}`
+w JSX - stan był śledzony, tylko niewidoczny, najbardziej podstępny wariant tego błędu w całym
+audycie), `TransactionsPage.tsx` (główna lista transakcji - `handleSoftDelete`/`handleRestore`
+bez ŻADNEJ zmiennej `busy`), `AccountsPage.tsx` (`handleArchive`/`handleRestore` konta),
+`StrategiesPage.tsx` (`handleDuplicate`/`handleArchive`/`handleRestore` strategii) - te trzy nie
+miały stanu `busy` w ogóle. Zweryfikowane w przeglądarce `/transakcje` (usunięcie transakcji do
+kosza) i `/konta` (archiwizacja, oba z fałszywym opóźnieniem 700ms): `aria-busy`/`disabled`
+poprawnie aktywne przez cały czas trwania, zero błędów konsoli. Weryfikacja: `pnpm typecheck`,
+`pnpm exec eslint`, `pnpm exec prettier --check`, `pnpm test` 275/275.
+
 **Znalezisko przy okazji weryfikacji `/raporty`: `BreakdownTable.tsx` (komponent, nie CSS) jest
 martwym kodem od "Fazy 9 v2", NIE od bieżącego redesignu O.** Próba weryfikacji zakładki
 "Strategia"/"Instrument" z prawdziwymi danymi ujawniła, że tabela wyrenderowana w zakładce

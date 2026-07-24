@@ -89,6 +89,7 @@ export function TransactionsPage(): ReactElement {
   // się od razu, a parametr jest natychmiast czyszczony, żeby odświeżenie strony nie otwierało
   // go po raz drugi.
   const [formOpen, setFormOpen] = useState(() => searchParams.has(NEW_TRADE_PARAM));
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!searchParams.has(NEW_TRADE_PARAM)) {
@@ -180,22 +181,28 @@ export function TransactionsPage(): ReactElement {
   }
 
   async function handleSoftDelete(trade: Trade): Promise<void> {
+    setBusy(true);
     try {
       await invokeCommand("soft_delete_trade", { id: trade.id });
       showToast("Transakcja przeniesiona do kosza.", "success");
       await loadTrades();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
   async function handleRestore(trade: Trade): Promise<void> {
+    setBusy(true);
     try {
       await invokeCommand("restore_trade", { id: trade.id });
       showToast("Transakcja przywrócona.", "success");
       await loadTrades();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -407,6 +414,7 @@ export function TransactionsPage(): ReactElement {
                           <IconButton
                             icon={<ArchiveRestore size={16} />}
                             aria-label={`Przywróć transakcję #${trade.display_number}`}
+                            loading={busy}
                             onClick={() => {
                               void handleRestore(trade);
                             }}
@@ -415,6 +423,7 @@ export function TransactionsPage(): ReactElement {
                           <IconButton
                             icon={<Trash2 size={16} />}
                             aria-label={`Usuń transakcję #${trade.display_number}`}
+                            loading={busy}
                             onClick={() => {
                               void handleSoftDelete(trade);
                             }}
