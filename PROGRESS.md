@@ -1610,6 +1610,32 @@ var(--color-accent);`) bajt w bajt w każdym z trzech.
 
 Pełne wpisy z dowodami: [MACIERZ_AUDYTU_REDESIGN_O.md](MACIERZ_AUDYTU_REDESIGN_O.md), sekcja 1.1.
 
+**O7, zamknięta trzecia blokada (pełny manifest plik-po-pliku, sekcja 27).** Poprzedni manifest
+grupował 70 plików w 13 kategorii ze wspólnym statusem na grupę - dosłowne brzmienie promptu
+chce osobnego statusu DLA KAŻDEGO pliku. Zbudowana tabela 70 wierszy programowo (skryptem
+Python z tej samej, już zweryfikowanej tabeli grup - nie ręcznie przepisana, więc bez ryzyka
+literówki/pominięcia przy takiej liczbie wierszy); plik zmieniony z więcej niż jednego powodu
+(np. `Button.module.css`: komponent `loading` + komentarz „złoto" + `font-weight` + `:active`)
+wymienia wszystkie powody, nie tylko pierwszy pasujący. Zweryfikowane: 70/70 dopasowanych,
+0 pominiętych, 0 nadmiarowych.
+
+Przy tej samej okazji złapany i naprawiony realny błąd w PROZIE manifestu (nie w samej
+tabeli grup, ta była kompletna): poprzednia wersja podawała zakres `0c2eb41..f46c62d` jako
+dowód na „68 plików" - błąd o jeden commit na granicy (dwukropkowy `git diff` liczy zmiany
+MIĘDZY commitami, więc start `0c2eb41` - czyli sam commit O1 - wykluczał zmiany wprowadzone
+PRZEZ ten commit). Poprawny zakres to `0c2eb41^..cde2220` (od rodzica O1 do najnowszego) -
+70 plików, zgodne z tabelą.
+
+Próba odblokowania pierwszej blokady (zrzuty ekranu) - uruchomiony serwer deweloperski
+(port 1430 wolny, żaden proces użytkownika go nie trzymał), strona renderuje się poprawnie
+(`read_page`/`get_page_text` działają), ale `computer{action:"screenshot"}` nadal zwraca
+„Browser pane is not displayed, so the page is not compositing frames" - trzecie potwierdzenie
+tej samej, stabilnej usterki środowiska, nie przypadkowej. Przy okazji cząstkowa weryfikacja
+drugiej blokady (pełny test jak użytkownik): klik-nawigacja Dashboard→Raporty, zero błędów
+w konsoli, brak backendu Tauri w tym podglądzie renderuje się jako czytelny komunikat
+z przyciskiem ponowienia (nie awaria) - potwierdza już wcześniej opisany w pamięci przypadek
+„Brak środowiska Tauri", nie nowe odkrycie.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat

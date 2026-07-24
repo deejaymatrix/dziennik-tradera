@@ -91,6 +91,91 @@ w obrębie grupy zmiana była mechaniczna i identyczna (np. „zamień surową l
 (12 grup kodu + 1 grupa dokumentów) — liczba plików w manifeście zgadza się z liczbą plików
 faktycznie zmienionych, zgodnie z wymogiem sekcji 27.
 
+### Manifest plik-po-pliku (dosłowne brzmienie sekcji 27)
+
+Powyższe grupowanie było świadomym wyborem (grupa = jeden status, bo zmiana w jej obrębie
+była mechaniczna i identyczna), ale sekcja 27 dosłownie prosi o osobny status DLA KAŻDEGO
+pliku. Tabela niżej wygenerowana programowo z tej samej, już zweryfikowanej tabeli grup wyżej
+(nie przepisana ręcznie — wykluczone literówki/pominięcia przy 70 wierszach) — każdy z 70
+plików ma własny wiersz; plik zmieniony z więcej niż jednego powodu (np. `Button.module.css`)
+wymienia wszystkie grupy, do których należy, zamiast tylko pierwszej pasującej.
+
+| Plik                                                                    | Grupa(y) zmian (skrót — pełny dowód w tabeli grup wyżej)                                                                                                         | Status |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| `MACIERZ_AUDYTU_CEL_1_8.md`                                             | Dokumenty (nie kod aplikacji)                                                                                                                                    | N/D    |
+| `MACIERZ_AUDYTU_REDESIGN_O.md`                                          | Dokumenty (nie kod aplikacji)                                                                                                                                    | N/D    |
+| `PROGRESS.md`                                                           | Dokumenty (nie kod aplikacji)                                                                                                                                    | N/D    |
+| `apps/desktop/src-tauri/src/domain/preferences.rs`                      | Sentinel domyślnego akcentu                                                                                                                                      | PASS   |
+| `apps/desktop/src/app/PreferencesProvider.tsx`                          | Sentinel domyślnego akcentu                                                                                                                                      | PASS   |
+| `apps/desktop/src/design/tokens.css`                                    | Definicja tokenów                                                                                                                                                | PASS   |
+| `apps/desktop/src/pages/AccountDetailsModal.module.css`                 | `font-weight` na tokenach (42 pliki); `line-height` na tokenach                                                                                                  | PASS   |
+| `apps/desktop/src/pages/AccountDetailsModal.tsx`                        | `Button` (komponent + konsumenci `loading`)                                                                                                                      | PASS   |
+| `apps/desktop/src/pages/AccountFormModal.tsx`                           | `Button` (komponent + konsumenci `loading`)                                                                                                                      | PASS   |
+| `apps/desktop/src/pages/CalendarPage.module.css`                        | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/CashOperationsModal.module.css`                 | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/CashOperationsModal.tsx`                        | `Button` (komponent + konsumenci `loading`)                                                                                                                      | PASS   |
+| `apps/desktop/src/pages/ChartCard.module.css`                           | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/DashboardPage.module.css`                       | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/DataPage.module.css`                            | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/EmotionsEditor.module.css`                      | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/HeatmapTable.module.css`                        | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/InstrumentFormModal.tsx`                        | `Button` (komponent + konsumenci `loading`)                                                                                                                      | PASS   |
+| `apps/desktop/src/pages/InstrumentsPage.module.css`                     | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/KalkulatorPozycjiPage.module.css`               | `font-weight` na tokenach (42 pliki); `line-height` na tokenach                                                                                                  | PASS   |
+| `apps/desktop/src/pages/PartialClosesEditor.module.css`                 | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/ReportFilterBar.module.css`                     | `z-index` na tokenach                                                                                                                                            | PASS   |
+| `apps/desktop/src/pages/ReportsPage.module.css`                         | `font-weight` na tokenach (42 pliki); Stan `:active` (naciśnięcie, część 7-10)                                                                                   | PASS   |
+| `apps/desktop/src/pages/ReportsPage.tsx`                                | `Button` (komponent + konsumenci `loading`)                                                                                                                      | PASS   |
+| `apps/desktop/src/pages/RuleListEditor.module.css`                      | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/SettingsPage.module.css`                        | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/SettingsPage.tsx`                               | `Button` (komponent + konsumenci `loading`)                                                                                                                      | PASS   |
+| `apps/desktop/src/pages/StatCard.module.css`                            | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/StrategyChecklistEditor.module.css`             | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/StrategyFormModal.tsx`                          | `Button` (komponent + konsumenci `loading`)                                                                                                                      | PASS   |
+| `apps/desktop/src/pages/SzablonyInstrumentowPage.module.css`            | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/SzablonyInstrumentowPage.tsx`                   | `Button` (komponent + konsumenci `loading`)                                                                                                                      | PASS   |
+| `apps/desktop/src/pages/TradeAttachments.module.css`                    | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/TradeAuditLog.module.css`                       | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/TradeFormModal.module.css`                      | `z-index` na tokenach; `font-weight` na tokenach (42 pliki)                                                                                                      | PASS   |
+| `apps/desktop/src/pages/TradeFormModal.tsx`                             | `Button` (komponent + konsumenci `loading`)                                                                                                                      | PASS   |
+| `apps/desktop/src/pages/TradeInspector.module.css`                      | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/TransactionsPage.module.css`                    | Pozostałości „złota" w komentarzach; Szerokość Inspectora na tokenach; `font-weight` na tokenach (42 pliki)                                                      | PASS   |
+| `apps/desktop/src/pages/ZasadyHandluPage.module.css`                    | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/chartTheme.ts`                                  | Pozostałości „złota" w komentarzach                                                                                                                              | PASS   |
+| `apps/desktop/src/pages/settings/DataSection.module.css`                | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/settings/PreferenceSections.module.css`         | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/pages/settings/PreferenceSections.tsx`                | Sentinel domyślnego akcentu                                                                                                                                      | PASS   |
+| `apps/desktop/src/pages/settings/SettingRow.module.css`                 | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/shell/AppShell.module.css`                            | `z-index` na tokenach                                                                                                                                            | PASS   |
+| `apps/desktop/src/shell/CommandPalette.module.css`                      | `z-index` na tokenach                                                                                                                                            | PASS   |
+| `apps/desktop/src/shell/Header.module.css`                              | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/shell/Sidebar.module.css`                             | `font-weight` na tokenach (42 pliki); Stan `:active` (naciśnięcie, część 7-10)                                                                                   | PASS   |
+| `apps/desktop/src/shell/nav.ts`                                         | Komentarz o nawigacji                                                                                                                                            | PASS   |
+| `apps/desktop/src/ui/components/Badge/Badge.module.css`                 | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/ui/components/Button/Button.module.css`               | `Button` (komponent + konsumenci `loading`); Pozostałości „złota" w komentarzach; `font-weight` na tokenach (42 pliki); Stan `:active` (naciśnięcie, część 7-10) | PASS   |
+| `apps/desktop/src/ui/components/Button/Button.test.tsx`                 | `Button` (komponent + konsumenci `loading`)                                                                                                                      | PASS   |
+| `apps/desktop/src/ui/components/Button/Button.tsx`                      | `Button` (komponent + konsumenci `loading`)                                                                                                                      | PASS   |
+| `apps/desktop/src/ui/components/ColorPicker/ColorPicker.module.css`     | `z-index` na tokenach                                                                                                                                            | PASS   |
+| `apps/desktop/src/ui/components/EditModeActions/EditModeActions.tsx`    | `Button` (komponent + konsumenci `loading`)                                                                                                                      | PASS   |
+| `apps/desktop/src/ui/components/EmptyState/EmptyState.module.css`       | `font-weight` na tokenach (42 pliki); `line-height` na tokenach                                                                                                  | PASS   |
+| `apps/desktop/src/ui/components/ErrorState/ErrorState.module.css`       | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/ui/components/FormPanel/FormPanel.module.css`         | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/ui/components/IconButton/IconButton.module.css`       | Stan `:active` (naciśnięcie, część 7-10)                                                                                                                         | PASS   |
+| `apps/desktop/src/ui/components/Modal/Modal.module.css`                 | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/ui/components/ReadOnlyField/ReadOnlyField.module.css` | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/ui/components/Select/Select.module.css`               | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/ui/components/Switch/Switch.module.css`               | Stan `:active` (naciśnięcie, część 7-10)                                                                                                                         | PASS   |
+| `apps/desktop/src/ui/components/Table/Table.module.css`                 | Pozostałości „złota" w komentarzach; `z-index` na tokenach; `font-weight` na tokenach (42 pliki)                                                                 | PASS   |
+| `apps/desktop/src/ui/components/Tag/Tag.module.css`                     | `font-weight` na tokenach (42 pliki); `line-height` na tokenach                                                                                                  | PASS   |
+| `apps/desktop/src/ui/components/TextField/TextField.module.css`         | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/ui/components/Textarea/Textarea.module.css`           | `font-weight` na tokenach (42 pliki)                                                                                                                             | PASS   |
+| `apps/desktop/src/ui/components/Toast/Toast.module.css`                 | `z-index` na tokenach; `font-weight` na tokenach (42 pliki); `line-height` na tokenach                                                                           | PASS   |
+| `apps/desktop/src/ui/components/Tooltip/Tooltip.module.css`             | `z-index` na tokenach; `font-weight` na tokenach (42 pliki)                                                                                                      | PASS   |
+| `docs/KLUCZE_I_WYDANIE.md`                                              | Dokumenty (nie kod aplikacji)                                                                                                                                    | N/D    |
+
+**70/70 plików ma własny wiersz, 0 pominiętych, 0 nadmiarowych** — zweryfikowane skryptem
+porównującym ten manifest z realnym `git diff 0c2eb41^..cde2220 --name-only`.
+
 ## 3. Audyt wizualny (sekcja 23) — 🔒 NIEZWERYFIKOWANY
 
 | Wymaganie                                         | Status                      | Przyczyna                                                                                                                                                                                                                             |
@@ -131,10 +216,19 @@ ponownego przeliczania. `cargo test` — 427/427 PASS, bez regresji.
 
 1. **Zrzuty ekranu / realna weryfikacja wizualna** (sekcja 23) — wymaga albo działającego
    panelu przeglądarki, albo współpracy użytkownika z jego własnym uruchomionym oknem.
+   Ponownie potwierdzone 2026-07-24 (trzeci raz): `computer{action:"screenshot"}` z działającym
+   serwerem deweloperskim na porcie 1430 nadal zwraca „the Browser pane is not displayed, so the
+   page is not compositing frames" — stabilna, nie przejściowa usterka środowiska.
 2. **Pełne przejście jak użytkownik końcowy** (sekcja 24) — nie wykonane dla przebudowanej
-   warstwy wizualnej w całości (tylko częściowo, przy okazji innych sprawdzeń).
-3. **Pełny manifest plik-po-pliku** (sekcja 27) — dotychczasowy przegląd jest kategoriowy
-   (kolory, z-index, wagi, puste catch...), nie plik-po-pliku z osobnym statusem każdego.
+   warstwy wizualnej w całości (tylko częściowo, przy okazji innych sprawdzeń). Dodatkowa
+   cząstkowa weryfikacja 2026-07-24: nawigacja Dashboard→Raporty przez klik (nie przez URL —
+   SPA nie reaguje na `navigate` bezpośrednio na trasę), zero błędów w konsoli, stan braku
+   backendu Tauri renderuje się jako czytelny, niekrytyczny komunikat z przyciskiem ponowienia
+   (nie pusty ekran/crash) — potwierdza już wcześniej znany, opisany w pamięci przypadek
+   „Brak środowiska Tauri", nie nowa usterka.
+3. ~~**Pełny manifest plik-po-pliku** (sekcja 27)~~ — **ZAMKNIĘTE 2026-07-24.** Dodana tabela
+   z osobnym wierszem i statusem dla każdego z 70 plików (sekcja 2, „Manifest plik-po-pliku"),
+   wygenerowana programowo z już zweryfikowanej tabeli grup — 0 pominiętych, 0 nadmiarowych.
 
-Żadna z tych trzech blokad nie jest znanym błędem — to brakujący DOWÓD, nie brakująca
+Żadna z pozostałych dwóch blokad nie jest znanym błędem — to brakujący DOWÓD, nie brakująca
 poprawka. Kod jest zweryfikowany tam, gdzie da się to zrobić bez pikselowego podglądu.
