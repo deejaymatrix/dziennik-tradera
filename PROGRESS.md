@@ -2995,6 +2995,33 @@ cofnięciu: `git diff --stat` na `Header.tsx` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **399/399** (48 plików, +5 nowych testów).
 
+**O7, część 82: `Sidebar.tsx` (66 linii) - łączy DWA niezależne wejścia (`collapsed`,
+`showLabels`) w jedno `labelsVisible`, zero testów.** Gdy etykiety są ukryte, pozycje nawigacji
+muszą i tak zostać identyfikowalne dla czytników ekranu (WCAG 1.4.1) - przez `title` na linku i
+`<span class="sr-only">` zamiast usunięcia tekstu. Błąd tu (np. usunięcie tekstu zamiast ukrycia
+go wizualnie) zamieniłby zwiniętą nawigację w zestaw nieopisanych ikon.
+
+Nowy `shell/Sidebar.test.tsx` (6 testów, `MemoryRouter`): rozwinięty + `showLabels=true`
+(domyślnie) → etykieta widoczna (klasa `styles.navLabel`), bez `title`; **zwinięty, NAWET z
+`showLabels=true`** → etykieta ukryta wizualnie (klasa `"sr-only"`), ale nadal dostępna przez
+`title`; rozwinięty, ale `showLabels=false` → to samo ukrycie; przycisk zwijania zmienia etykietę
+"Zwiń"/"Rozwiń nawigację" i woła `onToggleCollapsed`; na `/kalendarz` pozycja "Dashboard" NIE
+dostaje `aria-current="page"`, "Kalendarz" dostaje.
+
+Zweryfikowane testem mutacyjnym: `labelsVisible = !collapsed && showLabels` zastąpione samym
+`showLabels` - **dokładnie 1 z 6 testów padł** (scenariusz `collapsed=true, showLabels=true`,
+jedyny gdzie oba warunki się rozjeżdżają), pozostałe 5 bez zmian. Po cofnięciu: `git diff
+--stat` na `Sidebar.tsx` pusty. (Osobno sprawdzone i odrzucone jako niediagnostyczne: mutacja
+`end={item.to === "/"}` → `end={false}` na linku startowym - **0 z 6 testów padło**, bo
+`NavLink` z `react-router` już samodzielnie chroni ścieżkę `"/"` przed fałszywym dopasowaniem
+niezależnie od `end`, patrz `isActive` w `lib/dom/lib.js` - `charAt(endSlashPosition) === "/"`
+nigdy nie jest prawdą dla realnych ścieżek zaczynających się od `"/"` inaczej niż samym `"/"`.
+Test aktywnej pozycji nawigacji zostaje w pliku jako regresja zachowania, ale bez przypisywania
+mu przyczynowości do tej konkretnej linii kodu.)
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **405/405** (49 plików, +6 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
