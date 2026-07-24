@@ -2691,6 +2691,20 @@ obowiązkowa dla każdego nowego komponentu opartego na obcinaniu/przepełnieniu
 Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check`, `pnpm test`
 278/278 - wszystkie czyste. Zero błędów konsoli.
 
+**Raport porównania kont (zadanie 4, zamknięte).** `LeaderCard` (komponent lokalny tego
+podraportu) renderował `{nazwa konta} · {wartość}` bez obcięcia - nazwa konta jest tak samo
+tworzona przez użytkownika jak nazwa strategii/instrumentu, ten sam ryzyko. Naprawione
+`TruncatedText`. Główna tabela porównania (14 kolumn) i wykresy (`GroupBarChart`, już naprawiony
+wcześniej dla długich etykiet) sprawdzone bez dodatkowych problemów - tabela w scrollowalnym
+`Table.wrapper`, jak reszta.
+
+Zweryfikowane w przeglądarce fałszywym mostkiem (2 konta, jedno z 78-znakową nazwą): wszystkie
+6 kart lidera poprawnie obcięte (`scrollWidth` 560-644px vs `clientWidth` 160px), zero błędów
+konsoli.
+
+Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check`, `pnpm test`
+278/278 - wszystkie czyste.
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.

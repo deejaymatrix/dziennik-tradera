@@ -5,6 +5,7 @@ import type { AccountWithBalance } from "../app/types/account";
 import type { AccountComparisonRow } from "../app/types/report";
 import { Skeleton } from "../ui/components/Skeleton/Skeleton";
 import { Table, tableStyles } from "../ui/components/Table/Table";
+import { TruncatedText } from "../ui/components/TruncatedText/TruncatedText";
 import { ChartCard } from "./ChartCard";
 import { GroupBarChart } from "./GroupBarChart";
 import styles from "./ReportsPage.module.css";
@@ -34,7 +35,7 @@ function LeaderCard({ label, accountLabel, value }: LeaderCardProps): ReactEleme
     <div className={styles.leaderCard}>
       <span className={styles.leaderLabel}>{label}</span>
       <span className={styles.leaderValue}>
-        {accountLabel} · {value}
+        <TruncatedText text={`${accountLabel} · ${value}`} />
       </span>
     </div>
   );
