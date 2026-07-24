@@ -2617,6 +2617,26 @@ cofnięciu: `git diff` na `Select.tsx` czysty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **301/301** (33 plików, +6 nowych testów).
 
+**O7, część 66: PIĄTY przypadek tej samej klasy luki - dostępność klawiaturowa `Tooltip.tsx`
+(sekcja 21) nigdy nie miała testu.** Macierz wprost mówiła: „potwierdzone przeciw literalnemu
+wymogowi PO RAZ PIERWSZY" - ale wyłącznie przeglądem kodu (`onFocus`/`onBlur` obok
+`onMouseEnter`/`onMouseLeave`), nie renderem. Wymóg z promptu jest jednoznaczny: „tooltipy są
+dostępne z klawiatury" - dymek NIE MOŻE pojawiać się wyłącznie na hover myszą, bo to by łamało
+WCAG dla użytkowników niekorzystających z myszy.
+
+Nowy `ui/components/Tooltip/Tooltip.test.tsx` (4 testy): dymek niewidoczny, dopóki nic nie jest
+w fokusie/pod kursorem; **pokazuje się po fokusie klawiaturowym (`Tab`), nie tylko po
+najechaniu myszą**; chowa się po odejściu fokusu (`Tab` dalej); `aria-describedby` na elemencie
+faktycznie wskazuje na wyrenderowany dymek (nie tylko istnieje jako atrybut).
+
+Zweryfikowane testem mutacyjnym: tymczasowo usunięte `onFocus`/`onBlur` z `Tooltip.tsx`
+(zostawione tylko `onMouseEnter`/`onMouseLeave`) - **3 z 4 testów padły** (wszystkie zależne od
+fokusu klawiaturowego), test „nie pokazuje treści na starcie" bez zmian, dokładnie zgodnie
+z przewidywaniem. Po cofnięciu: `git diff` czysty, 4/4 PASS ponownie.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **305/305** (34 pliki, +4 nowe testy).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
