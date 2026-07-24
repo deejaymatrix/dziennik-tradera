@@ -2717,6 +2717,18 @@ Zweryfikowane w przeglądarce fałszywym mostkiem OBA raporty osobno (60-znakowa
 57-znakowa nazwa strategii) - poprawne renderowanie z realnymi (fałszywymi) danymi, zero błędów
 konsoli w obu.
 
+**Dashboard (zadanie 7, zamknięte) - BEZ zmian kodu.** Karty statystyk (`StatCard`, wartości
+bounded), wykresy (`GroupBarChart`, już naprawiony), rankingi Instrument/Strategia/Konto (surowe
+nazwy, ale w scrollowalnym `Table.wrapper` - ten sam zaakceptowany wzorzec co `TopTradesTable`),
+heatmapy dnia tygodnia/godzin (`HeatmapTable`, etykiety bounded - nazwy dni/przedziałów godzin,
+nie treść tworzona przez użytkownika) - żadna sekcja nie ma karty o stałej szerokości (brak
+`.leaderCard` na tym ekranie), więc nie ma tu ryzyka analogicznego do raportów.
+
+Zweryfikowane w przeglądarce fałszywym mostkiem (57-znakowa nazwa strategii w rankingu i na
+wykresie): poprawne renderowanie wszystkich sekcji (karty, krzywa kapitału, 5 wykresów, 3
+rankingi, 2 heatmapy, rozkład wyników), zero przecięć w geometrii etykiety wykresu "Wynik wg
+strategii", zero błędów konsoli.
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.
