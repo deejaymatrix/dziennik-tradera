@@ -147,6 +147,11 @@ pub fn zparsuj(tresc: &str) -> Result<ManifestAktualizacji, AppError> {
             "manifest aktualizacji nie podaje numeru wersji".to_string(),
         ));
     }
+    if manifest.wpis_windows().is_none() {
+        return Err(AppError::io(
+            "manifest aktualizacji nie zawiera wpisu dla Windows x86_64".to_string(),
+        ));
+    }
     Ok(manifest)
 }
 
@@ -188,15 +193,15 @@ mod tests {
     }
 
     /// Manifest bez wpisu dla Windows jest dla tej aplikacji bezużyteczny - nie ma sensu
-    /// pokazywać użytkownikowi aktualizacji, której nie da się zainstalować.
+    /// pokazywać użytkownikowi aktualizacji, której nie da się zainstalować. `zparsuj` odrzuca
+    /// go tak samo, jak odrzuca brak numeru wersji (zgodnie z macierzą audytu Celu 1.8).
     #[test]
-    fn manifest_bez_windows_nie_daje_wpisu() {
+    fn manifest_bez_windows_jest_odrzucany() {
         let bez_windows = r#"{
             "version": "1.2.3",
             "platforms": { "darwin-x86_64": { "signature": "x", "url": "https://x.test/a.dmg" } }
         }"#;
-        let manifest = zparsuj(bez_windows).expect("manifest");
-        assert!(manifest.wpis_windows().is_none());
+        zparsuj(bez_windows).expect_err("manifest bez wpisu dla Windows musi być odrzucony");
     }
 
     /// Pola opisowe są opcjonalne - starszy albo minimalny manifest nadal musi się wczytać.
