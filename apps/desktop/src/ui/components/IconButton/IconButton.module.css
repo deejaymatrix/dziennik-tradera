@@ -11,12 +11,21 @@
   cursor: pointer;
   transition:
     background-color var(--motion-fast) var(--motion-easing),
-    color var(--motion-fast) var(--motion-easing);
+    color var(--motion-fast) var(--motion-easing),
+    transform var(--motion-fast) var(--motion-easing);
 }
 
 .iconButton:hover:not(:disabled) {
   background-color: var(--color-surface-alt);
   color: var(--color-text);
+}
+
+/* Stan "active" z sekcji 9 promptu - chwila naciśnięcia, NIE to samo co poniższa `.active`
+   (ta jest osobnym propem oznaczającym trwale wybraną ikonę, np. w pasku narzędzi). Delikatne
+   skalowanie w dół zamiast zmiany koloru - subtelna, fizyczna informacja zwrotna bez
+   krzykliwego efektu, spójna z "wyglądem prawdziwej aplikacji desktopowej" z sekcji 3. */
+.iconButton:active:not(:disabled) {
+  transform: scale(0.94);
 }
 
 .iconButton:focus-visible {

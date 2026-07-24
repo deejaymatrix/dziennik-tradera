@@ -1529,6 +1529,18 @@ z override). Przy okazji naprawiony fałszywie pozytywny lint (`disabled={disabl
 sugerował `??`, co realnie zmieniłoby zachowanie przy `disabled={false}` - naprawione uczciwie
 przez `Boolean(disabled)`, nie tłumione komentarzem).
 
+**Kolejny brakujący stan (sekcja 9: "...hover; active; focus...").** Zero komponentów
+współdzielonych miało pseudo-klasę `:active` (chwila naciśnięcia) - `grep -rn ":active"` po
+`ui/components` nie zwracał nic. Dodane delikatne skalowanie w dół (`transform: scale(0.97)`
+na `Button`, `scale(0.94)` na `IconButton`, ta sama różnica co między głównym przyciskiem
+a ikoną - mniejszy element potrzebuje wyraźniejszej zmiany, żeby feedback był w ogóle
+zauważalny) zamiast zmiany koloru - subtelna, fizyczna informacja zwrotna, nie krzykliwy
+efekt. `:not(:disabled)` samo wyklucza też stan `loading` na `Button` (loading zawsze
+ustawia `disabled` na natywnym elemencie). Świadomie POZA testami jednostkowymi - `:active`
+jako pseudo-klasa CSS nie da się sensownie zasymulować w jsdom (brak realnego silnika
+renderującego stany `mousedown` bez `mouseup`); weryfikacja przez przegląd kodu i istniejące
+globalne zerowanie `transition-duration` pod redukcją ruchu w `tokens.css`.
+
 ### Rozszerzenie na macOS (druga wersja promptu O, 2026-07-24)
 
 Nowa wersja dokumentu dodaje macOS (Apple Silicon `arm64` + Intel `x86_64`) jako drugą
