@@ -3022,6 +3022,51 @@ mu przyczynowości do tej konkretnej linii kodu.)
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **405/405** (49 plików, +6 nowych testów).
 
+**O7, część 83: `AppShell.tsx` (120 linii, najbardziej złożony komponent powłoki) - PRAWDZIWY
+BŁĄD znaleziony przez pisanie testów, nie tylko brak pokrycia.** Preferencja „Otwieraj ostatnio
+używaną zakładkę" (Ustawienia → Zachowanie) NIGDY faktycznie nie działała od świeżego startu
+aplikacji: efekt zapisujący `location.pathname` do `localStorage` (`LAST_ROUTE_STORAGE_KEY`)
+uruchamiał się na KAŻDYM montowaniu z AKTUALNĄ (jeszcze nie przekierowaną) ścieżką `"/"` -
+zanim asynchronicznie wczytane preferencje zdążyły dotrzeć do efektu decydującego o
+przekierowaniu. Ponieważ efekty w komponencie uruchamiają się w kolejności deklaracji, a
+zapisujący efekt nie miał żadnej straży, nadpisywał zapamiętaną z POPRZEDNIEJ sesji ścieżkę
+wartością `"/"` GODZINĘ przed tym, jak efekt przekierowania zdążył ją odczytać - użytkownik
+zawsze lądował na Dashboardzie, niezależnie od włączonego przełącznika.
+
+Naprawa: zapisujący efekt dostał tę samą straż `startupApplied` (już istniejące, wcześniej
+używane wyłącznie do stanu zwinięcia menu), która staje się `true` SYNCHRONICZNIE podczas
+renderowania w tym samym przebiegu, w którym uruchamia się efekt odczytujący `localStorage` -
+dzięki kolejności deklaracji efektów (odczyt przed zapisem) i temu, że `startupApplied` zmienia
+się dokładnie w commit'cie, w którym oba efekty i tak muszą się przeliczyć, zapis czeka aż odczyt
+zdąży się wykonać. Zero nowego stanu, jedna dodana straż.
+
+Nowy `shell/AppShell.test.tsx` (8 testów, `MemoryRouter` + `Routes` + prawdziwe
+`PreferencesProvider`/`ThemeProvider` + zmockowane `useNavigate`/`useOptionalUpdateMonitor`/
+`invokeCommand`) pokrywa TRZY niezależne mechanizmy startowe: (1) stan zwinięcia menu nakłada
+się z preferencji TYLKO RAZ - kolejny zapis ustawień (przez pomocniczy komponent testowy
+wołający `saveSection`) go nie nadpisuje; (2) przekierowanie na widok startowy - działa
+wyłącznie na `"/"` (nie na głębokim linku), **`open_last_tab` ma pierwszeństwo przed
+`startup_view`** (dokładnie ten mechanizm, który był zepsuty), z fallbackiem gdy `localStorage`
+puste; (3) zapamiętywanie ostatniej ścieżki faktycznie trafia do `localStorage`; (4) nawigacja po
+kliknięciu powiadomienia systemowego reaguje na ZMIANĘ licznika `zadanieOtwarciaUstawien`, nie na
+sam fakt przerysowania (rozróżnione od zmiany referencji obiektu przez dodatkowy krok z NOWYM
+obiektem o TEJ SAMEJ wartości).
+
+Zweryfikowane 3 niezależnymi mutacjami: (1) usunięta straż `startupApplied` z efektu
+zapisującego ostatnią ścieżkę (przywrócenie oryginalnego błędu) - **dokładnie te same 2 z 8
+testów padły**, które prowadziły do odkrycia błędu; (2) usunięta straż `!startupApplied` wokół
+`setCollapsed` (wywoływanie go na KAŻDYM renderze zamiast raz) - React ubił WSZYSTKIE 8 testów
+wyjątkiem `"Too many re-renders"` (nieskończona pętla) - silniejszy, bardziej jednoznaczny dowód
+niż zwykłe niepowodzenie asercji; (3) `!==` zamienione na zawsze-prawdziwy warunek w straży
+licznika `zadanieOtwarciaUstawien` - **dokładnie 1 z 8 padł**, ale dopiero po wzmocnieniu testu o
+scenariusz "nowy obiekt monitora, ta sama wartość licznika" (pierwsza wersja testu przypadkiem
+zmieniała referencję i wartość RAZEM, więc nie odróżniała porównania po wartości od porównania po
+referencji). Po każdym cofnięciu: `git diff --stat` na `AppShell.tsx` ograniczony wyłącznie do
+zamierzonej poprawki (+7/-1).
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **413/413** (50 plików, +8 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat

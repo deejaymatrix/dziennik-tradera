@@ -63,8 +63,14 @@ export function AppShell(): ReactElement {
   }, [preferences, location.pathname, navigate]);
 
   useEffect(() => {
+    // Bez tej straży ten efekt nadpisuje zapamiętaną ścieżkę AKTUALNĄ (jeszcze nie
+    // przekierowaną) ścieżką "/" zanim powyższy efekt zdąży ją odczytać - preferencje wczytują
+    // się asynchronicznie, więc bez `startupApplied` ta kolizja występuje przy KAŻDYM starcie.
+    if (!startupApplied) {
+      return;
+    }
     localStorage.setItem(LAST_ROUTE_STORAGE_KEY, location.pathname);
-  }, [location.pathname]);
+  }, [location.pathname, startupApplied]);
 
   // Sprawdzanie aktualizacji NIE mieszka już tutaj. Przeniesione do `UpdateMonitorProvider`
   // nad routerem: wymaganie Celu 1.8 mówi o jednym centralnym serwisie działającym przez cały
