@@ -3783,6 +3783,29 @@ diff --stat` na `AccountsPage.tsx` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **586/586** (79 plików, +5 nowych testów).
 
+**O7, część 113: `StrategiesPage` (lista strategii z filtrem "Pokaż zarchiwizowane") - zero
+testów.** Ten sam wzorzec co `AccountsPage` (część 112): filtr wywołuje `list_strategies` PONOWNIE
+z nową wartością `includeArchived`, odznaka/przyciski archiwizacji zależą od `archived_at`.
+Specyficzna dla tego ekranu rzecz: komórka tagów pokazuje "—" dla pustej listy `tags`, w
+przeciwnym razie renderuje każdy tag osobno. W odróżnieniu od `AccountsPage`, `StrategyFormModal`
+NIE woła nic przy montowaniu w stanie zamkniętym (brak `useConfirm`, brak efektu ładującego dane
+niezależnie od `open`), więc prosty mock `invokeCommand` bez routingu po nazwie komendy
+wystarczył - nie trzeba było powtarzać obejścia z części 112.
+
+Nowy `pages/StrategiesPage.test.tsx` (5 testów): pusta lista pokazuje `EmptyState`; przełączenie
+"Pokaż zarchiwizowane" woła `list_strategies` z `{ includeArchived: true }`; brak tagów pokazuje
+"—", obecne renderują się jako osobne znaczniki; strategia aktywna pokazuje "Aktywna"/"Archiwizuj";
+zarchiwizowana odwrotnie.
+
+Zweryfikowane 3 niezależnymi mutacjami: (1) usunięty fallback `"—"` dla pustej listy tagów (zawsze
+`.map`) - **dokładnie 1 z 5 testów padł**; (2) przycisk na sztywno "Archiwizuj" (usunięty warunek
+`archived_at`) - **dokładnie 1 z 5 padł**; (3) `{ includeArchived }` zastąpione na sztywno `{
+includeArchived: false }` - **dokładnie 1 z 5 padł** (timeout w `waitFor`). Po każdym cofnięciu:
+`git diff --stat` na `StrategiesPage.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **591/591** (80 plików, +5 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
