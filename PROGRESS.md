@@ -1793,6 +1793,18 @@ potwierdzenie stanu sprzed O1-O7, nie nowa ochrona wprowadzona przez redesign. `
 niedostępny w tym środowisku (nie jest wbudowaną podkomendą `cargo`, wymagałby instalacji
 nowego narzędzia bez wyraźnej prośby użytkownika - świadomie NIE zainstalowany).
 
+**O7, trzy szybkie kontrole dostępności/spójności - wszystkie bez zmian kodu.** (1) `Badge`
+nie potrzebuje `aria-label` mimo kolorowego tła - to zwykły `<span>` z czytelnym tekstem
+dziecka („Aktywne", „Zarchiwizowane"), kolor jest dekoracją NAD tekstem, nie jedynym
+nośnikiem. (2) `Toast` - `role="region" aria-live="polite"` na kontenerze i `role="status"`
+na pojedynczym toaście bez zmian po redesignie (dostał tylko token line-height/font-weight
+w CSS, logika ARIA w `.tsx` nietknięta). (3) `README.md`/`RAPORT_AUDYTU.md`/`AUDYT_KODU.md`/
+`ROADMAP.md` - 0 wystąpień starej nazwy motywu „Institutional Black/Adaptive", nic tam nie
+wymagało aktualizacji. Uruchomiony też pełny, połączony przebieg wszystkich narzędzi
+(format/lint/typecheck/test JS + fmt/clippy/test Rust) jako jeden spójny przebieg zamiast
+osobnych sprawdzeń per commit - identyczne wyniki jak dotychczas udokumentowane (428/428,
+271/271, ten sam jeden znany błąd lintu sprzed redesignu), zero nowego dryfu po 37 częściach.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
