@@ -3161,6 +3161,28 @@ diff --stat` na `HeatmapTable.tsx` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **430/430** (54 pliki, +4 nowe testy).
 
+**O7, część 88: `BreakdownTable.tsx` (69 linii) - WSPÓLNY komponent dla wszystkich podraportów
+zakładki Raporty (miesiąc/rok/instrument/strategia), drill-down po kliknięciu wiersza, zero
+testów.** Wiersz klikalny musi działać też z klawiatury (wzorzec WAI-ARIA "row jako przycisk":
+`role="button"`, `tabIndex`, obsługa Enter/Spacji z `preventDefault`) - błąd tu (np. brakująca
+obsługa Spacji) byłby niewidoczny dla użytkownika myszy, ale całkowicie blokowałby drill-down dla
+użytkownika klawiatury, i nie zostałby złapany żadnym wizualnym audytem.
+
+Nowy `pages/BreakdownTable.test.tsx` (7 testów): puste `rows` pokazuje komunikat "Brak danych.",
+nie pustą tabelę; BEZ `onRowClick` wiersze NIE dostają `role="button"` ani `tabindex`; Z
+`onRowClick` wiersz dostaje `role="button"`, `tabIndex=0` i opisową `aria-label` ("Pokaż
+szczegóły: X"); klik, **Enter i Spacja** na sfokusowanym wierszu wywołują `onRowClick` z kluczem
+wiersza; inny klawisz (np. "a") NIE wywołuje niczego.
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) usunięty warunek `event.key === " "` z obsługi
+klawiatury (tylko Enter aktywuje) - **dokładnie 1 z 7 testów padł** (test Spacji); (2)
+`tabIndex`/`role` ustawione bezwarunkowo zamiast zależnie od `onRowClick` (wiersze zawsze
+"klikalne" nawet bez handlera) - **dokładnie 1 z 7 padł** (test "wiersz nie ma role='button' bez
+onRowClick"). Po każdym cofnięciu: `git diff --stat` na `BreakdownTable.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **437/437** (55 plików, +7 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
