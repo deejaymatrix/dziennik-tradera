@@ -4189,6 +4189,42 @@ na `ReportSymbolTab.tsx` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **658/658** (92 pliki, +2 nowe testy).
 
+**O7, część 126: `SzablonyInstrumentowPage` (B2) - zero testów, 484 linie kodu, 3 komponenty.**
+Ekran szablonów brokera: lista + `TemplateFormModal` (tworzenie/zmiana nazwy) + `AssignAccountModal`
+(przypisanie do konta). Najbogatszy dotąd przetestowany ekran audytu O7 poza samą listą transakcji.
+
+Nieoczywiste rzeczy: (1) powiązanie szablon-konto mieszka na KONCIE (`account.template_id`,
+migracja 0011), więc kolumna "Przypisane konto" jest liczona przez filtrowanie `accounts` na
+bieżąco - jeden szablon może obsługiwać wiele kont naraz; (2) przycisk "Odepnij" pojawia się TYLKO,
+gdy jakieś konto już korzysta z szablonu; (3) duplikowanie używa natywnego `window.prompt` - puste
+lub anulowane okno musi wyjść CICHO, bez wołania backendu i bez toastu błędu; (4) w formularzu
+tworzenia `broker_name` ma fallback do samej nazwy szablonu, gdy pole brokera zostanie puste; (5)
+`encodeURIComponent` na id szablonu w query stringu nawigacji do `/instrumenty` - id z odstępem nie
+psuje URL-a.
+
+Nowy `pages/SzablonyInstrumentowPage.test.tsx` (13 testów, `MemoryRouter`+`Routes` z realną
+nawigacją i znacznikiem `useLocation()` do weryfikacji URL-a): pusty stan; `ErrorState` +
+"Spróbuj ponownie" odpytuje backend ponownie; widoczność "Odepnij" zależna od faktycznego
+przypisania; wiele kont na jednym szablonie jako osobne odznaki; "Przypisz do konta" wyłączony bez
+kont; anulowanie/potwierdzenie `window.prompt` przy duplikowaniu; anulowanie/potwierdzenie
+archiwizacji; fallback `broker_name`; modal zmiany nazwy bez pól brokera/typu; przypisanie konta;
+nawigacja z zakodowanym id.
+
+Zweryfikowane 6 niezależnymi mutacjami: (1) filtr `template_id === template.id` zastąpiony `() =>
+true` - **dokładnie 1 z 13 padł**; (2) `disabled={busy || accounts.length === 0}` na "Przypisz do
+konta" zredukowane do `disabled={busy}` - **dokładnie 1 z 13 padł**; (3) guard `if (!newName?.trim())`
+zastąpiony `if (false)` - **NIEZŁAPANE za pierwszym razem**: kod mutowany rzucał wyjątkiem
+(`null.trim()`) zamiast cicho wychodzić, więc `invokeCommand` i tak nie było wołane - test
+sprawdzający tylko brak wywołania nie odróżniał "poprawnie zablokowane" od "wysypało się przed
+wywołaniem"; naprawione dodaniem asercji `queryByRole("status")` (brak toastu błędu) - **dopiero
+wtedy dokładnie 1 z 13 padł**; (4) fallback `broker.trim() || name.trim()` zredukowany do
+`broker.trim()` - **dokładnie 1 z 13 padł**; (5) `encodeURIComponent` usunięty z linku nawigacji -
+**dokładnie 1 z 13 padł** (URL z surowym odstępem zamiast `%20`). Po każdym cofnięciu: `git diff
+--stat` na `SzablonyInstrumentowPage.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **671/671** (93 pliki, +13 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
