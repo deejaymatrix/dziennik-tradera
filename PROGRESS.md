@@ -3733,6 +3733,27 @@ styles.loss` - **dokładnie 1 z 4 testów padł**. Po cofnięciu: `git diff --st
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **572/572** (77 plików, +4 nowe testy).
 
+**O7, część 111: `FormPanel` (zwijana sekcja formularza transakcji) - zero testów.** Najważniejsza,
+nieoczywista z samego JSX zasada: zawartość zwiniętego panelu ZOSTAJE w drzewie DOM (ukryta
+atrybutem `hidden`), a NIE jest odmontowywana - specyfikacja wprost zabrania kasowania wpisanych
+danych przy zwinięciu sekcji. Naiwny refaktor na `{open && children}` wyglądałby identycznie
+wizualnie (treść i tak niewidoczna), ale cicho zerowałby stan pól po zwinięciu - dokładnie ten
+rodzaj regresji, którego żaden przegląd wizualny by nie złapał.
+
+Nowy `ui/components/FormPanel/FormPanel.test.tsx` (9 testów): **zwinięty panel NIE usuwa dzieci z
+DOM - tylko chowa atrybutem `hidden`**; otwarty panel pokazuje zawartość bez `hidden`; wszystkie 4
+warianty `status` pokazują domyślną etykietę; `statusLabel` nadpisuje domyślną; klik w nagłówek
+woła `onToggle`; `aria-expanded` odzwierciedla stan `open`.
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) zawartość zastąpiona `{open && children}` (odmontowanie
+zamiast `hidden`) - **dokładnie 1 z 9 testów padł** (test sprawdzający wpisaną wartość pola
+zniknął z DOM po zwinięciu zamiast zostać ukryty); (2) `statusLabel ?? STATUS_LABEL[status]`
+zredukowane do samego `STATUS_LABEL[status]` (nadpisanie zignorowane) - **dokładnie 1 z 9 padł**.
+Po każdym cofnięciu: `git diff --stat` na `FormPanel.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **581/581** (78 plików, +9 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
