@@ -2705,6 +2705,18 @@ konsoli.
 Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check`, `pnpm test`
 278/278 - wszystkie czyste.
 
+**Raport instrumentu i Raport strategii (zadania 5-6, zamknięte) - BEZ zmian kodu, oba czyste
+przez ponowne użycie już naprawionych komponentów wspólnych.** Żaden z nich nie ma sekcji
+"leaderboard" (kart o stałej szerokości) - tylko `StatCard` (wartości bounded) i `GroupBarChart`
+(już naprawiony wcześniej dla długich etykiet - "Wynik wg konta"/"Wynik wg instrumentu" pokazują
+nazwy tworzone przez użytkownika jako słupki, więc korzystają z tej samej poprawki `hasLongLabels`
+bez żadnej dodatkowej zmiany). Nagłówek `<h3>` z nazwą wybranego instrumentu/strategii zawija się
+naturalnie jako zwykły tekst, bez ryzyka przełamania układu.
+
+Zweryfikowane w przeglądarce fałszywym mostkiem OBA raporty osobno (60-znakowa nazwa instrumentu,
+57-znakowa nazwa strategii) - poprawne renderowanie z realnymi (fałszywymi) danymi, zero błędów
+konsoli w obu.
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.
