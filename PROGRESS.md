@@ -2170,7 +2170,17 @@ z poprawną treścią, potwierdzenie faktycznie wywołało `empty_trash`/`restor
 z `aria-busy`/`disabled`/spinnerem aktywnym przez cały czas operacji. Zero błędów konsoli
 w żadnym z kilku przebiegów tej trasy.
 
-Pozostałe 7 tras wciąż niesprawdzone z prawdziwymi danymi - blokada częściowo, nie w pełni,
+`/` (Dashboard, pełny `FilteredReport`+`AccountComparisonRow[]`): to na tej trasie znaleziony
+brakujący jawny znak w StatCard „Wynik netto" (część 51) - PRZED naprawą „100,00 USD" na
+zielono, PO naprawie „+100,00 USD". Rankingi, heatmapy, rozkład wyników poprawne. Zero błędów
+konsoli.
+
+`/kalkulator-pozycji` (pełny `PositionSizingResult`, część 50-51 - weryfikacja braku utraty
+focusu): wpisanie ceny/SL/ryzyka wywołało `calculate_position_size`, wynik wyrenderowany,
+dokładnie ten sam węzeł DOM pola „Cena wejścia" pozostał skupiony przez cały debounce. Zero
+błędów konsoli.
+
+Pozostałe 5 tras wciąż niesprawdzone z prawdziwymi danymi - blokada częściowo, nie w pełni,
 zamknięta.
 
 **O7, część 51: kontrakt `formatSignedMoney` (część 49) złamany w 5 KOLEJNYCH miejscach -

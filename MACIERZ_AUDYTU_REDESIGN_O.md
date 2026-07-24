@@ -370,7 +370,7 @@ pikselowej weryfikacji układu/kolorów (sekcja 23) i przejścia ze zapisanymi, 
 danymi (wymaga uruchomionej aplikacji desktopowej z bazą, nie samego podglądu w przeglądarce)
 — ale znacząco zawęża zakres tego, co jeszcze nie jest sprawdzone.
 
-**Rozszerzenie 2026-07-24: 7 tras zweryfikowanych z PRAWDZIWYMI (fałszywymi, ale poprawnie
+**Rozszerzenie 2026-07-24: 9 tras zweryfikowanych z PRAWDZIWYMI (fałszywymi, ale poprawnie
 ukształtowanymi) danymi, nie tylko stanem błędu.** Metoda: wstrzyknięty fałszywy
 `window.__TAURI_INTERNALS__.invoke` zwracający kompletne, zgodne z prawdziwymi interfejsami TS
 obiekty (`Trade`, `AccountWithBalance`, `AccountReport`), na ŚWIEŻEJ karcie przeglądarki
@@ -415,9 +415,20 @@ prawdziwy `ConfirmDialog` z poprawną treścią ostrzeżenia, potwierdzenie fakt
 `empty_trash`/`restore_trash_item` z `aria-busy`/`disabled`/spinnerem aktywnym przez cały czas
 operacji (część 52-53, odczyty atomowe). Zero błędów konsoli w żadnym z kilku przebiegów.
 
+`/` (Dashboard, pełny `FilteredReport`+`AccountComparisonRow[]`): StatCard „Wynik netto"
+znaleziony z brakującym jawnym znakiem (`formatSignedMoney`, część 51) - PRZED naprawą
+pokazywał „100,00 USD" na zielono, PO naprawie (HMR na żywo) „+100,00 USD". Rankingi,
+heatmapy i rozkład wyników wyrenderowane poprawnie z tymi samymi danymi. Zero błędów konsoli.
+
+`/kalkulator-pozycji` (pełny, poprawnie ukształtowany `PositionSizingResult` z 13 pól - część
+50-51 weryfikacja braku utraty focusu): wpisanie ceny wejścia + stop loss + ryzyko faktycznie
+wywołało `calculate_position_size` z poprawnym payloadem, wynik wyrenderowany („Sugerowany
+lot: 1,00" i cała reszta), DOKŁADNIE ten sam węzeł DOM pola „Cena wejścia" pozostał skupiony
+przez cały czas debounce'a (300ms), zero błędów konsoli na świeżej karcie.
+
 To pierwszy raz w tym audycie, gdy naprawy sekcji 21 zostały potwierdzone z prawdziwymi danymi
 w przeglądarce, a nie tylko przez odczyt kodu/testów jednostkowych/stanu błędu bez danych.
-Pozostałe 7 tras wciąż niesprawdzone z danymi (blokada częściowo, nie w pełni, zamknięta).
+Pozostałe 5 tras wciąż niesprawdzone z danymi (blokada częściowo, nie w pełni, zamknięta).
 
 **Znalezisko przy okazji weryfikacji `/raporty`: `BreakdownTable.tsx` (komponent, nie CSS) jest
 martwym kodem od "Fazy 9 v2", NIE od bieżącego redesignu O.** Próba weryfikacji zakładki
@@ -514,13 +525,14 @@ ponownego przeliczania. `cargo test` — 428/428 PASS, bez regresji (427 + nowy 
    konsoli na całej trasie. Stan braku backendu renderuje się wszędzie jako czytelny,
    niekrytyczny komunikat `role="alert"` z przyciskiem ponowienia (nie pusty ekran/crash) -
    potwierdza już wcześniej znany, opisany w pamięci przypadek „Brak środowiska Tauri", nie
-   nową usterkę. **Częściowe domknięcie 2026-07-24:** 7 z 14 tras (`/transakcje`, `/kalendarz`,
-   `/raporty`, `/konta`, `/strategie`, `/dane`, `/kosz`) dodatkowo zweryfikowane z prawdziwymi
-   (fałszywymi, ale poprawnie ukształtowanymi) danymi przez wstrzyknięty mostek Tauri -
-   potwierdzone, że naprawy z części 41-53 (stan `loading` na `Button` i `IconButton`,
-   klawiaturowo dostępne wiersze, `formatSignedMoney`, stan `:active`) faktycznie działają
-   z realnymi danymi; przy okazji znalezione, że `BreakdownTable.tsx` jest martwym kodem (osobny
-   wpis wyżej). Nadal brakuje: pozostałych 7 tras z danymi, prawdziwej aplikacji desktopowej
+   nową usterkę. **Częściowe domknięcie 2026-07-24:** 9 z 14 tras (`/transakcje`, `/kalendarz`,
+   `/raporty`, `/konta`, `/strategie`, `/dane`, `/kosz`, `/`, `/kalkulator-pozycji`) dodatkowo
+   zweryfikowane z prawdziwymi (fałszywymi, ale poprawnie ukształtowanymi) danymi przez
+   wstrzyknięty mostek Tauri - potwierdzone, że naprawy z części 41-53 (stan `loading` na
+   `Button` i `IconButton`, klawiaturowo dostępne wiersze, `formatSignedMoney`, stan `:active`,
+   brak utraty focusu podczas przeliczeń) faktycznie działają z realnymi danymi; przy okazji
+   znalezione, że `BreakdownTable.tsx` jest martwym kodem (osobny wpis wyżej). Nadal brakuje:
+   pozostałych 5 tras z danymi, prawdziwej aplikacji desktopowej
    z bazą i weryfikacji pikselowej.
 3. ~~**Pełny manifest plik-po-pliku** (sekcja 27)~~ — **ZAMKNIĘTE 2026-07-24.** Dodana tabela
    z osobnym wierszem i statusem dla każdego pliku (sekcja 2, „Manifest plik-po-pliku"),
