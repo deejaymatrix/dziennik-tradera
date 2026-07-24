@@ -4133,6 +4133,43 @@ wersją.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **647/647** (90 plików, +5 nowych testów).
 
+**O7, część 124: `ReportAccountComparisonTab` (porównanie kont) - zero testów.** Tabela + 6 kart
+"liderów" + 4 wykresy porównujące konta niezależnie policzonymi statystykami (ten sam filtr
+instrument/strategia/interwał/rok/miesiąc/kierunek co reszta zakładki, poza samym kontem). W
+odróżnieniu od części 123 dane przychodzą gotowe przez propsy (`rows`/`accounts`), bez własnego
+`invokeCommand` - więc bez mockowania.
+
+Nieoczywiste rzeczy: (1) tabela i liderzy sortują konta wg `net_pnl` malejąco, NIE wg kolejności z
+propsów; (2) `bestByWinRate` ma fallback `?? -1`, `bestExpectancy` ma fallback `?? -Infinity` - w
+obu przypadkach konto BEZ danej metryki (`null`) nigdy nie wygrywa z kontem z realną, choćby ujemną
+lub zerową wartością; (3) nazwa konta ma fallback do surowego `account_id`, gdy konto zniknęło z
+listy `accounts` między zapytaniami; (4) podpowiedź "Konta mają różne waluty" nad wykresem P&L
+pokazuje się TYLKO, gdy `accounts` mają więcej niż jedną odrębną walutę (`Set(...).size > 1`); (5)
+wiersz "Łącznie" sumuje `net_pnl`/`total_commission` przez `sumDecimalStrings` (dokładna
+arytmetyka), nie przez zwykłe dodawanie floatów.
+
+Nowy `pages/ReportAccountComparisonTab.test.tsx` (9 testów): `rows === null` → `Skeleton`;
+`rows.length === 0` → "Brak kont do porównania."; sortowanie tabeli/lidera wg `net_pnl`; fallback
+`?? -1`/`?? -Infinity` dla win rate i expectancy; fallback nazwy konta do `account_id`; suma w
+wierszu "Łącznie"; klasa `profit`/`loss` na komórce P&L netto; podpowiedź o różnych walutach.
+
+Zweryfikowane 6 niezależnymi mutacjami, każda złapana **dokładnie w 1 z 9 testów**: (1)
+`bestByWinRate` fallback `?? -1` → `?? 0`; (2) `bestExpectancy` fallback `?? -Infinity` → `?? 0`
+(wymagało poprawienia fixture'a testu na wartość UJEMNĄ zamiast dodatniej - inaczej `0 > realna
+dodatnia` i `-Infinity > realna dodatnia` dają ten sam wynik, mutacja niewykrywalna); (3) kierunek
+sortowania `net_pnl` odwrócony; (4) fallback nazwy konta `?? accountId` → `?? ""`; (5) próg liczby
+walut `> 1` → `>= 1`. Szósta próba - `sumDecimalStrings` zastąpione zwykłym `reduce` na floatach dla
+sumy `net_pnl` (`0.1 + 0.2`) - **niewykrywalna** przy zaledwie 2 składnikach i zaokrągleniu do 2
+miejsc (ten sam, udokumentowany wcześniej limit metodologii co w części 122/`ReportYearlyTab`) -
+zamiast fałszywie twierdzić o pokryciu mutacyjnym, test i PROGRESS.md wprost to nazywają: test
+sprawdza POPRAWNOŚĆ wyniku, nie samą kolejność operacji. Po każdym cofnięciu: `git diff --stat` na
+`ReportAccountComparisonTab.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto (0 błędów, tylko
+przedistniejące ostrzeżenia `react-refresh/only-export-components` w innych plikach - CI `pnpm
+lint` nie ma `--max-warnings 0`), `pnpm exec prettier --check` czysto, `pnpm test -- --run`
+**656/656** (91 plików, +9 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
