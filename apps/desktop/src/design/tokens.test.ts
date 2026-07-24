@@ -206,6 +206,11 @@ describe.each([
     ["Badge loss", "--color-loss"],
     ["Badge info", "--color-info"],
     ["Badge warning", "--color-warning"],
+    // FormPanel .statusComplete/.statusPartial/.statusError - ten sam token --tint-badge,
+    // bo wizualnie ten sam wzorzec (kolorowa "pigułka" statusu), tylko inny komponent.
+    ["FormPanel statusComplete", "--color-profit"],
+    ["FormPanel statusPartial", "--color-warning"],
+    ["FormPanel statusError", "--color-loss"],
   ] as const)(
     "%s: tekst tego samego koloru na przyciemnionym tle jest czytelny",
     (_nazwa, kolor) => {

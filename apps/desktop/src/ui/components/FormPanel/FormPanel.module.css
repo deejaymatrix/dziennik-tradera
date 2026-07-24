@@ -56,14 +56,18 @@
   flex-shrink: 0;
 }
 
+/* `--tint-badge` (nie 14%/16% na sztywno) - znaleziona podczas audytu O7 realna luka WCAG AA:
+   te same wartości co pierwotny `Badge` (naprawiony wcześniej w tej samej serii) dawały
+   4,04-4,19 zamiast ≥4,5 w motywie jasnym. Ten sam token, bo wizualnie to ten sam wzorzec
+   (kolorowa "pigułka" statusu), tylko inny komponent. */
 .statusComplete {
   color: var(--color-profit);
-  background: color-mix(in srgb, var(--color-profit) 14%, transparent);
+  background: color-mix(in srgb, var(--color-profit) var(--tint-badge), transparent);
 }
 
 .statusPartial {
   color: var(--color-warning);
-  background: color-mix(in srgb, var(--color-warning) 14%, transparent);
+  background: color-mix(in srgb, var(--color-warning) var(--tint-badge), transparent);
 }
 
 .statusEmpty {
@@ -73,7 +77,7 @@
 
 .statusError {
   color: var(--color-loss);
-  background: color-mix(in srgb, var(--color-loss) 16%, transparent);
+  background: color-mix(in srgb, var(--color-loss) var(--tint-badge), transparent);
 }
 
 /* Zawartość zwiniętego panelu zostaje w DOM (ukryta atrybutem `hidden`), żeby zwinięcie NIGDY

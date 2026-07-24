@@ -1691,6 +1691,14 @@ wartości - `pnpm test` 52/52 PASS po poprawce (261/261 w całym froncie). Pełn
 [MACIERZ_AUDYTU_REDESIGN_O.md](MACIERZ_AUDYTU_REDESIGN_O.md), sekcja 1 (ostatni wiersz) i blokada
 #1 w podsumowaniu.
 
+**O7, dopisany pominięty plik do tej samej naprawy (`FormPanel`).** Ponowny
+`grep -rl "color-mix"` po powyższej naprawie ujawnił plik pominięty w pierwszym przeglądzie:
+`FormPanel.module.css` ma 3 statusy (`.statusComplete`/`.statusPartial`/`.statusError`) z tym
+samym wzorcem co `Badge` (tekst semantyczny na tle tego samego koloru). Sprawdzone i naprawione
+od razu: 4,04-4,19 zamiast ≥4,5 w motywie jasnym (dark już przechodził). Naprawa dzieli token
+`--tint-badge` z `Badge` zamiast tworzyć nowy - to ten sam wzorzec wizualny (kolorowa "pigułka"
+statusu), nie osobny przypadek. `pnpm test` 58/58 PASS w `tokens.test.ts` po dodaniu.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
