@@ -2587,6 +2587,33 @@ NIEZAMIERZONA niespójność pól, nie kwestia strefy czasowej - zgłoszone jako
 Weryfikacja: `cargo test` 435/435 (+2 nowe), `cargo clippy --all-targets -- -D warnings` czyste
 (poza wcześniej zgłoszonym dead code), `cargo fmt --check` czyste.
 
+## Nowa funkcja: podgląd transakcji dnia w Kalendarzu (2026-07-24)
+
+Życzenie użytkownika przy okazji zgłoszenia błędu Kalendarza: dzień w Kalendarzu pokazuje tylko
+zagregowany wynik i liczbę transakcji, bez możliwości zobaczenia, KTÓRE to transakcje.
+
+Zbudowane: `DayTradesModal.tsx` (nowy, wzorem innych modali podglądu w projekcie) - tabela
+transakcji danego dnia (instrument, kierunek, wolumen, godzina otwarcia/zamknięcia, wynik netto
+kolorowany przez `formatSignedMoney`), wyłącznie do odczytu. `CalendarPage.tsx` dociąga pełną
+listę transakcji konta (`list_trades`) i grupuje je wg dnia zamknięcia W LOKALNEJ STREFIE
+CZASOWEJ (`new Date(...).getFullYear/getMonth/getDate()` - domyślnie lokalne w JS), dokładnie tym
+samym kluczem dnia co komórki kalendarza z `report.calendar` (który po naprawie wyżej też liczy
+lokalnie po stronie Rust) - bez tego dopasowanie dnia rozjeżdżałoby się między poprawką a tą
+nową funkcją.
+
+Komórka dnia z transakcjami jest teraz klikalna i dostępna z klawiatury (`role="button"`,
+`tabIndex`, `onKeyDown` Enter/Spacja, `:hover`/`:focus-visible`/`:active` - ten sam wzorzec co
+klikalne wiersze `TransactionsPage`/`BreakdownTable` z wcześniejszego audytu O7); dni BEZ
+transakcji zostają zwykłymi, nieinteraktywnymi kartami.
+
+Zweryfikowane w przeglądarce fałszywym mostkiem Tauri: kliknięcie dnia z 2 transakcjami (+100
+i -30, suma +70 zgodna z komórką) otworzyło modal z poprawną tabelą obu transakcji; potwierdzone
+też osobno, atomowym skryptem, że Tab+Enter (nie tylko klik myszą) otwiera modal. Zero błędów
+konsoli.
+
+Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check`, `pnpm test`
+278/278 - wszystkie czyste.
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.

@@ -93,3 +93,22 @@
 .lossDay .dayPnl {
   color: var(--color-loss);
 }
+
+/* Dzień z transakcjami jest klikalny - otwiera podgląd transakcji tego dnia. Tylko dni BEZ
+   transakcji (`hasTrades` false w CalendarPage.tsx) zostają zwykłymi, nieinteraktywnymi kartami. */
+.dayCellClickable {
+  cursor: pointer;
+}
+
+.dayCellClickable:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.dayCellClickable:active {
+  transform: scale(0.97);
+}
+
+.dayCellClickable:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
