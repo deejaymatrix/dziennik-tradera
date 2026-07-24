@@ -2330,6 +2330,28 @@ Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check`,
 275/275 - wszystkie czyste. Tras zweryfikowanych z prawdziwymi danymi: 12 z 14 (patrz
 `MACIERZ_AUDYTU_REDESIGN_O.md`) - pozostały `/zasady-handlu` i `/ustawienia`.
 
+**O7, część 56: `/zasady-handlu` zweryfikowane - inna odmiana tej samej luki, tym razem na
+przycisku bez ŻADNEJ zmiennej stanu.** `ZasadyHandluPage.tsx` wyrenderowana poprawnie (1
+kategoria, 1 pytanie). Sześć `IconButton` w trybie edycji (przesuń kategorię/pytanie wyżej/
+niżej, dodaj pytanie, do kosza) sprawdzone i potwierdzone jako CELOWO bez `loading` - to czyste
+edycje lokalnego `draft`, bez `invokeCommand`, zgodnie z ustalonym wzorcem.
+
+Za to przycisk „Przywróć szablon" (`handleRestoreTemplates`, wywołuje
+`restore_trading_rule_templates`) nie miał kompletnie żadnej zmiennej stanu ładowania - nie
+tylko brak `loading`, ale strona w ogóle nie śledziła, że ta operacja trwa. Naprawione nową,
+dedykowaną zmienną `restoringTemplates` (celowo NIE dzieloną z istniejącym `saving`, które
+dotyczy osobnej operacji zapisu całej zakładki) + `setRestoringTemplates(true)`/
+`finally setRestoringTemplates(false)` + `loading={restoringTemplates}`.
+
+Zweryfikowane w przeglądarce z fałszywym opóźnieniem 700ms: kliknięcie otworzyło prawdziwy
+`ConfirmDialog` z poprawną treścią ostrzeżenia, po potwierdzeniu `aria-busy`/`disabled`
+poprawnie `true` przez cały czas trwania operacji (jeden atomowy skrypt, punkt 9 pamięci),
+wraca po zakończeniu. Zero błędów konsoli.
+
+Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check`, `pnpm test`
+275/275 - wszystkie czyste. Tras zweryfikowanych z prawdziwymi danymi: 13 z 14 (patrz
+`MACIERZ_AUDYTU_REDESIGN_O.md`) - pozostało tylko `/ustawienia`.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat

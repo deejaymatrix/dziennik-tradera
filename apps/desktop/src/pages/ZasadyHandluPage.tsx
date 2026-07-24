@@ -99,6 +99,7 @@ export function ZasadyHandluPage(): ReactElement {
   const [draft, setDraft] = useState<EditCategory[]>([]);
   const [saving, setSaving] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
+  const [restoringTemplates, setRestoringTemplates] = useState(false);
 
   async function load(): Promise<void> {
     setError(null);
@@ -270,11 +271,14 @@ export function ZasadyHandluPage(): ReactElement {
     ) {
       return;
     }
+    setRestoringTemplates(true);
     try {
       setState(await invokeCommand<TradingRulesState>("restore_trading_rule_templates", {}));
       showToast("Szablon pytań przywrócony (odpowiedzi nietknięte).", "success");
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setRestoringTemplates(false);
     }
   }
 
@@ -330,6 +334,7 @@ export function ZasadyHandluPage(): ReactElement {
             readOnlyExtra={
               <Button
                 variant="secondary"
+                loading={restoringTemplates}
                 onClick={() => {
                   void handleRestoreTemplates();
                 }}

@@ -370,7 +370,7 @@ pikselowej weryfikacji układu/kolorów (sekcja 23) i przejścia ze zapisanymi, 
 danymi (wymaga uruchomionej aplikacji desktopowej z bazą, nie samego podglądu w przeglądarce)
 — ale znacząco zawęża zakres tego, co jeszcze nie jest sprawdzone.
 
-**Rozszerzenie 2026-07-24: 12 tras zweryfikowanych z PRAWDZIWYMI (fałszywymi, ale poprawnie
+**Rozszerzenie 2026-07-24: 13 tras zweryfikowanych z PRAWDZIWYMI (fałszywymi, ale poprawnie
 ukształtowanymi) danymi, nie tylko stanem błędu.** Metoda: wstrzyknięty fałszywy
 `window.__TAURI_INTERNALS__.invoke` zwracający kompletne, zgodne z prawdziwymi interfejsami TS
 obiekty (`Trade`, `AccountWithBalance`, `AccountReport`), na ŚWIEŻEJ karcie przeglądarki
@@ -460,9 +460,23 @@ Zweryfikowane w przeglądarce oba komponenty z fałszywym opóźnieniem 700ms (`
 trasach. Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check`,
 `pnpm test` 275/275 - wszystkie czyste.
 
+`/zasady-handlu` (`ZasadyHandluPage.tsx`, 1 kategoria z 1 pytaniem): karta kategorii i pytania
+wyrenderowane poprawnie. Sprawdzone TEŻ, że 6 `IconButton` w trybie edycji (przesuń kategorię/
+pytanie wyżej/niżej, dodaj pytanie, do kosza) to CELOWO tylko lokalne edycje `draft` bez
+`invokeCommand` - nie potrzebują `loading`, w przeciwieństwie do części 54-55. **Za to znaleziona
+INNA luka: przycisk „Przywróć szablon" w ogóle nie miał żadnej zmiennej `busy` powiązanej -
+wywoływał `invokeCommand("restore_trading_rule_templates")` bez śladu stanu ładowania.**
+Naprawione nową, dedykowaną zmienną `restoringTemplates` (nie dzielona z `saving", które
+dotyczy zapisu całej zakładki) + `loading={restoringTemplates}`. Zweryfikowane w przeglądarce
+z fałszywym opóźnieniem 700ms: prawdziwy `ConfirmDialog` otworzył się z poprawną treścią
+ostrzeżenia, po potwierdzeniu `aria-busy`/`disabled` poprawnie `true` przez cały czas trwania
+(jeden atomowy skrypt). Zero błędów konsoli. Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`,
+`pnpm exec prettier --check`, `pnpm test` 275/275 - wszystkie czyste.
+
 To pierwszy raz w tym audycie, gdy naprawy sekcji 21 zostały potwierdzone z prawdziwymi danymi
 w przeglądarce, a nie tylko przez odczyt kodu/testów jednostkowych/stanu błędu bez danych.
-Pozostałe 2 trasy wciąż niesprawdzone z danymi (blokada częściowo, nie w pełni, zamknięta).
+Pozostała 1 trasa (`/ustawienia`) wciąż niesprawdzona z danymi (blokada częściowo, nie w pełni,
+zamknięta).
 
 **Znalezisko przy okazji weryfikacji `/raporty`: `BreakdownTable.tsx` (komponent, nie CSS) jest
 martwym kodem od "Fazy 9 v2", NIE od bieżącego redesignu O.** Próba weryfikacji zakładki
