@@ -95,6 +95,18 @@
   overflow: hidden;
   cursor: pointer;
   background: var(--color-surface-alt);
+  transition: transform var(--motion-fast) var(--motion-easing);
+}
+
+/* Brak hover/focus-visible/active tu było luką sprzed redesignu (plik poza zakresem O1-O7),
+   znalezioną podczas audytu O7 - dopisane, ta sama konwencja co reszta klikanych elementów. */
+.thumbnailButton:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.thumbnailButton:active {
+  transform: scale(0.97);
 }
 
 .thumbnail {
@@ -123,6 +135,22 @@
   cursor: pointer;
   text-align: left;
   color: var(--color-text);
+  transition:
+    background-color var(--motion-fast) var(--motion-easing),
+    transform var(--motion-fast) var(--motion-easing);
+}
+
+.linkRow:hover {
+  background: var(--color-surface-hover);
+}
+
+.linkRow:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.linkRow:active {
+  transform: scale(0.98);
 }
 
 .linkText {

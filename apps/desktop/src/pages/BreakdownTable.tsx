@@ -34,7 +34,20 @@ export function BreakdownTable({ rows, currency, onRowClick }: BreakdownTablePro
           <tr
             key={row.key}
             className={onRowClick ? styles.clickableRow : undefined}
+            tabIndex={onRowClick ? 0 : undefined}
+            role={onRowClick ? "button" : undefined}
+            aria-label={onRowClick ? `Pokaż szczegóły: ${row.label}` : undefined}
             onClick={onRowClick ? () => onRowClick(row.key) : undefined}
+            onKeyDown={
+              onRowClick
+                ? (event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      onRowClick(row.key);
+                    }
+                  }
+                : undefined
+            }
           >
             <td>{row.label}</td>
             <td className={tableStyles.numeric}>{row.trade_count}</td>

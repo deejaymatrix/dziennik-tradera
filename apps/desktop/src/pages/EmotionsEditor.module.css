@@ -44,10 +44,23 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition:
+    border-color var(--motion-fast) var(--motion-easing),
+    transform var(--motion-fast) var(--motion-easing);
 }
 
 .suggestion:hover {
   border-color: var(--color-accent);
+}
+
+/* focus-visible i active brakowały tu całkowicie - znalezione podczas audytu O7. */
+.suggestion:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.suggestion:active {
+  transform: scale(0.98);
 }
 
 .emptyHint {
@@ -118,10 +131,23 @@
   color: inherit;
   font: inherit;
   cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--motion-easing),
+    transform var(--motion-fast) var(--motion-easing);
 }
 
 .scaleButton:hover {
   border-color: var(--color-accent);
+}
+
+/* focus-visible i active brakowały tu całkowicie - znalezione podczas audytu O7. */
+.scaleButton:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.scaleButton:active {
+  transform: scale(0.94);
 }
 
 .scaleButtonActive {

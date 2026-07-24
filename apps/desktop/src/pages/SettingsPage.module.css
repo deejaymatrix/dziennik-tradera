@@ -32,11 +32,21 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--motion-easing),
+    color var(--motion-fast) var(--motion-easing),
+    transform var(--motion-fast) var(--motion-easing);
 }
 
 .menuItem:hover {
   background: var(--color-surface-alt);
   color: inherit;
+}
+
+/* Stan "active" z sekcji 9 promptu - ten sam wzorzec co Sidebar.navLink (ta sama konwencja
+   dla wewnętrznej nawigacji), znaleziony podczas audytu O7 jako pominięty. */
+.menuItem:active {
+  transform: scale(0.98);
 }
 
 .menuItem:focus-visible {

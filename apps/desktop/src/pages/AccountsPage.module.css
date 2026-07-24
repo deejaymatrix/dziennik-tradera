@@ -29,10 +29,19 @@
   text-align: left;
   cursor: pointer;
   border-radius: var(--radius-sm);
+  transition:
+    color var(--motion-fast) var(--motion-easing),
+    transform var(--motion-fast) var(--motion-easing);
 }
 
 .nameButton:hover {
   color: var(--color-accent);
+}
+
+/* Stan "active" z sekcji 9 promptu, znaleziony podczas audytu O7 jako pominięty (hover+focus
+   już były, active nie). */
+.nameButton:active {
+  transform: scale(0.98);
 }
 
 .nameButton:focus-visible {

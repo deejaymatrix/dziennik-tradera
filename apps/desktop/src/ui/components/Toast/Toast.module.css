@@ -52,10 +52,18 @@
   line-height: var(--line-height-none);
   font-size: var(--font-size-md);
   padding: 0;
+  transition:
+    color var(--motion-fast) var(--motion-easing),
+    transform var(--motion-fast) var(--motion-easing);
 }
 
 .closeButton:hover {
   color: var(--color-text);
+}
+
+/* Stan "active" z sekcji 9 promptu, znaleziony podczas audytu O7 jako pominięty. */
+.closeButton:active {
+  transform: scale(0.94);
 }
 
 .closeButton:focus-visible {

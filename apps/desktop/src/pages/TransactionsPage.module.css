@@ -59,6 +59,15 @@
   cursor: pointer;
 }
 
+/* Wiersz jest teraz też celem klawiatury (tabIndex+onKeyDown w TransactionsPage.tsx) -
+   znaleziona podczas audytu O7 realna luka WCAG 2.1.1 (funkcjonalność dostępna tylko myszą).
+   focus-visible na `outline` (nie na `<tr>` bezpośrednio - przeglądarki różnie renderują
+   outline na wierszach tabeli, `outline-offset` ujemny trzyma go w obrębie wiersza). */
+.clickableRow:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+}
+
 /* Zaznaczony wiersz musi być odróżnialny od zwykłego najechania - stąd pasek w kolorze akcentu,
    a nie samo tło, które zlewałoby się z hoverem sąsiada. */
 .selectedRow td {

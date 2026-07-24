@@ -1873,6 +1873,51 @@ robi spinner). Zweryfikowane szerszym regexem: 0 pozostałych wystąpień wzorca
 Weryfikacja: `pnpm typecheck`, `pnpm test` 271/271, `pnpm format:check` - wszystko zielone,
 ten sam znany błąd lintu sprzed redesignu, zero nowych.
 
+**O7, część 43: migracja `:active` (część 7-10) też nie była wyczerpująca.** Ta sama metoda,
+która ujawniła luki w migracji `loading` (część 41-42) - porównanie WSZYSTKICH 21 plików z
+`cursor: pointer` z plikami, które faktycznie dostały `:active` (tylko 5) - ujawniła 2 pominięte
+przyciski: `FormPanel.header` (rozwijanie sekcji formularza) i `SettingsPage.menuItem`
+(wewnętrzna nawigacja Ustawień). Oba miały już hover i focus-visible, ale nie active. Naprawione
+tym samym wzorcem co `Sidebar.navLink`: `transform: scale(0.98)` na `:active`, w obu przypadkach
+objęte już istniejącym `transition`.
+
+Weryfikacja: `pnpm format:check`, `pnpm typecheck`, brak błędów konsoli.
+
+**O7, część 44: przegląd z części 43 nie był dokończony - jeszcze 11 pominiętych elementów.**
+Kontynuacja tego samego systematycznego przeglądu, tym razem sprawdzonego element po elemencie
+(nie plik po pliku), znalazła kolejne braki `:active`/`:focus-visible`:
+`ColorPicker.trigger`, `Toast.closeButton`, `Tag.removeButton`,
+`TradeAttachments.thumbnailButton` i `.linkRow`, `StatCard.clickable`,
+`PreferenceSections.swatch`, `DataSection.header`, `EmotionsEditor.suggestion` i
+`.scaleButton`, `AccountsPage.nameButton`. Dwa z nich (`TradeAttachments.thumbnailButton`,
+`DataSection.header`) nie miały wcześniej NAWET `:focus-visible` - dopisany razem z `:active`.
+Skala `transform` dobrana wg rozmiaru elementu, zgodnie z ustalonym precedensem: 0,94 dla
+małych przycisków ikon, 0,97-0,98 dla większych przycisków/wierszy, 0,9 dla małych próbek
+koloru. Dwa natywne elementy `<details>/<summary>` (rozwijane sekcje) świadomie pominięte -
+tak samo jak wcześniej `Checkbox`, bo renderowanie natywne przeglądarki.
+
+Weryfikacja: `pnpm format:check`, `pnpm typecheck`, `pnpm test` 271/271.
+
+**O7, część 45: strukturalna luka WCAG 2.1.1 - wiersze tabeli klikalne tylko myszą.** Przy tym
+samym przeglądzie znalezione coś poważniejszego niż brakujące CSS: `TransactionsPage.tsx`
+(lista transakcji) i `BreakdownTable.tsx` (rozbicie wyniku w Raportach) używają
+`<tr onClick={...}>` bez żadnej obsługi klawiatury - brak `tabIndex`, `role`, `onKeyDown`. To
+realny błąd WCAG 2.1.1 (Keyboard), nie subiektywna ocena: `AccountsPage.module.css`'s
+`.nameButton` w TYM SAMYM repo już pokazuje poprawny wzorzec (prawdziwy `<button>` stylizowany
+na zwykły tekst, z komentarzem w kodzie wprost to tłumaczącym). Klasyfikacja ważności (sekcja
+29): **Wysoki** - cała funkcjonalność (otwarcie szczegółów transakcji, drill-down raportu)
+kompletnie niedostępna dla użytkowników klawiatury, nie kosmetyka.
+
+Naprawione bez zmiany UX: zamiast przebudowy na zagnieżdżony przycisk (co zawęziłoby klikalny
+obszar z "całego wiersza" do "jednej komórki"), dodane bezpośrednio na `<tr>`: `tabIndex={0}`,
+`role="button"`, `aria-label` opisujący akcję, `onKeyDown` reagujący na Enter/Spację tą samą
+akcją co `onClick` (z `event.preventDefault()`, żeby Spacja nie przewijała strony). Widoczność
+fokusu przez `:focus-visible` z `outline` i ujemnym `outline-offset: -2px` - świadomie NIE
+`transform: scale()` na `<tr>`, bo transformacje na wierszach tabeli różnie renderują się między
+przeglądarkami (ryzyko rozjechania layoutu), więc dla wierszy zostaje sam `outline`.
+
+Weryfikacja: `pnpm format:check`, `pnpm typecheck`, `pnpm test` 271/271, brak błędów konsoli.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat

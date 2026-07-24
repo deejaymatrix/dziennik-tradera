@@ -19,3 +19,10 @@
 .clickableRow:hover {
   background-color: var(--color-surface-alt);
 }
+
+/* Wiersz jest teraz też celem klawiatury (tabIndex+onKeyDown w BreakdownTable.tsx) -
+   znaleziona podczas audytu O7 realna luka WCAG 2.1.1 (funkcjonalność dostępna tylko myszą). */
+.clickableRow:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
+}

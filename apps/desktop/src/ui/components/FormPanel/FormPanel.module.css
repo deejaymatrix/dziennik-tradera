@@ -17,6 +17,7 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: transform var(--motion-fast) var(--motion-easing);
   /* Status ma prawo zejść do nowej linii, gdy tytuł jest długi, zamiast nachodzić na niego
      w wąskim panelu - stąd wrap zamiast ściskania na siłę. */
   flex-wrap: wrap;
@@ -29,6 +30,13 @@
 .header:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: -2px;
+}
+
+/* Stan "active" z sekcji 9 promptu - ten sam wzorzec co Button/Sidebar.navLink, znaleziony
+   podczas audytu O7 jako pominięty (przycisk nagłówka panelu ma hover+focus, ale nie miał
+   active). */
+.header:active {
+  transform: scale(0.98);
 }
 
 .chevron {

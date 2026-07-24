@@ -25,10 +25,18 @@
   border-radius: var(--radius-full);
   line-height: var(--line-height-none);
   padding: 0;
+  transition:
+    color var(--motion-fast) var(--motion-easing),
+    transform var(--motion-fast) var(--motion-easing);
 }
 
 .removeButton:hover {
   color: var(--color-loss);
+}
+
+/* Stan "active" z sekcji 9 promptu, znaleziony podczas audytu O7 jako pominięty. */
+.removeButton:active {
+  transform: scale(0.94);
 }
 
 .removeButton:focus-visible {

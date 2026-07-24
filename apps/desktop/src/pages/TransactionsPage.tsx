@@ -342,7 +342,16 @@ export function TransactionsPage(): ReactElement {
                     ]
                       .filter(Boolean)
                       .join(" ")}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`Otwórz szczegóły transakcji #${trade.display_number}`}
                     onClick={() => setInspectedTrade(trade)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setInspectedTrade(trade);
+                      }
+                    }}
                   >
                     <td>{trade.display_number}</td>
                     <td>{trade.instrument_spec_snapshot?.display_symbol ?? "—"}</td>

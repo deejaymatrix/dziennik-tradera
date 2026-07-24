@@ -13,10 +13,19 @@
   cursor: pointer;
   font: inherit;
   color: inherit;
+  transition:
+    border-color var(--motion-fast) var(--motion-easing),
+    transform var(--motion-fast) var(--motion-easing);
 }
 
 .trigger:hover {
   border-color: var(--color-accent);
+}
+
+/* Stan "active" z sekcji 9 promptu, znaleziony podczas audytu O7 jako pominięty - ten sam
+   wzorzec co Button/FormPanel.header. */
+.trigger:active {
+  transform: scale(0.97);
 }
 
 .trigger:focus-visible {

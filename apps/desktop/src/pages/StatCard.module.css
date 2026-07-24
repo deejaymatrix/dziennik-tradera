@@ -35,7 +35,8 @@
   cursor: pointer;
   transition:
     border-color var(--motion-fast) var(--motion-easing),
-    background-color var(--motion-fast) var(--motion-easing);
+    background-color var(--motion-fast) var(--motion-easing),
+    transform var(--motion-fast) var(--motion-easing);
 }
 
 .clickable:hover {
@@ -46,6 +47,11 @@
 .clickable:focus-visible {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
+}
+
+/* Stan "active" z sekcji 9 promptu, znaleziony podczas audytu O7 jako pominięty. */
+.clickable:active {
+  transform: scale(0.98);
 }
 
 .label {

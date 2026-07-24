@@ -31,10 +31,22 @@
   border-radius: 50%;
   cursor: pointer;
   padding: 0;
+  transition: transform var(--motion-fast) var(--motion-easing);
 }
 
 .swatch:hover {
   border-color: var(--color-text-secondary);
+}
+
+/* focus-visible i active brakowały tu całkowicie (przycisk bez widocznego fokusu klawiatury) -
+   znalezione podczas audytu O7. */
+.swatch:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.swatch:active {
+  transform: scale(0.9);
 }
 
 .swatchActive {
