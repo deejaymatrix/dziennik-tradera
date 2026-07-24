@@ -3872,6 +3872,46 @@ w `togglePageSelection` - **dokładnie 1 z 5 padł**. Po każdym cofnięciu: `gi
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **602/602** (82 pliki, +5 nowych testów).
 
+**O7, część 116: `TransactionsPage` (lista transakcji + panel szczegółów Split View) - zero
+testów, najbogatszy w logikę ekran audytu.** Cztery nieoczywiste rzeczy: (1) wyszukiwanie
+dopasowuje ALBO symbol instrumentu, ALBO nazwę strategii (OR), a wynik łączy się z filtrami
+statusu i kierunku przez AND; (2) klik w przycisk akcji (Edytuj/Usuń/Zamknij) w wierszu NIE MOŻE
+przy okazji otworzyć panelu szczegółów - `event.stopPropagation()` na kontenerze akcji rozdziela
+te dwie intencje w tym samym klikalnym wierszu; (3) "Zamknij pozycję" pokazuje się TYLKO dla
+transakcji otwartej i NIE usuniętej; (4) po przeładowaniu listy (np. po przełączeniu "Pokaż kosz")
+panel szczegółów zamyka się automatycznie, jeśli inspectowana transakcja zniknęła z nowych danych -
+ale zostaje otwarty z ODŚWIEŻONYMI danymi, jeśli transakcja wciąż tam jest.
+
+Dwie pułapki złapane PRZY PISANIU testów, nie w kodzie produkcyjnym: (a) wiersze tabeli mają jawne
+`role="button"` (cała transakcja jest klikalna) - to NADPISUJE domyślną rolę "row" w drzewie
+dostępności, więc `getAllByRole("row")` widzi TYLKO nagłówek; trzeba liczyć po
+`getAllByRole("button", { name: /^Otwórz szczegóły/ })`; (b) pierwsza wersja testu zamykania
+panelu po zniknięciu transakcji dawała false positive - lista przeładowana do PUSTEJ tablicy
+chowa panel przez zupełnie inny, zewnętrzny warunek (`filteredTrades.length > 0`), maskując czy
+faktyczna logika resetu `inspectedTrade` w ogóle działa; naprawione przez scenariusz, w którym
+lista NIE staje się pusta (transakcja "b" zostaje), tylko brakuje w niej konkretnie inspectowanej
+transakcji "a".
+
+Nowy `pages/TransactionsPage.test.tsx` (6 testów, `MemoryRouter` + `PreferencesProvider` +
+`ConfirmProvider` - `TradeFormModal` używa obu nieuwarunkowanie): pusta lista pokazuje "Brak
+transakcji"; wyszukiwanie OR + filtr statusu AND; klik w przycisk akcji NIE otwiera panelu; "Zamknij
+pozycję" tylko dla otwartej i nieusuniętej; **panel zamyka się, gdy inspectowana transakcja znika
+(przy niepustej liście)**; "Edytuj" wyłączony dla transakcji w koszu.
+
+Zweryfikowane 5 niezależnymi mutacjami: (1) `haystacks.some` zastąpione `haystacks.every` (AND
+zamiast OR między instrumentem a strategią) - **dokładnie 1 z 6 testów padł**; (2) `&&` między
+filtrami statusu/kierunku/wyszukiwania zastąpione `||` - **dokładnie 1 z 6 padł**; (3) usunięty
+`event.stopPropagation()` na kontenerze akcji - **dokładnie 1 z 6 padł** (panel otworzył się mimo
+kliknięcia w Edytuj); (4) `trade.status === "open" && !trade.deleted_at` zredukowane do samego
+`status === "open"` - **dokładnie 1 z 6 padł**; (5) reset `inspectedTrade` po przeładowaniu
+zastąpiony no-opem `(current) => current` - **dokładnie 1 z 6 padł** (dopiero po naprawie testu
+opisanej wyżej - pierwsza wersja przechodziła fałszywie nawet z tą mutacją); (6) `disabled={Boolean(trade.deleted_at)}`
+na "Edytuj" zastąpione `disabled={false}` - **dokładnie 1 z 6 padł**. Po każdym cofnięciu: `git
+diff --stat` na `TransactionsPage.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **608/608** (83 pliki, +6 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
