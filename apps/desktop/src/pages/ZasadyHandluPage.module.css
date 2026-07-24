@@ -107,6 +107,7 @@
 .question {
   margin: 0;
   font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
 }
 
 .hiddenRule {
@@ -119,8 +120,11 @@
   font-size: var(--font-size-sm);
 }
 
+/* `pre-wrap` sam zawija tylko na naturalnych granicach (spacje/nowe linie) - pojedynczy długi
+   token bez spacji (np. wklejony URL) i tak by wypchnął kartę poza szerokość. */
 .answer {
   margin: 0;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 

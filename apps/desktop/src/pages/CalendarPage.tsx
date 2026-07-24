@@ -3,6 +3,7 @@ import type { ReactElement, KeyboardEvent } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatSignedMoney } from "../app/decimal";
 import { invokeCommand } from "../app/invokeCommand";
+import { pluralPl } from "../app/pluralize";
 import { useAccountReport } from "../app/useAccountReport";
 import type { DailyPnl } from "../app/types/report";
 import type { Trade } from "../app/types/trade";
@@ -36,17 +37,8 @@ function toDateKey(year: number, month: number, day: number): string {
   return `${year}-${pad(month + 1)}-${pad(day)}`;
 }
 
-/** Polska odmiana liczebnikowa: 1 transakcja, 2-4 transakcje (poza 12-14), reszta transakcji. */
 function tradeCountLabel(count: number): string {
-  if (count === 1) {
-    return "transakcja";
-  }
-  const lastDigit = count % 10;
-  const lastTwoDigits = count % 100;
-  if (lastDigit >= 2 && lastDigit <= 4 && !(lastTwoDigits >= 12 && lastTwoDigits <= 14)) {
-    return "transakcje";
-  }
-  return "transakcji";
+  return pluralPl(count, ["transakcja", "transakcje", "transakcji"]);
 }
 
 function dayLabelFromKey(dateKey: string): string {

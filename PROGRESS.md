@@ -2922,6 +2922,29 @@ dlaczego) - potwierdzone ponownym, dokładnym przeczytaniem, bez potrzeby żadne
 
 Weryfikacja: `pnpm test -- --run` 283/283 (bez zmian kodu w tym zadaniu).
 
+**Zasady handlu (zadanie 14, zamknięte) - 2 znaleziska.**
+1. `{visibleRules.length} pytań` w `ZasadyHandluPage.tsx` był STAŁYM tekstem bez ŻADNEJ odmiany -
+   "1 pytań" i "2 pytań" byłyby błędne (powinno być "1 pytanie", "2 pytania"). To DRUGI przypadek
+   dokładnie tego samego braku odmiany liczebnikowej co licznik transakcji dnia w Kalendarzu
+   (zadanie 9) - skoro to już nie pojedynczy przypadek, wydzielona wspólna funkcja `pluralPl()`
+   do nowego pliku `app/pluralize.ts` (1/2-4/reszta, z pełną odmianą 11-14 jako wyjątku) zamiast
+   kopiowania tej samej logiki po raz drugi. `CalendarPage.tsx` przepisany na korzystanie z
+   tej samej funkcji (usunięta duplikacja).
+2. `.answer`/`.question` w `ZasadyHandluPage.module.css` - `white-space: pre-wrap` na odpowiedzi
+   zachowuje wpisane enter/spacje, ale samo w sobie NIE zawija pojedynczego długiego tokenu bez
+   spacji (np. wklejony URL) - dodane `overflow-wrap: anywhere` na oba, żeby taki token zawinął się
+   zamiast wypychać kartę pytania poza szerokość panelu.
+
+Reszta ekranu sprawdzona bez problemu: `.categoryName`/`.categorySummary` bez wymuszonego nowrap
+(bezpieczne naturalne zawijanie, ten sam wzorzec co wcześniej), karty pytań w kontrolowanym
+układzie kolumnowym.
+
+Nowy plik `app/pluralize.ts` przetestowany osobno (6 testów: forma 1/2-4/11-14 jako wyjątek/22-24
+wracające do drugiej formy/inna trójka form).
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` 289/289 (6 nowych testów `pluralPl`).
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.

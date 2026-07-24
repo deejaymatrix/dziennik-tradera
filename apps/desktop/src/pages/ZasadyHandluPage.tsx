@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { useBlocker } from "react-router";
 import { invokeCommand } from "../app/invokeCommand";
+import { pluralPl } from "../app/pluralize";
 import { normalizeQuestion } from "../app/types/trading_rules";
 import type { TradingRulesState, TradingRulesWrite } from "../app/types/trading_rules";
 import { Button } from "../ui/components/Button/Button";
@@ -374,7 +375,10 @@ export function ZasadyHandluPage(): ReactElement {
           <details key={category.id ?? `new-${categoryIndex}`} className={styles.category} open>
             <summary className={styles.categorySummary}>
               <span className={styles.categoryName}>{category.name}</span>
-              <span className={styles.categoryCount}>{visibleRules.length} pytań</span>
+              <span className={styles.categoryCount}>
+                {visibleRules.length}{" "}
+                {pluralPl(visibleRules.length, ["pytanie", "pytania", "pytań"])}
+              </span>
               {editing && (
                 <span className={styles.categoryActions}>
                   <IconButton
