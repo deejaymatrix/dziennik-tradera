@@ -2442,6 +2442,69 @@ Otrzymany dokument dodaje pełną specyfikację wizualną instalatora NSIS/MUI2 
 - Prompt wprost wymaga pokazania zrzutów/podglądu ekranów instalatora **do zatwierdzenia
   PRZEZ UŻYTKOWNIKA przed** zbudowaniem finalnej wersji - nie budować w ciemno.
 
+## Nowa funkcja: import transakcji z historii MT5 (2026-07-24) — 🚧 w toku (backend gotowy)
+
+Życzenie użytkownika w trakcie audytu O7: możliwość dodawania transakcji przez import historii
+z terminala MT5 ("Historia" → prawy klik → "Zapisz jako Raport"), zamiast wyłącznie ręcznego
+wpisywania. Doprecyzowane pytaniami: kierunek to IMPORT (z MT5 do Dziennika, nie odwrotnie),
+format - xlsx (użytkownik dostarczył też wersję .html tego samego raportu, ale xlsx ma
+porządniejszą strukturę typowanych komórek i został wybrany jako jedyny obsługiwany format v1).
+
+**Analiza prawdziwego pliku użytkownika (`ReportHistory-125592334.xlsx`, 1306 pozycji) ujawniła
+strukturę raportu**: trzy sekcje w jednym arkuszu - "Pozycje" (jeden wiersz na ZAMKNIĘTĄ pozycję,
+już z parą otwarcie/zamknięcie - dokładnie to, czego potrzebuje `TradeInput`), "Zlecenia" (surowe
+zlecenia rynkowe/limit, nieużywane) i "Transakcje" (surowe wypełnienia + operacje `balance` typu
+wpłata/wypłata, też nieużywane). Zweryfikowano matematycznie: kolumna "Zysk" w sekcji "Pozycje" to
+WYŁĄCZNIE zysk brutto (suma 1306 wierszy = -4119,72), a "Zysk Netto Ogółem" z podsumowania
+(-4836,12) = suma Zysku + Prowizji + Swapu - potwierdza, że `commission`/`swap` w MT5 to już
+ujemne koszty, odwrotna konwencja niż `TradeInput` tej aplikacji (dodatni koszt odejmowany przy
+liczeniu `net_pnl`) - stąd import neguje obie wartości przy wczytaniu.
+
+**Znalezisko krytyczne dla całego importu**: prawdziwy plik MT5 zapisuje WSZYSTKIE części XML
+swojego xlsx (`.rels`, `sharedStrings.xml`, arkusz) w UTF-16LE z BOM, mimo że OOXML domyślnie
+zakłada UTF-8 - `calamine` (biblioteka do czytania xlsx) się na tym wywalał ("Unexpected end of
+xml"). Bez wykrycia tego na PRAWDZIWYM pliku (nie syntetycznej fikstury), cała funkcja
+wyglądałaby na działającą w testach, a nie działałaby na żadnym prawdziwym eksporcie MT5 -
+sprawdzone bajt-po-bajcie (`FF FE 3C 00` zamiast zwykłego `3C 3F 78 6D 6C`). Naprawione własną
+funkcją re-kodującą: otwiera plik jako zwykłe archiwum zip, dekoduje każdą część zaczynającą się
+od BOM UTF-16LE z powrotem na UTF-8, pakuje nowe archiwum w pamięci - dopiero to podaje się
+`calamine`. Test regresyjny na tę dokładną sytuację (`dekoduje_czesci_xml_zapisane_w_utf16_z_bom`)
+buduje fiksturę i re-koduje ją do UTF-16 programowo, żeby nie trzeba było commitować binarnego
+pliku ani prawdziwych danych użytkownika.
+
+**Architektura zgodna z zasadą "Rust liczy pieniądze"**: import NIE przenosi wartości "Zysk"
+z MT5 wprost - parsuje tylko surowe dane wejściowe (cena/wolumen/czas/kierunek/prowizja/swap)
+i tworzy `TradeInput` dokładnie tak jak ręczne wpisanie transakcji, wołając ISTNIEJĄCY
+`TradesService::create` - silnik `trade_calculations` liczy `gross_pnl`/`net_pnl` sam, z parametrów
+ROZPOZNANEGO instrumentu. Świadomie pomija S/L i T/P z MT5 (ostatnia wartość przy zamknięciu mogła
+być przesunięta trailing stopem w stronę zysku, co złamałoby walidację "SL musi być po stronie
+ryzyka").
+
+Zbudowane (backend, `apps/desktop/src-tauri`):
+- `domain/mt5_import.rs` - czysty, testowalny parser sekcji "Pozycje" (`parse_positions`) + funkcja
+  re-kodująca UTF-16→UTF-8. 5 testów, w tym regresja na prawdziwy błąd UTF-16 i fikstura budowana
+  programowo przez `rust_xlsxwriter` (już zależność projektu, żadnego nowego pliku binarnego).
+- `application/mt5_import.rs` - `Mt5ImportService`: dopasowanie symbolu brokera (np. "XAUUSDs") do
+  instrumentu przez `source_symbol` w SZABLONIE przypisanym do konta (bez szablonu dopasowanie jest
+  niemożliwe z definicji), wykrywanie powtórnego importu przez znacznik `"Import MT5 #<ticket>"`
+  zapisywany w `management_notes` (świadomie bez migracji schematu bazy o nowe pole).
+- `commands/mt5_import.rs` - `preview_mt5_import`/`import_mt5_trades`, ten sam wzorzec
+  podgląd-przed-zapisem co `preview_broker_import`.
+- Nowa zależność: `calamine` (czytanie xlsx) - dodana świadomie zamiast ręcznego parsowania OOXML,
+  `zip`/`rust_xlsxwriter` już były zależnościami projektu.
+
+Zweryfikowane na PRAWDZIWYM pliku użytkownika (test tymczasowy, usunięty przed commitem - nie
+trafia do repo żaden prywatny plik ani ścieżka): **1306 pozycji sparsowanych poprawnie**,
+dokładnie tyle ile plik deklaruje w podsumowaniu ("Wszystkie Transakcje: 1306.000000").
+
+Weryfikacja: `cargo test` 433/433, `cargo clippy --all-targets -- -D warnings` czyste (poza
+4 wcześniej istniejącymi, niezwiązanymi ostrzeżeniami dead_code + 1 `large_enum_variant`,
+zgłoszonymi osobno w tle - `task_c91d280f`), `cargo fmt --check` czyste.
+
+**Pozostało**: frontend - nowy modal importu (wzorem `ImportBrokerModal.tsx`) z przyciskiem na
+`TransactionsPage.tsx`, pokazujący podgląd (liczba pozycji, rozpoznane/nierozpoznane symbole,
+już zaimportowane) przed zatwierdzeniem.
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.

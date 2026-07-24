@@ -297,6 +297,8 @@ pub fn run() {
             commands::instrument_import::preview_broker_import,
             commands::instrument_import::import_broker_template,
             commands::instrument_import::import_instruments_into_template,
+            commands::mt5_import::preview_mt5_import,
+            commands::mt5_import::import_mt5_trades,
             commands::position_sizing::calculate_position_size,
         ])
         .run(tauri::generate_context!())

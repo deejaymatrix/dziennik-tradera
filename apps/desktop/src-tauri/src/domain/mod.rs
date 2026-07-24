@@ -9,6 +9,7 @@ pub mod export_filter;
 pub mod instrument;
 pub mod instrument_import;
 pub mod interval;
+pub mod mt5_import;
 pub mod position_sizing;
 pub mod preferences;
 pub mod strategy;
