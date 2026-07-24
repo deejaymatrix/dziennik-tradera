@@ -166,12 +166,13 @@ bloku D (`AUDYT_KODU.md`, 206 plików) i nie wymagają powtórki, bo redesign ic
 ### Manifest plików rzeczywiście zmienionych przez redesign
 
 `git diff --name-only 0c2eb41^..HEAD` (od commita PRZED O1, przez cały O1-O7 aż do
-najnowszego, część 52 + weryfikacje) daje **92 pliki** (aktualizacja 2026-07-24, po części 52 -
-`KoszPage.tsx`/`TradeAttachments.tsx` dołączyły do manifestu przy naprawie stanu `loading`,
-90→92; poprzednia wersja tego akapitu podawała 73, zakres do `6091ac4`, część 24). Między
-`6091ac4` a `HEAD` doszło 33 kolejnych commitów (część 25-52 + kilka commitów weryfikacyjnych
-bez numeru części), z czego dokładnie 19 plików jest GENUINE nowych w manifeście:
-`KoszPage.tsx`/`TradeAttachments.tsx` (część 52),
+najnowszego, część 53 + weryfikacje) daje **94 pliki** (aktualizacja 2026-07-24, po części 53 -
+`IconButton.tsx`/`IconButton.test.tsx` dołączyły do manifestu przy domknięciu obsługi
+`loading`, 92→94; poprzednia wersja tego akapitu podawała 73, zakres do `6091ac4`, część 24).
+Między `6091ac4` a `HEAD` doszło 36 kolejnych commitów (część 25-53 + kilka commitów
+weryfikacyjnych/spoza redesignu O bez numeru części), z czego dokładnie 21 plików jest GENUINE
+nowych w manifeście: `IconButton.test.tsx` (część 53, NOWY plik), `KoszPage.tsx`/
+`TradeAttachments.tsx` (część 52),
 `DashboardPage.tsx`/`ReportMonthlyTab.tsx`/`ReportYearlyTab.tsx` (część 51),
 `IntervalsSection.tsx`/`EmotionalStatesSection.tsx` (część 50),
 `CalendarPage.tsx`/`TradePreviewCard.tsx` (część 49), `CommandPalette.tsx` (część 48) i
@@ -210,8 +211,8 @@ była mechaniczna i identyczna (np. „zamień surową liczbę na `var(--token)`
 | Testy regresyjne + naprawy WCAG (część 15-24)                                                             | `design/tokens.test.ts` (NOWY - `mieszaj()`/`procent()`, testy color-mix i pierścienia fokusu), `pages/HeatmapTable.tsx` (NOWY w manifeście - `pnlOpacity()` pułap 0,70→0,55); `preferences.rs`/`Badge`/`CalendarPage`/`SettingsPage`/`SettingRow`/`FormPanel`/`ColorPicker`/`HeatmapTable.module.css` już policzone wyżej z innych powodów, tu dostały DODATKOWE zmiany (tokeny `--tint-*`, `var(--radius-full)`, `var(--shadow-md)`, test pinujący akcent)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 17 naruszeń WCAG AA naprawionych, test WCAG 1.4.11 dodany, 428/428 + 269/269 PASS                                                                                                                                   | Commity „Redesign O7 (część 15-24)"                |
 | Dokumenty (nie kod aplikacji)                                                                             | `MACIERZ_AUDYTU_CEL_1_8.md`, `MACIERZ_AUDYTU_REDESIGN_O.md`, `PROGRESS.md`, `docs/KLUCZE_I_WYDANIE.md`, `CHANGELOG.md`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Śledzenie postępu i dokumentacja certyfikatu — poza zakresem "audytu kodu"                                                                                                                                          | N/D                                                |
 
-**92 pliki z `git diff 0c2eb41^..HEAD`, wszystkie rozliczone powyżej w 18 grupach**
-(17 grup kodu + 1 grupa dokumentów) — liczba plików w manifeście zgadza się z liczbą plików
+**94 pliki z `git diff 0c2eb41^..HEAD`, wszystkie rozliczone powyżej w 19 grupach**
+(18 grup kodu + 1 grupa dokumentów) — liczba plików w manifeście zgadza się z liczbą plików
 faktycznie zmienionych, zgodnie z wymogiem sekcji 27.
 
 ### Manifest plik-po-pliku (dosłowne brzmienie sekcji 27)
@@ -320,11 +321,12 @@ wymienia wszystkie grupy, do których należy, zamiast tylko pierwszej pasujące
 | `apps/desktop/src/ui/components/Tooltip/Tooltip.module.css`             | `z-index` na tokenach; `font-weight` na tokenach (42 pliki)                                                                                                                          | PASS   |
 | `docs/KLUCZE_I_WYDANIE.md`                                              | Dokumenty (nie kod aplikacji)                                                                                                                                                        | N/D    |
 
-**92/92 pliki mają własny wiersz, 0 pominiętych, 0 nadmiarowych** — zweryfikowane `awk`+`grep`
+**94/94 pliki mają własny wiersz, 0 pominiętych, 0 nadmiarowych** — zweryfikowane `awk`+`grep`
 porównującym liczbę wierszy tabeli z realnym `git diff 0c2eb41^..HEAD --name-only` (aktualizacja
-2026-07-24, po części 52 - poprzednia weryfikacja obejmowała 90 plików po części 51, przed tym
-87 po części 50, przed tym 85 po części 49, przed tym 83 po części 48, przed tym 82 po części
-43-45, przed tym 73 do commita `6091ac4`, przed tym 70 do `cde2220`).
+2026-07-24, po części 53 - poprzednia weryfikacja obejmowała 92 pliki po części 52, przed tym
+90 po części 51, przed tym 87 po części 50, przed tym 85 po części 49, przed tym 83 po części
+48, przed tym 82 po części 43-45, przed tym 73 do commita `6091ac4`, przed tym 70 do
+`cde2220`).
 
 ## 3. Audyt wizualny (sekcja 23) — 🔒 NIEZWERYFIKOWANY
 
@@ -521,8 +523,9 @@ ponownego przeliczania. `cargo test` — 428/428 PASS, bez regresji (427 + nowy 
    odświeżona 2026-07-24 (po części 43-45) po kolejnych 20 commitach: 73 → 82 pliki, jeszcze
    raz (po części 48) po kolejnych 4 commitach: 82 → 83 pliki, jeszcze raz (po części 49) po
    kolejnych 2 commitach: 83 → 85 pliki, jeszcze raz (po części 50) po kolejnych 2 commitach:
-   85 → 87 pliki, jeszcze raz (po części 51) po kolejnych 2 commitach: 87 → 90 pliki, i jeszcze
-   raz (po części 52) po kolejnym 1 commicie: 90 → 92 pliki, ta sama metoda weryfikacji.
+   85 → 87 pliki, jeszcze raz (po części 51) po kolejnych 2 commitach: 87 → 90 pliki, jeszcze raz
+   (po części 52) po kolejnym 1 commicie: 90 → 92 pliki, i jeszcze raz (po części 53) po
+   kolejnym 1 commicie: 92 → 94 pliki, ta sama metoda weryfikacji.
 
 Żadna z pozostałych dwóch blokad nie jest znanym błędem — to brakujący DOWÓD, nie brakująca
 poprawka. Kod jest zweryfikowany tam, gdzie da się to zrobić bez pikselowego podglądu.
