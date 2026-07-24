@@ -2992,6 +2992,18 @@ na elementach siatki. Żadnych dodatkowych zmian nie było potrzeba.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` 289/289.
 
+**Kalkulator pozycji (zadanie 18, zamknięte) - BEZ nowych zmian, główna naprawa już w zadaniu 23.**
+Surowe zera w specyfikacji instrumentu (`contract_size`/`trade_tick_size`/`tick_value_loss`) i w
+`stop_loss_price` naprawione wcześniej (`formatDecimal`). Dodatkowy przegląd struktury CSS pod kątem
+RESZTY listy kontrolnej (nie tylko liczb) potwierdza, że `KalkulatorPozycjiPage.module.css` już ma
+wzorcowo poprawną obronę przed pułapką CSS Grid (`minmax(0, ...)` z jawnym komentarzem "utrwalona
+pułapka CSS Grid w tym projekcie") na obu siatkach (`.layout`, `.grid`) plus załamania responsywne
+przy 60rem i 40rem. `ReadOnlyField` użyty tu dwukrotnie już naprawiony w zadaniu 10 (korzysta z tej
+samej poprawki automatycznie). `.warning`/`.explain` to zdania generowane przez backend (nie wolny
+tekst użytkownika) - niskie ryzyko, zgodnie z tą samą zasadą co `dependency_note` w Koszu.
+
+Weryfikacja: `pnpm test -- --run` 289/289 (bez nowych zmian kodu w tym zadaniu).
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.
