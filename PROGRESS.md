@@ -2147,6 +2147,23 @@ danymi transakcji. Zero błędów konsoli.
 Pozostałe 12 tras wciąż niesprawdzone z prawdziwymi danymi - blokada częściowo, nie w pełni,
 zamknięta.
 
+**O7, znalezisko przy okazji: `BreakdownTable.tsx` jest martwym kodem od „Fazy 9 v2", nie od
+bieżącego redesignu.** Próba weryfikacji zakładki „Strategia"/„Instrument" z prawdziwymi danymi
+ujawniła, że „Wynik wg strategii"/„Wynik wg instrumentu" w zakładce Miesięcznej to wykresy
+Recharts, nie tabele - sam komponent `BreakdownTable` nigdzie się nie renderuje. Potwierdzone
+wyczerpująco: zero importów samego komponentu w całym `apps/desktop/src` poza jego własnym
+plikiem. `git log --follow` pokazuje, że jedyny konsument (`ReportDimensionTab.tsx`) został
+usunięty w commicie „Faza 9 v2: przebudowa wszystkich raportów i dashboardu wg wzoru
+użytkownika" (`04adb14`) - zastąpiony osobnymi, zduplikowanymi tabelami wprost w
+`ReportYearlyTab.tsx`/`ReportAccountComparisonTab.tsx`, które importują TYLKO CSS (klasy
+`.profit`/`.loss`), nigdy sam komponent. Osierocony na długo PRZED Blokiem O.
+
+Uczciwa retroaktywna adnotacja: naprawy `:active`/`:focus-visible`/klawiatury/`:hover` w tym
+pliku z części 43-45/47 tej sesji były technicznie poprawne, ale obecnie nie docierają do
+żadnego prawdziwego użytkownika. Klasyfikacja: **Niski** - dług techniczny, nie regresja, NIE
+naprawiany w ramach O7 (usunięcie/reintegracja to osobna zmiana architektoniczna) - zgłoszony
+jako osobne zadanie w tle.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat

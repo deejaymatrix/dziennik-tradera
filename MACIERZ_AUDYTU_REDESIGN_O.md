@@ -130,6 +130,7 @@ ale bez formalnych etykiet - dopisane teraz, bez zmiany treści samych napraw.
 | `net_pnl` kolorowany bez `formatSignedMoney` w `CalendarPage`/`TradePreviewCard` - własny kontrakt kodu złamany                                | **Średni** | Wartość nadal czytelna i technicznie odróżnialna (niejawny minus dla strat), ale niespójna z resztą aplikacji i dokładnie ryzykiem opisanym we własnym komentarzu `formatSignedMoney` - nie utrata funkcji        |
 | `EmotionsEditor.scaleButton` bez `:disabled` - w trybie odczytu wygląda jak klikalny, mimo że nie jest                                         | **Średni** | Mylące, ale nie blokujące - dane (zapisana intensywność emocji) nadal widoczne i poprawne, użytkownik nie traci funkcji, tylko dostaje mylący sygnał wizualny w podglądzie transakcji                             |
 | `TransactionsPage.clickableRow`/`DataSection.header` bez `:hover` - brak wskazówki, że element jest klikalny                                   | **Niski**  | Kosmetyczna niespójność (kursor już sygnalizuje klikalność), nie utrata funkcji ani dostępności - `:focus-visible`/`:active`/klawiatura już działały poprawnie                                                    |
+| `BreakdownTable.tsx` (komponent) jest martwym kodem od "Fazy 9 v2" - nigdzie się nie renderuje                                                 | **Niski**  | Zero wpływu funkcjonalnego (nic go nie pokazuje żadnemu użytkownikowi) - dług techniczny sprzed redesignu, nie regresja, zgłoszony jako osobne zadanie w tle zamiast naprawiany w O7                              |
 | Nieaktualny manifest plik-po-pliku (68→70→73, błędny zakres commitów)                                                                          | **Niski**  | Błąd w dokumentacji audytowej, nie w kodzie aplikacji - nie wpływa na działanie ani dane użytkownika                                                                                                              |
 | `border-radius`/`box-shadow` na sztywno zamiast tokenów                                                                                        | **Niski**  | Czysto kosmetyczna niespójność źródła prawdy, zero wpływu na funkcjonalność czy dostępność                                                                                                                        |
 | Kontrast obramowań poniżej WCAG 1.4.11 (1,10-2,11 zamiast ≥3)                                                                                  | **Niski**  | Wzorzec całej aplikacji sprzed redesignu, powszechny w branży (subtelne linie), granica pola i tak sygnalizowana przez różnicę tła i etykietę                                                                     |
@@ -372,6 +373,33 @@ wartości. Zero błędów konsoli.
 To pierwszy raz w tym audycie, gdy naprawy sekcji 21 zostały potwierdzone z prawdziwymi danymi
 w przeglądarce, a nie tylko przez odczyt kodu/testów jednostkowych/stanu błędu bez danych.
 Pozostałe 12 tras wciąż niesprawdzone z danymi (blokada częściowo, nie w pełni, zamknięta).
+
+**Znalezisko przy okazji weryfikacji `/raporty`: `BreakdownTable.tsx` (komponent, nie CSS) jest
+martwym kodem od "Fazy 9 v2", NIE od bieżącego redesignu O.** Próba weryfikacji zakładki
+"Strategia"/"Instrument" z prawdziwymi danymi ujawniła, że tabela wyrenderowana w zakładce
+Miesięcznej dla "Wynik wg strategii"/"Wynik wg instrumentu" to WYKRESY (Recharts), nie tabele -
+sam komponent `BreakdownTable` nigdzie się nie renderuje. Potwierdzone wyczerpująco:
+`grep -rn "\"\./BreakdownTable\""` (import samego komponentu, nie `BreakdownTable.module.css`)
+w całym `apps/desktop/src` - **zero wyników** poza samym plikiem i (nieistniejącym już) testem.
+
+`git log --follow` na tym pliku pokazuje 3 commity: `Faza 9` (stworzenie, razem z
+`ReportDimensionTab.tsx` jako jedynym konsumentem), `Faza 9 v2: przebudowa wszystkich raportów
+i dashboardu wg wzoru użytkownika` (commit `04adb14`, USUNIĘTO `ReportDimensionTab.tsx` -
+zastąpiony przez `ReportSymbolTab.tsx`/`ReportStrategyTab.tsx` + osobne, zduplikowane tabele
+wprost w `ReportYearlyTab.tsx`/`ReportAccountComparisonTab.tsx`, które importują TYLKO
+`BreakdownTable.module.css` dla klas `.profit`/`.loss`, nigdy sam komponent), i wreszcie część
+43-45/47 TEJ sesji (naprawy `:active`/klawiatury/`:hover`). Komponent osierocony na długo PRZED
+rozpoczęciem Bloku O - to nie regresja redesignu, tylko nieposprzątany dług techniczny z
+wcześniejszej fazy, na który redesign przypadkiem trafił przy systematycznym sweepie.
+
+**Uczciwa retroaktywna adnotacja do części 43-45/47:** naprawy `:active`/`:focus-visible`/
+klawiatury/`:hover` w `BreakdownTable.tsx` były technicznie poprawne (zgodne z tym samym wzorcem
+co reszta sesji) i NIE zaszkodziły niczemu, ale obecnie nie docierają do żadnego prawdziwego
+użytkownika, bo komponent nigdzie się nie renderuje. Klasyfikacja ważności (sekcja 29):
+**Niski** - martwy kod nie ma wpływu funkcjonalnego ani na dostępność (nic go nie pokazuje),
+ale zaśmieca kodobazę i mógł niepotrzebnie wydłużyć pracę tej sesji. NIE naprawiane w ramach O7
+(usunięcie lub ponowna integracja to osobna, większa zmiana architektoniczna, poza zakresem
+punktowych poprawek redesignu) - zgłoszone jako osobne zadanie w tle.
 
 ## 5. Weryfikacja obliczeń finansowych (sekcja 26)
 
