@@ -1779,6 +1779,14 @@ fokusu... motyw ciemny"), pozostałych 61 bez zmian, w tym test motywu jasnego (
 nietknięty). Po cofnięciu: `git diff` czysty, 62/62 PASS ponownie. Ten sam wniosek co przy
 `--tint-badge` - test realnie chroni, nie tylko przechodzi przypadkiem.
 
+**O7, ten sam test mutacyjny dopełniony o stronę Rust (część 15).** Tymczasowo cofnięty
+`default_accent()` na starą wartość `"#c9a85a"` (złoto), uruchomiony `cargo test`, cofnięty.
+Wynik: dokładnie jeden test padł, z czytelnym komunikatem asercji (`left: "#c9a85a", right:
+"#4c7dff"`) - dokładnie tak, jak przewidziano. Po cofnięciu: `git diff` czysty, `cargo test`
+428/428 PASS, `cargo fmt --check` PASS. Trzy testy dodane w tej sesji (color-mix, pierścień
+fokusu, akcent w Rust) mają teraz eksperymentalne dowody, że realnie łapią regresję - nie
+tylko przechodzą, bo akurat nic nie jest zepsute.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
