@@ -2970,6 +2970,31 @@ na `useAttachments.ts` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **394/394** (47 plików, +5 nowych testów).
 
+**O7, część 81: `resolvePageTitle` w `Header.tsx` (prywatna funkcja) - decyduje, jaki tytuł widzi
+użytkownik w górnym pasku dla każdej ścieżki, zero testów.** Nieoczywista część: dopasowanie „/"
+jest DOKŁADNE (`pathname === "/"`), nie `startsWith` - inaczej pasowałoby do KAŻDEJ ścieżki (bo
+każda zaczyna się od „/") i Dashboard zawsze wygrywałby jako pierwszy w `NAV_GROUPS`, ukrywając
+tytuły wszystkich innych ekranów. Funkcja jest prywatna (nieeksportowana), więc test renderuje
+`<Header>` na różnych ścieżkach przez `MemoryRouter` zamiast eksportować ją tylko na potrzeby
+testu.
+
+Nowy `shell/Header.test.tsx` (5 testów, `MemoryRouter` + prawdziwe `PreferencesProvider`/
+`ThemeProvider` + `vi.mock` na `invokeCommand`): `"/"` pokazuje "Dashboard" i NIE dopasowuje się
+do niczego innego; znana ścieżka (`/kalendarz`) pokazuje etykietę odpowiadającej pozycji
+nawigacji; **podstrona pod znanym widokiem (`/transakcje/123`) nadal pokazuje etykietę tego
+widoku** (dopasowanie przez prefiks); nieznana ścieżka dostaje jawny tytuł zastępczy "Dziennik
+Tradera", nie pusty nagłówek; klik na przełącznik motywu działa bez wystawienia dostawcy
+aktualizacji (opcjonalny hook).
+
+Zweryfikowane testem mutacyjnym: tymczasowo `item.to === "/" ? pathname === "/" :
+pathname.startsWith(item.to)` zastąpione samym `pathname.startsWith(item.to)` - **dokładnie 3 z 5
+testów padły** (wszystkie trzy ścieżki inne niż `"/"` błędnie pokazały "Dashboard", bo każda
+ścieżka zaczyna się od `"/"`), pozostałe 2 (dopasowanie `"/"` i klik motywu) bez zmian. Po
+cofnięciu: `git diff --stat` na `Header.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **399/399** (48 plików, +5 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
