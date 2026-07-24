@@ -4062,6 +4062,43 @@ padł**. Po każdym cofnięciu: `git diff --stat` na `ReportMonthlyTab.tsx` pust
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **636/636** (88 plików, +7 nowych testów).
 
+**O7, część 122: `ReportYearlyTab` (podraport roczny) - zero testów, mimo oznaczonego "Audyt".**
+Czysty komponent prezentacyjny, ten sam wzorzec co `ReportMonthlyTab` (część 121), ale z pięcioma
+NIEZALEŻNYMI funkcjami sortującymi po różnych polach (`bestOf`/`worstOf` po `net_pnl`,
+`mostActiveOf`/`leastActiveOf` po `trade_count`, `highestWinRateOf` po `win_rate`). Trzy
+nieoczywiste rzeczy: (1) "Śr. miesięczny P&L" sumuje DOKŁADNIE (`sumDecimalStrings`, BigInt)
+DOPIERO POTEM dzieli przez 12 - ten sam wzorzec co `MonthCalendarTable`/`computeCumulativeSeries`,
+choć przy zaledwie 12 składnikach i zaokrągleniu do 2 miejsc błąd zmiennoprzecinkowy jest ZA MAŁY,
+żeby dało się go złapać mutacją na poziomie wyrenderowanego tekstu - próba (opisana niżej) to
+potwierdziła empirycznie, więc test sprawdza POPRAWNOŚĆ wyniku, nie samą kolejność operacji przez
+mutację; (2) miesiąc z `net_pnl` DOKŁADNIE "0" liczy się jako "bez wyniku", nie dodatni ani ujemny;
+(3) `highestWinRateOf` używa fallbacku `?? -1` dla `null` win_rate - miesiąc BEZ danych o win rate
+nigdy nie wygrywa z miesiącem z realną wartością, nawet 0%.
+
+Uczciwie odnotowana granica metodologii: próba zmutowania kolejności sum/dzielenie (`Number` w
+pętli zamiast `sumDecimalStrings`) NIE została złapana przez żaden test - błąd zmiennoprzecinkowy
+rzędu 1e-16 po podzieleniu przez 12 i zaokrągleniu `Intl.NumberFormat` do 2 miejsc jest matematycznie
+niemożliwy do zaobserwowania w renderowanym tekście przy tak małej liczbie składników (12). Zamiast
+fałszywie twierdzić, że mutacja to złapała, dokumentacja testu i tej sekcji wprost mówi, że test
+weryfikuje POPRAWNOŚĆ wyniku (0,4 / 12 zaokrąglone do "0,03 USD"), a sama kolejność operacji zostaje
+zachowana jako spójność z resztą bazy kodu, nie jako niezależnie zweryfikowana mutacją własność.
+
+Nowy `pages/ReportYearlyTab.test.tsx` (6 testów): poprawność uśrednienia miesięcznego P&L; miesiąc
+z `net_pnl === "0"` liczy się jako bez wyniku; najlepszy/najgorszy miesiąc wybiera SKRAJNE `net_pnl`;
+najaktywniejszy/najspokojniejszy miesiąc wybiera skrajną liczbę transakcji; **miesiąc bez danych o
+win rate NIE wygrywa z miesiącem o wartości 0%**; karta pozycji częściowo zamkniętych ukryta przy
+zerze.
+
+Zweryfikowane 3 niezależnymi mutacjami (dodatkowa czwarta próba, opisana wyżej, świadomie
+NIEZALICZONA): (1) `Number(m.net_pnl) > 0` zastąpione `>= 0` (miesiąc zerowy liczony jako dodatni) -
+**dokładnie 1 z 6 testów padł**; (2) fallback `?? -1` usunięty z `highestWinRateOf` - **dokładnie 1
+z 6 padł**, z dokładnie przewidzianym objawem (miesiąc z `null` win rate pokazał "—" jako "najlepszy");
+(3) `mostActiveOf` zredukowane do `rows[0]` (bez sortowania) - **dokładnie 1 z 6 padł**. Po każdym
+cofnięciu: `git diff --stat` na `ReportYearlyTab.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **642/642** (89 plików, +6 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
