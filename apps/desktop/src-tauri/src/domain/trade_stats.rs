@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 
-use chrono::{DateTime, Datelike, NaiveDate, Timelike, Utc};
+use chrono::{DateTime, Datelike, Local, NaiveDate, Timelike, Utc};
 use rust_decimal::Decimal;
 use serde::Serialize;
 
@@ -23,6 +23,24 @@ use super::trade::{Trade, TradeSide, TradeStatus};
 /// tego samego znacznika, inaczej raport i saldo przypisałyby tę pozycję do różnych okresów.
 fn zamkniecie(trade: &Trade) -> DateTime<Utc> {
     trade.closed_at.unwrap_or(trade.updated_at)
+}
+
+/// Chwila zamknięcia W LOKALNEJ STREFIE CZASOWEJ tego komputera - używana przez WSZYSTKIE
+/// grupowania kalendarzowe niżej (dzień/miesiąc/rok/dzień tygodnia/przedział 4-godzinny).
+///
+/// Poprzednio te rozbicia liczyły dzień/miesiąc/rok wprost z `DateTime<Utc>` (świadoma decyzja
+/// udokumentowana kiedyś jako "aplikacja nie ma ustawienia strefy czasowej") - ale transakcja
+/// zamknięta np. o 00:30 czasu lokalnego to w UTC wciąż POPRZEDNI dzień (Polska to UTC+1/+2),
+/// więc trafiała do złego dnia w Kalendarzu i złego miesiąca/roku w Raportach. Import historii
+/// z MT5 (setki transakcji o różnych porach dnia) to uwidocznił - błąd istniał już wcześniej,
+/// ale ręcznie wpisywana historia rzadko miała transakcje blisko północy. Naprawa potwierdzona
+/// z użytkownikiem: konwersja do lokalnej strefy wszędzie, spójnie (nie tylko w Kalendarzu),
+/// żeby dzień w Kalendarzu zawsze pasował do miesiąca w Raporcie miesięcznym/rocznym.
+///
+/// NIE używane przez krzywą kapitału (`compute_equity_curve`) ani sortowanie - tam liczy się
+/// dokładny znacznik czasu (UTC), nie kalendarzowy dzień, więc zostają na `zamkniecie()`.
+fn zamkniecie_lokalnie(trade: &Trade) -> DateTime<Local> {
+    zamkniecie(trade).with_timezone(&Local)
 }
 
 fn realized_trades(trades: &[Trade]) -> Vec<&Trade> {
@@ -239,7 +257,8 @@ pub fn compute_calendar(trades: &[Trade]) -> Vec<DailyPnl> {
 
     for trade in realized_trades(trades) {
         // Patrz `zamkniecie` - pominięcie pozycji bez `closed_at` robiło dziurę w kalendarzu.
-        let closed_at = zamkniecie(trade);
+        // `zamkniecie_lokalnie` (nie `zamkniecie`) - dzień kalendarzowy musi być lokalny.
+        let closed_at = zamkniecie_lokalnie(trade);
         let Some(net_pnl) = trade.net_pnl else {
             continue;
         };
@@ -419,7 +438,7 @@ const WEEKDAY_NAMES: [&str; 7] = [
 /// rosnąco (w odróżnieniu od `compute_breakdown`, które sortuje po wyniku).
 pub fn compute_monthly_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
     let mut result = compute_breakdown(trades, |t| {
-        let closed_at = zamkniecie(t);
+        let closed_at = zamkniecie_lokalnie(t);
         let key = format!("{:04}-{:02}", closed_at.year(), closed_at.month());
         let label = format!(
             "{} {}",
@@ -438,7 +457,7 @@ pub fn compute_monthly_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
 /// "wszystkie miesiące zsumowane po latach" (np. wykres na Dashboardzie).
 pub fn compute_calendar_month_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
     let mut by_month = compute_breakdown(trades, |t| {
-        let month = zamkniecie(t).month();
+        let month = zamkniecie_lokalnie(t).month();
         (
             (month - 1).to_string(),
             MONTH_NAMES[(month - 1) as usize].to_string(),
@@ -467,7 +486,7 @@ pub fn compute_calendar_month_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown>
 /// Rozbicie roczne (rok zamknięcia transakcji) - posortowane chronologicznie rosnąco.
 pub fn compute_yearly_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
     let mut result = compute_breakdown(trades, |t| {
-        let year = zamkniecie(t).year();
+        let year = zamkniecie_lokalnie(t).year();
         (year.to_string(), year.to_string())
     });
     result.sort_by(|a, b| a.key.cmp(&b.key));
@@ -478,7 +497,7 @@ pub fn compute_yearly_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
 /// dni w ustalonej kolejności, nawet bez ani jednej transakcji danego dnia (zerowy wynik).
 pub fn compute_day_of_week_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
     let mut by_day = compute_breakdown(trades, |t| {
-        let weekday = zamkniecie(t).weekday().num_days_from_monday();
+        let weekday = zamkniecie_lokalnie(t).weekday().num_days_from_monday();
         (
             weekday.to_string(),
             WEEKDAY_NAMES[weekday as usize].to_string(),
@@ -506,12 +525,11 @@ pub fn compute_day_of_week_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
 
 const FOUR_HOUR_LABELS: [&str; 6] = ["00-03", "04-07", "08-11", "12-15", "16-19", "20-23"];
 
-/// Rozbicie po 4-godzinnym przedziale zamknięcia. Liczone na UTC (ten sam wzorzec co
-/// `.weekday()` powyżej), bez przeliczania na strefę lokalną, bo aplikacja nie ma ustawienia
-/// strefy czasowej użytkownika. Zawsze wszystkie 6 przedziałów w ustalonej kolejności.
+/// Rozbicie po 4-godzinnym przedziale zamknięcia, w lokalnej strefie czasowej (patrz
+/// `zamkniecie_lokalnie`). Zawsze wszystkie 6 przedziałów w ustalonej kolejności.
 pub fn compute_four_hour_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
     let mut by_bucket = compute_breakdown(trades, |t| {
-        let hour = zamkniecie(t).hour();
+        let hour = zamkniecie_lokalnie(t).hour();
         let bucket = (hour / 4) as usize;
         (bucket.to_string(), FOUR_HOUR_LABELS[bucket].to_string())
     });
@@ -572,7 +590,7 @@ const QUARTER_LABELS: [&str; 4] = ["Q1", "Q2", "Q3", "Q4"];
 /// Rozbicie kwartalne (kwartał zamknięcia) - zawsze wszystkie 4 kwartały w kolejności Q1-Q4.
 pub fn compute_quarterly_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
     let mut by_quarter = compute_breakdown(trades, |t| {
-        let month = zamkniecie(t).month();
+        let month = zamkniecie_lokalnie(t).month();
         let quarter = ((month - 1) / 3) as usize;
         (quarter.to_string(), QUARTER_LABELS[quarter].to_string())
     });
@@ -922,6 +940,44 @@ mod tests {
         assert_eq!(calendar.len(), 1);
         assert_eq!(calendar[0].trade_count, 2);
         assert_eq!(calendar[0].net_pnl, dec!(60));
+    }
+
+    #[test]
+    fn kalendarz_grupuje_wg_lokalnego_dnia_nie_wg_utc() {
+        // Regresja na błąd zgłoszony po imporcie historii MT5: transakcja zamknięta 30 czerwca
+        // 23:30 UTC to w polskiej strefie (CEST, UTC+2 latem) już 1 lipca 01:30 - musi trafić do
+        // kalendarza pod 1 lipca, NIE pod 30 czerwca (co dawałoby stare, błędne liczenie wprost
+        // na `DateTime<Utc>`). Maszyna testowa i docelowy użytkownik są w tej samej strefie
+        // (Europa Środkowa), więc to nie jest test niezależny od strefy - tak samo produkcyjny
+        // kod NIE JEST niezależny od strefy, o to właśnie w tej poprawce chodzi.
+        let mut trade = closed_trade("1", 0, dec!(50), None);
+        trade.closed_at = Some(Utc.with_ymd_and_hms(2026, 6, 30, 23, 30, 0).unwrap());
+
+        let calendar = compute_calendar(&[trade]);
+
+        assert_eq!(calendar.len(), 1);
+        assert_eq!(
+            calendar[0].date,
+            NaiveDate::from_ymd_opt(2026, 7, 1).unwrap(),
+            "transakcja z 23:30 UTC to już 1 lipca czasu lokalnego, nie 30 czerwca"
+        );
+    }
+
+    #[test]
+    fn miesieczne_i_roczne_rozbicie_tez_liczy_wg_lokalnego_dnia() {
+        // Ten sam graniczny przypadek co wyżej, ale sprawdzony na granicy ROKU - transakcja
+        // zamknięta 31 grudnia 23:30 UTC to w Polsce (CET, UTC+1 zimą) już 1 stycznia 00:30,
+        // więc musi trafić do STYCZNIA następnego roku, nie do grudnia poprzedniego.
+        let mut trade = closed_trade("1", 0, dec!(50), None);
+        trade.closed_at = Some(Utc.with_ymd_and_hms(2025, 12, 31, 23, 30, 0).unwrap());
+
+        let monthly = compute_monthly_breakdown(&[trade.clone()]);
+        let yearly = compute_yearly_breakdown(&[trade]);
+
+        assert_eq!(monthly.len(), 1);
+        assert_eq!(monthly[0].key, "2026-01");
+        assert_eq!(yearly.len(), 1);
+        assert_eq!(yearly[0].key, "2026");
     }
 
     #[test]

@@ -8,10 +8,17 @@
 //! konta, więc lista jest z definicji ograniczona, a dzięki temu reguły zawężania są w JEDNYM
 //! miejscu i pokryte testami jednostkowymi, zamiast rozsypane po zapytaniach.
 
-use chrono::Datelike;
+use chrono::{DateTime, Datelike, Local, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::domain::trade::{Trade, TradeSide};
+
+/// Rok/miesiąc otwarcia W LOKALNEJ STREFIE CZASOWEJ - transakcja otwarta tuż po lokalnej
+/// północy jest w UTC wciąż poprzednim dniem, więc porównanie wprost na `DateTime<Utc>` mogło
+/// przypisać ją do złego miesiąca/roku (ta sama poprawka co w `domain::trade_stats`).
+fn lokalnie(at: DateTime<Utc>) -> DateTime<Local> {
+    at.with_timezone(&Local)
+}
 
 /// Wymiary zawężenia - dokładnie te, które ma pasek filtrów Raportów.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -71,6 +78,7 @@ impl ExportFilter {
             let Some(opened_at) = trade.opened_at else {
                 return false;
             };
+            let opened_at = lokalnie(opened_at);
             if opened_at.year() != year {
                 return false;
             }

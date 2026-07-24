@@ -2544,6 +2544,49 @@ wartość") - naprawione ustawieniem `incoming.theme` na wartość RÓŻNĄ od s
 Weryfikacja: `cargo test` 433/433, `cargo clippy --all-targets -- -D warnings` czyste (poza
 wcześniej zgłoszonym, niezwiązanym dead code - `task_c91d280f`), `cargo fmt --check` czyste.
 
+## Naprawiony błąd: Kalendarz/Raporty grupowały transakcje wg UTC, nie wg lokalnej strefy (2026-07-24)
+
+Zgłoszenie użytkownika po imporcie historii MT5: "kalendarz nie czyta tak jak powinien". Realny
+błąd, nie coś specyficznego dla importu - `domain::trade_stats::compute_calendar` i WSZYSTKIE
+inne rozbicia czasowe (miesięczne/roczne/kwartalne/dzień tygodnia/przedział 4-godzinny) liczyły
+dzień/miesiąc/rok WPROST na `DateTime<Utc>`, bez konwersji do strefy lokalnej - to była
+ŚWIADOMA, udokumentowana wcześniej w kodzie decyzja ("aplikacja nie ma ustawienia strefy
+czasowej"). Transakcja zamknięta np. 00:30 czasu lokalnego (Polska, UTC+1/+2) to w UTC wciąż
+POPRZEDNI dzień - trafiała więc do złego dnia w Kalendarzu i złego miesiąca/roku w Raportach.
+Import MT5 (setki transakcji o różnych porach dnia w ciągu wielu miesięcy) uwidocznił błąd,
+który przy ręcznie wpisywanej, rzadkiej historii prawie nigdy nie występował.
+
+**Potwierdzone z użytkownikiem przed naprawą** (pytanie o zakres): naprawić WSZĘDZIE spójnie, nie
+tylko w Kalendarzu - inaczej dzień pokazany w Kalendarzu mógłby nie pasować do miesiąca w
+Raporcie miesięcznym/rocznym (nowa niespójność zamiast starej).
+
+Naprawione w 3 plikach:
+- `domain/trade_stats.rs` - nowa funkcja `zamkniecie_lokalnie()` (konwersja do `chrono::Local`)
+  używana przez `compute_calendar`/`compute_monthly_breakdown`/`compute_calendar_month_breakdown`/
+  `compute_yearly_breakdown`/`compute_day_of_week_breakdown`/`compute_four_hour_breakdown`/
+  `compute_quarterly_breakdown`. Świadomie NIE dotknięte: `compute_equity_curve` i sortowanie -
+  tam liczy się dokładny znacznik czasu (UTC), nie kalendarzowy dzień.
+- `domain/export_filter.rs` - filtr eksportu po roku/miesiącu otwarcia (`opened_at`) też liczył
+  wprost na UTC.
+- `application/reports.rs` - `matches_dimensions` (filtr raportu po roku/miesiącu zamknięcia) i
+  `period_bounds` (granice `[start, end)` okresu dla salda/filtra) - obie strony tej samej monety:
+  bez naprawy `period_bounds`, granica "1 marca" wypadałaby o 22:00/23:00 UTC dnia poprzedniego,
+  więc pierwsza godzina lokalnego 1 marca trafiałaby jeszcze do lutego.
+
+Dodane 2 testy regresyjne w `trade_stats.rs` na dokładnie ten graniczny przypadek (transakcja
+23:30 UTC 30 czerwca → 1 lipca lokalnie w CEST; 23:30 UTC 31 grudnia → styczeń następnego roku
+w CET) - potwierdzone jako REALNIE wykrywające błąd (maszyna testowa jest w tej samej strefie
+czasowej co użytkownik - Europa Środkowa - więc to nie jest test niezależny od strefy, tak samo
+jak sama poprawka nie jest niezależna od strefy).
+
+Przy okazji znaleziona, ale NIE naprawiona w tym samym kroku (osobny, niezwiązany problem):
+`export_filter.rs` filtruje po `opened_at`, a `reports.rs::matches_dimensions` po `closed_at` -
+dokumentacja `export_filter.rs` mówi wprost "to samo zawężenie co Raporty", więc to prawdopodobnie
+NIEZAMIERZONA niespójność pól, nie kwestia strefy czasowej - zgłoszone jako osobne zadanie w tle.
+
+Weryfikacja: `cargo test` 435/435 (+2 nowe), `cargo clippy --all-targets -- -D warnings` czyste
+(poza wcześniej zgłoszonym dead code), `cargo fmt --check` czyste.
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use chrono::{DateTime, Datelike, TimeZone, Utc};
+use chrono::{DateTime, Datelike, Local, TimeZone, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +21,14 @@ pub struct AccountReport {
     pub calendar: Vec<DailyPnl>,
     pub by_strategy: Vec<GroupBreakdown>,
     pub by_instrument: Vec<GroupBreakdown>,
+}
+
+/// Chwila W LOKALNEJ STREFIE CZASOWEJ - transakcja zamknięta tuż po lokalnej północy jest
+/// w UTC wciąż poprzednim dniem, więc porównanie roku/miesiąca wprost na `DateTime<Utc>` mogło
+/// przypisać ją do złego okresu (ta sama poprawka co w `domain::trade_stats::zamkniecie_lokalnie`
+/// i `domain::export_filter`).
+fn lokalnie(at: DateTime<Utc>) -> DateTime<Local> {
+    at.with_timezone(&Local)
 }
 
 fn matches_dimensions(
@@ -56,6 +64,7 @@ fn matches_dimensions(
         let Some(closed_at) = trade.closed_at else {
             return false;
         };
+        let closed_at = lokalnie(closed_at);
         if closed_at.year() != year {
             return false;
         }
@@ -68,26 +77,39 @@ fn matches_dimensions(
     true
 }
 
+/// Początek dnia (00:00) w LOKALNEJ strefie czasowej, zwrócony jako `DateTime<Utc>` - inaczej
+/// granica okresu byłaby przesunięta o offset strefy (np. "1 marca" wypadałoby o 23:00/22:00
+/// poprzedniego dnia UTC), więc pierwsza godzina lub dwie lokalnego 1 marca trafiałyby jeszcze
+/// do lutego. `LocalResult::Ambiguous` (cofnięcie zegara) bierze wcześniejszy wariant,
+/// `None` (przeskoczenie zegara, praktycznie nieosiągalne o północy) spada na samo UTC.
+fn poczatek_dnia_lokalnie(year: i32, month: u32, day: u32) -> DateTime<Utc> {
+    match Local.with_ymd_and_hms(year, month, day, 0, 0, 0) {
+        chrono::LocalResult::Single(dt) => dt.with_timezone(&Utc),
+        chrono::LocalResult::Ambiguous(dt, _) => dt.with_timezone(&Utc),
+        chrono::LocalResult::None => Utc.with_ymd_and_hms(year, month, day, 0, 0, 0).unwrap(),
+    }
+}
+
 /// `[start, end)` wyznaczony przez rok/miesiąc filtru - używany do zawężania transakcji ORAZ do
 /// wyznaczenia okresu dla `compute_period_balance`. `(None, None)` = brak zawężenia okresu
-/// (cały czas).
+/// (cały czas). Granice liczone w LOKALNEJ strefie czasowej (patrz `poczatek_dnia_lokalnie`).
 fn period_bounds(
     year: Option<i32>,
     month: Option<u32>,
 ) -> (Option<DateTime<Utc>>, Option<DateTime<Utc>>) {
     match (year, month) {
         (Some(year), Some(month)) => {
-            let start = Utc.with_ymd_and_hms(year, month, 1, 0, 0, 0).unwrap();
+            let start = poczatek_dnia_lokalnie(year, month, 1);
             let end = if month == 12 {
-                Utc.with_ymd_and_hms(year + 1, 1, 1, 0, 0, 0).unwrap()
+                poczatek_dnia_lokalnie(year + 1, 1, 1)
             } else {
-                Utc.with_ymd_and_hms(year, month + 1, 1, 0, 0, 0).unwrap()
+                poczatek_dnia_lokalnie(year, month + 1, 1)
             };
             (Some(start), Some(end))
         }
         (Some(year), None) => {
-            let start = Utc.with_ymd_and_hms(year, 1, 1, 0, 0, 0).unwrap();
-            let end = Utc.with_ymd_and_hms(year + 1, 1, 1, 0, 0, 0).unwrap();
+            let start = poczatek_dnia_lokalnie(year, 1, 1);
+            let end = poczatek_dnia_lokalnie(year + 1, 1, 1);
             (Some(start), Some(end))
         }
         _ => (None, None),
