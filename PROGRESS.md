@@ -3387,6 +3387,31 @@ dokładnie przewidziany błąd: pusty blok "Historia zmian (0)" zamiast `null`; 
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **494/494** (63 pliki, +4 nowe testy).
 
+**O7, część 97: `CashOperationsModal.tsx` (213 linii) - wpłaty/wypłaty/korekty na koncie,
+bezpośrednio wpływające na saldo, zero testów.** Najbardziej nieoczywista część: notatka idzie do
+bazy BEZ przycięcia białych znaków, mimo że decyzja "czy w ogóle wysłać, czy `null`" opiera się
+na `note.trim()` - `note.trim() ? note : null` wysyła ORYGINALNY `note`, nie przycięty. Naiwny
+refaktor mógłby to "poprawić" na `note.trim()`, cicho zmieniając zapisywane dane.
+
+Nowy `pages/CashOperationsModal.test.tsx` (6 testów, `ToastProvider` + `vi.mock` na
+`invokeCommand`): `account === null` nic nie renderuje (brak okna dialogowego); nieprawidłowa
+kwota pokazuje błąd i NIE woła `create_cash_operation`; kwota z przecinkiem zapisuje się
+znormalizowana kropką; notatka z samych spacji zapisuje się jako `null`; **niepusta notatka
+zapisuje się BEZ przycięcia otaczających spacji**; po zapisie czyści pola kwoty/notatki i woła
+`onOperationAdded`.
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) `note: note.trim() ? note : null` zmienione na
+`note.trim() ? note.trim() : null` (przycięta wartość) - **dokładnie 1 z 6 testów padł**,
+pokazując dokładnie przewidziany błąd ("premia" zamiast " premia "); (2) usunięty warunek
+`!isValidDecimalString(amount)` - **dokładnie 1 z 6 padł**, nieprawidłowa kwota przeszła bez
+błędu. Po każdym cofnięciu: `git diff --stat` na `CashOperationsModal.tsx` pusty. (Sprawdzone i
+odrzucone jako niereprezentatywne dla realnego kodu: `normalizeDecimalInput(amount) ?? amount` -
+skoro walidacja przed tym wierszem to `isValidDecimalString = normalizeDecimalInput !== null`,
+fallback do surowego `amount` jest nieosiągalny w praktyce - nie testowany osobno.)
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **500/500** (64 pliki, +6 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
