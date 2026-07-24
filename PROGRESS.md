@@ -3695,6 +3695,31 @@ niepoprawnego tekstu (fallback do `FALLBACK` zamiast zachowania poprzedniego kol
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **562/562** (75 plików, +6 nowych testów).
 
+**O7, część 109: `EditModeActions` (wspólna para "Edytuj"/"Anuluj"+"Zapisz zmiany", karta
+transakcji + Zasady handlu) - zero testów.** Dwie nieoczywiste rzeczy: (1) gdy
+`saveButtonType="submit"`, przycisk Zapisz NIE dostaje `onClick={onSave}` - zapis ma iść przez
+`onSubmit` otaczającego `<form>`, przycisk jest tylko jego wizualnym wyzwalaczem; gdyby oba tory
+działały naraz, zapis wywołałby się PODWÓJNIE; (2) `disabled` (dodatkowa blokada poza `saving`, np.
+`submitLocked` - krótkie okno chroniące przed przypadkowym podwójnym kliknięciem tuż po wejściu w
+edycję) wyłącza TYLKO "Zapisz zmiany", nigdy "Anuluj" - użytkownik musi zawsze móc wyjść z edycji,
+nawet gdy sam zapis jest chwilowo zablokowany.
+
+Nowy `ui/components/EditModeActions/EditModeActions.test.tsx` (6 testów): `editing=false` pokazuje
+tylko "Edytuj" (+ `readOnlyExtra`), nie Anuluj/Zapisz; `saveButtonType="button"` (domyślnie) - klik
+w Zapisz woła `onSave`; `saveButtonType="submit"` - klik w Zapisz NIE woła `onSave`; `disabled=true`
+blokuje TYLKO Zapisz, Anuluj zostaje aktywny; `saving=true` blokuje OBA przyciski; własne etykiety
+(`saveLabel`/`cancelLabel`) zastępują domyślne.
+
+Zweryfikowane 3 niezależnymi mutacjami: (1) `onClick={saveButtonType === "button" ? onSave :
+undefined}` zastąpione bezwarunkowym `onClick={onSave}` (oba tory zapisu naraz) - **dokładnie 1 z 6
+testów padł**; (2) `disabled={saving}` na przycisku Anuluj zastąpione `disabled={saving ||
+disabled}` (Anuluj też blokowany przez `disabled`) - **dokładnie 1 z 6 padł**; (3) `if (editing)`
+zastąpione `if (true)` (zawsze tryb edycji) - **dokładnie 1 z 6 padł**. Po każdym cofnięciu: `git
+diff --stat` na `EditModeActions.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **568/568** (76 plików, +6 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
