@@ -560,6 +560,37 @@ punktowych poprawek redesignu) - zgłoszone jako osobne zadanie w tle.
 16 niezależnych rachunków referencyjnych z `RAPORT_AUDYTU.md`/A4 pozostaje aktualnych bez
 ponownego przeliczania. `cargo test` — 428/428 PASS, bez regresji (427 + nowy test pinujący domyślny akcent).
 
+**Uzupełnienie 2026-07-24 (O7, część 59): 4 dodatkowe ścieżki przeliczone RĘCZNIE, niezależnie
+od kodu testu, wprost z surowych danych wejściowych** (nie odczytane z oczekiwanego wyniku i
+przepisane wstecz) - dosłowne spełnienie sekcji 26 ("wykonaj niezależne obliczenia referencyjne
+i porównaj je z aplikacją"), czego poprzedni akapit (odwołanie do bloku D) nie robił wprost dla
+TEJ sesji:
+
+1. `trade_calculations::buy_profit_when_exit_above_entry` (EURUSD, wejście 1,10000/wyjście
+   1,10500/SL 1,09500/TP 1,11000/prowizja 5/saldo 10000): 500 punktów cenowych × 1 USD/punkt →
+   brutto 500, netto 495 (500-5), ryzyko 500 (500 punktów do SL), zysk potencjalny 1000 (1000
+   punktów do TP), RR 1000/500=2, R 495/500=0,99, ryzyko% 500/10000×100=5, wynik%
+   495/10000×100=4,95 - **8/8 wartości zgodne**.
+2. `czesciowe_zamkniecia_sa_jedynym_zrodlem_wyniku_pienieznego`: suma częściowych zamknięć
+   180+(-30)=150 jako WYŁĄCZNE źródło brutto (nie dodane do 500 z ceny wyjścia - byłoby to
+   podwójne liczenie), netto 150-5-2-1=142, punkty (metryka cenowa, licząca się niezależnie od
+   pieniędzy z częściowych zamknięć) = 500 - **zgodne, bez podwójnego liczenia**.
+3. `position_sizing::liczy_lot_z_ryzyka_procentowego`: saldo 10000 × ryzyko 1% = 100 USD celu;
+   SL 1000 punktów × 1 USD/punkt = 1000 USD straty na 1 locie; sugerowany lot 100/1000=0,10;
+   jednostki 0,10×100000=10000 - **zgodne**.
+4. `trade_stats::max_drawdown_is_the_largest_peak_to_trough_drop` (skumulowany wynik
+   100→-50→-20→180): ręczne śledzenie szczytu - szczyt 100, dołek -50 (spadek 150), kolejny
+   dołek -20 od tego samego szczytu (spadek 120, mniejszy), nowy szczyt 180 (spadek 0) → max
+   drawdown = 150 - **zgodne**. `win_rate_and_profit_factor_from_wins_and_losses` (2 zyski: 100,
+   200; 1 strata: -50): win_rate 2/3×100, gross_profit 300, gross_loss 50, profit_factor
+   300/50=6, average_win 150, average_loss 50, expectancy 250/3, best/worst -50/200 - **wszystkie
+   zgodne**.
+
+Potwierdzone `git log` na wszystkich trzech plikach (`trade_calculations.rs`/`position_sizing.rs`/
+`trade_stats.rs`): ostatnie commity dotykające ich to sprzed rozpoczęcia Bloku O - ani redesign,
+ani osobny, równoległy audyt formatowania wizualnego tej samej sesji nie zmienił ani jednej linii
+logiki liczącej pieniądze. `cargo test` 435/435 PASS (bez regresji przez całą sesję od bloku D).
+
 ## 6. Narzędzia kontroli (sekcja 28)
 
 | Narzędzie                                            | Wynik                                                                                                                                                                                                                                                                                            |
@@ -621,15 +652,31 @@ ponownego przeliczania. `cargo test` — 428/428 PASS, bez regresji (427 + nowy 
    konsoli na całej trasie. Stan braku backendu renderuje się wszędzie jako czytelny,
    niekrytyczny komunikat `role="alert"` z przyciskiem ponowienia (nie pusty ekran/crash) -
    potwierdza już wcześniej znany, opisany w pamięci przypadek „Brak środowiska Tauri", nie
-   nową usterkę. **Częściowe domknięcie 2026-07-24:** 9 z 14 tras (`/transakcje`, `/kalendarz`,
-   `/raporty`, `/konta`, `/strategie`, `/dane`, `/kosz`, `/`, `/kalkulator-pozycji`) dodatkowo
-   zweryfikowane z prawdziwymi (fałszywymi, ale poprawnie ukształtowanymi) danymi przez
+   nową usterkę. **Rozszerzone domknięcie 2026-07-24 (część 54-57): 13 z 14 tras**
+   (`/transakcje`, `/kalendarz`, `/raporty`, `/konta`, `/strategie`, `/dane`, `/kosz`, `/`,
+   `/kalkulator-pozycji`, `/instrumenty`, `/interwaly`, `/stan-emocjonalny`, `/zasady-handlu`)
+   dodatkowo zweryfikowane z prawdziwymi (fałszywymi, ale poprawnie ukształtowanymi) danymi przez
    wstrzyknięty mostek Tauri - potwierdzone, że naprawy z części 41-53 (stan `loading` na
    `Button` i `IconButton`, klawiaturowo dostępne wiersze, `formatSignedMoney`, stan `:active`,
    brak utraty focusu podczas przeliczeń) faktycznie działają z realnymi danymi; przy okazji
-   znalezione, że `BreakdownTable.tsx` jest martwym kodem (osobny wpis wyżej). Nadal brakuje:
-   pozostałych 5 tras z danymi, prawdziwej aplikacji desktopowej
-   z bazą i weryfikacji pikselowej.
+   znalezione, że `BreakdownTable.tsx` jest martwym kodem (osobny wpis wyżej), oraz 4 kolejne
+   pliki bez `busy` (`InstrumentsPage.tsx`, `IntervalsSection.tsx`/`EmotionalStatesSection.tsx`,
+   `ZasadyHandluPage.tsx` - "Przywróć szablon"), wszystkie naprawione tym samym wzorcem.
+   **`/ustawienia` (ostatnia z 14) udokumentowana jako jedyny wyjątek z jasnym, strukturalnym
+   uzasadnieniem technicznym** (`PreferencesProvider` pobiera dane RAZ przy montowaniu, przed
+   momentem, w którym da się wstrzyknąć fałszywy mostek - zapisane jako punkt 10 w pamięci
+   sesji, nie próbować ponownie). Nadal brakuje: prawdziwej aplikacji desktopowej z bazą i
+   weryfikacji pikselowej - ale sweep z prawdziwymi danymi uznany za zamknięty w praktycznym
+   zakresie dostępnym z tego narzędzia (13/14 z danymi, 14/14 ze stanem błędu).
+
+   **Część 58 (osobny, szerszy sweep): wyczerpująco sprawdzone WSZYSTKIE 24 pliki z `IconButton`
+   w całym `apps/desktop/src`**, nie tylko strony dotknięte częściami 52-57 - znalezione i
+   naprawione 4 KOLEJNE pliki bez `busy`/`loading` (`TradeAttachments.tsx` - stan był śledzony,
+   ale niewidoczny w JSX, najbardziej podstępny wariant tego błędu w całym audycie;
+   `TransactionsPage.tsx`, `AccountsPage.tsx`, `StrategiesPage.tsx` - bez żadnej zmiennej `busy`).
+   Ten sweep zamyka temat `IconButton`/`loading` z sekcji 9 dla całej aplikacji, nie tylko dla
+   tras już zweryfikowanych z danymi.
+
 3. ~~**Pełny manifest plik-po-pliku** (sekcja 27)~~ — **ZAMKNIĘTE 2026-07-24.** Dodana tabela
    z osobnym wierszem i statusem dla każdego pliku (sekcja 2, „Manifest plik-po-pliku"),
    wygenerowana programowo z już zweryfikowanej tabeli grup — 0 pominiętych, 0 nadmiarowych.
@@ -638,8 +685,30 @@ ponownego przeliczania. `cargo test` — 428/428 PASS, bez regresji (427 + nowy 
    raz (po części 48) po kolejnych 4 commitach: 82 → 83 pliki, jeszcze raz (po części 49) po
    kolejnych 2 commitach: 83 → 85 pliki, jeszcze raz (po części 50) po kolejnych 2 commitach:
    85 → 87 pliki, jeszcze raz (po części 51) po kolejnych 2 commitach: 87 → 90 pliki, jeszcze raz
-   (po części 52) po kolejnym 1 commicie: 90 → 92 pliki, i jeszcze raz (po części 53) po
-   kolejnym 1 commicie: 92 → 94 pliki, ta sama metoda weryfikacji.
+   (po części 52) po kolejnym 1 commicie: 90 → 92 pliki, jeszcze raz (po części 53) po
+   kolejnym 1 commicie: 92 → 94 pliki, i jeszcze raz (po części 54-58) po 5 kolejnych commitach:
+   94 → **98 plików** (zakres `0c2eb41^..adb3d2a` - SHA część 58, przypięty do konkretnego
+   commita zamiast słowa „HEAD" używanego wcześniej w tym dokumencie, bo od część 58 dalsze
+   commity tej sesji należą do OSOBNEGO audytu formatowania wizualnego, nie do redesignu O -
+   dosłowne „HEAD" ponownie uruchomione dziś dałoby zawyżony, nieprawdziwy wynik), ta sama
+   metoda weryfikacji: 98/98 dopasowanych, 0 pominiętych, 0 nadmiarowych.
 
 Żadna z pozostałych dwóch blokad nie jest znanym błędem — to brakujący DOWÓD, nie brakująca
 poprawka. Kod jest zweryfikowany tam, gdzie da się to zrobić bez pikselowego podglądu.
+
+**Aktualizacja 2026-07-24 (część 59 O7): sekcja 26 uzupełniona o 4 ręcznie, niezależnie
+przeliczone ścieżki** (P&L/ryzyko/RR transakcji BUY, częściowe zamknięcia, kalkulator wielkości
+pozycji, max drawdown + win rate/profit factor/expectancy) - wszystkie zgodne z wynikami
+aplikacji, przeliczone z surowych danych wejściowych testu, nie przepisane z oczekiwanego
+wyniku. Zobacz sekcję 5 niżej i `PROGRESS.md` (część 59) po pełne wyliczenie. Redesign i osobny
+audyt formatowania nie dotknęły żadnego pliku kalkulacyjnego (`git log` na `trade_calculations.rs`/
+`position_sizing.rs`/`trade_stats.rs` potwierdzone bez zmian od sprzed Bloku O).
+
+**Zakres ekranów z sekcji 23 (Dashboard, Nowa transakcja, historia, Inspector, konta, strategie,
+instrumenty, szablony brokerów, kalkulator, raporty, Stan emocjonalny, Zasady handlu, Kosz,
+Ustawienia, modale, menu, długie teksty, duże liczby, polskie znaki) pokryty na poziomie kodu
+przez OSOBNY, równoległy audyt tej samej sesji** (zgłoszenie użytkownika o formatowaniu liczb,
+rozrosłe do pełnego audytu wizualnego wszystkich ekranów - `PROGRESS.md`, tabela PASS/FAIL 19/19,
+zadania 1-23). Inny punkt wyjścia, identyczny zakres ekranów - krzyżowe odniesienie zamiast
+duplikacji. Nie zastępuje to zrzutów ekranu (blokada 1 pozostaje NIEZWERYFIKOWANA), ale znacząco
+wzmacnia dowód braku "starego stylu" na poziomie struktury/CSS.
