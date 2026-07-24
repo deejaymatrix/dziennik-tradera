@@ -215,8 +215,9 @@ export function AccountDetailsModal({
                       variant="primary"
                       onClick={() => void handleReplace()}
                       disabled={busy || !selectedTemplateId || selectedTemplateId === assigned?.id}
+                      loading={busy}
                     >
-                      {busy ? "Zapisywanie..." : "Zapisz szablon"}
+                      Zapisz szablon
                     </Button>
                   </div>
                 </div>

@@ -1138,8 +1138,13 @@ export function TradeFormModal({
               >
                 Zapisz szkic
               </Button>
-              <Button type="submit" variant="primary" disabled={submitting || submitLocked}>
-                {submitting ? "Zapisywanie..." : "Zapisz transakcję"}
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={submitting || submitLocked}
+                loading={submitting}
+              >
+                Zapisz transakcję
               </Button>
             </>
           )}

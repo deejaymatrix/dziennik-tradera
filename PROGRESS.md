@@ -1517,6 +1517,18 @@ wpisywało surowe `1` (odznaki/ikony jednowierszowe) i `1.5` (duplikat `--normal
 zostawiony bez zmian - to świadomy, jednorazowy dobór dla dużej liczby wynikowej, nie duplikat
 żadnego tokenu).
 
+**Znaleziony brakujący stan komponentu (sekcja 9: "każdy komponent ma posiadać komplet
+stanów... loading").** `Button` w ogóle nie miał stanu `loading` - 8 stron ręcznie
+duplikowało ten sam wzorzec (`{submitting ? "Zapisywanie..." : "Zapisz"}` + osobne
+`disabled={submitting}`), a jeden współdzielony komponent (`EditModeActions`) robił to samo
+z dodatkowym, teraz zbędnym propem `savingLabel`. Dodany właściwy prop `loading` na `Button`:
+ustawia `aria-busy`, wymusza `disabled`, pokazuje spinner NAD tekstem (`visibility: hidden`,
+nie `display: none` - przycisk nie zmienia szerokości w trakcie ładowania). Wszystkie 9 miejsc
+(8 stron + `EditModeActions`) przepięte, `savingLabel` usunięty jako martwy kod (0 wywołań
+z override). Przy okazji naprawiony fałszywie pozytywny lint (`disabled={disabled || loading}`
+sugerował `??`, co realnie zmieniłoby zachowanie przy `disabled={false}` - naprawione uczciwie
+przez `Boolean(disabled)`, nie tłumione komentarzem).
+
 ### Rozszerzenie na macOS (druga wersja promptu O, 2026-07-24)
 
 Nowa wersja dokumentu dodaje macOS (Apple Silicon `arm64` + Intel `x86_64`) jako drugą

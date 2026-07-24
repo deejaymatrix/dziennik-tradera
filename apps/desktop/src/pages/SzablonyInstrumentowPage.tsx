@@ -392,8 +392,9 @@ function TemplateFormModal({ state, onClose, onSaved }: TemplateFormModalProps):
             variant="primary"
             onClick={() => void handleSave()}
             disabled={saving || !name.trim()}
+            loading={saving}
           >
-            {saving ? "Zapisywanie..." : state.mode === "create" ? "Utwórz" : "Zapisz"}
+            {state.mode === "create" ? "Utwórz" : "Zapisz"}
           </Button>
         </div>
       </div>

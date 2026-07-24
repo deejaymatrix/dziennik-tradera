@@ -163,8 +163,8 @@ export function CashOperationsModal({
             </p>
           )}
           <div className={styles.formActions}>
-            <Button type="submit" variant="primary" disabled={submitting}>
-              {submitting ? "Zapisywanie..." : "Dodaj operację"}
+            <Button type="submit" variant="primary" disabled={submitting} loading={submitting}>
+              Dodaj operację
             </Button>
           </div>
         </form>

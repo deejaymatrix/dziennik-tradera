@@ -202,8 +202,8 @@ export function AccountFormModal({
           <Button type="button" variant="secondary" onClick={onClose} disabled={submitting}>
             Anuluj
           </Button>
-          <Button type="submit" variant="primary" disabled={submitting}>
-            {submitting ? "Zapisywanie..." : "Zapisz"}
+          <Button type="submit" variant="primary" disabled={submitting} loading={submitting}>
+            Zapisz
           </Button>
         </div>
       </form>

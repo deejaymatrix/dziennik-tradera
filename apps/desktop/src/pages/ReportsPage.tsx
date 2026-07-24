@@ -204,9 +204,10 @@ export function ReportsPage(): ReactElement {
                 variant="secondary"
                 size="sm"
                 disabled={exporting !== null}
+                loading={exporting === format}
                 onClick={() => void handleExport(format)}
               >
-                {exporting === format ? "Zapisywanie..." : format.toUpperCase()}
+                {format.toUpperCase()}
               </Button>
             ))}
           </div>

@@ -15,7 +15,6 @@ export interface EditModeActionsProps {
   onSave?: () => void;
   saveButtonType?: "button" | "submit";
   saveLabel?: string;
-  savingLabel?: string;
   editLabel?: string;
   cancelLabel?: string;
   /** Dodatkowy przycisk widoczny tylko w trybie odczytu, przed "Edytuj" (np. "Zamknij" na karcie
@@ -36,7 +35,6 @@ export function EditModeActions({
   onSave,
   saveButtonType = "button",
   saveLabel = "Zapisz zmiany",
-  savingLabel = "Zapisywanie...",
   editLabel = "Edytuj",
   cancelLabel = "Anuluj",
   readOnlyExtra,
@@ -52,8 +50,9 @@ export function EditModeActions({
           variant="primary"
           onClick={saveButtonType === "button" ? onSave : undefined}
           disabled={saving || disabled}
+          loading={saving}
         >
-          {saving ? savingLabel : saveLabel}
+          {saveLabel}
         </Button>
       </>
     );

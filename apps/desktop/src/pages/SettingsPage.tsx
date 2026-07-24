@@ -526,11 +526,12 @@ export function SettingsPage(): ReactElement {
               <Button
                 variant="primary"
                 disabled={!dirty || saving}
+                loading={saving}
                 onClick={() => {
                   void handleSave(active);
                 }}
               >
-                {saving ? "Zapisywanie..." : "Zapisz zmiany"}
+                Zapisz zmiany
               </Button>
             </div>
           </div>
