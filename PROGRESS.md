@@ -1736,6 +1736,15 @@ powodów, więc nie zwiększa liczby plików. Zaktualizowany zakres do `0c2eb41^
 **73 pliki**, zweryfikowane tym samym skryptem porównującym co poprzednio: 73/73 dopasowanych,
 0 pominiętych, 0 nadmiarowych.
 
+**O7, zamknięcie całego przeglądu „jedno źródło prawdy" (sekcja 9): sprawdzona ostatnia
+kategoria, `font-size`.** 2 surowe wartości poza `var(--font-size-*)` (skala kończy się na
+`--font-size-xl: 1,75rem`) - `KalkulatorPozycjiPage.module.css .lotValue` (2,25rem, duża
+liczba wynikowa, sparowana z już wcześniej udokumentowanym wyjątkiem `line-height: 1.1` - ten
+sam, jednorazowy dobór) i `EmptyState.module.css .icon` (2rem, rozmiar GLIFU ikony, element
+graficzny, nie typografia). Oba uzasadnione, zero nowych luk. Cały przegląd tokenów (kolory,
+z-index, font-weight, line-height, border-radius, box-shadow, font-size) uznany za zamknięty -
+każda kategoria albo skonsolidowana do jednego źródła, albo ma udokumentowany, świadomy wyjątek.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
