@@ -2096,6 +2096,25 @@ i `create_emotional_state` faktycznie wywołują się z poprawną wartością po
 zwraca `true`. `pnpm format:check`, `pnpm typecheck`, `pnpm test` 271/271, `preview_start` +
 `javascript_tool`, `preview_stop` po zakończeniu.
 
+**O7: sprawdzone (częściowo) „brak utraty focusu podczas automatycznych przeliczeń" (sekcja
+21).** `TradeFormModal.tsx` (`preview_trade`, debounce 300ms) i `KalkulatorPozycjiPage.tsx`
+(`calculate_position_size`, debounce 250ms, z komentarzem w kodzie wprost mówiącym, że to ten
+sam wzorzec) - przegląd kodu potwierdza, że wynik przeliczenia trafia do OSOBNEGO stanu
+(`preview`/`result`), nie do stanu samych pól formularza, więc pola input nie powinny się
+remontować przy każdym przeliczeniu.
+
+Próba pełnej weryfikacji w przeglądarce z wstrzykniętym fałszywym mostkiem Tauri: pierwszy
+przebieg (prostszy przypadek) potwierdził, że DOKŁADNIE ten sam węzeł DOM pola „Cena wejścia"
+pozostaje skupiony 500ms po wpisaniu wartości (dłużej niż debounce). Drugi przebieg (pełny
+kalkulator pozycji) natrafił na awarię interfejsu spowodowaną NIEPOPRAWNYM kształtem mojej
+sfałszowanej odpowiedzi `calculate_position_size` (zgadywane pola nie pasowały do prawdziwych:
+`actual_risk_amount`/`stop_loss_price`/`loss_per_lot`/`raw_lot`/`rr`) - to mój błąd testowy, nie
+potwierdzony błąd aplikacji, ale też nie domyka pełnej, czystej weryfikacji.
+
+Uczciwie oznaczone jako CZĘŚCIOWO ZWERYFIKOWANE, nie PASS - zgodnie z zasadą sekcji 30 („nie
+oznaczaj PASS wyłącznie przez założenie"). Wysoka pewność z przeglądu kodu (identyczny,
+świadomie powtórzony wzorzec w 2 miejscach), ale bez pełnego domknięcia dowodem z przeglądarki.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
