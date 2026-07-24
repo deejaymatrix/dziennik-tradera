@@ -3,6 +3,7 @@ import { formatMoney, formatSignedMoney } from "../app/decimal";
 import { formatMinutes, formatNumber, formatPercent } from "../app/reportFormat";
 import type { FilteredReport, GroupBreakdown } from "../app/types/report";
 import { EmptyState } from "../ui/components/EmptyState/EmptyState";
+import { TruncatedText } from "../ui/components/TruncatedText/TruncatedText";
 import { ChartCard } from "./ChartCard";
 import { EquityCurveChart } from "./EquityCurveChart";
 import { GroupBarChart } from "./GroupBarChart";
@@ -205,30 +206,50 @@ export function ReportMonthlyTab({
             <div className={styles.leaderCard}>
               <span className={styles.leaderLabel}>Najlepszy dzień</span>
               <span className={styles.leaderValue}>
-                {bestDay ? `${bestDay.label} · ${formatMoney(bestDay.net_pnl, currency)}` : "—"}
+                {bestDay ? (
+                  <TruncatedText
+                    text={`${bestDay.label} · ${formatMoney(bestDay.net_pnl, currency)}`}
+                  />
+                ) : (
+                  "—"
+                )}
               </span>
             </div>
             <div className={styles.leaderCard}>
               <span className={styles.leaderLabel}>Najgorszy dzień</span>
               <span className={styles.leaderValue}>
-                {worstDay ? `${worstDay.label} · ${formatMoney(worstDay.net_pnl, currency)}` : "—"}
+                {worstDay ? (
+                  <TruncatedText
+                    text={`${worstDay.label} · ${formatMoney(worstDay.net_pnl, currency)}`}
+                  />
+                ) : (
+                  "—"
+                )}
               </span>
             </div>
             <div className={styles.leaderCard}>
               <span className={styles.leaderLabel}>Najlepsza strategia</span>
-              <span className={styles.leaderValue}>{bestStrategy?.label ?? "—"}</span>
+              <span className={styles.leaderValue}>
+                {bestStrategy ? <TruncatedText text={bestStrategy.label} /> : "—"}
+              </span>
             </div>
             <div className={styles.leaderCard}>
               <span className={styles.leaderLabel}>Najgorsza strategia</span>
-              <span className={styles.leaderValue}>{worstStrategy?.label ?? "—"}</span>
+              <span className={styles.leaderValue}>
+                {worstStrategy ? <TruncatedText text={worstStrategy.label} /> : "—"}
+              </span>
             </div>
             <div className={styles.leaderCard}>
               <span className={styles.leaderLabel}>Najlepszy instrument</span>
-              <span className={styles.leaderValue}>{bestInstrument?.label ?? "—"}</span>
+              <span className={styles.leaderValue}>
+                {bestInstrument ? <TruncatedText text={bestInstrument.label} /> : "—"}
+              </span>
             </div>
             <div className={styles.leaderCard}>
               <span className={styles.leaderLabel}>Najgorszy instrument</span>
-              <span className={styles.leaderValue}>{worstInstrument?.label ?? "—"}</span>
+              <span className={styles.leaderValue}>
+                {worstInstrument ? <TruncatedText text={worstInstrument.label} /> : "—"}
+              </span>
             </div>
           </dl>
         </ChartCard>

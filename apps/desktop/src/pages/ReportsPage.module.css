@@ -108,6 +108,10 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-3);
+  /* Bez tego siatka (`.leaderboard`, `minmax(11rem, 1fr)`) nie pozwala kafelkowi zejść poniżej
+     szerokości jego NIEOBCIĘTEJ treści (domyślne `min-width: auto` elementu siatki) - długa
+     nazwa strategii/instrumentu rozpychała całą siatkę zamiast się obciąć wielokropkiem. */
+  min-width: 0;
 }
 
 .leaderLabel {

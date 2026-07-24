@@ -95,9 +95,19 @@ export function GroupBarChart({
   // (np. 31 dni miesiąca) zamiast pomijać etykiety, przekrzywiamy je bardziej i zmniejszamy
   // czcionkę, żeby wszystkie zmieściły się bez nakładania - karty z takimi wykresami są dodatkowo
   // renderowane na całą szerokość siatki (`ChartCard fullWidth`), co daje na to miejsce.
+  //
+  // Osobny wymiar od LICZBY kategorii: DŁUGOŚĆ etykiety (np. własna nazwa strategii/instrumentu).
+  // Recharts sam zawija długi tekst na kilka linii (`<tspan>`) zamiast go obcinać - ale bez
+  // dodatkowego miejsca ten zawinięty, obrócony blok wystawał POZA obszar wykresu (znalezione
+  // przy audycie: zmierzone `getBoundingClientRect()` w przeglądarce pokazało widoczne przecięcie
+  // z sąsiednią kartą). `axisHeight`/`marginLeft` rosną, gdy najdłuższa etykieta tego wymaga -
+  // liczba kategorii i długość etykiety to dwa NIEZALEŻNE powody potrzeby więcej miejsca.
+  const maxLabelLength = data.reduce((max, d) => Math.max(max, d.label.length), 0);
+  const hasLongLabels = maxLabelLength > 18;
   const angle = data.length > 20 ? -60 : data.length > 10 ? -35 : -25;
   const tickFontSize = data.length > 20 ? 10 : 11;
-  const axisHeight = data.length > 20 ? 62 : 50;
+  const axisHeight = data.length > 20 ? 62 : hasLongLabels ? 110 : 50;
+  const marginLeft = hasLongLabels ? 32 : 0;
   const axisWidth = estimateYAxisWidth(
     data.map((d) => d.value),
     formatAxisValue,
@@ -105,7 +115,7 @@ export function GroupBarChart({
 
   return (
     <ResponsiveContainer width="100%" height={260}>
-      <BarChart data={data} margin={{ top: 8, right: 8, bottom: 32, left: 0 }}>
+      <BarChart data={data} margin={{ top: 8, right: 8, bottom: 32, left: marginLeft }}>
         <CartesianGrid {...CHART_GRID_PROPS} />
         <XAxis
           dataKey="label"

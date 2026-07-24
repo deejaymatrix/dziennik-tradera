@@ -35,7 +35,7 @@ export function DayTradesModal({
   onClose,
 }: DayTradesModalProps): ReactElement {
   return (
-    <Modal open onClose={onClose} title={`Transakcje - ${dateLabel}`}>
+    <Modal open onClose={onClose} title={`Transakcje - ${dateLabel}`} size="wide">
       <div className={styles.previewTable}>
         <Table>
           <thead>

@@ -2614,6 +2614,50 @@ konsoli.
 Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check`, `pnpm test`
 278/278 - wszystkie czyste.
 
+## Audyt wizualny formatowania tekstu/danych w całej aplikacji (2026-07-24, w toku)
+
+Życzenie użytkownika: pełny audyt formatowania (nachodzenie/ucinanie/zawijanie tekstu,
+rozjeżdżające się kolumny, niespójne odstępy/nagłówki, długie nazwy/wartości, puste dane, duże
+liczby, oba motywy, skalowanie, różne szerokości okna) - ze wspólnym systemem formatowania
+zamiast punktowych napraw, szczególna uwaga na 5 raportów, ale bez pomijania reszty aplikacji.
+Śledzone jako lista zadań (20 pozycji: 1 baseline + 5 raportów + 13 pozostałych ekranów +
+1 finalna regresja z tabelą PASS/FAIL).
+
+**Baseline (zadanie 1, zamknięte):** przejrzane istniejące konwencje - `Table.wrapper` już ma
+`overflow-x: auto`, `.numeric` już ma `tabular-nums`+prawe wyrównanie, `formatMoney`/
+`formatSignedMoney` już używają `Intl.NumberFormat("pl-PL")`. Brakowało jednak sposobu na
+obcinanie długich wartości z pełną treścią w tooltipie - gotowy komponent `Tooltip` istniał, ale
+nie był używany NIGDZIE w aplikacji. Zbudowany nowy `TruncatedText` (obcina wielokropkiem TYLKO
+gdy tekst faktycznie nie mieści się, pokazuje pełną wartość w `Tooltip` na hover/focus) - to jest
+teraz JEDNO miejsce do użycia wszędzie, gdzie wartość może być dowolnie długa.
+
+**Raport miesięczny (zadanie 2, zamknięte) - 2 realne znaleziska:**
+1. Sekcja "Podsumowanie jakościowe" (najlepszy/najgorszy dzień/strategia/instrument) renderowała
+   surowe etykiety bez obcinania w siatce kart o `minmax(11rem, 1fr)` - klasyczna pułapka CSS
+   Grid (`min-width: auto` elementu siatki nie pozwala mu zejść poniżej szerokości NIEOBCIĘTEJ
+   treści). Naprawione: `TruncatedText` na wszystkich 6 wartości + `min-width: 0` na `.leaderCard`
+   w `ReportsPage.module.css` (współdzielony przez wszystkie podraporty).
+2. **Wykresy słupkowe "Wynik wg strategii"/"Wynik wg instrumentu" (`GroupBarChart.tsx`) - długie
+   nazwy własnych strategii/instrumentów WYSTAWAŁY POZA obszar wykresu.** Znalezisko potwierdzone
+   pomiarem w przeglądarce (`getBoundingClientRect()` na prawdziwym renderze, nie domysłem):
+   Recharts sam zawija długi tekst etykiety na kilka linii (`<tspan>`, zgodnie z udokumentowaną
+   zasadą "nigdy nie obcinaj etykiety kategorii"), ale istniejąca logika `axisHeight`/`margin.left`
+   skalowała się TYLKO wg LICZBY kategorii (np. 31 dni miesiąca), nie wg DŁUGOŚCI etykiety - przy
+   MAŁEJ liczbie kategorii z DŁUGĄ nazwą własną (typowe dla ręcznie nazwanej strategii) zawinięty,
+   obrócony blok tekstu przecinał się z kartą pod spodem (zmierzone: 20-29px przecięcia w pionie,
+   21px w poziomie). Naprawione dodaniem NIEZALEŻNEGO wymiaru skalowania (`hasLongLabels`, próg
+   18 znaków najdłuższej etykiety): `axisHeight` 50→110 i nowy `margin.left` 0→32 - zweryfikowane
+   iteracyjnie w przeglądarce (edycja + pomiar + kolejna edycja), po poprawce ZERO przecięć
+   w żadnym kierunku dla 3 etykiet testowych (jedna 78-znakowa).
+
+Pozostałe elementy raportu miesięcznego sprawdzone i BEZ problemu: `TopTradesTable`/
+`MonthCalendarTable` (już w scrollowalnym `Table.wrapper`, wartości formatowane/bounded),
+`StatCard` (wartości to zawsze formatowane liczby, bounded length), `reportFormat.ts` (null/NaN
+obsłużone czytelnym „—", bez ryzyka crasha na pustych danych).
+
+Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check`, `pnpm test`
+278/278 - wszystkie czyste. Zero błędów konsoli w obu testach przeglądarkowych.
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.
