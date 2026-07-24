@@ -2637,6 +2637,29 @@ z przewidywaniem. Po cofnięciu: `git diff` czysty, 4/4 PASS ponownie.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **305/305** (34 pliki, +4 nowe testy).
 
+**O7, część 67: SZÓSTY przypadek tej samej klasy luki - `Modal.test.tsx` ISTNIAŁ, ale nie
+testował akurat TEGO, co macierz twierdziła, że sprawdziła.** Sekcja 1.1 macierzy: „Escape
+zamyka warstwy bezpiecznie - `onCancel` z `preventDefault()` + wywołanie `onClose()` -
+kontrolowane zamknięcie zsynchronizowane ze stanem React, nie wyścig z natywnym zachowaniem
+`<dialog>`". Istniejący `Modal.test.tsx` (2 testy) sprawdzał wyłącznie renderowanie treści i
+kliknięcie przycisku „Zamknij" - ani jednego testu dla ścieżki Escape/`cancel`. Subtelniejszy
+wariant dotychczasowej luki: nie brak pliku testowego, tylko MYLĄCE poczucie pokrycia, bo plik
+istnieje i coś testuje - tylko nie akurat udokumentowane zachowanie.
+
+Dodany trzeci test do `Modal.test.tsx`: natywny `<dialog>` wywołuje zdarzenie `cancel` przy
+Escape (niesymulowane przez `userEvent` - jsdom nie odtwarza tej ścieżki klawiatura→zdarzenie
+wiarygodnie), więc test wysyła zdarzenie `cancel` (`cancelable: true`) bezpośrednio na element
+`<dialog>` i sprawdza to, co faktycznie testowalne i faktycznie ISTOTNE: czy handler
+`onCancel` woła `event.preventDefault()` (`cancelEvent.defaultPrevented === true`) i czy
+`onClose` faktycznie się wywołuje - nie czy przeglądarka umie wysłać Escape (to jej odpowiedzialność).
+
+Zweryfikowane testem mutacyjnym: tymczasowo `onCancel` bez `preventDefault()`/`onClose()` -
+nowy test **padł dokładnie tak, jak powinien** (`defaultPrevented` fałszywe), pozostałe 2 testy
+w pliku bez zmian. Po cofnięciu: `git diff` na `Modal.tsx` czysty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **306/306** (34 pliki, +1 nowy test w istniejącym pliku).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
