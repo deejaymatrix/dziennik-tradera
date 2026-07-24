@@ -1580,6 +1580,36 @@ przedstawiać go jako gotowego."_ Ustalony podział pracy:
   `GOTOWY FUNKCJONALNIE, macOS NIEZWERYFIKOWANY` - nigdy pełne `GOTOWE` dla macOS, dopóki ktoś
   z dostępem do Maca nie przeprowadzi realnego testu.
 
+**O7, seria kontroli bez potrzeby poprawek (sekcja 21: stany formularzy i dostępność).**
+Sprawdzone i potwierdzone jako już poprawne - zapisane jako dowód audytowy, nie jako naprawa:
+
+- Nieprzezroczystość stanu disabled: `TextField`/`Select`/`Textarea` mają spójne `0.6`
+  (ten sam poziom co `Button`, uzasadniony czytelnością tekstu), odrębny od klastra `0.5`
+  (`Checkbox`/`IconButton`/`Switch` - kontrolki ikonowe/przełącznikowe). Dwa spójne wewnętrznie
+  klastry, nie przypadkowy rozjazd.
+- `:focus-visible` na `TextField`, `Select`, `Textarea`: identyczna reguła
+  (`outline: 2px solid var(--color-focus-ring); outline-offset: 1px; border-color:
+var(--color-accent);`) bajt w bajt w każdym z trzech.
+- `aria-invalid`/`aria-describedby`/`aria-required`/`role="alert"` na komunikacie błędu:
+  potwierdzone w `TextField.tsx`, i przez grep - to samo w `Select.tsx`/`Textarea.tsx`.
+- `Modal.tsx` (natywny `<dialog>`): Escape poprawny przez zamysł, nie przypadek -
+  `onCancel={(event) => { event.preventDefault(); onClose(); }}` świadomie blokuje niekontrolowane
+  zamknięcie przeglądarki, żeby stan React zostawał władny, zsynchronizowany przez `useEffect`
+  na `open` (`dialog.close()`/`showModal()`).
+- 13 plików z `grid-template-columns` bez `@media`: wszystkie oparte na `1fr`/`repeat(N, 1fr)`/
+  `auto-fit`/`auto-fill` (proporcjonalne), nie na stałych pikselach - same z siebie nie mogą
+  wymusić przepełnienia kontenera; ochrona przed przepełnieniem przez zawartość (pułapka
+  `min-width: auto` CSS Grid) już istnieje na `TextField`/`Select`/`Textarea` z wcześniejszej
+  pracy nad projektem.
+- Pola dat (`CashOperationsModal`, `CloseTradeModal`, `settings/PreferenceSections`,
+  `TradeFormModal`): natywny `type="datetime-local"` przez współdzielony `TextField` - dedykowany
+  `DateTimePicker` z sekcji 9 promptu nie jest potrzebny, chrome już spójne.
+- Wybór emocji transakcji: świadomy wcześniejszy wybór „dodawaj pojedynczo", nie brakujący
+  `MultiSelect` - budowa generycznego komponentu zastąpiłaby przemyślany wzorzec, nie naprawiłaby
+  luki.
+
+Pełne wpisy z dowodami: [MACIERZ_AUDYTU_REDESIGN_O.md](MACIERZ_AUDYTU_REDESIGN_O.md), sekcja 1.1.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
