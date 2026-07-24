@@ -2571,6 +2571,31 @@ PASS.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **294/294** (30 plików).
 
+**O7, część 64: TRZECI przypadek tej samej klasy luki - O4 ("domyślny kolor nowej strategii
+złoto→niebieski") był niezależnym literałem, nie dzielonym źródłem prawdy.** `StrategyFormModal.tsx`
+miał własny magiczny literał `"#4c7dff"`, a `PreferencesProvider.tsx` osobny, nieeksportowany
+`DEFAULT_ACCENT = "#4c7dff"` - komentarz w `StrategyFormModal.tsx` WPROST mówił, że mają się
+zgadzać, ale nic tego nie wymuszało poza pamięcią przyszłego edytora. Dokładnie „wielokrotne
+źródła prawdy" z sekcji 27 promptu - ta sama klasa błędu co z-index/font-weight/line-height/
+border-radius/box-shadow znalezione wcześniej w tej sesji, tylko dotąd przeoczona dla samych
+kolorów domyślnych.
+
+Naprawione strukturalnie, nie tylko testem: `DEFAULT_ACCENT` wyeksportowany z
+`PreferencesProvider.tsx`, `StrategyFormModal.tsx` zaimportował go zamiast duplikować literał -
+teraz te dwa miejsca fizycznie NIE MOGĄ się rozjechać (TypeScript/moduł to wymusza, nie tylko
+komentarz). Dodatkowo nowy `pages/StrategyFormModal.test.tsx`: render nowej (pustej) strategii,
+asercja że wyzwalacz `ColorPicker` faktycznie pokazuje `DEFAULT_ACCENT` w `aria-label` (nie
+tylko że import istnieje w kodzie).
+
+Zweryfikowane testem mutacyjnym: tymczasowo przywrócony stary literał złota (`#c9a85a`) zamiast
+`DEFAULT_ACCENT` - test **padł dokładnie tak, jak powinien**. Po cofnięciu: `git diff` na
+`StrategyFormModal.tsx` pokazuje wyłącznie zamierzoną zmianę (import + użycie stałej), zero
+śladu mutacji.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto (brak cyklu importów `pages/`→`app/`),
+`pnpm exec eslint` czysto, `pnpm exec prettier --check` czysto, `pnpm test -- --run` **295/295**
+(31 plików).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat

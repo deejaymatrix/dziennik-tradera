@@ -39,8 +39,11 @@ function contrastColorFor(hex: string): string {
   return luminance > 0.45 ? "#10151d" : "#ffffff";
 }
 
-/** Domyślny niebieski - musi zgadzać się z `default_accent()` w `domain/preferences.rs`. */
-const DEFAULT_ACCENT = "#4c7dff";
+/** Domyślny niebieski - musi zgadzać się z `default_accent()` w `domain/preferences.rs`.
+ * Eksportowany, żeby inne miejsca (np. domyślny kolor nowej strategii w `StrategyFormModal`)
+ * dzieliły TEN SAM literał zamiast niezależnej kopii, która mogłaby po cichu się rozjechać
+ * (sekcja 27 promptu: "wielokrotne źródła prawdy"). */
+export const DEFAULT_ACCENT = "#4c7dff";
 
 function isDefaultAccent(hex: string): boolean {
   return hex.toLowerCase() === DEFAULT_ACCENT;

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
 import { invokeCommand } from "../app/invokeCommand";
+import { DEFAULT_ACCENT } from "../app/PreferencesProvider";
 import type { EntryRule, ManagementRule, Strategy, StrategyInput } from "../app/types/strategy";
 import { Button } from "../ui/components/Button/Button";
 import { ColorPicker } from "../ui/components/ColorPicker/ColorPicker";
@@ -65,10 +66,10 @@ export function StrategyFormModal({
   const { showToast } = useToast();
 
   const [name, setName] = useState(() => strategy?.name ?? "");
-  // Domyślny kolor nowej strategii to ten sam niebieski, co domyślny akcent aplikacji
-  // (PreferencesProvider.DEFAULT_ACCENT) - spójne z resztą nowej palety, nie pozostałość
-  // starego złota.
-  const [color, setColor] = useState(() => strategy?.color ?? "#4c7dff");
+  // Domyślny kolor nowej strategii to ten sam niebieski, co domyślny akcent aplikacji -
+  // dzielony import z `PreferencesProvider`, nie niezależna kopia literału, żeby oba miejsca
+  // nie mogły się po cichu rozjechać.
+  const [color, setColor] = useState(() => strategy?.color ?? DEFAULT_ACCENT);
   const [tagsText, setTagsText] = useState(() => tagsToText(strategy?.tags ?? []));
   const [description, setDescription] = useState(() => strategy?.description ?? "");
   const [entryRules, setEntryRules] = useState<EntryRule[]>(() => strategy?.entry_rules ?? []);
