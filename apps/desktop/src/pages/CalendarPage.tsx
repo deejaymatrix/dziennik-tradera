@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ReactElement } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-import { formatMoney } from "../app/decimal";
+import { formatSignedMoney } from "../app/decimal";
 import { useAccountReport } from "../app/useAccountReport";
 import type { DailyPnl } from "../app/types/report";
 import { Button } from "../ui/components/Button/Button";
@@ -171,7 +171,7 @@ export function CalendarPage(): ReactElement {
                 {cell.entry && (
                   <>
                     <span className={styles.dayPnl}>
-                      {formatMoney(cell.entry.net_pnl, selectedAccount.currency)}
+                      {formatSignedMoney(cell.entry.net_pnl, selectedAccount.currency)}
                     </span>
                     <span className={styles.dayCount}>
                       {cell.entry.trade_count}{" "}

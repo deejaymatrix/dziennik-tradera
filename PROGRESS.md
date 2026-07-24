@@ -2040,6 +2040,36 @@ Weryfikacja: `pnpm format:check`, `pnpm typecheck`, `pnpm test` 271/271, `previe
 `computer`+`javascript_tool` potwierdził błąd PRZED naprawą i brak go PO, `preview_stop` po
 zakończeniu.
 
+**O7, część 49: znalezione 2 naruszenia WŁASNEGO, udokumentowanego w kodzie kontraktu -
+`net_pnl` kolorowany bez `formatSignedMoney`.** `decimal.ts` ma jawny komentarz przy
+`formatSignedMoney`: „Używana wszędzie tam, gdzie wartość jest dodatkowo KOLOROWANA na
+zielono/czerwono. Sam kolor nie może być jedynym nośnikiem informacji". Sweep tą samą metodą co
+poprzednie: skrzyżowane 8 plików z `styles.profit`/`styles.loss` z 5 plikami wołającymi
+`formatSignedMoney`.
+
+Znalezione 2 realne naruszenia tego kontraktu: `CalendarPage.tsx` (komórka dnia w kalendarzu -
+`.profitDay`/`.lossDay` na tle koloru dnia, ale `formatMoney` bez znaku) i
+`TradePreviewCard.tsx` (wiersz „Wynik netto" w podglądzie na żywo kalkulatora pozycji -
+dynamiczny `tone` wg znaku, ale też `formatMoney`). Oba miejsca pokazywały niejawny minus dla
+strat (domyślne zachowanie `Intl.NumberFormat`), ale ZERO znaku dla zysków - dokładnie ryzyko
+opisane w komentarzu ("różnią się wtedy tylko minusem, który łatwo przeoczyć obok cyfr").
+
+Pozostali kandydaci sprawdzeni pojedynczo, nie kolejna luka: `StatCard`/`ReadOnlyField`
+konsumenci albo w ogóle nie ustawiają `tone` (neutralne, bez koloru - np. „Śr. miesięczny P&L"
+w raporcie rocznym), albo ustawiają `tone` na wartości inherentnie jednoznakowej („Potencjalny
+zysk" - liczba zawsze dodatnia z definicji, sama etykieta tekstowa już niesie znaczenie, jak
+wcześniej uzasadniony przypadek `Badge`). `TradeBalanceCard.tsx` i saldo/ryzyko/brutto w
+`TradeInspector.tsx`/`TradePreviewCard.tsx` poprawnie zostają przy zwykłym `formatMoney` - to
+NIE są wyniki, zgodnie z tym samym komentarzem w kodzie.
+
+Naprawione zamianą `formatMoney`→`formatSignedMoney` wyłącznie w tych 2 miejscach, bez ruszania
+pozostałych wywołań w tych samych plikach.
+
+Weryfikacja: `pnpm format:check`, `pnpm typecheck`, `pnpm test` 271/271 - `formatSignedMoney`
+ma już dedykowane testy jednostkowe w `decimal.test.ts` (znak dla dodatnich/ujemnych/zera,
+z walutą i bez), więc mechaniczna zamiana funkcji formatującej w miejscu wywołania jest w pełni
+pokryta bez potrzeby dodatkowego testu komponentu.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat

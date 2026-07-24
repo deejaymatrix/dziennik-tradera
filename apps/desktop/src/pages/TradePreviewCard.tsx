@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { formatMoney } from "../app/decimal";
+import { formatMoney, formatSignedMoney } from "../app/decimal";
 import type { TradeCalculation } from "../app/types/trade";
 import { ReadOnlyField } from "../ui/components/ReadOnlyField/ReadOnlyField";
 import type { ReadOnlyFieldRow } from "../ui/components/ReadOnlyField/ReadOnlyField";
@@ -59,7 +59,7 @@ export function TradePreviewCard({ calculation, currency }: TradePreviewCardProp
     },
     {
       label: "Wynik netto",
-      value: calculation.net_pnl !== null ? formatMoney(calculation.net_pnl, currency) : "—",
+      value: calculation.net_pnl !== null ? formatSignedMoney(calculation.net_pnl, currency) : "—",
       ...(calculation.net_pnl !== null
         ? { tone: Number(calculation.net_pnl) >= 0 ? "profit" : "loss" }
         : {}),
