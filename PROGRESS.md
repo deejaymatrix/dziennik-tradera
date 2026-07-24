@@ -4000,6 +4000,35 @@ każdym cofnięciu: `git diff --stat` na `ReportsPage.tsx` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **623/623** (86 plików, +5 nowych testów).
 
+**O7, część 120: `KalkulatorPozycjiPage` (kalkulator wielkości pozycji) - zero testów.** Cała
+matematyka dzieje się w Rust, frontend tylko zbiera wejście i pokazuje wynik, ale ma własną, realną
+logikę: (1) `formatNumber` MUSI ograniczyć `minimumFractionDigits` do `Math.min(2,
+maxFractionDigits)` - bez tego `Intl.NumberFormat` rzuca `RangeError`, gdy `maximumFractionDigits`
+jest mniejsze niż domyślne minimum, i wywala CAŁY ekran (dokładnie to, co przydarzyło się na żywo
+przy odległości SL w punktach, gdzie maksimum to 1 miejsce po przecinku - komentarz w kodzie to
+wprost dokumentuje); (2) wynik przelicza się z 250ms opóźnieniem dopiero PO uzupełnieniu
+WSZYSTKICH wymaganych pól (konto, instrument, cena wejścia, stop loss, ryzyko) - niekompletne dane
+kasują wynik BEZ wołania backendu, żeby nie pokazać przeliczenia dla połowicznego wejścia; (3) pole
+kursu walutowego pokazuje się TYLKO gdy waluta wyniku instrumentu różni się od waluty konta.
+
+Nowy `pages/KalkulatorPozycjiPage.test.tsx` (6 testów, `PreferencesProvider` - `calculator_sl_mode`
+domyślnie "price" i `calculator_risk_percent` domyślnie "1" z preferencji, `get_preferences`
+odrzucone jak w częściach 114/116/119): niekompletne dane (brak SL) NIE wołają backendu, pokazują
+podpowiedź; komplet danych po opóźnieniu woła backend i pokazuje sugerowany lot; **odległość SL w
+punktach (1 miejsce po przecinku) NIE wywala ekranu**; pole kursu walutowego pokazuje się/nie
+pokazuje wg zgodności walut; ostrzeżenia z backendu renderują się jako lista.
+
+Zweryfikowane 3 niezależnymi mutacjami: (1) `Math.min(2, maxFractionDigits)` zastąpione sztywnym
+`2` - **dokładnie 3 z 6 testów padły JEDNOCZEŚNIE** (nieuchwycony `RangeError` wywalił CAŁY
+render, więc wszystkie testy korzystające z wyniku 1-miejscowego padły naraz - dokładnie
+przewidziany, udokumentowany w kodzie scenariusz); (2) `!stop` usunięte z warunku niekompletnych
+danych - **dokładnie 1 z 6 padł** (kalkulacja wystartowała mimo braku stop lossa); (3) warunek
+zgodności walut (`version.currency_profit !== currency`) usunięty - **dokładnie 1 z 6 padł**. Po
+każdym cofnięciu: `git diff --stat` na `KalkulatorPozycjiPage.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **629/629** (87 plików, +6 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
