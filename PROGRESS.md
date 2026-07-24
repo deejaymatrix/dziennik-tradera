@@ -1541,6 +1541,18 @@ jako pseudo-klasa CSS nie da się sensownie zasymulować w jsdom (brak realnego 
 renderującego stany `mousedown` bez `mouseup`); weryfikacja przez przegląd kodu i istniejące
 globalne zerowanie `transition-duration` pod redukcją ruchu w `tokens.css`.
 
+Ten sam brak dotyczył `Switch` (przełącznik jest w pełni własnym komponentem, nie natywną
+kontrolką z samym tylko `accent-color` jak `Checkbox` - dla niego custom `transform` byłby
+niespójny z tym, jak faktycznie renderuje go silnik przeglądarki, więc świadomie zostawiony
+bez zmian). Skalowany jest TOR (`.track`), nie kciuk - kciuk już ma własny `transform`
+(`translateX` przy przełączeniu), a doklejenie tam skalowania wymagałoby łączenia obu funkcji
+warunkowo dla stanu zaznaczonego/niezaznaczonego bez możliwości podglądu wizualnego. Selektor
+`:has()`, nie kombinator rodzeństwa `~` - w trakcie pisania omyłkowo użyty `~` (zakładający,
+że `.track` jest rodzeństwem `.input`), złapane przy ponownym czytaniu `Switch.tsx`: `.track`
+to w rzeczywistości RODZIC `.input` (input jest w środku spana `.track`), więc `~` nigdy by
+nie trafił - naprawione na `:has()`, ten sam wzorzec, którego już używa istniejąca reguła
+`.track:has(.input:checked)`.
+
 ### Rozszerzenie na macOS (druga wersja promptu O, 2026-07-24)
 
 Nowa wersja dokumentu dodaje macOS (Apple Silicon `arm64` + Intel `x86_64`) jako drugą
