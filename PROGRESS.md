@@ -2945,6 +2945,13 @@ wracające do drugiej formy/inna trójka form).
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` 289/289 (6 nowych testów `pluralPl`).
 
+**Eksport i kopie - DataPage (zadanie 15, zamknięte) - BEZ zmian kodu.** Cały ekran to statyczny
+polski tekst opisowy + przyciski + jeden `Select` - brak tabel, brak surowych wartości Decimal,
+brak treści o zmiennej długości pochodzącej od użytkownika. `.sectionDescription` ma `max-width:
+60ch` (czytelna długość wiersza), `.buttonRow` ma `flex-wrap: wrap`. Prawdziwy PASS.
+
+Weryfikacja: `pnpm test -- --run` 289/289 (bez zmian kodu w tym zadaniu).
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.
