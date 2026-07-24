@@ -3345,6 +3345,29 @@ testów padł**, pokazując dokładnie przewidziany scenariusz: anulowanie NADAL
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **485/485** (61 plików, +6 nowych testów).
 
+**O7, część 95: `NewTemplateModal.tsx` (103 linie) - zakładanie pustego szablonu instrumentów,
+zero testów.** Dwie nieoczywiste reguły wypełniania pól: (1) pusta "Nazwa brokera" ma spaść na
+nazwę SZABLONU (nie zostać pustym stringiem zapisanym w bazie); (2) pusty "Typ konta" ma pójść
+jako `null`, nie pusty string - odróżnienie "brak" od "pusty tekst" ma znaczenie przy późniejszym
+filtrowaniu/wyświetlaniu.
+
+Nowy `pages/NewTemplateModal.test.tsx` (5 testów, `ToastProvider` + `vi.mock` na `invokeCommand`):
+nazwa z samych spacji pokazuje błąd walidacji i NIE woła `invokeCommand` (zupełnie pustego pola
+nie da się przetestować przez realny klik - natywna walidacja HTML5 `required` blokuje wysłanie
+formularza wcześniej niż komponent w ogóle dostanie szansę zareagować; spacje PRZECHODZĄ przez
+`required`, dopiero wtedy widać własną walidację komponentu); **pusta "Nazwa brokera" spada na
+nazwę szablonu, pusty "Typ konta" idzie jako `null`**; wypełnione pola idą po przycięciu białych
+znaków, nie z fallbackiem; powodzenie woła `onCreated` ze świeżym szablonem; błąd backendu
+pokazuje jego komunikat i NIE zamyka okna.
+
+Zweryfikowane testem mutacyjnym: oba fallbacki (`|| name.trim()`, `|| null`) usunięte na raz -
+**dokładnie 1 z 5 testów padł**, pokazując dokładnie przewidziany błąd (`""` zamiast nazwy
+szablonu, `""` zamiast `null`), pozostałe 4 bez zmian. Po cofnięciu: `git diff --stat` na
+`NewTemplateModal.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **490/490** (62 pliki, +5 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
