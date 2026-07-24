@@ -1636,6 +1636,18 @@ w konsoli, brak backendu Tauri w tym podglądzie renderuje się jako czytelny ko
 z przyciskiem ponowienia (nie awaria) - potwierdza już wcześniej opisany w pamięci przypadek
 „Brak środowiska Tauri", nie nowe odkrycie.
 
+**O7, rozszerzona weryfikacja nawigacji (sekcja 24, wciąż częściowa).** Klik-nawigacja przez
+WSZYSTKIE 14 tras menu bocznego (nie tylko Dashboard/Raporty jak poprzednio) -
+`/transakcje`, `/kalkulator-pozycji`, `/kalendarz`, `/stan-emocjonalny`, `/konta`,
+`/strategie`, `/instrumenty`, `/interwaly`, `/zasady-handlu`, `/dane`, `/kosz`, `/ustawienia`.
+Każda strona renderuje własny chrome (nagłówki, opisy, paski filtrów, formularze dodawania)
+niezależnie od tego, że dane nie mogą się wczytać bez backendu Tauri w tym podglądzie -
+błąd wszędzie jako `role="alert"` z czytelnym komunikatem PL i przyciskiem ponowienia, zero
+wyjątków w konsoli na całej trasie. Nadal NIE zamyka blokady sekcji 24 w całości (brakuje
+przejścia z prawdziwymi danymi i weryfikacji pikselowej) - ale znacząco zawęża to, co
+zostało do sprawdzenia. Pełne wpisy: [MACIERZ_AUDYTU_REDESIGN_O.md](MACIERZ_AUDYTU_REDESIGN_O.md),
+sekcja 4.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
