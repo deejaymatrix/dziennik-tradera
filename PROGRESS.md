@@ -3720,6 +3720,19 @@ diff --stat` na `EditModeActions.tsx` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **568/568** (76 plików, +6 nowych testów).
 
+**O7, część 110: `ReadOnlyField` (siatka etykieta→wartość, `TradeBalanceCard`/`TradePreviewCard`) -
+zero testów.** Jedyna logika: `tone` dokłada klasę `profit`/`loss` do WARTOŚCI (nie do całego
+wiersza), a jej brak nie dokłada żadnej z dwóch.
+
+Nowy `ui/components/ReadOnlyField/ReadOnlyField.test.tsx` (4 testy): renderuje etykietę i wartość;
+`tone="profit"` dokłada klasę profit; `tone="loss"` dokłada klasę loss; brak `tone` nie dokłada
+żadnej z dwóch. Zweryfikowane mutacją: `row.tone === "loss" && styles.loss` zastąpione `false &&
+styles.loss` - **dokładnie 1 z 4 testów padł**. Po cofnięciu: `git diff --stat` na
+`ReadOnlyField.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **572/572** (77 plików, +4 nowe testy).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
