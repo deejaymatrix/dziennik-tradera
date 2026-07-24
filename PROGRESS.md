@@ -2503,6 +2503,25 @@ ręcznie tego, co już istnieje w gotowej, lepszej formie.
 Weryfikacja: bez zmian kodu - `cargo test audyt::` 41/41 PASS, `cargo test` (całość) 435/435
 bez regresji.
 
+**O7, część 61: manifest plik-po-pliku niezależnie zweryfikowany bajt w bajt, nie tylko
+liczbowo.** Przy okazji poprzedniej korekty (część 60/wcześniejsze odświeżenie) tekst WYŻEJ tej
+samej tabeli (sekcja grup) był już poprawiony na „98 plików", ale akapit wprowadzający SAMĄ
+tabelę plik-po-pliku (`### Manifest plik-po-pliku`) wciąż mówił „70 wierszy"/„70 plików" -
+pozostałość sprzed wielu odświeżeń (94→98 z części 58 nigdy nie dotarło do TEGO konkretnego
+zdania, mimo że same wiersze tabeli już dawno zawierały świeże wpisy, np. `AccountsPage.tsx`
+z odniesieniem do części 58). Naprawione na `98`.
+
+Przy tej okazji wykonana NIEZALEŻNA weryfikacja, nie tylko poprawka literałki: policzone
+`grep -c` na faktycznych wierszach tabeli (98) i porównane PLIK PO PLIKU (nie tylko liczbowo)
+z `git diff --name-only 0c2eb41^..adb3d2a` przez `diff` dwóch posortowanych list - **wynik
+pusty (zero różnic)**, potwierdzone też brak duplikatów ścieżek w samej tabeli
+(`sort | uniq -d` - pusty wynik). To mocniejszy dowód niż dotychczasowe "N=N" - manifest
+faktycznie zawiera dokładnie te same 98 plików, które realnie zmienił redesign, ani jednego
+mniej, ani jednego więcej, ani żadnego powtórzonego.
+
+Weryfikacja: bez zmian kodu - wyłącznie korekta dokumentacji + niezależne porównanie zbiorów
+plików.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat

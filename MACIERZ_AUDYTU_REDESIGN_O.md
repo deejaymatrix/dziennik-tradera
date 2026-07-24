@@ -224,9 +224,11 @@ faktycznie zmienionych, zgodnie z wymogiem sekcji 27.
 Powyższe grupowanie było świadomym wyborem (grupa = jeden status, bo zmiana w jej obrębie
 była mechaniczna i identyczna), ale sekcja 27 dosłownie prosi o osobny status DLA KAŻDEGO
 pliku. Tabela niżej wygenerowana programowo z tej samej, już zweryfikowanej tabeli grup wyżej
-(nie przepisana ręcznie — wykluczone literówki/pominięcia przy 70 wierszach) — każdy z 70
-plików ma własny wiersz; plik zmieniony z więcej niż jednego powodu (np. `Button.module.css`)
-wymienia wszystkie grupy, do których należy, zamiast tylko pierwszej pasującej.
+(nie przepisana ręcznie — wykluczone literówki/pominięcia przy dużej liczbie wierszy) — każdy
+z **98 plików** (stan po części 58, patrz „Manifest plików rzeczywiście zmienionych przez
+redesign" wyżej — liczba wierszy tej tabeli zweryfikowana ponownie 2026-07-24: `grep -c "^| \`"`na tej sekcji zwraca dokładnie 98, zgodnie z aktualnym zakresem`0c2eb41^..adb3d2a`) ma własny
+wiersz; plik zmieniony z więcej niż jednego powodu (np. `Button.module.css`) wymienia wszystkie
+grupy, do których należy, zamiast tylko pierwszej pasującej.
 
 | Plik                                                                    | Grupa(y) zmian (skrót — pełny dowód w tabeli grup wyżej)                                                                                                                             | Status |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
