@@ -76,7 +76,8 @@ To realnie zawęża wybór. Sprawdzone 2026-07-24 (wyszukiwanie na żywo, nie z 
 | Rodzaj                                                 | Dostępny dla osoby prywatnej? | Ostrzeżenie SmartScreen                                                        | Uwagi                                                                                                                                                                     |
 | ------------------------------------------------------ | ----------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **OV/IV** (Organization / Individual Validation)       | **TAK**                       | znika dopiero po zbudowaniu reputacji — pierwsze setki pobrań nadal ostrzegają | weryfikacja dokumentem tożsamości (dowód/paszport), nie wpisem do rejestru firmy                                                                                          |
-| **EV** (Extended Validation)                           | **NIE**                       | znika od razu                                                                  | wymaga zarejestrowanej firmy/działalności — jako osoba prywatna go nie kupisz                                                                                             |
+| **EV zwykłe** (Extended Validation)                    | **NIE**                       | znika od razu                                                                  | wymaga zarejestrowanej firmy/działalności — jako osoba prywatna go nie kupisz                                                                                             |
+| **Sole Proprietor EV** (SSL.com)                       | **TAK**                       | znika od razu — pełna reputacja EV, natychmiast                                | odkryte 2026-07-24: SSL.com sprzedaje wariant EV WŁAŚNIE dla osób prywatnych bez firmy — dokładnej ceny/wymagań nie sprawdzałem, warto zapytać sprzedawcę wprost          |
 | **Microsoft Trusted Signing** (Azure Artifact Signing) | **NIE dla Ciebie**            | znika szybciej niż przy OV, bo reputację buduje Microsoft                      | tani (od $9,99/mies.), ale zapisy dla osób prywatnych są **wstrzymane w wersji preview**, a nawet gdy działały, obejmowały wyłącznie USA i Kanadę — Polska poza zasięgiem |
 
 **Uwaga — nazwa „OV" myli.** OV (Organization Validation) z definicji wymaga zarejestrowanej
@@ -99,6 +100,22 @@ istnieje dla podpisu kodu, patrz wyżej) i NIE formularza wymagającego numeru K
 Weryfikacja tożsamości jako osoby prywatnej: skan dowodu osobistego lub paszportu, czasem
 dodatkowo potwierdzenie adresu. Trwa zwykle od kilku dni do dwóch tygodni — to najdłuższy
 element całego wydania, więc jeśli chcesz wydać w konkretnym terminie, zacznij od tego.
+
+**Ważne odkrycie 2026-07-24: klucz certyfikatu NIE będzie zwykłym plikiem.** Od czerwca 2023
+CA/Browser Forum wymaga, żeby klucz prywatny certyfikatu podpisu kodu (także IV) leżał w
+sprzęcie, nie w pliku na dysku:
+
+- **fizyczny token USB (FIPS)** — wydawca go wysyła pocztą; podpisujesz na komputerze, do
+  którego token jest fizycznie podłączony;
+- **usługa podpisu w chmurze** (np. SSL.com eSigner) — osobna, dodatkowa subskrypcja, ale
+  działa z GitHub Actions bez podłączania tokena do runnera.
+
+**To zmienia krok 4 procesu wydania poniżej.** Obecny `release.yml` zakłada podpis na tym
+samym runnerze GitHub Actions co reszta builda — z fizycznym tokenem to nie zadziała (runner
+w chmurze nie ma portu USB). Gdy kupisz certyfikat, trzeba będzie dopisać albo krok
+z usługą chmurową (eSigner lub odpowiednik innego wydawcy), albo osobny etap podpisywania na
+Twoim komputerze z podłączonym tokenem, poza automatycznym pipeline'em. Zdecydujemy, gdy
+certyfikat będzie już kupiony i będzie wiadomo, którego wydawcy/usługi dotyczy.
 
 **Ważna zmiana od 2026:** CA/Browser Forum ogranicza maksymalną ważność publicznie zaufanych
 certyfikatów podpisu kodu do 458 dni (reguła obowiązuje od 27 lutego/1 marca 2026, zależnie
