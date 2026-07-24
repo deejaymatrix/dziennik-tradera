@@ -2820,6 +2820,25 @@ Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto na 
 plikach, `pnpm exec prettier --check` czysto, `pnpm test -- --run` 283/283 (5 nowych testów
 `formatDecimal` + zaktualizowane asercje `PartialClosesEditor.test.tsx` pod nowy, poprawny format).
 
+## Naprawa: błąd ESLint w `UpdateMonitorProvider.tsx` z Celu 1.8 (część 3) (2026-07-24)
+
+Przy okazji pełnego `pnpm exec eslint .` (całościowy przegląd, nie tylko dotknięte pliki) znaleziony
+1 realny błąd w już ZACOMMITOWANYM kodzie (część 3 Celu 1.8 - wtyczka powiadomień): `zaplanujNastepne`
+(harmonogram, sam siebie odnawia przez rekurencję w `setTimeout`) odwoływał się do samego siebie
+przez domknięcie do własnej zmiennej `const` - bezpieczne w praktyce (wywołanie rekurencyjne
+następuje dopiero PO zakończeniu przypisania, `setTimeout` woła je asynchronicznie później), ale
+odrzucane przez linter jako "dostęp do zmiennej przed jej deklaracją".
+
+Naprawione przez `ref` (`zaplanujNastepneRef`), zapisywany w `useEffect` bez tablicy zależności
+(NIE wprost w ciele komponentu - to osobny błąd lintera, mutacja refa podczas renderu), a odczytywany
+przez rekurencyjne wywołanie wewnątrz `setTimeout`. Zachowanie harmonogramu bez zmian - to czysto
+strukturalna poprawka pod linter, zweryfikowana istniejącymi testami (`UpdateMonitorProvider.test.tsx`,
+17/17 bez zmian).
+
+Weryfikacja: `pnpm exec eslint .` na całym projekcie teraz 0 błędów (tylko niegroźne, od dawna
+istniejące ostrzeżenia `react-refresh/only-export-components`), `pnpm exec tsc --noEmit -p .`
+czysto, `pnpm exec prettier --check` czysto, `pnpm test -- --run` 283/283.
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.

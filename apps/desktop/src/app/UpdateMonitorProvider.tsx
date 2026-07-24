@@ -192,7 +192,16 @@ export function UpdateMonitorProvider({
     [wersjaBiezaca, znacznikDostepnej, preferences],
   );
 
-  /** Planuje następne sprawdzenie. Zawsze najpierw kasuje poprzedni licznik - stąd jeden timer. */
+  /** Planuje następne sprawdzenie. Zawsze najpierw kasuje poprzedni licznik - stąd jeden timer.
+   *
+   * Harmonogram sam siebie odnawia (kolejne wywołanie zaplanowane wewnątrz `setTimeout`), a taka
+   * bezpośrednia rekurencja przez domknięcie do własnej zmiennej `const` jest odrzucana przez
+   * linter (dostęp do wartości przed jej deklaracją) - mimo że w praktyce jest bezpieczna, bo
+   * `setTimeout` woła ją dopiero PO zakończeniu przypisania. Referencja niżej to obchodzi bez
+   * zmiany zachowania: rekurencyjne wywołanie idzie przez `ref`, zapisywany w efekcie (NIE wprost
+   * w ciele komponentu - mutacja refa podczas renderu to osobny błąd lintera). */
+  const zaplanujNastepneRef = useRef<((opoznienie: number) => void) | null>(null);
+
   const zaplanujNastepne = useCallback(
     (opoznienie: number) => {
       wyczyscTimer();
@@ -200,13 +209,19 @@ export function UpdateMonitorProvider({
         timerRef.current = null;
         void wykonajSprawdzenie(false).finally(() => {
           if (!odmontowanyRef.current) {
-            zaplanujNastepne(opoznienieDoNastepnegoMs(monitorRef.current, Math.random()));
+            zaplanujNastepneRef.current?.(
+              opoznienieDoNastepnegoMs(monitorRef.current, Math.random()),
+            );
           }
         });
       }, opoznienie);
     },
     [wyczyscTimer, wykonajSprawdzenie],
   );
+
+  useEffect(() => {
+    zaplanujNastepneRef.current = zaplanujNastepne;
+  });
 
   // Jedyne miejsce, które uruchamia harmonogram. Pusta lista zależności jest tu istotna:
   // efekt ma wykonać się RAZ na cały czas życia aplikacji.
