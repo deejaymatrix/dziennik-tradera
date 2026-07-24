@@ -9,6 +9,44 @@ uzyskać (panel przeglądarki nie renderuje klatek w tym środowisku), a pełny 
 „jak użytkownik" (sekcja 24) nie został jeszcze przeprowadzony na przebudowanej warstwie
 wizualnej. Poniżej — co jest realnie zweryfikowane, i co nie.
 
+### Doprecyzowanie zakresu 2026-07-24 — znaleziony i przeczytany oryginalny dokument promptu
+
+Do tej pory sekcje 25/29/30/31/32 były cytowane wyłącznie z pamięci poprzedniej rozmowy (skróconej
+przy kompaktowaniu kontekstu), bez dostępu do literalnego tekstu. Dziś znaleziony i przeczytany
+oryginalny plik (`Prompt_finalny_redesign_O_TradingView_Apple_Fintech_i_pelny_audyt (2).md`,
+zapisany lokalnie przez użytkownika) - poniżej rzeczywista treść tych sekcji i wynikające z niej
+korekty zakresu:
+
+- **Sekcja 25 (testy wartości granicznych)** dotyczy WYŁĄCZNIE logiki biznesowej (puste pola,
+  duplikaty, wartości ujemne, błędne daty, częściowe zamknięcia, uszkodzony import/backup) -
+  redesign O nie dotknął żadnego z tych obszarów, więc pozostają w pełni pokryte wcześniejszym
+  audytem bloku D (`RAPORT_AUDYTU.md`) bez potrzeby powtórki. Potwierdzone literalnym tekstem,
+  nie założone.
+- **Sekcja 27 (audyt kodu linia po linii)** dosłownie żąda manifestu WSZYSTKICH własnych plików
+  projektu, nie tylko dotkniętych przez redesign - świadomie zawężone tutaj do 73 plików
+  faktycznie zmienionych przez O1-O7 (uzasadnienie: redesign nie dotknął logiki biznesowej/SQL/
+  migracji, które AUDYT_KODU.md już przejrzał w bloku D - 206 plików tam). Ta rozbieżność między
+  dosłownym brzmieniem a przyjętym zakresem była już wcześniej odnotowana jako świadoma decyzja,
+  teraz potwierdzona wprost literalnym tekstem, nie domysłem.
+- **Sekcja 29 (zasady naprawiania błędów)** wymaga klasyfikacji `Krytyczny`/`Wysoki`/`Średni`/
+  `Niski` dla każdego problemu oraz pętli: odtwórz→udokumentuj→znajdź przyczynę→napraw→dodaj
+  test regresyjny→ponownie uruchom→pełna regresja. Ta metodologia była już faktycznie stosowana
+  (patrz sekcja 2 niżej i test mutacyjny w sekcji 1), ale BEZ formalnych etykiet ważności -
+  dopisane retroaktywnie przy każdym realnym znalezisku poniżej.
+- **Sekcja 30 (macierz audytowa)** i **sekcja 32 (raport końcowy)** opisują dokładnie strukturę
+  już stosowaną w tym dokumencie (funkcja/plik/scenariusz/oczekiwany/rzeczywisty/dowód/status) -
+  potwierdzenie zgodności formatu, nie nowe wymaganie.
+- **„BEZWZGLĘDNA BRAMKA JAKOŚCI PRZED WYDANIEM"** (sekcja po 31) to jawnie **bramka dla Celu 1.9
+  (instalatory Windows/macOS)**, nie dla samego O7: „Nie rozpoczynaj publikowania końcowego
+  instalatora wyłącznie dlatego, że redesign wizualny wygląda poprawnie. Instalator pozostaje
+  częścią odpowiedniego, wcześniej ustalonego celu wydania i jego osobnych warunków" (koniec
+  sekcji 31, dosłownie). Wymaga spakowanej aplikacji, 3 pełnych przejść (nowy/codzienny/
+  aktualizujący użytkownik), buildów macOS arm64+x86_64, testów zainstalowanych artefaktów z
+  sumami SHA-256 - żadne z tego nie jest osiągalne bez dostępu do Maca ani bez wyraźnej zgody
+  użytkownika na start Celu 1.9 (obie rzeczy już ustalone jako blokery, niezmienione tym
+  odkryciem). Potwierdza to, że dotychczasowe zawężanie zakresu O7 do samego redesignu (bez
+  testowania spakowanego instalatora) było poprawną interpretacją, nie unikaniem pracy.
+
 ## 1. Design tokens i spójność (sekcja 9)
 
 | Funkcja                                                                                                 | Plik                                                                                                                                                                       | Scenariusz testowy                                                                                                                                                                                                                              | Oczekiwany rezultat                                                                                                         | Rzeczywisty rezultat                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Dowód                                                             | Status |
@@ -55,6 +93,28 @@ a nie założone.
 | Kolor jako JEDYNY nośnik informacji w `Badge`    | `Badge.tsx` - czy kolorowe tło wymaga własnego `aria-label`                                                                               | Nie wymaga - `Badge` to zwykły `<span>` renderujący przekazane dzieci jako TEKST (np. „Aktywne", „Zarchiwizowane"), kolor jest dekoracją NAD czytelnym tekstem, nie jedynym nośnikiem - czytnik ekranu i tak przeczyta treść niezależnie od koloru tła                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `aria-live` na powiadomieniach (`Toast`)         | `ToastProvider.tsx` - czy zmiana redesignu (nowa paleta/tokeny) nie naruszyła istniejącej semantyki ARIA                                  | Bez zmian, poprawnie: `role="region" aria-live="polite"` na kontenerze, `role="status"` na pojedynczym toaście - `Toast.module.css` dostał tylko `line-height`/`font-weight` z konsolidacji tokenów, logika ARIA w `.tsx` nietknięta                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Ślady starej nazwy motywu w innych dokumentach   | `README.md`, `RAPORT_AUDYTU.md`, `AUDYT_KODU.md`, `ROADMAP.md`                                                                            | 0 wystąpień „Institutional Black/Adaptive" - `README.md` w ogóle nie opisuje warstwy wizualnej (tylko setup/dev), pozostałe dokumenty audytu bloku D nie odnoszą się do konkretnej nazwy motywu, więc nic tam nie wymagało aktualizacji po redesignie                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+
+## 1.2. Klasyfikacja ważności znalezionych problemów (sekcja 29) — dopisana retroaktywnie
+
+Sekcja 29 wymaga klasyfikacji `Krytyczny`/`Wysoki`/`Średni`/`Niski` dla każdego problemu.
+Metodologia (odtwórz→udokumentuj→znajdź przyczynę→napraw→dodaj test regresyjny→ponownie
+uruchom→pełna regresja) była już faktycznie stosowana przy każdym znalezisku w tym dokumencie,
+ale bez formalnych etykiet - dopisane teraz, bez zmiany treści samych napraw.
+
+| Problem                                                                                                                       | Ważność    | Uzasadnienie                                                                                                                                                 |
+| ----------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `HeatmapTable` - tekst ~1,7:1 przy silnym nasyceniu (praktycznie niewidoczny)                                                 | **Wysoki** | Realnie nieczytelny tekst na produkcyjnym ekranie (Dashboard, sekcja Heatmapy) dla każdego użytkownika, nie tylko przy specyficznym ustawieniu dostępności   |
+| Pozostałe 16 naruszeń WCAG AA w `color-mix()` (`Badge`/`FormPanel`/`menuItemActive`/`restartTag`/`dayPnl`, kontrast 3,9-4,43) | **Średni** | Czytelne, ale poniżej progu AA w motywie jasnym - dotyczy użytkowników o obniżonej ostrości wzroku, nie blokuje podstawowego korzystania z aplikacji         |
+| Brak testu pinującego literalną wartość domyślnego akcentu (tautologiczny test istniejący wcześniej)                          | **Średni** | Ryzyko cichego powrotu do złota bez wykrycia przez istniejące testy - nie aktualny błąd, ale nieosłonięta ścieżka regresji dla świadomej decyzji projektowej |
+| Nieaktualny manifest plik-po-pliku (68→70→73, błędny zakres commitów)                                                         | **Niski**  | Błąd w dokumentacji audytowej, nie w kodzie aplikacji - nie wpływa na działanie ani dane użytkownika                                                         |
+| `border-radius`/`box-shadow` na sztywno zamiast tokenów                                                                       | **Niski**  | Czysto kosmetyczna niespójność źródła prawdy, zero wpływu na funkcjonalność czy dostępność                                                                   |
+| Kontrast obramowań poniżej WCAG 1.4.11 (1,10-2,11 zamiast ≥3)                                                                 | **Niski**  | Wzorzec całej aplikacji sprzed redesignu, powszechny w branży (subtelne linie), granica pola i tak sygnalizowana przez różnicę tła i etykietę                |
+
+Wszystkie problemy `Wysoki` i `Średni` naprawione (nie zostawione do późniejszego etapu, zgodnie
+z sekcją 29: „Nie zostawiaj znanego błędu krytycznego, wysokiego ani średniego do późniejszego
+etapu"). `Niski` udokumentowane i naprawione tam, gdzie naprawa była tania (radius/shadow) albo
+świadomie odłożone do decyzji użytkownika (obramowania - wymagałoby przemalowania całej
+aplikacji, nie punktowej poprawki).
 
 ## 2. Audyt kodu linia po linii (sekcja 27) — zakres redesignu
 

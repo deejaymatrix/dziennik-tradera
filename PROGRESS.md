@@ -1805,6 +1805,25 @@ wymagało aktualizacji. Uruchomiony też pełny, połączony przebieg wszystkich
 osobnych sprawdzeń per commit - identyczne wyniki jak dotychczas udokumentowane (428/428,
 271/271, ten sam jeden znany błąd lintu sprzed redesignu), zero nowego dryfu po 37 częściach.
 
+**O7, znaleziony i przeczytany oryginalny dokument promptu - sekcje 25/29/30/31/32 potwierdzone
+literalnym tekstem, nie cytowane z pamięci.** Plik `Prompt_finalny_redesign_O_TradingView_Apple_
+Fintech_i_pelny_audyt (2).md` zapisany lokalnie przez użytkownika w `Downloads` - odnaleziony
+i przeczytany w całości. Kluczowe ustalenia:
+
+- Sekcja 25 (testy wartości granicznych) dotyczy wyłącznie logiki biznesowej - redesign jej nie
+  dotknął, pokrycie z bloku D pozostaje aktualne. Potwierdzone tekstem, nie założone.
+- „BEZWZGLĘDNA BRAMKA JAKOŚCI" (po sekcji 31) to JAWNIE bramka dla Celu 1.9 (instalatory), nie
+  dla samego O7 - cytat wprost: „Instalator pozostaje częścią odpowiedniego, wcześniej ustalonego
+  celu wydania i jego osobnych warunków". Potwierdza to, że dotychczasowe zawężanie zakresu O7
+  (bez testowania spakowanego instalatora, bez buildów macOS) było poprawną interpretacją, nie
+  unikaniem pracy - zbieżne z już istniejącym zakazem użytkownika co do Celu 1.9.
+- Sekcja 29 wymaga klasyfikacji `Krytyczny`/`Wysoki`/`Średni`/`Niski` dla każdego problemu -
+  dopisana retroaktywnie w nowej sekcji 1.2 macierzy dla wszystkich realnych znalezisk tej sesji
+  (najwyższa: `Wysoki` dla niemal niewidocznego tekstu `HeatmapTable` przy silnym nasyceniu).
+
+Pełne wpisy: [MACIERZ_AUDYTU_REDESIGN_O.md](MACIERZ_AUDYTU_REDESIGN_O.md), nowa sekcja
+„Doprecyzowanie zakresu" na początku dokumentu i sekcja 1.2.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
