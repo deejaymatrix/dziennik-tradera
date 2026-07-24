@@ -1726,6 +1726,16 @@ wyborem, nie przeoczeniem. Weryfikacja wizualna niemożliwa (ColorPicker wymaga 
 preferencji/strategii, których backend Tauri nie dostarcza w tym podglądzie) - poprawność
 oparta na mechanicznej identyczności z już działającym wzorcem `Modal`/`CommandPalette`.
 
+**O7, odświeżony manifest plik-po-pliku (część 25) - był znowu nieaktualny.** 12 commitów
+(część 11-24) dorzuciło 3 pliki, których poprzedni manifest (zatrzymany na 70, commit `cde2220`)
+jeszcze nie znał: `design/tokens.test.ts` (nowy plik testowy), `pages/HeatmapTable.tsx`
+(pierwsza zmiana logiki dopiero w części 19) i `CHANGELOG.md`. Reszta plików tych commitów
+(`preferences.rs`, `Badge`/`CalendarPage`/`SettingsPage`/`SettingRow`/`FormPanel`/`ColorPicker`/
+`HeatmapTable.module.css`) dostała WIĘCEJ zmian, ale była już policzona wcześniej z innych
+powodów, więc nie zwiększa liczby plików. Zaktualizowany zakres do `0c2eb41^..6091ac4` -
+**73 pliki**, zweryfikowane tym samym skryptem porównującym co poprzednio: 73/73 dopasowanych,
+0 pominiętych, 0 nadmiarowych.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
