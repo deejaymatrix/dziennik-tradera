@@ -2279,6 +2279,34 @@ uruchomiony własny serwer, świeża karta. „Przywróć" w Koszu z fałszywym 
 `aria-busy`/`disabled`/spinner poprawnie aktywne przez cały czas trwania (odczyty w jednym
 atomowym skrypcie), wraca po zakończeniu, zero błędów konsoli.
 
+**O7, część 54: weryfikacja `/instrumenty` z prawdziwymi (fałszywymi) danymi + kolejna luka
+architektoniczna znaleziona przy okazji.** `InstrumentsPage.tsx` wyrenderowana poprawnie z 2
+instrumentami z fałszywego mostka Tauri (`InstrumentWithDetails`/`BrokerTemplate` zbudowane
+z pełnych interfejsów TS w `app/types/instrument.ts`) - tabela, liczniki, lista kolejności
+widocznych instrumentów.
+
+Znalezisko: strona w ogóle nie miała zmiennej `busy` - żaden z 5 `IconButton` (pokaż/ukryj,
+usuń, przesuń wyżej/niżej) ani 3 `Button` (2 zbiorcze + „Domyślna widoczność") nie blokował się
+i nie pokazywał spinnera podczas `invokeCommand`, w przeciwieństwie do `KoszPage`/
+`SzablonyInstrumentowPage` (część 52-53), które już to miały. Naprawione tym samym, ustalonym
+wzorcem: `useState<boolean>` + `setBusy(true)`/`finally setBusy(false)` w wszystkich pięciu
+handlerach async (`handleBulkVisibility`, `handleToggleVisibility`,
+`handleResetDefaultVisibility`, `handleDelete`, `handleMoveVisible`), podpięte jako
+`loading={busy}` wszędzie poza „Edytuj" (Pencil - tylko otwiera dialog, ten sam wzorzec
+„dialog-opening nie potrzebuje loading").
+
+Zweryfikowane w przeglądarce z fałszywym opóźnieniem 700ms w `set_instrument_visibility`:
+`aria-busy`/`disabled` poprawnie `true` przez cały czas trwania operacji (jeden atomowy skrypt,
+punkt 9 pamięci sesji), wraca do `null`/`false` po zakończeniu. Przy okazji potwierdzone, że
+prawdziwe wartości `category` w systemie to gotowe polskie etykiety („Forex", „Metale" - patrz
+`INSTRUMENT_CATEGORIES` w `app/types/instrument.ts`), nie kody do tłumaczenia - kolumna
+„Kategoria" w tabeli renderuje je wprost poprawnie, żadna naprawa nie była tu potrzebna.
+
+Weryfikacja: `pnpm typecheck`, `pnpm exec eslint src/pages/InstrumentsPage.tsx`,
+`pnpm exec prettier --check src/pages/InstrumentsPage.tsx` - wszystkie czyste. Zero błędów
+konsoli. Tras zweryfikowanych z prawdziwymi danymi: 10 z 14 (patrz
+`MACIERZ_AUDYTU_REDESIGN_O.md`).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat

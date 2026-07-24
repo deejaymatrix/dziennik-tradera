@@ -370,7 +370,7 @@ pikselowej weryfikacji układu/kolorów (sekcja 23) i przejścia ze zapisanymi, 
 danymi (wymaga uruchomionej aplikacji desktopowej z bazą, nie samego podglądu w przeglądarce)
 — ale znacząco zawęża zakres tego, co jeszcze nie jest sprawdzone.
 
-**Rozszerzenie 2026-07-24: 9 tras zweryfikowanych z PRAWDZIWYMI (fałszywymi, ale poprawnie
+**Rozszerzenie 2026-07-24: 10 tras zweryfikowanych z PRAWDZIWYMI (fałszywymi, ale poprawnie
 ukształtowanymi) danymi, nie tylko stanem błędu.** Metoda: wstrzyknięty fałszywy
 `window.__TAURI_INTERNALS__.invoke` zwracający kompletne, zgodne z prawdziwymi interfejsami TS
 obiekty (`Trade`, `AccountWithBalance`, `AccountReport`), na ŚWIEŻEJ karcie przeglądarki
@@ -426,9 +426,25 @@ wywołało `calculate_position_size` z poprawnym payloadem, wynik wyrenderowany 
 lot: 1,00" i cała reszta), DOKŁADNIE ten sam węzeł DOM pola „Cena wejścia" pozostał skupiony
 przez cały czas debounce'a (300ms), zero błędów konsoli na świeżej karcie.
 
+`/instrumenty` (`InstrumentsPage.tsx`, 2 instrumenty z jednego szablonu, jeden widoczny jeden
+ukryty): tabela, liczniki („Widocznych łącznie: 1 z 2"), lista „Kolejność widocznych
+instrumentów" wyrenderowane poprawnie. **Znalezisko: żaden z 5 `IconButton` na tej stronie
+(pokaż/ukryj, usuń, przesuń wyżej/niżej) nie miał w ogóle śledzenia stanu `busy`** - w
+przeciwieństwie do `KoszPage`/`SzablonyInstrumentowPage` (część 52-53), ta strona nie miała
+ŻADNEJ zmiennej `busy`, więc przyciski nie blokowały się i nie pokazywały spinnera podczas
+`invokeCommand`. Naprawione tym samym, ustalonym wzorcem: `useState<boolean>` + `setBusy(true)`/
+`finally setBusy(false)` w `handleBulkVisibility`/`handleToggleVisibility`/
+`handleResetDefaultVisibility`/`handleDelete`/`handleMoveVisible`, podpięte jako `loading={busy}`
+do 5 `IconButton` + 3 `Button` (2 zbiorcze „Pokaż/Ukryj zaznaczone", „Domyślna widoczność").
+Pominięty „Edytuj" (Pencil - tylko otwiera dialog, ten sam wzorzec co wcześniej). Zweryfikowane
+z fałszywym opóźnieniem 700ms w `set_instrument_visibility`: `aria-busy`/`disabled` poprawnie
+`true` przez cały czas trwania (jeden atomowy skrypt, punkt 9 pamięci), wraca po zakończeniu.
+Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check` - wszystkie
+czyste. Zero błędów konsoli.
+
 To pierwszy raz w tym audycie, gdy naprawy sekcji 21 zostały potwierdzone z prawdziwymi danymi
 w przeglądarce, a nie tylko przez odczyt kodu/testów jednostkowych/stanu błędu bez danych.
-Pozostałe 5 tras wciąż niesprawdzone z danymi (blokada częściowo, nie w pełni, zamknięta).
+Pozostałe 4 trasy wciąż niesprawdzone z danymi (blokada częściowo, nie w pełni, zamknięta).
 
 **Znalezisko przy okazji weryfikacji `/raporty`: `BreakdownTable.tsx` (komponent, nie CSS) jest
 martwym kodem od "Fazy 9 v2", NIE od bieżącego redesignu O.** Próba weryfikacji zakładki

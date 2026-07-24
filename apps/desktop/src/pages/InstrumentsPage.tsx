@@ -85,6 +85,8 @@ export function InstrumentsPage(): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  const [busy, setBusy] = useState(false);
+
   const [formOpen, setFormOpen] = useState(false);
   const [editingInstrument, setEditingInstrument] = useState<InstrumentWithDetails | undefined>(
     undefined,
@@ -209,6 +211,7 @@ export function InstrumentsPage(): ReactElement {
   }
 
   async function handleBulkVisibility(isVisible: boolean): Promise<void> {
+    setBusy(true);
     try {
       await invokeCommand("set_instruments_visibility_bulk", {
         ids: [...selectedIds],
@@ -221,10 +224,13 @@ export function InstrumentsPage(): ReactElement {
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
   async function handleToggleVisibility(instrument: InstrumentWithDetails): Promise<void> {
+    setBusy(true);
     try {
       await invokeCommand("set_instrument_visibility", {
         id: instrument.id,
@@ -233,16 +239,21 @@ export function InstrumentsPage(): ReactElement {
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
   async function handleResetDefaultVisibility(): Promise<void> {
+    setBusy(true);
     try {
       await invokeCommand("reset_instrument_visibility_to_default");
       showToast("Przywrócono domyślną widoczność sześciu instrumentów.", "success");
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -255,12 +266,15 @@ export function InstrumentsPage(): ReactElement {
     ) {
       return;
     }
+    setBusy(true);
     try {
       await invokeCommand("delete_instrument", { id: instrument.id });
       showToast(`Instrument ${instrument.display_symbol} usunięty.`, "success");
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -272,11 +286,14 @@ export function InstrumentsPage(): ReactElement {
     const [moved] = reordered.splice(index, 1);
     if (!moved) return;
     reordered.splice(target, 0, moved);
+    setBusy(true);
     try {
       await invokeCommand("reorder_instruments", { orderedIds: reordered.map((i) => i.id) });
       setVisibleOrder(reordered);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -353,7 +370,11 @@ export function InstrumentsPage(): ReactElement {
           />
         </div>
         <div className={styles.headerActions}>
-          <Button variant="secondary" onClick={() => void handleResetDefaultVisibility()}>
+          <Button
+            variant="secondary"
+            loading={busy}
+            onClick={() => void handleResetDefaultVisibility()}
+          >
             <RotateCcw size={16} aria-hidden="true" /> Domyślna widoczność
           </Button>
           <Button variant="primary" onClick={openCreateForm}>
@@ -394,10 +415,18 @@ export function InstrumentsPage(): ReactElement {
           {selectedIds.size > 0 && (
             <div className={styles.bulkBar}>
               <span>Zaznaczono: {selectedIds.size}</span>
-              <Button variant="secondary" onClick={() => void handleBulkVisibility(true)}>
+              <Button
+                variant="secondary"
+                loading={busy}
+                onClick={() => void handleBulkVisibility(true)}
+              >
                 Pokaż zaznaczone
               </Button>
-              <Button variant="secondary" onClick={() => void handleBulkVisibility(false)}>
+              <Button
+                variant="secondary"
+                loading={busy}
+                onClick={() => void handleBulkVisibility(false)}
+              >
                 Ukryj zaznaczone
               </Button>
             </div>
@@ -459,6 +488,7 @@ export function InstrumentsPage(): ReactElement {
                             ? `Ukryj ${instrument.display_symbol}`
                             : `Pokaż ${instrument.display_symbol}`
                         }
+                        loading={busy}
                         onClick={() => {
                           void handleToggleVisibility(instrument);
                         }}
@@ -472,6 +502,7 @@ export function InstrumentsPage(): ReactElement {
                         <IconButton
                           icon={<Trash2 size={16} />}
                           aria-label={`Usuń ${instrument.display_symbol}`}
+                          loading={busy}
                           onClick={() => {
                             void handleDelete(instrument);
                           }}
@@ -520,6 +551,7 @@ export function InstrumentsPage(): ReactElement {
                     icon={<ArrowUp size={16} />}
                     aria-label={`Przesuń ${instrument.display_symbol} wyżej`}
                     disabled={index === 0}
+                    loading={busy}
                     onClick={() => {
                       void handleMoveVisible(index, -1);
                     }}
@@ -528,6 +560,7 @@ export function InstrumentsPage(): ReactElement {
                     icon={<ArrowDown size={16} />}
                     aria-label={`Przesuń ${instrument.display_symbol} niżej`}
                     disabled={index === visibleOrder.length - 1}
+                    loading={busy}
                     onClick={() => {
                       void handleMoveVisible(index, 1);
                     }}
