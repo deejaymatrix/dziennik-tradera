@@ -3136,6 +3136,31 @@ cofnięciu: `git diff --stat` na `SessionField.tsx` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **426/426** (53 pliki, +6 nowych testów).
 
+**O7, część 87: `pnlOpacity` w `HeatmapTable.tsx` (prywatna funkcja, heatmapa na Dashboardzie) -
+skala nieprzezroczystości komórki "Wynik netto", zero testów.** Górna granica 0,55 (nie 0,70 jak
+wcześniej) to ZNALEZISKO AUDYTU WCAG AA z tej samej serii O7 - kontrast tekstu na tle zmieszanym
+z kolorem zysku/straty schodzi poniżej 4,5:1 powyżej ~0,59. `design/tokens.test.ts` weryfikuje
+kontrast PRZY ZAŁOŻENIU, że 0,55 to faktyczny sufit, ale nic nie sprawdzało, czy `pnlOpacity`
+SAMA w sobie rzeczywiście nigdy go nie przekracza - zmiana mnożnika `0.4` na coś większego cicho
+złamałaby to założenie, w ogóle nie dotykając `tokens.test.ts`.
+
+Nowy `pages/HeatmapTable.test.tsx` (4 testy, odczyt `--cell-opacity` z inline stylu
+zrenderowanej komórki): **wiersz o NAJWIĘKSZEJ wartości bezwzględnej osiąga dokładnie sufit
+0,55**; wiersz o mniejszej wartości dostaje proporcjonalnie mniejszą nieprzezroczystość (wzór
+zweryfikowany liczbowo); same zera dają minimalną nieprzezroczystość 0,15, nie zero (dzielnik
+`maxAbs` nigdy nie schodzi poniżej 1 dzięki `Math.max(1, ...)` na poziomie komponentu); kolor
+komórki (profit/loss) zależy od znaku, niezależnie od nieprzezroczystości.
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) mnożnik `0.4` zamieniony na `0.55` (sufit
+podniesiony do `0.15 + 0.55 = 0.70` - dokładnie ta wartość, którą audyt WCAG odrzucił) -
+**dokładnie 2 z 4 testów padły** (sufit i skalowanie proporcjonalne, oba zależne od dokładnej
+wartości mnożnika), pozostałe 2 (zero i kolor) bez zmian; (2) `tone = value >= 0 ? "loss" :
+"profit"` (odwrócony znak) - **dokładnie 1 z 4 padł** (test koloru). Po każdym cofnięciu: `git
+diff --stat` na `HeatmapTable.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **430/430** (54 pliki, +4 nowe testy).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
