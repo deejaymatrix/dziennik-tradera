@@ -2899,6 +2899,18 @@ prawdziwy PASS, nie przeoczenie.
 Weryfikacja: `pnpm test -- --run` 283/283 (bez zmian kodu w tym zadaniu, testy uruchomione dla
 pewności po przeglądzie).
 
+**Instrumenty i szablony brokerów (zadanie 12, zamknięte) - jedyne znalezisko już naprawione
+wcześniej w zadaniu 23 (surowe zera w podglądzie instrumentu w `InstrumentFormModal`).** Reszta
+zakresu przejrzana bez dodatkowych problemów: `InstrumentsPage` (filtry/nagłówek już mają
+`flex-wrap: wrap`, wyszukiwarka ma rozsądną stałą szerokość, technicalSymbol/opis w scrollowalnej
+tabeli), `SzablonyInstrumentowPage` (`.nameText { white-space: nowrap }` to świadomy wybór - bez
+próby obcięcia wielokropkiem, więc żadnego "cichego no-op" - po prostu przewija się poziomo razem
+z resztą tabeli, ten sam zaakceptowany wzorzec; `.importFileName`/`.fileName` mają `word-break:
+break-all` dla długich ścieżek plików), `NewTemplateModal`, `ImportBrokerModal`/`ImportMt5TradesModal`
+(kontrolowane, przewijane podglądy importu).
+
+Weryfikacja: `pnpm test -- --run` 283/283 (bez nowych zmian kodu w tym zadaniu).
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.
