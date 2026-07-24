@@ -26,16 +26,61 @@ use crate::error::AppError;
 pub struct KonfiguracjaGenerowania {
     pub n_ctx: u32,
     pub max_nowych_tokenow: i32,
+    /// Ziarno losowości samplera - INNE ziarno na próbę pozwala ponowić generowanie po
+    /// niepoprawnej odpowiedzi (np. złej składni JSON) i faktycznie dostać INNY wynik, nie
+    /// identyczne powtórzenie. Zob. `qwen_7b_ponowienie_po_zlym_json_empirycznie_naprawia_niezawodnosc`.
+    /// DZIAŁA tylko przy `temperatura > 0` - przy `0.0` (greedy) wynik jest deterministyczny i
+    /// ziarno nie ma żadnego wpływu (odkryte empirycznie: 3 ponowienia dawały IDENTYCZNY zły JSON).
+    pub ziarno: u32,
+    /// Temperatura próbkowania. `0.0` = deterministyczny wybór najbardziej prawdopodobnego tokenu
+    /// (najlepsze do surowego benchmarku jakości, ale ponowienie wtedy nic nie daje). `> 0.0`
+    /// wprowadza losowość zależną od `ziarno`, dzięki czemu ponowienie po złej odpowiedzi ma
+    /// realną szansę dać inny, poprawny wynik. Domyślnie lekka temperatura (`0.4`) - kompromis
+    /// między powtarzalnością a możliwością ponowienia.
+    pub temperatura: f32,
+    /// Gramatyka GBNF wymuszająca dokładny kształt odpowiedzi (np. `GRAMATYKA_ANALIZY_JSON`).
+    ///
+    /// **NIE UŻYWAĆ - znany crash silnika w tej wersji `llama-cpp-2` (patrz dokumentacja
+    /// `GRAMATYKA_ANALIZY_JSON`).** Zostawione jako gotowa integracja na przyszłość (gdyby
+    /// upstream naprawił błąd), ale domyślnie `None` i żaden kod produkcyjny tego nie włącza.
+    /// Bieżąca strategia niezawodności JSON-a: walidacja + ponowienie z innym `ziarno`.
+    pub gramatyka_json: Option<&'static str>,
 }
 
 impl Default for KonfiguracjaGenerowania {
     fn default() -> Self {
         Self {
+            ziarno: 1234,
+            temperatura: 0.4,
             n_ctx: 4096,
             max_nowych_tokenow: 768,
+            gramatyka_json: None,
         }
     }
 }
+
+/// Gramatyka GBNF wymuszająca dokładnie schemat analizy Asystenta AI: obiekt z TRZEMA kluczami
+/// w ustalonej kolejności (`fakty`/`obserwacje`/`rekomendacje`), każdy jako tablica poprawnie
+/// zescapowanych stringów JSON.
+///
+/// **UWAGA - ZNANY CRASH, NIE UŻYWAĆ w tej wersji `llama-cpp-2`/`llama-cpp-sys-2` (0.1.152).**
+/// Zweryfikowane empirycznie (2026-07-25): użycie `LlamaSampler::grammar(...)` z TĄ gramatyką -
+/// a także z werbatim, sprawdzoną ogólną gramatyką JSON z `llama-cpp-2` - powoduje twardy crash
+/// procesu (`GGML_ASSERT(!stacks.empty())` w `llama-grammar.cpp:940`, oznaczone w samym kodzie
+/// źródłowym komentarzem `// REVIEW` przez autorów llama.cpp) na PIERWSZYM próbkowanym tokenie,
+/// niezależnie od modelu (odtworzone na Qwen2.5-7B i Qwen2.5-1.5B) i treści gramatyki. To crash
+/// silnika C++, nie błąd w tej gramatyce ani w sposobie jej podpięcia - patrz
+/// `docs/AI_ASYSTENT_WYBOR_MODELU.md`. Zamiast wymuszania na poziomie silnika, Etap 2 ma używać
+/// walidacji + automatycznego ponowienia (`oceniona_poprawnosc_json` + retry) - patrz test
+/// `qwen_7b_ponowienie_po_zlym_json_empirycznie_naprawia_niezawodnosc`.
+#[allow(dead_code)]
+pub const GRAMATYKA_ANALIZY_JSON: &str = r#"
+root ::= "{" "\"fakty\"" ":" tablica-tekstow "," "\"obserwacje\"" ":" tablica-tekstow "," "\"rekomendacje\"" ":" tablica-tekstow "}"
+
+tablica-tekstow ::= "[" (tekst ("," tekst)*)? "]"
+
+tekst ::= "\"" ([^"\\] | "\\" (["\\/bfnrt] | "u" [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F]))* "\""
+"#;
 
 #[derive(Debug, Clone)]
 pub struct WynikGenerowania {
@@ -116,8 +161,27 @@ pub fn uruchom_prompt(
         ))
     })?;
 
-    let mut sampler =
-        LlamaSampler::chain_simple([LlamaSampler::dist(1234), LlamaSampler::greedy()]);
+    // Kolejność w łańcuchu ma znaczenie: gramatyka (jeśli jest) zawęża dozwolony słownik NAJPIERW,
+    // potem `temp`/`top_p` kształtują rozkład, a `dist` na końcu faktycznie LOSUJE token wg tego
+    // rozkładu i `ziarno`. Przy `temperatura == 0.0` używamy `greedy` (deterministyczny argmax) -
+    // wtedy `ziarno` nie ma znaczenia i ponowienie nic nie da (odkryte empirycznie). Przy
+    // `temperatura > 0.0` różne `ziarno` dają RÓŻNE wyniki, więc ponowienie po złym JSON-ie ma sens.
+    // UWAGA: `konfiguracja.gramatyka_json` w praktyce zawsze `None` - użycie tu powoduje znany
+    // crash silnika w tej wersji `llama-cpp-2` (patrz dokumentacja `GRAMATYKA_ANALIZY_JSON`).
+    let mut samplery: Vec<LlamaSampler> = Vec::new();
+    if let Some(gramatyka) = konfiguracja.gramatyka_json {
+        let sampler_gramatyki = LlamaSampler::grammar(&model, gramatyka, "root")
+            .map_err(|e| AppError::io(format!("nie udało się zbudować gramatyki JSON: {e}")))?;
+        samplery.push(sampler_gramatyki);
+    }
+    if konfiguracja.temperatura > 0.0 {
+        samplery.push(LlamaSampler::temp(konfiguracja.temperatura));
+        samplery.push(LlamaSampler::top_p(0.95, 1));
+        samplery.push(LlamaSampler::dist(konfiguracja.ziarno));
+    } else {
+        samplery.push(LlamaSampler::greedy());
+    }
+    let mut sampler = LlamaSampler::chain_simple(samplery);
     let mut dekoder = encoding_rs::UTF_8.new_decoder();
     let mut tekst = String::new();
     let mut n_cur = batch.n_tokens();
@@ -174,7 +238,7 @@ mod benchmark_wyboru_modelu {
     use std::sync::Mutex;
     use std::time::Instant;
 
-    use super::{uruchom_prompt, KonfiguracjaGenerowania};
+    use super::{uruchom_prompt, KonfiguracjaGenerowania, GRAMATYKA_ANALIZY_JSON};
     use crate::infrastructure::ai_model_download::{
         pobierz_i_zweryfikuj, PostepPobrania, KANDYDACI,
     };
@@ -295,5 +359,61 @@ Bez żadnego tekstu poza tym obiektem JSON."#
             }
             println!();
         }
+    }
+
+    /// Naprawa niezawodności JSON-a Qwen2.5-7B (który w poprzednim benchmarku raz złamał składnię
+    /// - niezescapowany cudzysłów wewnątrz stringa). Wymuszanie gramatyki GBNF na poziomie
+    /// silnika okazało się NIEBEZPIECZNE (crashuje proces - patrz dokumentacja
+    /// `GRAMATYKA_ANALIZY_JSON`), więc zamiast tego: waliduj wynik i ponów z INNYM ziarnem
+    /// samplera, jeśli JSON jest niepoprawny. Inne ziarno naprawdę daje INNY wynik (zob.
+    /// `KonfiguracjaGenerowania::ziarno`), więc ponowienie ma realną szansę się udać, zamiast
+    /// deterministycznie powtórzyć ten sam błąd.
+    ///
+    /// Ten test uruchamia model do `MAKSYMALNA_LICZBA_PROB` razy i sprawdza, że przynajmniej
+    /// jedna próba dała poprawny JSON - to jest empiryczna weryfikacja strategii "waliduj +
+    /// ponów", nie tylko deklaracja, że powinna działać.
+    #[test]
+    #[ignore = "wymaga już pobranego Qwen2.5-7B (uruchom najpierw benchmark_kandydatow) - odpalać ręcznie"]
+    fn qwen_7b_ponowienie_po_zlym_json_empirycznie_naprawia_niezawodnosc() {
+        zainstaluj_dostawce_kryptografii();
+        let katalog_modeli = std::env::temp_dir().join("dziennik-tradera-ai-benchmark");
+        let kandydat = KANDYDACI
+            .iter()
+            .find(|k| k.id == "qwen2.5-7b-instruct-q4_k_m")
+            .expect("Qwen2.5-7B musi być w KANDYDACI");
+        let prompt = prompt_testowy();
+
+        let postep = Mutex::new(PostepPobrania::nowy(kandydat.rozmiar_bajtow));
+        let anuluj = AtomicBool::new(false);
+        let sciezka = pobierz_i_zweryfikuj(kandydat, &katalog_modeli, &postep, &anuluj)
+            .expect("Qwen2.5-7B musi być już pobrany/zweryfikowany");
+
+        const MAKSYMALNA_LICZBA_PROB: u32 = 3;
+        let mut udalo_sie = false;
+
+        for numer_proby in 1..=MAKSYMALNA_LICZBA_PROB {
+            let konfiguracja = KonfiguracjaGenerowania {
+                ziarno: 1000 + numer_proby,
+                ..KonfiguracjaGenerowania::default()
+            };
+            let wynik = uruchom_prompt(&sciezka, &prompt, &konfiguracja).unwrap_or_else(|e| {
+                panic!("próba {numer_proby}: generowanie nie powiodło się: {e}")
+            });
+            let poprawny = oceniona_poprawnosc_json(&wynik.tekst);
+            println!(
+                "--- próba {numer_proby}/{MAKSYMALNA_LICZBA_PROB} (ziarno {}) - poprawny JSON: {poprawny} ---\n{}\n",
+                konfiguracja.ziarno, wynik.tekst
+            );
+            if poprawny {
+                udalo_sie = true;
+                break;
+            }
+        }
+
+        assert!(
+            udalo_sie,
+            "żadna z {MAKSYMALNA_LICZBA_PROB} prób nie dała poprawnego JSON-a - strategia \
+             \"waliduj + ponów\" nie wystarcza, potrzeba innego podejścia"
+        );
     }
 }
