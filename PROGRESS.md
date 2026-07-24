@@ -2014,6 +2014,32 @@ zapisane jako nowy punkt w pamięci sesji, żeby nie badać tego ponownie w przy
 Weryfikacja: bez zmian kodu (kod już był poprawny), `preview_start`+`computer`+`javascript_tool`
 2026-07-24, `preview_stop` po zakończeniu.
 
+**O7, część 48: ten sam test na `CommandPalette` - tym razem znaleziony REALNY błąd, nie granica
+narzędzia.** `CommandPalette.tsx` ma `role="dialog" aria-modal="true"`, ale w przeciwieństwie do
+`Modal` NIE jest natywnym `<dialog>` (to zwykły `<div>`), więc nie dostaje pułapki fokusu za
+darmo od przeglądarki. Ta sama metoda weryfikacji: otwarcie palety (`Ctrl+K` przez zdarzenie
+JS), seria `Tab` przez `computer{action:"key"}`, sprawdzenie czy fokus zostaje w panelu.
+
+Po 23 naciśnięciach Tab fokus uciekł z panelu na link `/stan-emocjonalny` w Sidebarze -
+CAŁKOWICIE ukryty pod overlayem palety, która nadal była otwarta na ekranie. `aria-modal="true"`
+obiecuje czytnikom ekranu, że treść poza panelem jest niedostępna, ale nic w kodzie tego nie
+egzekwowało - przyciski listy poleceń i cały Sidebar za nimi to zwykłe fokusowalne elementy w
+normalnej kolejności DOM. Klasyfikacja ważności (sekcja 29): **Wysoki** - globalna funkcja
+(`Ctrl+K`, używana często) myli użytkownika klawiatury, fokus ląduje na niewidocznym elemencie.
+
+Naprawione minimalnie: `onKeyDown` pola wyszukiwania dostał gałąź `Tab` → `event.preventDefault()`,
+przypinającą fokus do pola. Nawigacja po liście poleceń jest i tak strzałkami (Up/Down) + Enter -
+Tab nigdy nie był potrzebny do dotarcia do pozycji listy, tylko przypadkowo do tego prowadził
+(kliknięcie myszą na pozycji od razu zamyka paletę, więc to jedyna droga ucieczki fokusu).
+
+Zweryfikowane po naprawie: 25× Tab - fokus cały czas na polu wyszukiwania, nigdy nie uciekł.
+Strzałka w dół nadal poprawnie podświetla dokładnie 1 pozycję listy - bez regresji w istniejącej
+nawigacji klawiaturą.
+
+Weryfikacja: `pnpm format:check`, `pnpm typecheck`, `pnpm test` 271/271, `preview_start`+
+`computer`+`javascript_tool` potwierdził błąd PRZED naprawą i brak go PO, `preview_stop` po
+zakończeniu.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat

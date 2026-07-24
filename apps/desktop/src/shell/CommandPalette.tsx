@@ -133,6 +133,14 @@ export function CommandPalette(): ReactElement | null {
                 close();
                 return;
               }
+              if (event.key === "Tab") {
+                // Panel to zwykły <div>, nie natywny <dialog> - bez tego Tab ucieka z pola
+                // przez przyciski listy prosto do Sidebara UKRYTEGO pod overlayem (aria-modal
+                // złamane w praktyce). Nawigacja po liście jest i tak strzałkami, więc fokus
+                // celowo zostaje przypięty do pola - znalezione podczas audytu O7.
+                event.preventDefault();
+                return;
+              }
               if (event.key === "ArrowDown") {
                 event.preventDefault();
                 setActive((i) => (wyniki.length === 0 ? 0 : (i + 1) % wyniki.length));
