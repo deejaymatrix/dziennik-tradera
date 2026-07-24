@@ -79,12 +79,20 @@
   white-space: nowrap;
   transition:
     background-color var(--motion-fast) var(--motion-easing),
-    color var(--motion-fast) var(--motion-easing);
+    color var(--motion-fast) var(--motion-easing),
+    transform var(--motion-fast) var(--motion-easing);
 }
 
 .navLink:hover {
   background-color: var(--color-surface-hover);
   color: var(--color-text);
+}
+
+/* Stan "active" z sekcji 9 promptu - ta sama konwencja co Button/IconButton/Switch/zakładki
+   Raportów. Skala bliżej 1 niż na przyciskach - to szeroki, pełny wiersz nawigacji, więc
+   nawet niewielkie skurczenie jest tu wyraźniej widoczne niż na małym przycisku. */
+.navLink:active {
+  transform: scale(0.98);
 }
 
 .navLink:focus-visible {

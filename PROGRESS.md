@@ -1553,7 +1553,12 @@ to w rzeczywistości RODZIC `.input` (input jest w środku spana `.track`), wię
 nie trafił - naprawione na `:has()`, ten sam wzorzec, którego już używa istniejąca reguła
 `.track:has(.input:checked)`.
 
-### Rozszerzenie na macOS (druga wersja promptu O, 2026-07-24)
+Ta sama konwencja `:active` domknięta na dwóch dalszych, realnie klikanych elementach chrome
+aplikacji (nie tylko formalnie „współdzielonych komponentach" z sekcji 9, ale wszędzie, gdzie
+użytkownik faktycznie klika): zakładki `ReportsPage` (`.tab`) i pozycje menu bocznego
+(`Sidebar.navLink`). Świadomie POMINIĘTE: pozycje `CommandPalette` - mają własny, udokumentowany
+komentarzem wybór projektowy („wyróżnienie idzie za KLAWIATURĄ, nie za kursorem"), więc dopisanie
+`:active` (reakcji na mysz) byłoby sprzeczne z tym zamysłem, nie naprawą braku.
 
 Nowa wersja dokumentu dodaje macOS (Apple Silicon `arm64` + Intel `x86_64`) jako drugą
 platformę docelową, obok Windows. **Użytkownik potwierdził: nie ma dostępu do żadnego Maca.**
