@@ -1714,6 +1714,18 @@ we wszystkich 3 - wizualnie identyczne (ta sama wartość), tylko jedno źródł
 niezależnie wpisanych liczb. `border-radius: 50%` na okrągłych próbkach koloru świadomie
 pominięty - inny idiom („koło niezależnie od rozmiaru pudełka", nie skala promienia).
 
+**O7, ta sama klasa luki po raz czwarty: `box-shadow` na sztywno w `ColorPicker.module.css`.**
+`.popover` (rozwijany panel wyboru koloru) miał surowy, nieudokumentowany
+`0 12px 32px rgb(0 0 0 / 45%)`, podczas gdy WSZYSTKIE inne pływające panele w aplikacji
+(`Tooltip`, `CommandPalette`, `Modal`) już od dawna używają `var(--shadow-sm/-md)`. Przepięte
+na `var(--shadow-md)` - ta sama ranga elewacji co `Modal`/`CommandPalette`. `.areaHandle`
+(1px czarny pierścień na uchwycie w obszarze wyboru koloru) świadomie NIE dostał tokenu -
+musi pozostać czytelny na DOWOLNYM kolorze tła pod spodem (gradient nasycenia/jasności), nie
+na powierzchni motywu aplikacji, więc stały, niezależny od motywu kolor jest tu poprawnym
+wyborem, nie przeoczeniem. Weryfikacja wizualna niemożliwa (ColorPicker wymaga załadowanych
+preferencji/strategii, których backend Tauri nie dostarcza w tym podglądzie) - poprawność
+oparta na mechanicznej identyczności z już działającym wzorcem `Modal`/`CommandPalette`.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
