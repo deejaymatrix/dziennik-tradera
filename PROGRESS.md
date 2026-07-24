@@ -2728,6 +2728,30 @@ czysty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **320/320** (37 plików, +5 nowych testów).
 
+**O7, część 71: `useReportFilter.ts` (213 linii, współdzielony przez Dashboard I zakładkę
+Raporty) - trzy czyste funkcje konwertujące filtr na zapytanie backendu, zero testów.** Inny
+rodzaj ryzyka niż części 62-70 (tam: dostępność/bezpieczeństwo danych) - tu błąd w
+`toReportFilter`/`toAccountComparisonFilter` cicho pokazywałby ZŁE dane finansowe (np. wynik za
+"miesiąc 3 wszystkich lat" zamiast "bez filtra miesiąca"), które użytkownik wziąłby za prawdziwy
+raport. Pełny hak (efekty, wywołania sieciowe) świadomie POZOSTAWIONY bez testu - nieproporcjonalny
+koszt mockowania względem ryzyka; te trzy eksportowane, czyste funkcje są tanim, wysokowartościowym
+wycinkiem.
+
+Nowy `app/useReportFilter.test.ts` (8 testów, zero mockowania - czyste funkcje): puste opcjonalne
+pola zamieniają się na `null`, nie zostają pustymi stringami; **miesiąc BEZ roku jest ignorowany**
+(filtrowanie po samym miesiącu nie ma sensu - rok+miesiąc muszą iść razem); sam rok bez miesiąca
+to poprawny filtr roczny; `toAccountComparisonFilter` nie ma w ogóle pola `account_id` (porównanie
+dotyczy wszystkich kont); `monthYearLabel` buduje polską etykietę i zwraca pusty string, gdy
+brakuje któregokolwiek z pól.
+
+Zweryfikowane testem mutacyjnym: tymczasowo usunięty warunek roku z obu funkcji (`f.month ?
+Number(f.month) : null` zamiast `f.year && f.month ? ...`) - **dokładnie 2 z 8 testów padły**
+(oba dla scenariusza "miesiąc bez roku", po jednym w każdej funkcji), pozostałe 6 bez zmian. Po
+cofnięciu (`git checkout` na pojedynczym pliku): `git diff` czysty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **328/328** (38 plików, +8 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
