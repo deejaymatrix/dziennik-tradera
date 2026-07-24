@@ -350,6 +350,29 @@ pikselowej weryfikacji układu/kolorów (sekcja 23) i przejścia ze zapisanymi, 
 danymi (wymaga uruchomionej aplikacji desktopowej z bazą, nie samego podglądu w przeglądarce)
 — ale znacząco zawęża zakres tego, co jeszcze nie jest sprawdzone.
 
+**Rozszerzenie 2026-07-24: 2 trasy zweryfikowane z PRAWDZIWYMI (fałszywymi, ale poprawnie
+ukształtowanymi) danymi, nie tylko stanem błędu.** Metoda: wstrzyknięty fałszywy
+`window.__TAURI_INTERNALS__.invoke` zwracający kompletne, zgodne z prawdziwymi interfejsami TS
+obiekty (`Trade`, `AccountWithBalance`, `AccountReport`), na ŚWIEŻEJ karcie przeglądarki
+(`tabs_create`, żeby uniknąć nieaktualnych wpisów konsoli - punkt 8 w pamięci sesji). Cel: nie
+tylko "czy strona się nie wywala", ale "czy naprawy tej sesji (część 45/47/49) faktycznie
+działają z realnymi danymi, nie tylko w izolacji".
+
+`/transakcje` z 2 transakcjami (jedna zyskowna, jedna stratna): tabela wyrenderowana poprawnie,
+`formatSignedMoney` pokazuje jawny znak w obu kierunkach („+250,00 USD"/„-150,00 USD" - część
+49), oba wiersze mają `tabIndex=0`/`role="button"`/poprawny `aria-label` (część 45) - i co
+ważniejsze, FUNKCJONALNIE: fokus na wierszu + `Enter` faktycznie otworzył `TradeInspector` z
+poprawnymi danymi transakcji #1 (nie tylko obecność atrybutów, ale realne działanie klawiatury).
+Zero błędów konsoli.
+
+`/kalendarz` z kalendarzem lipca 2026 (dzień 10 zyskowny, dzień 15 stratny): oba dni pokazują
+jawny znak (część 49) i poprawną klasę CSS (`profitDay`/`lossDay`) dokładnie zgodną ze znakiem
+wartości. Zero błędów konsoli.
+
+To pierwszy raz w tym audycie, gdy naprawy sekcji 21 zostały potwierdzone z prawdziwymi danymi
+w przeglądarce, a nie tylko przez odczyt kodu/testów jednostkowych/stanu błędu bez danych.
+Pozostałe 12 tras wciąż niesprawdzone z danymi (blokada częściowo, nie w pełni, zamknięta).
+
 ## 5. Weryfikacja obliczeń finansowych (sekcja 26)
 
 **Bez zmian względem audytu bloku D.** Redesign nie dotknął `domain/trade_calculations.rs`,
@@ -418,8 +441,11 @@ ponownego przeliczania. `cargo test` — 428/428 PASS, bez regresji (427 + nowy 
    konsoli na całej trasie. Stan braku backendu renderuje się wszędzie jako czytelny,
    niekrytyczny komunikat `role="alert"` z przyciskiem ponowienia (nie pusty ekran/crash) -
    potwierdza już wcześniej znany, opisany w pamięci przypadek „Brak środowiska Tauri", nie
-   nową usterkę. Nadal brakuje: przejścia z PRAWDZIWYMI zapisanymi danymi (wymaga uruchomionej
-   aplikacji desktopowej z bazą) i weryfikacji pikselowej.
+   nową usterkę. **Częściowe domknięcie 2026-07-24:** 2 z 14 tras (`/transakcje`, `/kalendarz`)
+   dodatkowo zweryfikowane z prawdziwymi (fałszywymi, ale poprawnie ukształtowanymi) danymi przez
+   wstrzyknięty mostek Tauri - potwierdzone, że naprawy z części 45/47/49 (klawiaturowo dostępne
+   wiersze, `formatSignedMoney`) faktycznie działają z realnymi danymi. Nadal brakuje: pozostałych
+   12 tras z danymi, prawdziwej aplikacji desktopowej z bazą i weryfikacji pikselowej.
 3. ~~**Pełny manifest plik-po-pliku** (sekcja 27)~~ — **ZAMKNIĘTE 2026-07-24.** Dodana tabela
    z osobnym wierszem i statusem dla każdego pliku (sekcja 2, „Manifest plik-po-pliku"),
    wygenerowana programowo z już zweryfikowanej tabeli grup — 0 pominiętych, 0 nadmiarowych.

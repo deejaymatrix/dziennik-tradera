@@ -2129,6 +2129,24 @@ poprawnie wyrenderowany, DOKŁADNIE ten sam węzeł DOM pola „Cena wejścia" p
 (potwierdzone znacznikiem na obiekcie węzła, nie tylko selektorem), pozycja kursora zachowana,
 zero błędów konsoli. Pełny PASS, bez zmian kodu (kod już był poprawny).
 
+**O7: 2 trasy zweryfikowane z prawdziwymi danymi, nie tylko stanem błędu - pierwszy raz w tym
+audycie.** Wstrzyknięty fałszywy `window.__TAURI_INTERNALS__.invoke` zwracający kompletne,
+zgodne z prawdziwymi interfejsami TS obiekty (`Trade`, `AccountWithBalance`, `AccountReport`),
+na świeżych kartach przeglądarki. Cel: potwierdzić, że naprawy tej sesji (część 45 - klawiaturowo
+dostępne wiersze, część 47 - hover, część 49 - `formatSignedMoney`) faktycznie działają z
+realnymi danymi, nie tylko w izolacji/kodzie.
+
+`/transakcje` z 2 transakcjami (zyskowna + stratna): tabela poprawna, `formatSignedMoney`
+pokazuje jawny znak w obu kierunkach, oba wiersze mają poprawne atrybuty dostępności - i
+FUNKCJONALNIE: fokus na wierszu + Enter faktycznie otworzył `TradeInspector` z poprawnymi
+danymi transakcji. Zero błędów konsoli.
+
+`/kalendarz` z dniem zyskownym i stratnym: oba pokazują jawny znak i poprawną klasę CSS
+(`profitDay`/`lossDay`) zgodną ze znakiem wartości. Zero błędów konsoli.
+
+Pozostałe 12 tras wciąż niesprawdzone z prawdziwymi danymi - blokada częściowo, nie w pełni,
+zamknięta.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
