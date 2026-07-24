@@ -2918,6 +2918,33 @@ Error pokazał "Error: ..." zamiast czystego `message`), pozostałe 2 bez zmian.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **382/382** (45 plików, +3 nowe testy).
 
+**O7, część 79: `useAccountReport.ts` (78 linii) - wspólny przepływ "wybierz konto → pobierz
+raport" pod Kalendarzem (docelowo też Dashboard/Raporty wg komentarza w źródle), zero testów.**
+Najbardziej nieoczywista część: `loadAccounts()` po ponownym wczytaniu NIE resetuje wyboru
+użytkownika do pierwszego konta na liście - `current || (data[0]?.id ?? "")` zachowuje już
+wybrane konto. Błąd tu (np. zawsze branie `data[0]`) cofnąłby użytkownika na inne konto po każdym
+odświeżeniu listy - klasyczna, irytująca regresja UX, łatwa do przeoczenia przy code review.
+
+Nowy `app/useAccountReport.test.ts` (7 testów, `renderHook` + `vi.mock("./invokeCommand", ...)`):
+start automatycznie zaznacza PIERWSZE konto, gdy nic nie było wybrane; wybór konta pobiera jego
+raport przez `get_account_report`; **`reloadAccounts()` NIE cofa już wybranego konta na
+pierwsze z listy**; błąd `list_accounts` ustawia `accountsError` i NIE rusza `reportError` (i na
+odwrót dla błędu `get_account_report` - dwa niezależne testy); błąd, który nie jest instancją
+`Error`, dostaje domyślny komunikat po polsku; ustawienie pustego `selectedAccountId` czyści
+`report` BEZ wywołania komendy.
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) `setSelectedAccountId((current) => current ||
+data[0]?.id ?? "")` zamienione na zawsze-`data[0]?.id` - **dokładnie 1 z 7 padł** (test
+zachowania wyboru po `reloadAccounts()`); (2) usunięta gałąź `else { setReport(null) }` -
+**dokładnie 1 z 7 padł** (test czyszczenia raportu przy pustym wyborze, przez timeout
+`waitFor` - report nigdy się nie wyczyścił). Po każdym cofnięciu: `git diff --stat` na
+`useAccountReport.ts` pusty. (Przy okazji poprawiony błędny import `act` z `"react"` zamiast
+`"@testing-library/react"` w nowym pliku testowym - pierwsza wersja działała, ale React ostrzegał
+"testing environment is not configured to support act(...)".)
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **389/389** (46 plików, +7 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
