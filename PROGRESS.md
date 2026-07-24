@@ -3460,6 +3460,32 @@ anulowaniu wyboru pliku - **dokładnie 1 z 6 padł**, `preview_broker_import` wy
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **511/511** (66 plików, +6 nowych testów).
 
+**O7, część 100: `ImportMt5TradesModal.tsx` (279 linii) - kreator importu historii MT5, zero
+testów.** Dwie ryzykowne części dotąd niesprawdzone: (1) "Do zaimportowania" liczy PRZECIĘCIE
+dwóch niezależnych warunków (`instrument_id` rozpoznany I `!already_imported`) - pozycja
+rozpoznana, ale już zaimportowana, NIE liczy się jako "do zaimportowania"; przycisk "Importuj"
+musi zostać wyłączony, gdy ta liczba wynosi 0, NAWET gdy podgląd istnieje; (2) zmiana konta
+docelowego musi wyczyścić WSZYSTKIE poprzednie dane (plik, podgląd, wynik) - inaczej podgląd
+policzony dla jednego konta mógłby zostać zaimportowany na inne, zupełnie inne konto.
+
+Nowy `pages/ImportMt5TradesModal.test.tsx` (5 testów, mock `invokeCommand` +
+`@tauri-apps/plugin-dialog`): przycisk wyboru pliku wyłączony, dopóki konto nie jest wybrane; **po
+uzyskaniu podglądu, zmiana konta chowa podgląd i nazwę pliku**; **wiersz rozpoznany, ale już
+zaimportowany, NIE liczy się do "Do zaimportowania"**; "Importuj" wyłączony, gdy "Do
+zaimportowania" wynosi 0 mimo istniejącego podglądu; status wiersza rozpoznanego I już
+zaimportowanego pokazuje "już zaimportowana", nie "gotowa" (kolejność sprawdzania warunków ma
+znaczenie).
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) `r.instrument_id && !r.already_imported` zastąpione
+samym `r.instrument_id` (już zaimportowane też liczone jako "do zaimportowania") - **dokładnie 2
+z 5 testów padły** (oba testy liczące "Do zaimportowania", zależne od dokładnej wartości); (2)
+`handleAccountChange` okrojony do samego `setAccountId` (bez czyszczenia pliku/podglądu/wyniku) -
+**dokładnie 1 z 5 padł**, stary plik i podgląd zostały widoczne po zmianie konta. Po każdym
+cofnięciu: `git diff --stat` na `ImportMt5TradesModal.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **516/516** (67 plików, +5 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
