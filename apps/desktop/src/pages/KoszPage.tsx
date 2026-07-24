@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { RotateCcw, Search, Trash, Trash2 } from "lucide-react";
 import { invokeCommand } from "../app/invokeCommand";
+import { pluralPl } from "../app/pluralize";
 import type { EmptyTrashResult, TrashEntityType, TrashItem } from "../app/types/trash";
 import { TRASH_ENTITY_LABELS } from "../app/types/trash";
 import { Badge } from "../ui/components/Badge/Badge";
@@ -214,7 +215,10 @@ export function KoszPage(): ReactElement {
       for (const item of selected) {
         await invokeCommand("restore_trash_item", { entityType: item.entity_type, id: item.id });
       }
-      showToast(`Przywrócono ${selected.length} elementów.`, "success");
+      showToast(
+        `Przywrócono ${selected.length} ${pluralPl(selected.length, ["element", "elementy", "elementów"])}.`,
+        "success",
+      );
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
@@ -230,7 +234,7 @@ export function KoszPage(): ReactElement {
     }
     if (
       !(await optionalConfirm("permanent", {
-        message: `Trwale usunąć ${selected.length} zaznaczonych elementów? Tej operacji nie można cofnąć.`,
+        message: `Trwale usunąć ${selected.length} ${pluralPl(selected.length, ["zaznaczony element", "zaznaczone elementy", "zaznaczonych elementów"])}? Tej operacji nie można cofnąć.`,
         danger: true,
       }))
     ) {
@@ -249,7 +253,10 @@ export function KoszPage(): ReactElement {
         }
       }
       if (failures.length === 0) {
-        showToast(`Trwale usunięto ${purged} elementów.`, "success");
+        showToast(
+          `Trwale usunięto ${purged} ${pluralPl(purged, ["element", "elementy", "elementów"])}.`,
+          "success",
+        );
       } else {
         showToast(
           `Usunięto ${purged} z ${selected.length}. Nie udało się: ${failures.join("; ")}`,
@@ -271,7 +278,7 @@ export function KoszPage(): ReactElement {
       // Wyłączalne jest pytanie o pojedynczą operację, a nie zabezpieczenie przed hurtową,
       // nieodwracalną utratą danych - specyfikacja wymaga tu ostrzeżeń bezwarunkowo.
       !(await confirm({
-        message: `Opróżnić cały Kosz? Trwale usunie to wszystkie ${items.length} elementów (po automatycznej kopii zapasowej). Tej operacji nie można cofnąć.`,
+        message: `Opróżnić cały Kosz? Trwale usunie to wszystkie ${items.length} ${pluralPl(items.length, ["element", "elementy", "elementów"])} (po automatycznej kopii zapasowej). Tej operacji nie można cofnąć.`,
         danger: true,
         confirmLabel: "Opróżnij kosz",
       }))
@@ -282,10 +289,13 @@ export function KoszPage(): ReactElement {
     try {
       const result = await invokeCommand<EmptyTrashResult>("empty_trash", {});
       if (result.failed.length === 0) {
-        showToast(`Kosz opróżniony - usunięto trwale ${result.purged} elementów.`, "success");
+        showToast(
+          `Kosz opróżniony - usunięto trwale ${result.purged} ${pluralPl(result.purged, ["element", "elementy", "elementów"])}.`,
+          "success",
+        );
       } else {
         showToast(
-          `Usunięto ${result.purged} elementów. Nie udało się usunąć ${result.failed.length}: ${result.failed
+          `Usunięto ${result.purged} ${pluralPl(result.purged, ["element", "elementy", "elementów"])}. Nie udało się usunąć ${result.failed.length} ${pluralPl(result.failed.length, ["elementu", "elementów", "elementów"])}: ${result.failed
             .map((f) => `${f.label} (${f.message})`)
             .join("; ")}`,
           "error",

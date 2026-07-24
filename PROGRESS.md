@@ -2952,6 +2952,24 @@ brak treści o zmiennej długości pochodzącej od użytkownika. `.sectionDescri
 
 Weryfikacja: `pnpm test -- --run` 289/289 (bez zmian kodu w tym zadaniu).
 
+**Kosz (zadanie 16, zamknięte) - TRZECI przypadek tego samego braku odmiany liczebnikowej.**
+`KoszPage.tsx` miał aż 5 komunikatów toastów/potwierdzeń ze stałym "elementów" niezależnie od
+liczby ("Przywrócono 1 elementów", "usunięto trwale 2 elementów" zamiast "1 element"/"2 elementy") -
+naprawione wszystkie przez `pluralPl()` (ten sam plik `app/pluralize.ts` z zadania 14). Jeden
+przypadek wymagał odmiany PRZYMIOTNIKA razem z rzeczownikiem ("zaznaczony element" / "zaznaczone
+elementy" / "zaznaczonych elementów") - funkcja przyjmuje dowolne 3 formy jako stringi, więc
+obsłużyła to bez zmian w samej funkcji. Dodany też brakujący rzeczownik w komunikacie błędu
+zbiorczego opróżniania kosza ("Nie udało się usunąć 2:" → "Nie udało się usunąć 2 elementów:",
+z poprawną odmianą dopełniacza po zaprzeczonym czasowniku - w polskim przeczenie wymusza dopełniacz
+niezależnie od liczby, stąd forma "few" i "many" są tu celowo takie same: "elementów" dla obu).
+
+Reszta ekranu sprawdzona bez problemu: `item.dependency_note` to tekst generowany W CAŁOŚCI przez
+backend (Rust `format!()`, nie wolny tekst użytkownika) - niskie ryzyko, `.dependencyCell` ma
+kontrolowany `max-width`; `item.label` w standardowej, scrollowalnej tabeli.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` 289/289.
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.
