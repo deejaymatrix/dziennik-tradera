@@ -2522,6 +2522,34 @@ mniej, ani jednego więcej, ani żadnego powtórzonego.
 Weryfikacja: bez zmian kodu - wyłącznie korekta dokumentacji + niezależne porównanie zbiorów
 plików.
 
+**O7, część 62: znaleziona i naprawiona realna luka - „tryb zgodny z systemem" (O1, oznaczony
+✅) nie miał ŻADNEGO testu jednostkowego.** `ThemeProvider.tsx` i `PreferencesProvider.tsx` -
+jedyne dwa pliki realizujące reaktywne śledzenie motywu Windows na żywo (`matchMedia`
+
+- `addEventListener("change", ...)`) - nie miały ani jednego pliku testowego. Status „✅" w
+  tabeli O1 opierał się wyłącznie na przeglądzie kodu, nie na automatycznej regresji - dokładnie
+  ten wzorzec luki, który ta sesja O7 już wielokrotnie znajdowała i naprawiała gdzie indziej
+  (sentinel akcentu, color-mix WCAG, pierścień fokusu), tym razem dla samego mechanizmu
+  przełączania motywu.
+
+Nowy plik `app/PreferencesProvider.test.tsx` (4 testy): rozwiązanie „system" na start zgodnie
+z aktualnym dopasowaniem OS; **żywa aktualizacja `data-theme` na dokumencie w trakcie działania
+aplikacji**, gdy użytkownik przełączy jasny/ciemny w Windows bez żadnej akcji w samej aplikacji
+(symulowane wywołaniem zdarzenia `change` na fałszywym `MediaQueryList`, nie przez ponowne
+wywołanie funkcji); brak jakiegokolwiek wpływu zmiany OS, gdy motyw jest jawnie `dark`/`light`;
+odpięcie nasłuchu `change` (sekcja 27: „listenery bez cleanup") przy odmontowaniu.
+
+Zweryfikowane testem mutacyjnym (ten sam wzorzec co wcześniej dla `--tint-badge`/pierścienia
+fokusu/`default_accent`): tymczasowo zakomentowane `query.addEventListener(...)` w
+`PreferencesProvider.tsx`, uruchomione testy - **dokładnie 2 z 4 testów padły** (te zależne od
+żywego nasłuchu: aktualizacja na żywo i sam fakt zarejestrowania nasłuchu), pozostałe 2
+(rozwiązanie startowe, brak wpływu przy motywie nie-systemowym) bez zmian - dokładnie zgodnie
+z przewidywaniem. Po cofnięciu: `git diff` na pliku źródłowym czysty, 4/4 PASS ponownie.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto (w tym naprawiony
+`@typescript-eslint/unbound-method` przez własne liczniki zamiast `expect(mock.metoda)`),
+`pnpm exec prettier --check` czysto, `pnpm test -- --run` **293/293** (4 nowe testy, 29 plików).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
