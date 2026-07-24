@@ -3114,6 +3114,28 @@ index + 1)` zamienione na `days.slice(0, index)` (pominięcie bieżącego dnia w
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **420/420** (52 pliki, +3 nowe testy).
 
+**O7, część 86: `SessionField.tsx` (64 linie, pole "Sesja" w formularzu transakcji) - wykrywanie
+trybu własnej sesji, zero testów.** Najbardziej ryzykowna część: wartość SPOZA listy gotowych
+sesji (np. sesja wpisana ręcznie w transakcji sprzed tej zmiany, kiedy pole było zwykłym tekstem)
+musi OD RAZU włączyć tryb "własna sesja" przy otwarciu do edycji - inaczej formularz cicho
+pokazywałby "Brak" zamiast zachowanej wartości, a zapis nadpisałby ją pustym stringiem, tracąc
+dane wpisane wcześniej przez użytkownika.
+
+Nowy `pages/SessionField.test.tsx` (6 testów, kontrolowany wrapper z lokalnym stanem): pusta
+wartość początkowa i wartość Z LISTY gotowych NIE włączają trybu własnej sesji; **wartość SPOZA
+listy OD RAZU włącza tryb własnej sesji** (pole tekstowe widoczne z zachowaną wartością);
+wybranie "Własna..." czyści wartość i pokazuje pole tekstowe; wybranie gotowej wartości z trybu
+własnej wyłącza go; wpisywanie w polu własnej sesji zapisuje wpisaną wartość.
+
+Zweryfikowane testem mutacyjnym: warunek startowy `value.trim() !== "" &&
+!PRESET_SESSIONS.includes(value)` zastąpiony stałym `false` - **dokładnie 3 z 6 testów padły**
+(wszystkie trzy zależne od poprawnego wykrycia trybu własnej sesji przy starcie), pozostałe 3
+(dotyczące wartości pustej/z listy, gdzie oczekiwany wynik to i tak `false`) bez zmian. Po
+cofnięciu: `git diff --stat` na `SessionField.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **426/426** (53 pliki, +6 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
