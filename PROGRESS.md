@@ -3268,6 +3268,35 @@ każdym cofnięciu: `git diff --stat` na `RuleListEditor.tsx` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **458/458** (58 plików, +9 nowych testów).
 
+**O7, część 92: `StrategyChecklistEditor.tsx` (155 linii) - blokuje finalny zapis, dopóki każda
+WYMAGANA i NIESPEŁNIONA zasada nie dostanie powodu (sekcja 6.6 specyfikacji), zero testów.**
+Jedyne miejsce w formularzu transakcji z realnym, zamierzonym efektem walidacyjnym po stronie
+DANYCH, nie tylko UI. Najbardziej ryzykowna część: zmiana statusu NA COKOLWIEK innego niż
+"niespełniona" musi WYCZYŚCIĆ powód - inaczej stary powód przypięty do już-spełnionej zasady
+zapisałby się do historycznej migawki transakcji jako martwe, mylące dane.
+
+Nowy `pages/StrategyChecklistEditor.test.tsx` (9 testów): pusta checklista (obie listy) nie
+renderuje nic; pole powodu widoczne WYŁĄCZNIE dla wymaganej+niespełnionej zasady (nie dla
+wymaganej+spełnionej, nie dla NIEwymaganej+niespełnionej - opcjonalna zasada nigdy nie blokuje
+zapisu); **zmiana statusu z "niespełniona" na "spełniona" czyści `reason` w przekazanym
+`onChange`**; błąd pola powodu pokazuje się WYŁĄCZNIE gdy `showReasonErrors=true` I powód jest
+pusty (nie wcześniej, nie gdy wypełniony); zmiana statusu w grupie "wejścia" nie dotyka grupy
+"zarządzania".
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) usunięte czyszczenie `reason` w `withStatus` -
+**dokładnie 1 z 9 testów padł**, pokazując dokładnie przewidziany wyciek starego powodu ("Za
+duża zmienność" zamiast `null`) do zapisanej migawki; (2) usunięty warunek `showReasonErrors` z
+bramki błędu (błąd pokazuje się zawsze przy pustym powodzie) - **dokładnie 1 z 9 padł**, błąd
+pojawiłby się od pierwszej chwili, zanim użytkownik w ogóle spróbował zapisać. Po każdym
+cofnięciu: `git diff --stat` na `StrategyChecklistEditor.tsx` pusty. (Przy okazji poprawiony
+błąd w samym teście: `getByLabelText("Powód niespełnienia")` z dokładnym stringiem nigdy by nie
+trafił, bo etykieta ma doklejoną gwiazdkę wymagalności bez spacji - zmienione na dopasowanie
+przez wyrażenie regularne we wszystkich trzech miejscach, żeby negatywne asercje faktycznie coś
+sprawdzały, a nie przechodziły przypadkiem.)
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **467/467** (59 plików, +9 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
