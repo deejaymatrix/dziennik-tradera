@@ -2817,6 +2817,33 @@ przewidywaniem. Po cofnięciu: `git diff --stat` na `blobToBase64.ts` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **354/354** (41 plików, +3 nowe testy).
 
+**O7, część 75: `invokeCommand.ts` (59 linii) - JEDYNE miejsce, przez które każde wywołanie
+backendu w aplikacji przechodzi, zero testów.** Wyższe ryzyko niż wszystko dotąd w tej serii -
+błąd w `extractErrorMessage` albo `hasTauriRuntime` wpływa na to, co użytkownik widzi przy
+KAŻDEJ awarii KAŻDEJ komendy w całej aplikacji. Dotąd niesprawdzone wprost, bo każdy inny test
+podmienia cały moduł przez `vi.mock("./invokeCommand", ...)` - jego własna logika nigdy nie
+została wykonana przez żaden test.
+
+Nowy `app/invokeCommand.test.ts` (11 testów, `vi.mock("@tauri-apps/api/core", ...)` na dynamiczny
+import): `extractErrorMessage` czyta `message` z payloadu błędu Rust i z instancji `Error`,
+zwraca zwykły string bez zmian (Tauri czasem odrzuca gołym stringiem), **pusty string/same spacje
+NIE liczą się jako czytelny komunikat**, pole `message` które nie jest stringiem NIE liczy się
+jako `AppErrorPayload`, `null`/`undefined`/liczba dostają domyślny komunikat po polsku;
+`hasTauriRuntime` zwraca `false`/`true` zależnie od `window.__TAURI_INTERNALS__`; `invokeCommand`
+odrzuca z czytelnym komunikatem PL i celowo NIE woła `invoke()`, gdy nie ma środowiska Tauri,
+zwraca wynik `invoke()` bez zmian, gdy środowisko jest obecne, i normalizuje odrzucenie `invoke()`
+do zwykłego `Error` z zachowanym `cause`.
+
+Zweryfikowane testem mutacyjnym (3 niezależne mutacje, każda cofnięta osobno): (1) usunięty
+warunek typu `message` w `isAppErrorPayload` - **dokładnie 1 z 11 padł** (test "message: 42");
+(2) usunięty `.trim()` z warunku string - **dokładnie 1 z 11 padł** (test pustego stringa);
+(3) `if (!hasTauriRuntime())` zamienione na `if (false)` - **dokładnie 1 z 11 padł** (test braku
+środowiska Tauri, `invoke` nigdy nie wywołane). Po każdym cofnięciu: `git diff --stat` na
+`invokeCommand.ts` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **365/365** (42 pliki, +11 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
