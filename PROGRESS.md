@@ -2152,7 +2152,16 @@ się nie renderuje (osobny wpis wyżej). Zero błędów konsoli.
 `/konta` z 2 kontami: `.nameButton` kliknięty FUNKCJONALNIE otworzył `AccountDetailsModal`
 z poprawnymi danymi. Zero błędów konsoli.
 
-Pozostałe 10 tras wciąż niesprawdzone z prawdziwymi danymi - blokada częściowo, nie w pełni,
+`/strategie` z 2 strategiami: tabela poprawna, zero błędów konsoli - weryfikacja ogólna.
+
+`/dane` (`DataPage.tsx`, część 41-42): kliknięty „Utwórz kopię zapasową" z fałszywym opóźnieniem
+800ms - `aria-busy`/`disabled` poprawnie aktywne przez cały czas operacji, wracają do
+`null`/`false` po zakończeniu. Pierwsza próba (podzielona na 2 osobne wywołania narzędzia) dała
+fałszywy negatyw przez opóźnienie MIĘDZY wywołaniami, nie prawdziwy błąd - poprawiona metoda:
+klik + wszystkie odczyty w JEDNYM atomowym skrypcie z wewnętrznymi `await`. Zapisane w pamięci
+sesji jako nowy punkt 9, żeby nie powtórzyć tego błędu testowego.
+
+Pozostałe 8 tras wciąż niesprawdzone z prawdziwymi danymi - blokada częściowo, nie w pełni,
 zamknięta.
 
 **O7, część 51: kontrakt `formatSignedMoney` (część 49) złamany w 5 KOLEJNYCH miejscach -
