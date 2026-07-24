@@ -2839,6 +2839,31 @@ Weryfikacja: `pnpm exec eslint .` na całym projekcie teraz 0 błędów (tylko n
 istniejące ostrzeżenia `react-refresh/only-export-components`), `pnpm exec tsc --noEmit -p .`
 czysto, `pnpm exec prettier --check` czysto, `pnpm test -- --run` 283/283.
 
+**Kalendarz (zadanie 9, zamknięte) - 2 znaleziska.**
+1. `.dayPnl` (kwota wyniku dnia + waluta) i `.dayCount` ("N transakcji") w `CalendarPage.module.css`
+   nie miały `white-space: nowrap` - spacja między kwotą a kodem waluty (`formatSignedMoney` sklejа
+   je spacją) jest prawidłowym miejscem zawinięcia bez tej deklaracji. Przy węższym oknie komórka
+   z dłuższą kwotą mogłaby zawinąć się na 2 linie, robiąc jeden wiersz siatki miesiąca wyższy niż
+   sąsiednie - ten sam mechanizm co poprzednie znaleziska audytu, tu zapobiegawczo (obcięcie
+   wielokropkiem zamiast zawinięcia), plus `min-width: 0` na `.dayCell` (klasyczna pułapka CSS Grid
+   - patrz `ReportsPage.module.css` wcześniej w tym audycie).
+2. Licznik transakcji dnia miał tylko DWIE polskie formy odmiany ("1 transakcja" / reszta
+   "transakcji") - "2 transakcje" pokazywało się błędnie jako "2 transakcji". Naprawione nową
+   funkcją `tradeCountLabel()` z pełną polską odmianą liczebnikową (1 / 2-4 poza 12-14 / reszta).
+   Poza ścisłym zakresem "problemów z formatowaniem" z promptu, ale to samo miejsce audytu i tania,
+   bezpieczna poprawka priorytet niski, zrobiona przy okazji.
+
+Reszta ekranu sprawdzona bez problemu: `.monthLabel` ma `min-width` (nie `max-width`) więc długie
+nazwy miesięcy („Październik 2026") swobodnie rosną bez zawijania; `DayTradesModal` (już częściowo
+naprawiony wcześniej w tej sesji - `size="wide"`, `formatDecimal` na wolumenie) ma kontrolowany,
+przewijany `.previewTable` (`max-height` + `overflow: auto`).
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` 283/283. Bez weryfikacji na żywo w przeglądarce - port 1430
+zajęty przez prawdziwą sesję użytkownika przez cały czas tego zadania (`netstat` potwierdzone
+LISTENING+ESTABLISHED), a mój własny serwer podglądu używa TEGO SAMEGO portu (`.claude/launch.json`)
+- zgodnie ze standing instrukcją audyt oparty wyłącznie o przegląd kodu.
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.

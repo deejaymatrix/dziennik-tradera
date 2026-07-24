@@ -36,6 +36,19 @@ function toDateKey(year: number, month: number, day: number): string {
   return `${year}-${pad(month + 1)}-${pad(day)}`;
 }
 
+/** Polska odmiana liczebnikowa: 1 transakcja, 2-4 transakcje (poza 12-14), reszta transakcji. */
+function tradeCountLabel(count: number): string {
+  if (count === 1) {
+    return "transakcja";
+  }
+  const lastDigit = count % 10;
+  const lastTwoDigits = count % 100;
+  if (lastDigit >= 2 && lastDigit <= 4 && !(lastTwoDigits >= 12 && lastTwoDigits <= 14)) {
+    return "transakcje";
+  }
+  return "transakcji";
+}
+
 function dayLabelFromKey(dateKey: string): string {
   const [y, m, d] = dateKey.split("-").map(Number);
   if (y === undefined || m === undefined || d === undefined) {
@@ -253,8 +266,7 @@ export function CalendarPage(): ReactElement {
                       {formatSignedMoney(cell.entry.net_pnl, selectedAccount.currency)}
                     </span>
                     <span className={styles.dayCount}>
-                      {cell.entry.trade_count}{" "}
-                      {cell.entry.trade_count === 1 ? "transakcja" : "transakcji"}
+                      {cell.entry.trade_count} {tradeCountLabel(cell.entry.trade_count)}
                     </span>
                   </>
                 )}
