@@ -45,6 +45,12 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Bez tego `text-overflow: ellipsis` nie ma żadnego efektu - działa TYLKO na tekście
+     jednowierszowym (`white-space: nowrap`), inaczej przeglądarka po prostu zawija tekst,
+     nigdy nie zgłaszając przepełnienia do obcięcia. Znalezione podczas audytu formatowania:
+     `scrollWidth === clientWidth` nawet dla 45-znakowego symbolu, bo tekst cicho zawijał się
+     zamiast się obcinać. */
+  white-space: nowrap;
 }
 
 .body {

@@ -2729,6 +2729,97 @@ wykresie): poprawne renderowanie wszystkich sekcji (karty, krzywa kapitału, 5 w
 rankingi, 2 heatmapy, rozkład wyników), zero przecięć w geometrii etykiety wykresu "Wynik wg
 strategii", zero błędów konsoli.
 
+**Historia transakcji - lista, formularz, panel szczegółów (zadanie 8, zamknięte) - 3 realne
+znaleziska, ten sam wzorzec błędu co w krytycznym znalezisku raportu rocznego, ale bez udziału
+`Tooltip`/`TruncatedText` tym razem.** `TradeInspector.module.css .symbol` (nazwa symbolu w
+nagłówku panelu szczegółów) miała `overflow: hidden; text-overflow: ellipsis;` BEZ
+`white-space: nowrap` - `text-overflow: ellipsis` nie ma żadnego efektu na tekście, który wolno
+zawinąć na kilka linii (przeglądarka zawija zamiast obcinać, `scrollWidth` nigdy nie przekracza
+`clientWidth`). Zweryfikowane na żywo w przeglądarce (mostek fałszywy + resize okna do 1600×900,
+żeby uciec z jednokolumnowego trybu awaryjnego panelu przy `@media (max-width: 75rem)`): PRZED
+poprawką `scrollWidth === clientWidth` mimo 45-znakowego symbolu testowego (błąd potwierdzony
+pomiarem, nie domysłem), PO dodaniu `white-space: nowrap` poprawnie `clientWidth: 298,
+scrollWidth: 471, truncated: true`.
+
+Po znalezieniu identycznego wzorca w `TradeInspector`, zamiast czekać na przypadkowe odkrycie
+kolejnych wystąpień, wykonany systematyczny przegląd CAŁEGO frontendu: `grep -rln
+"text-overflow: ellipsis" src --include="*.css"` (9 plików). Znalezione i naprawione 2 kolejne
+identyczne przypadki tego samego brakującego `white-space: nowrap`:
+1. `TradeFormModal.module.css .workflowAccount` - nazwa wybranego konta w nagłówku formularza
+   nowej transakcji (`TradeFormModal.tsx:753`), tworzona przez użytkownika, może być dowolnie
+   długa.
+2. `Sidebar.module.css .navLabel` - etykiety nawigacji bocznej. Niski poziom ryzyka w praktyce
+   (etykiety są stałe i krótkie, nie treść użytkownika), ale obiektywnie martwa deklaracja CSS -
+   naprawiona dla spójności i poprawności.
+
+Przy okazji tego samego sweepu naprawiony też trzeci przypadek POZA zakresem "Historia
+transakcji", ale tym samym mechanizmem: `SettingsPage.module.css .menuLabel` (etykiety menu
+Ustawień) - dodane od razu, żeby nie zostawiać znanego błędu w kodzie do osobnego zadania.
+
+Pozostałe 5 plików z listy grep (`EmotionsEditor.module.css`, `TradeAttachments.module.css`,
+`CommandPalette.module.css`, `ColorPicker.module.css`, `TruncatedText.module.css`) sprawdzone i
+już POPRAWNE - `white-space: nowrap` obecny przy każdym `text-overflow: ellipsis`, bez zmian.
+
+Pozostała część zakresu zadania 8 sprawdzona bez dodatkowych problemów: `CloseTradeModal.tsx`,
+`PartialClosesEditor.tsx`, `TradeAttachments.tsx` - same pola formularza i listy o ograniczonej/
+formatowanej treści (kwoty, wolumeny, etykiety załączników), brak wzorca "karty o stałej
+szerokości" (`.leaderCard`) ani innych podatnych na to samo obcięcie-bez-efektu.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec prettier --check` czysto na
+wszystkich 4 dotkniętych plikach, `pnpm test -- --run` 278/278. Żywa weryfikacja w przeglądarce
+wykonana dla `.symbol` (dowód wzorca błędu); pozostałe 3 to identyczna jednolinijkowa poprawka
+tego samego, już potwierdzonego mechanizmu CSS - pominięta powtórna weryfikacja na żywo jako
+zbędna (port 1430 zajęty przez prawdziwą sesję użytkownika, nie do ruszania).
+
+## Naprawa: liczby dziesiętne pokazywały surowe zera z bazy w całej aplikacji (2026-07-24)
+
+Zgłoszenie użytkownika: specyfikacje instrumentów (i inne surowe wartości `Decimal`) pokazywały
+się z zapisu w bazie ze sztucznymi zerami wypełniającymi skalę (np. `0.000100000000` zamiast
+`0,0001`), a liczby "okrągłe" powinny mieć widoczne dokładnie 2 miejsca po przecinku (np. `1,00`).
+Wyraźnie sprecyzowane jako dotyczące CAŁEJ aplikacji (kalkulator, raporty, eksport/import,
+historia transakcji), nie tylko ekranu instrumentów.
+
+**Przyczyna:** `rust_decimal::Decimal::from_str` zachowuje skalę DOKŁADNIE taką, z jaką sparsował
+wejście - realny plik brokera (`Vantage_instrumenty.csv`, użyty do testu) eksportuje WSZYSTKIE
+pola liczbowe z 10 miejscami po przecinku (`point`, `tick_size`, `contract_size`, `swap_long` itd.),
+więc po imporcie baza trzyma tę samą skalę na zawsze, dopóki coś tego nie sformatuje do
+wyświetlenia. Frontend w kilku miejscach interpolował te wartości WPROST, bez żadnego formatera.
+
+**Rozwiązanie:** nowa współdzielona funkcja `formatDecimal()` w `app/decimal.ts` - obcina zera
+POWYŻEJ 2 miejsc po przecinku (bez utraty cyfr znaczących), ale nigdy nie schodzi poniżej 2 miejsc.
+Limit górny ustawiony na 10 miejsc (nie 8, jak we wcześniejszym lokalnym `formatLot` z kalkulatora)
+- dobrany na podstawie REALNYCH danych z pliku Vantage: pola `tick_value_profit`/`tick_value_loss`
+bywają naprawdę precyzyjne do 10 miejsc (przeliczony kurs krzyżowy, nie zera z wypełnienia), więc
+niższy limit ucinałby przez zaokrąglenie prawdziwe cyfry, nie tylko sztuczne zera.
+
+Naprawione (surowe interpolacje zamienione na `formatDecimal`):
+1. `InstrumentFormModal.tsx` - podsumowanie tylko-do-odczytu istniejącego instrumentu (`point`,
+   `trade_tick_size`, `trade_tick_value`, `tick_value_profit`, `tick_value_loss`, `contract_size`,
+   `volume_min/max/step`) - to jest DOKŁADNIE ekran, o którym mówił użytkownik.
+2. `KalkulatorPozycjiPage.tsx` - lokalny `formatLot` (już poprawny wzorzec min2/max) scalony ze
+   wspólną funkcją; naprawione dotąd surowe `stop_loss_price`, `contract_size`, `trade_tick_size`,
+   `tick_value_loss` w bloku specyfikacji instrumentu i w tekście do skopiowania.
+3. `TradeInspector.tsx` - `volume`, `entry_price`, `exit_price`, `stop_loss`, `take_profit`,
+   `pnl_points`, `pnl_r`, etykieta lota częściowego zamknięcia.
+4. `TransactionsPage.tsx` i `DayTradesModal.tsx` - kolumna "Wolumen" w tabelach transakcji.
+5. `ImportMt5TradesModal.tsx` i `ImportBrokerModal.tsx` - podgląd importu (kolumny wolumen/
+   kontrakt) - dotyczy też importu XLSX z MT5, nie tylko CSV brokera.
+6. `PartialClosesEditor.tsx` - podsumowanie lot początkowy/zamknięty/pozostały (arytmetyka
+   dokładna z `decimal.ts` już wcześniej poprawna, teraz też spójnie sformatowana do wyświetlenia).
+
+Świadomie NIE ruszone: edytowalne pola `TextField` (surowy tekst użytkownika podczas wpisywania -
+przeformatowanie na każde naciśnięcie klawisza zepsułoby pisanie), `TradePreviewCard.tsx` (ma
+własny, celowo INNY wzorzec - stała precyzja 2/1 miejsc dla ryzyka/RR/punktów, to wartości
+policzone, nie surowe specyfikacje), oraz rzeczywisty zapis plików eksportu (dane, nie prezentacja).
+
+Zweryfikowane na PRAWDZIWYCH danych z pliku brokera dostarczonego przez użytkownika
+(`Vantage_instrumenty.csv`): `0.0000100000` → `0,00001`, `100000.0000000000` → `100 000,00`,
+`0.6133276089` (prawdziwa precyzja, nie zera) → `0,6133276089` bez utraty cyfr.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto na dotkniętych
+plikach, `pnpm exec prettier --check` czysto, `pnpm test -- --run` 283/283 (5 nowych testów
+`formatDecimal` + zaktualizowane asercje `PartialClosesEditor.test.tsx` pod nowy, poprawny format).
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.

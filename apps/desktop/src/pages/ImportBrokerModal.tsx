@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ReactElement } from "react";
+import { formatDecimal } from "../app/decimal";
 import { invokeCommand } from "../app/invokeCommand";
 import type { BrokerTemplate } from "../app/types/instrument";
 import { Badge } from "../ui/components/Badge/Badge";
@@ -155,7 +156,7 @@ export function ImportBrokerModal({
                       <td>{r.display_symbol}</td>
                       <td>{r.variant === "MINI" ? <Badge variant="neutral">MINI</Badge> : "—"}</td>
                       <td>{r.currency_profit}</td>
-                      <td className={tableStyles.numeric}>{r.contract_size}</td>
+                      <td className={tableStyles.numeric}>{formatDecimal(r.contract_size)}</td>
                     </tr>
                   ))}
                 </tbody>

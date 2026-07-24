@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { Calculator, Copy } from "lucide-react";
-import { normalizeDecimalInput } from "../app/decimal";
+import { formatDecimal, normalizeDecimalInput } from "../app/decimal";
 import { usePreferences } from "../app/PreferencesProvider";
 import { invokeCommand } from "../app/invokeCommand";
 import type { AccountWithBalance } from "../app/types/account";
@@ -48,18 +48,6 @@ function formatNumber(value: string, maxFractionDigits = 2): string {
     // ekran (złapane na żywo przy odległości SL w punktach, gdzie maksimum to 1 miejsce).
     minimumFractionDigits: Math.min(2, maxFractionDigits),
     maximumFractionDigits: maxFractionDigits,
-  }).format(num);
-}
-
-/** Lot pokazujemy z polskim przecinkiem i bez sztucznego obcinania miejsc (0,01 ma zostać 0,01). */
-function formatLot(value: string): string {
-  const num = Number(value);
-  if (Number.isNaN(num)) {
-    return value;
-  }
-  return new Intl.NumberFormat("pl-PL", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 8,
   }).format(num);
 }
 
@@ -219,8 +207,8 @@ export function KalkulatorPozycjiPage(): ReactElement {
     const currency = account?.currency ?? "";
     const text = [
       `${instrument.display_symbol} ${side === "buy" ? "BUY" : "SELL"}`,
-      `Lot: ${formatLot(result.suggested_lot)}`,
-      `Wejście: ${entryPrice} | SL: ${result.stop_loss_price}`,
+      `Lot: ${formatDecimal(result.suggested_lot)}`,
+      `Wejście: ${entryPrice} | SL: ${formatDecimal(result.stop_loss_price)}`,
       `Ryzyko: ${formatNumber(result.actual_risk_amount)} ${currency} (${formatNumber(result.actual_risk_percent)}%)`,
       result.reward_amount
         ? `Potencjalny zysk: ${formatNumber(result.reward_amount)} ${currency}${result.rr ? ` | R:R ${formatNumber(result.rr)}` : ""}`
@@ -380,7 +368,9 @@ export function KalkulatorPozycjiPage(): ReactElement {
           <div className={styles.result}>
             <div>
               <h2 className={styles.sectionTitle}>Sugerowany lot</h2>
-              <p className={styles.lotValue}>{result ? formatLot(result.suggested_lot) : "—"}</p>
+              <p className={styles.lotValue}>
+                {result ? formatDecimal(result.suggested_lot) : "—"}
+              </p>
               <p className={styles.lotLabel}>
                 {result
                   ? `Rzeczywiste ryzyko ${formatNumber(result.actual_risk_amount)} ${currency} (${formatNumber(result.actual_risk_percent)}% salda)`
@@ -408,7 +398,7 @@ export function KalkulatorPozycjiPage(): ReactElement {
                       label: "Ryzyko docelowe",
                       value: `${formatNumber(result.risk_target_amount)} ${currency}`,
                     },
-                    { label: "Stop loss (cena)", value: result.stop_loss_price },
+                    { label: "Stop loss (cena)", value: formatDecimal(result.stop_loss_price) },
                     {
                       label: "Odległość SL",
                       value: `${formatNumber(result.stop_distance_points, 1)} pkt`,
@@ -432,8 +422,8 @@ export function KalkulatorPozycjiPage(): ReactElement {
                 <p className={styles.explain}>
                   {formatNumber(result.risk_target_amount)} {currency} ryzyka ÷{" "}
                   {formatNumber(result.loss_per_lot)} {currency} straty na jednym locie ={" "}
-                  {formatLot(result.raw_lot)} lota, dociągnięte w dół do kroku brokera ={" "}
-                  <strong>{formatLot(result.suggested_lot)}</strong>.
+                  {formatDecimal(result.raw_lot)} lota, dociągnięte w dół do kroku brokera ={" "}
+                  <strong>{formatDecimal(result.suggested_lot)}</strong>.
                 </p>
               </>
             )}
@@ -445,9 +435,12 @@ export function KalkulatorPozycjiPage(): ReactElement {
                     label: "Saldo konta",
                     value: `${formatNumber(account?.balance ?? "0")} ${currency}`,
                   },
-                  { label: "Wielkość kontraktu", value: version.contract_size },
-                  { label: "Wielkość ticka", value: version.trade_tick_size },
-                  { label: "Wartość ticka (strata)", value: version.tick_value_loss },
+                  { label: "Wielkość kontraktu", value: formatDecimal(version.contract_size) },
+                  { label: "Wielkość ticka", value: formatDecimal(version.trade_tick_size) },
+                  {
+                    label: "Wartość ticka (strata)",
+                    value: formatDecimal(version.tick_value_loss),
+                  },
                   { label: "Waluta wyniku", value: version.currency_profit },
                 ]}
               />

@@ -54,8 +54,9 @@ describe("PartialClosesEditor", () => {
     }
     await user.type(drugiLot, "0.2");
 
-    expect(licznik("Zamknięty")).toBe("0.3");
-    expect(licznik("Pozostały")).toBe("0.7");
+    // Wyświetlane z polskim przecinkiem i minimum 2 miejscami po przecinku (formatDecimal).
+    expect(licznik("Zamknięty")).toBe("0,30");
+    expect(licznik("Pozostały")).toBe("0,70");
   });
 
   it("przyjmuje przecinek dziesiętny z polskiej klawiatury", async () => {
@@ -64,8 +65,8 @@ describe("PartialClosesEditor", () => {
 
     await user.type(screen.getByLabelText(/Zamknięty lot/i), "0,25");
 
-    expect(licznik("Zamknięty")).toBe("0.25");
-    expect(licznik("Pozostały")).toBe("0.75");
+    expect(licznik("Zamknięty")).toBe("0,25");
+    expect(licznik("Pozostały")).toBe("0,75");
   });
 
   it("bez podanego lota transakcji pokazuje 'Brak danych', a nie fałszywe zero", () => {
@@ -74,7 +75,7 @@ describe("PartialClosesEditor", () => {
     expect(licznik("Lot początkowy")).toBe("Brak danych");
     expect(licznik("Pozostały")).toBe("Brak danych");
     // Zamknięty lot znamy niezależnie od lota transakcji, więc ten policzyć się da.
-    expect(licznik("Zamknięty")).toBe("0.5");
+    expect(licznik("Zamknięty")).toBe("0,50");
   });
 
   it("zamknięcie całego lota zapowiada zmianę statusu na zamkniętą", () => {
@@ -88,7 +89,7 @@ describe("PartialClosesEditor", () => {
       />,
     );
 
-    expect(licznik("Pozostały")).toBe("0");
+    expect(licznik("Pozostały")).toBe("0,00");
     expect(screen.getByText(/zostanie zapisana jako zamknięta/i)).toBeInTheDocument();
   });
 
@@ -105,8 +106,8 @@ describe("PartialClosesEditor", () => {
     await user.click(screen.getByRole("button", { name: /Dodaj częściowe zamknięcie/i }));
 
     // Świeżo dodany, pusty wiersz nie może zafałszować licznika ani wywołać ostrzeżenia.
-    expect(licznik("Zamknięty")).toBe("0.3");
-    expect(licznik("Pozostały")).toBe("0.7");
+    expect(licznik("Zamknięty")).toBe("0,30");
+    expect(licznik("Pozostały")).toBe("0,70");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 

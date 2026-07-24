@@ -116,6 +116,32 @@ export function decimalSign(value: string): number | null {
   return parsed.digits === 0n ? 0 : parsed.digits < 0n ? -1 : 1;
 }
 
+/**
+ * Wyświetlenie surowej wartości dziesiętnej (specyfikacje instrumentów, ceny, wolumen) - BEZ
+ * sztucznych zer z zapisu w bazie (`0.000100000000` -> `0,0001`), ale zawsze z minimum 2 miejscami
+ * po przecinku dla spójności z resztą aplikacji (`1.000000` -> `1,00`). W odróżnieniu od
+ * `formatMoney`/`formatNumber` NIE obcina do stałej liczby miejsc - liczby jak wielkość ticka
+ * (`0,0001`) potrzebują więcej niż 2 miejsc, a `toFixed`/stała precyzja by je ucięła do zera.
+ *
+ * Maksimum 10 miejsc dobrane na podstawie realnych danych brokera (szablon Vantage): pola typu
+ * `tick_value_profit`/`tick_value_loss` bywają PRAWDZIWIE precyzyjne do 10 miejsc (przeliczony
+ * kurs krzyżowy, nie zera z wypełnienia skali) - niższy limit ucinałby ostatnie cyfry przez
+ * zaokrąglenie, a nie tylko obcinał zera.
+ */
+export function formatDecimal(value: string | null, maxFractionDigits = 10): string {
+  if (value === null) {
+    return "—";
+  }
+  const num = Number(value);
+  if (Number.isNaN(num)) {
+    return value;
+  }
+  return new Intl.NumberFormat("pl-PL", {
+    minimumFractionDigits: Math.min(2, maxFractionDigits),
+    maximumFractionDigits: maxFractionDigits,
+  }).format(num);
+}
+
 export function formatMoney(value: string, currency?: string): string {
   const num = Number(value);
   if (Number.isNaN(num)) {

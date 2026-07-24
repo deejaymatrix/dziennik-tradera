@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { Pencil, Pin, PinOff, X } from "lucide-react";
-import { formatMoney, formatSignedMoney } from "../app/decimal";
+import { formatDecimal, formatMoney, formatSignedMoney } from "../app/decimal";
 import type { Trade } from "../app/types/trade";
 import { TRADE_SIDE_LABELS, TRADE_STATUS_LABELS } from "../app/types/trade";
 import { Badge } from "../ui/components/Badge/Badge";
@@ -91,8 +91,8 @@ export function TradeInspector({
           </p>
           <dl className={styles.list}>
             <Row label="Brutto" value={trade.gross_pnl && formatMoney(trade.gross_pnl, currency)} />
-            <Row label="Punkty" value={trade.pnl_points} />
-            <Row label="R" value={trade.pnl_r} />
+            <Row label="Punkty" value={trade.pnl_points && formatDecimal(trade.pnl_points)} />
+            <Row label="R" value={trade.pnl_r && formatDecimal(trade.pnl_r)} />
             <Row
               label="Ryzyko"
               value={trade.risk_amount && formatMoney(trade.risk_amount, currency)}
@@ -104,11 +104,17 @@ export function TradeInspector({
           <h3 className={styles.sectionTitle}>Podstawowe</h3>
           <dl className={styles.list}>
             <Row label="Kierunek" value={TRADE_SIDE_LABELS[trade.side]} />
-            <Row label="Lot" value={trade.volume} />
-            <Row label="Cena wejścia" value={trade.entry_price} />
-            <Row label="Cena wyjścia" value={trade.exit_price} />
-            <Row label="Stop loss" value={trade.stop_loss} />
-            <Row label="Take profit" value={trade.take_profit} />
+            <Row label="Lot" value={trade.volume && formatDecimal(trade.volume)} />
+            <Row
+              label="Cena wejścia"
+              value={trade.entry_price && formatDecimal(trade.entry_price)}
+            />
+            <Row label="Cena wyjścia" value={trade.exit_price && formatDecimal(trade.exit_price)} />
+            <Row label="Stop loss" value={trade.stop_loss && formatDecimal(trade.stop_loss)} />
+            <Row
+              label="Take profit"
+              value={trade.take_profit && formatDecimal(trade.take_profit)}
+            />
             <Row label="Interwał" value={trade.interval} />
             <Row label="Sesja" value={trade.session} />
             <Row label="Strategia" value={trade.strategy_snapshot?.name ?? null} />
@@ -122,7 +128,7 @@ export function TradeInspector({
               {zamkniecia.map((z, i) => (
                 <Row
                   key={i}
-                  label={`Lot ${z.closed_volume}`}
+                  label={`Lot ${formatDecimal(z.closed_volume)}`}
                   value={formatMoney(z.realized_pnl, currency)}
                 />
               ))}

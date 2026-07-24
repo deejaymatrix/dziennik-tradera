@@ -1,6 +1,11 @@
 import type { ReactElement } from "react";
 import { Plus, X } from "lucide-react";
-import { decimalSign, subtractDecimalStrings, sumDecimalStrings } from "../app/decimal";
+import {
+  decimalSign,
+  formatDecimal,
+  subtractDecimalStrings,
+  sumDecimalStrings,
+} from "../app/decimal";
 import type { PartialCloseRow } from "../app/tradeForm";
 import { blankPartialCloseRow, isBlankPartialCloseRow } from "../app/tradeForm";
 import { Button } from "../ui/components/Button/Button";
@@ -124,15 +129,15 @@ export function PartialClosesEditor({
           >
             <div className={styles.counterItem}>
               <dt>Lot początkowy</dt>
-              <dd>{initial ?? "Brak danych"}</dd>
+              <dd>{initial === null ? "Brak danych" : formatDecimal(initial)}</dd>
             </div>
             <div className={styles.counterItem}>
               <dt>Zamknięty</dt>
-              <dd>{closed}</dd>
+              <dd>{formatDecimal(closed)}</dd>
             </div>
             <div className={styles.counterItem}>
               <dt>Pozostały</dt>
-              <dd>{remaining ?? "Brak danych"}</dd>
+              <dd>{remaining === null ? "Brak danych" : formatDecimal(remaining)}</dd>
             </div>
           </dl>
 

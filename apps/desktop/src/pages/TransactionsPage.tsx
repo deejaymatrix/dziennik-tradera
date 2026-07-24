@@ -13,7 +13,7 @@ import {
   TrendingUp,
   Upload,
 } from "lucide-react";
-import { formatSignedMoney } from "../app/decimal";
+import { formatDecimal, formatSignedMoney } from "../app/decimal";
 import { invokeCommand } from "../app/invokeCommand";
 import type { AccountWithBalance } from "../app/types/account";
 import type { Trade, TradeSide, TradeStatus } from "../app/types/trade";
@@ -392,7 +392,9 @@ export function TransactionsPage(): ReactElement {
                     </td>
                     <td>{formatDateTime(trade.opened_at)}</td>
                     <td>{formatDateTime(trade.closed_at)}</td>
-                    <td className={tableStyles.numeric}>{trade.volume ?? "—"}</td>
+                    <td className={tableStyles.numeric}>
+                      {trade.volume ? formatDecimal(trade.volume) : "—"}
+                    </td>
                     <td
                       className={[
                         tableStyles.numeric,

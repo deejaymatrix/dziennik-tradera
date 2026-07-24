@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { formatSignedMoney } from "../app/decimal";
+import { formatDecimal, formatSignedMoney } from "../app/decimal";
 import type { Trade } from "../app/types/trade";
 import { TRADE_SIDE_LABELS } from "../app/types/trade";
 import { Badge } from "../ui/components/Badge/Badge";
@@ -57,7 +57,9 @@ export function DayTradesModal({
                     {TRADE_SIDE_LABELS[trade.side]}
                   </Badge>
                 </td>
-                <td className={tableStyles.numeric}>{trade.volume ?? "—"}</td>
+                <td className={tableStyles.numeric}>
+                  {trade.volume ? formatDecimal(trade.volume) : "—"}
+                </td>
                 <td>{formatTime(trade.opened_at)}</td>
                 <td>{formatTime(trade.closed_at)}</td>
                 <td className={tableStyles.numeric}>

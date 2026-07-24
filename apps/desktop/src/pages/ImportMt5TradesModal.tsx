@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ReactElement } from "react";
+import { formatDecimal } from "../app/decimal";
 import { invokeCommand } from "../app/invokeCommand";
 import type { AccountWithBalance } from "../app/types/account";
 import { Badge } from "../ui/components/Badge/Badge";
@@ -211,7 +212,7 @@ export function ImportMt5TradesModal({
                       <td>{r.ticket}</td>
                       <td>{r.symbol}</td>
                       <td>{r.side === "buy" ? "BUY" : "SELL"}</td>
-                      <td className={tableStyles.numeric}>{r.volume}</td>
+                      <td className={tableStyles.numeric}>{formatDecimal(r.volume)}</td>
                       <td>{r.open_time}</td>
                       <td>{r.close_time}</td>
                       <td>

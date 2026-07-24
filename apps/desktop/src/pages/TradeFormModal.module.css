@@ -192,6 +192,9 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Bez tego `text-overflow: ellipsis` nie ma efektu - ten sam brakujący `white-space: nowrap`
+     znaleziony w `TradeInspector.module.css .symbol` podczas audytu formatowania. */
+  white-space: nowrap;
 }
 
 .workflowBalance {

@@ -114,6 +114,10 @@
 .navLabel {
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Bez tego `text-overflow: ellipsis` nie ma efektu (ten sam brakujący `white-space: nowrap`
+     znaleziony w kilku miejscach podczas audytu formatowania) - tu w praktyce nieszkodliwe, bo
+     etykiety nawigacji są stałe i krótkie, ale poprawiane dla spójności/poprawności deklaracji. */
+  white-space: nowrap;
 }
 
 .collapsed .navLabel {

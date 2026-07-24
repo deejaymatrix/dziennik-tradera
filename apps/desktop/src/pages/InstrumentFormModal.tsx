@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ReactElement, SubmitEvent } from "react";
-import { isValidDecimalString, normalizeDecimalInput } from "../app/decimal";
+import { formatDecimal, isValidDecimalString, normalizeDecimalInput } from "../app/decimal";
 import { invokeCommand } from "../app/invokeCommand";
 import {
   INSTRUMENT_CATEGORIES,
@@ -488,22 +488,25 @@ export function InstrumentFormModal({
             <dd>{instrument.category}</dd>
             <dt>Digits / Point</dt>
             <dd>
-              {instrument.version.digits} / {instrument.version.point}
+              {instrument.version.digits} / {formatDecimal(instrument.version.point)}
             </dd>
             <dt>TradeTickSize / TradeTickValue</dt>
             <dd>
-              {instrument.version.trade_tick_size} / {instrument.version.trade_tick_value}
+              {formatDecimal(instrument.version.trade_tick_size)} /{" "}
+              {formatDecimal(instrument.version.trade_tick_value)}
             </dd>
             <dt>Wartość ticka zysk / strata</dt>
             <dd>
-              {instrument.version.tick_value_profit} / {instrument.version.tick_value_loss}
+              {formatDecimal(instrument.version.tick_value_profit)} /{" "}
+              {formatDecimal(instrument.version.tick_value_loss)}
             </dd>
             <dt>Wielkość kontraktu</dt>
-            <dd>{instrument.version.contract_size}</dd>
+            <dd>{formatDecimal(instrument.version.contract_size)}</dd>
             <dt>Lot min / max / krok</dt>
             <dd>
-              {instrument.version.volume_min} / {instrument.version.volume_max} /{" "}
-              {instrument.version.volume_step}
+              {formatDecimal(instrument.version.volume_min)} /{" "}
+              {formatDecimal(instrument.version.volume_max)} /{" "}
+              {formatDecimal(instrument.version.volume_step)}
             </dd>
             <dt>Waluty (bazowa / wyniku / depozytu)</dt>
             <dd>

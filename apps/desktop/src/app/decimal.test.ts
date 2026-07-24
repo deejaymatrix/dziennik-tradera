@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   decimalSign,
+  formatDecimal,
   formatSignedMoney,
   isValidDecimalString,
   normalizeDecimalInput,
@@ -146,6 +147,35 @@ describe("formatSignedMoney", () => {
 
   it("wartość, która nie jest liczbą, wraca bez zmian", () => {
     expect(formatSignedMoney("brak")).toBe("brak");
+  });
+});
+
+describe("formatDecimal", () => {
+  it("obcina nadmiarowe zera z zapisu w bazie, zostawiając wszystkie znaczące cyfry", () => {
+    // Dokładnie zgłoszony przypadek: wielkość ticka zapisana w bazie z zerami wypełniającymi skalę.
+    expect(formatDecimal("0.000100000000")).toBe("0,0001");
+    // pl-PL rozdziela tysiące spacją nierozdzielającą - porównanie wzorcem jak w formatSignedMoney.
+    expect(formatDecimal("100000.00000000")).toMatch(/^100\s?000,00$/);
+  });
+
+  it("dopełnia do minimum 2 miejsc po przecinku, gdy liczba jest okrągła", () => {
+    expect(formatDecimal("1.000000")).toBe("1,00");
+    expect(formatDecimal("1")).toBe("1,00");
+    expect(formatDecimal("0")).toBe("0,00");
+  });
+
+  it("nie obcina poniżej 2 miejsc, gdy tyle właśnie wystarcza", () => {
+    expect(formatDecimal("0.5")).toBe("0,50");
+    expect(formatDecimal("1.25")).toBe("1,25");
+  });
+
+  it("null daje kreskę, wartość nie-liczbową zwraca bez zmian", () => {
+    expect(formatDecimal(null)).toBe("—");
+    expect(formatDecimal("brak")).toBe("brak");
+  });
+
+  it("pozwala zawęzić maksymalną precyzję (np. punkty SL z 1 miejscem)", () => {
+    expect(formatDecimal("123.456", 1)).toBe("123,5");
   });
 });
 
