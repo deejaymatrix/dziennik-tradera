@@ -3067,6 +3067,27 @@ zamierzonej poprawki (+7/-1).
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **413/413** (50 plików, +8 nowych testów).
 
+**O7, część 84: `chartAxis.ts` (19 linii) - `estimateYAxisWidth`, szacuje szerokość osi Y
+wykresów (EquityCurveChart, GroupBarChart, CumulativeLineChart), zero testów.** Recharts sam nie
+mierzy szerokości osi Y (stała 60px niezależnie od treści) - błąd tu cicho obcina duże kwoty poza
+lewy kraniec SVG (np. "000 000,00" zamiast całej liczby, bo tekst rośnie w lewo od punktu
+zakotwiczenia). Rozpoczynanie serii "część 84+" nowym obszarem (`pages/`) po zamknięciu całego
+`app/` (72-81) i `shell/` (82-83).
+
+Nowy `pages/chartAxis.test.ts` (4 testy): pusta tablica wartości daje domyślne minimum 60;
+**bierze NAJDŁUŻSZĄ sformatowaną etykietę, nie pierwszą ani ostatnią**; nigdy nie schodzi poniżej
+minimum 60 nawet przy bardzo krótkich etykietach; rośnie liniowo zgodnie ze wzorem
+`(długość + 2) * 7 + 16`.
+
+Zweryfikowane testem mutacyjnym: `Math.max(...values.map(...))` zastąpione samym
+`formatValue(values[0]).length` (bierze tylko PIERWSZĄ wartość) - **dokładnie 1 z 4 testów
+padł** (test z celowo nie-monotoniczną kolejnością `[1, 1_000_000, 10]`, gdzie najdłuższa
+etykieta jest w ŚRODKU tablicy), pozostałe 3 bez zmian. Po cofnięciu: `git diff --stat` na
+`chartAxis.ts` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **417/417** (51 plików, +4 nowe testy).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
