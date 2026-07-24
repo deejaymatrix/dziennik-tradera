@@ -273,6 +273,13 @@ describe.each([
     expect(kontrast(wartosc("--color-text"), tlo)).toBeGreaterThanOrEqual(PROG_AA);
   });
 
+  it("CommandPalette .itemActive: --color-text na 14% akcentu nad --color-surface", () => {
+    // Pominięte w pierwszym przeglądzie color-mix() (część 19-20) - .itemActive nie ma
+    // własnego `color`, dziedziczy --color-text z .item, tak samo jak .selectedRow wyżej.
+    const tlo = mieszaj(wartosc("--color-accent"), 0.14, wartosc("--color-surface"));
+    expect(kontrast(wartosc("--color-text"), tlo)).toBeGreaterThanOrEqual(PROG_AA);
+  });
+
   it("SettingRow .restartTag: --color-warning na --tint-tag ostrzeżenia nad --color-surface", () => {
     const tlo = mieszaj(
       wartosc("--color-warning"),

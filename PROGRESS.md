@@ -1745,6 +1745,14 @@ graficzny, nie typografia). Oba uzasadnione, zero nowych luk. Cały przegląd to
 z-index, font-weight, line-height, border-radius, box-shadow, font-size) uznany za zamknięty -
 każda kategoria albo skonsolidowana do jednego źródła, albo ma udokumentowany, świadomy wyjątek.
 
+**O7, znaleziona brakująca para w przeglądzie color-mix (część 19-20): `CommandPalette
+.itemActive` nigdy nie dostał testu.** Ponowna kontrola `grep` po własnym wcześniejszym
+przeglądzie (ten sam nawyk co przy manifeście) ujawniła, że `.itemActive` (14% akcentu,
+`--color-text` dziedziczony z `.item` - dokładnie ten sam wzorzec co już przetestowany
+`TransactionsPage .selectedRow`) nigdy nie trafił do testów. Policzone: PASS w obu motywach
+z dużym marginesem (13,46, daleko nad progiem 4,5) - bez zmian kodu, tylko dopisany trwały
+test regresyjny, żeby przyszła zmiana nie przeszła niezauważona. `pnpm test` 62/62 PASS.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
