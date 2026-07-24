@@ -3297,6 +3297,30 @@ sprawdzały, a nie przechodziły przypadkiem.)
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **467/467** (59 plików, +9 nowych testów).
 
+**O7, część 93: `EmotionsEditor.tsx` (170 linii, sekcja 6.8 - emocje transakcji) - dodawanie z
+wyszukiwarką, skala natężenia 1-5, zero testów.** Najbardziej nieoczywista część: kliknięcie TEJ
+SAMEJ wartości na skali JĄ ZDEJMUJE (wraca do "nie wybrano"), nie tylko ją ustawia - klasyczny
+toggle, łatwo przeoczyć przy refaktorze i zamienić w zwykłe przypisanie bez sprawdzenia
+poprzedniej wartości.
+
+Nowy `pages/EmotionsEditor.test.tsx` (12 testów, kontrolowany wrapper): pusta lista pokazuje
+różny tekst zależnie od `disabled` ("Nie dodano" / "Nie zapisano"); **pierwsze kliknięcie ustawia
+natężenie, DRUGIE kliknięcie TEJ SAMEJ wartości je zdejmuje, kliknięcie INNEJ wartości zmienia
+wprost bez zdejmowania poprzedniej**; ukryta emocja i już dodana emocja (bez duplikatów) nie
+pojawiają się na liście podpowiedzi; wyszukiwanie filtruje bez rozróżniania wielkości liter; klik
+na podpowiedź dodaje emocję z natężeniem `null` i chowa listę; usunięcie jednej emocji zostawia
+pozostałe; wpis wskazujący na nieistniejący (usunięty z definicji) stan pokazuje "(usunięta
+emocja)"; tryb `disabled` ukrywa wyszukiwarkę i przycisk usuwania, wyłącza przyciski skali.
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) usunięty warunek toggle w `setIntensity`
+(`e.intensity === intensity ? null : intensity` zastąpione samym `intensity`) - **dokładnie 1 z
+12 testów padł** (test drugiego kliknięcia tej samej wartości); (2) usunięty filtr
+`!selectedIds.has(s.id)` z listy podpowiedzi (bez ochrony przed duplikatami) - **dokładnie 1 z 12
+padł**. Po każdym cofnięciu: `git diff --stat` na `EmotionsEditor.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **479/479** (60 plików, +12 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
