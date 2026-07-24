@@ -63,11 +63,21 @@ szyfrowania ani nie wklejaj w czat (również mnie — nie potrzebuję go i nie 
 
 ---
 
-## Klucz 2: certyfikat Authenticode — ❌ brak, to jest blokada
+## Klucz 2: certyfikat Authenticode — ⏸️ świadomie odłożone, wydajemy na razie bez podpisu
 
-Bez niego instalator się zbuduje i będzie działał, ale przy każdej instalacji Windows pokaże
-ostrzeżenie SmartScreen („Windows chronił Twój komputer"), a użytkownik musi kliknąć
-„Więcej informacji" → „Uruchom mimo to". Dla aplikacji finansowej to zły pierwszy kontakt.
+**Decyzja (2026-07-24): certyfikat kosztuje, na razie nie stać — wydajemy BEZ niego, świadomie.**
+To nie jest zapomniana blokada, tylko przemyślany wybór: instalator działa w 100%, jedyny
+skutek braku podpisu to jeden dodatkowy klik przy pierwszym uruchomieniu (Windows pokazuje
+„Windows chronił Twój komputer" → „Więcej informacji" → „Uruchom mimo to"). Dla narzędzia
+używanego głównie przez Ciebie samego to akceptowalny koszt, nie powód, żeby nie wydawać.
+
+**Dodanie podpisu później nic nie psuje.** To wyłącznie dopisanie kroku w `release.yml`
+(krok 4 poniżej) i kupno certyfikatu — nie wymaga zmian w kodzie aplikacji ani w mechanizmie
+aktualizacji. Można to zrobić w dowolnym momencie, gdy budżet na to pozwoli, bez przepisywania
+niczego, co powstanie teraz.
+
+Reszta tej sekcji zostaje jako odniesienie na przyszłość — który certyfikat wybrać, gdy
+zdecydujesz się go kupić.
 
 ### Co trzeba wybrać — Ty jesteś osobą prywatną, nie firmą
 
@@ -143,11 +153,14 @@ zobaczą aktualizację, której pliku jeszcze nie ma.
 2. **Pełna kontrola jakości**: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`,
    `cargo fmt --check`, `cargo clippy --all-targets`, `cargo test`.
 3. **Budowa artefaktów Windows x64** na runnerze Windows (workflow `release.yml`).
-4. **Podpis Authenticode** plików `.exe` wraz ze znacznikiem czasu. ⛔ **Dziś niemożliwe** —
-   brak certyfikatu.
+4. **Podpis Authenticode** plików `.exe` wraz ze znacznikiem czasu. ⏸️ **Pominięty na razie** —
+   świadoma decyzja (2026-07-24), nie brak. Instalator działa bez tego kroku; jedyny skutek to
+   ostrzeżenie SmartScreen przy pierwszym uruchomieniu. Dopisanie tego kroku później (gdy
+   certyfikat będzie kupiony) nie wymaga zmian nigdzie indziej w tym procesie.
 5. **Podpis paczek aktualizacyjnych** kluczem Tauri (robi to `tauri-action` z sekretu).
 6. **Wysłanie artefaktów** pod wersjonowane, niezmienne adresy.
-7. **Weryfikacja**: dostępność plików, poprawność podpisu Authenticode i podpisu aktualizacji.
+7. **Weryfikacja**: dostępność plików, poprawność podpisu aktualizacji (Authenticode pomijany,
+   patrz krok 4).
 8. **Publikacja `latest.json`** jako ostatni, niepodzielny krok.
 9. **Test aktualizacji** z poprzedniej publicznej wersji na czystej maszynie Windows 10/11 x64.
 

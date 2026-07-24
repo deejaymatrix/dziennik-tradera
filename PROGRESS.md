@@ -1498,7 +1498,15 @@ redesign — to pełna wymiana warstwy wizualnej, nie korekta.
 
 ## Blok E — instalator (Cel 1.9)
 
-Zablokowany do decyzji użytkownika: wymaga certyfikatu Authenticode. Nie budować bez zgody.
+**Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
+kosztuje, na razie nie stać - to nie jest zapomniana blokada, tylko przemyślany wybór (patrz
+`docs/KLUCZE_I_WYDANIE.md`). Instalator bez podpisu działa w 100%, jedyny skutek to ostrzeżenie
+SmartScreen przy pierwszym uruchomieniu. Dodanie podpisu później to wyłącznie dopisanie kroku
+w `release.yml` - nic w kodzie nie trzeba przez to zmieniać.
+
+**Nadal NIE zaczynam budowy instalatora bez osobnego, wyraźnego "tak"** - decyzja o samym
+certyfikacie i decyzja o starcie prac nad instalatorem to dwie różne rzeczy. Czekam na
+wyraźne potwierdzenie, że mam zacząć Cel 1.9.
 
 ## Zasady pracy przy tym planie
 

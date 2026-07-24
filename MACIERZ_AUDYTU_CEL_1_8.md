@@ -157,7 +157,11 @@ tylko test, który ujawnił problem) — widoczne w treści commitów 6/n–8/n.
 
 ## Podsumowanie blokad (do zamknięcia WYŁĄCZNIE przez użytkownika)
 
-1. **Certyfikat Authenticode** — decyzja i wydatek użytkownika, patrz `docs/KLUCZE_I_WYDANIE.md`.
+1. **Certyfikat Authenticode** — **decyzja podjęta 2026-07-24: wydajemy świadomie BEZ niego na
+   razie**, budżet na to nie pozwala. To nie jest zapomniana blokada, tylko przemyślany wybór -
+   instalator działa w 100%, jedyny skutek to ostrzeżenie SmartScreen przy pierwszym
+   uruchomieniu. Patrz `docs/KLUCZE_I_WYDANIE.md`. Podpis Authenticode zostaje możliwy do
+   dopisania w dowolnym momencie później, bez zmian w kodzie.
 2. **Sekrety GitHub Actions** (`TAURI_SIGNING_PRIVATE_KEY`, `..._PASSWORD`) — dwa kliknięcia,
    instrukcja w tym samym dokumencie. Nie wykonane przeze mnie celowo — to klucz prywatny
    użytkownika.
