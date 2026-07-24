@@ -4225,6 +4225,51 @@ wtedy dokładnie 1 z 13 padł**; (4) fallback `broker.trim() || name.trim()` zre
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **671/671** (93 pliki, +13 nowych testów).
 
+**O7, część 127: `ZasadyHandluPage` (Faza 8/10) - zero testów, 512 linii, tryb odczyt/edycja.**
+Osobisty regulamin użytkownika: kategorie z pytaniami, tryb edycji ze zbiorczym zapisem,
+wykrywanie duplikatów przy dodawaniu pytania, przesuwanie kategorii/pytań, `useBlocker` przed
+utratą niezapisanych zmian. Najbogatszy dotąd przetestowany ekran audytu O7.
+
+Nieoczywiste rzeczy: (1) w trybie edycji ukryte pytania są widoczne ZAWSZE, niezależnie od
+checkboxa "Pokaż ukryte" (`showHidden || !rule.hidden || editing`); (2) `checkDuplicate` blokuje
+automatycznie dokładnie ten sam (znormalizowany) tekst pytania, ale przy PODOBNYM (zawierającym
+się) pytaniu tylko PYTA o scalenie - potwierdzenie scalenia blokuje dodanie, anulowanie POZWALA
+dodać mimo podobieństwa; (3) `useBlocker` (react-router, wymaga `createMemoryRouter`+
+`RouterProvider` w teście, nie samego `MemoryRouter`) ostrzega przed nawigacją z niezapisanymi
+zmianami - jedyne potwierdzenie w aplikacji, którego NIE da się wyłączyć w Ustawieniach, w
+odróżnieniu od `useOptionalConfirm` przy "Do kosza"; (4) puste/spacjowe odpowiedzi zapisują się
+jako `null`, nie jako pusty string.
+
+Nowy `pages/ZasadyHandluPage.test.tsx` (13 testów): pusty stan wchodzi w edycję; `ErrorState` +
+retry; placeholder dla braku odpowiedzi; widoczność ukrytych pytań (odczyt vs edycja); blokada
+identycznego pytania; scalanie podobnego pytania (potwierdzenie/anulowanie); dodawanie kategorii
+przez `window.prompt`; strzałki przesuwania kategorii; "Do kosza" na pytaniu (wymaga potwierdzenia
+przez `useOptionalConfirm`); zapis pustej odpowiedzi jako `null`; przywrócenie szablonu; nawigacja
+z niezapisanymi zmianami (potwierdzenie/anulowanie przez `useBlocker`).
+
+Napotkany własny błąd testu: klik "Anuluj"/"Potwierdź" bez ograniczenia do samego `ConfirmDialog`
+był niejednoznaczny, bo `EditModeActions` w trybie edycji ma WŁASNE przyciski "Anuluj"/"Zapisz
+zmiany", a "Przywróć szablon" jest jednocześnie etykietą przycisku wyzwalającego i etykietą
+potwierdzenia (`confirmLabel`) - naprawione pomocniczą funkcją `przyciskDialogu()` szukającą
+przycisku w obrębie `getByRole("dialog")`.
+
+Zweryfikowane 5 niezależnymi mutacjami: (1) bypass `|| editing` w filtrze widoczności ukrytych
+pytań usunięty - **dokładnie 1 z 13 padł**; (2) automatyczna blokada identycznego pytania
+wyłączona (`if (other === normalized)` → `if (false)`) - **dokładnie 1 z 13 padł** (test i tak
+wykrył awarię, tyle że przez przekierowanie do gałęzi "podobne pytanie" zamiast toastu błędu);
+(3) `if (merge) return false;` w gałęzi scalania wyłączone - **dokładnie 1 z 13 padł**; (4) fallback
+`rule.answer.trim() ? rule.answer : null` zredukowany do samego `rule.answer` - **dokładnie 1 z 13
+padł**. Piąta próba - wewnętrzny strażnik granic w funkcji pomocniczej `move()` (`target < 0 ||
+target >= list.length`) - **NIEOSIĄGALNY przez UI**: przyciski "wyżej"/"niżej" są już `disabled` na
+granicach listy, więc `userEvent.click` nigdy nie wywołuje `move()` poza zakresem - to kod obronny
+w głębi (defense-in-depth), nie do złapania żadnym testem przechodzącym przez interfejs; zamiast
+wymuszać sztuczny test, limit ten po prostu udokumentowany (ten sam rodzaj obserwacji co "zawsze
+prawdziwy" złożony warunek liderów w części 124/`ReportAccountComparisonTab`). Po każdym cofnięciu:
+`git diff --stat` na `ZasadyHandluPage.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **684/684** (94 pliki, +13 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
