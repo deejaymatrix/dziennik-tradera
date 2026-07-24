@@ -2526,6 +2526,24 @@ Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check`,
 `LISTENING`/`ESTABLISHED` w `netstat`, nie tylko martwym `SYN_SENT`) - zgodnie z zasadą sesji NIE
 dotknięty, weryfikacja wizualna zostawiona użytkownikowi na jego własnym uruchomionym oknie.
 
+## Domyślny motyw zmieniony na jasny (2026-07-24)
+
+Życzenie użytkownika: motyw jasny jako domyślny zamiast ciemnego (dosłownie: "jest po prostu
+obłędny"). Zmiana w jednym miejscu - `#[default]` na wariancie `ThemeMode::Light` zamiast `Dark`
+w `apps/desktop/src-tauri/src/domain/preferences.rs`. To jedyne źródło prawdy: frontend
+(`ThemeProvider.tsx`/`PreferencesProvider.tsx`) zawsze czyta wartość z załadowanych preferencji,
+nie ma osobnej, zduplikowanej stałej do zmiany.
+
+Zaktualizowane 4 testy, które literalnie zakładały ciemny jako domyślny (dwa w
+`domain/preferences.rs`, dwa w `application/preferences.rs`) - w tym poprawiony test atomowości
+zapisu sekcji (`niepoprawna_wartosc_odrzuca_caly_zapis_sekcji`), który przez zbieg okoliczności
+ustawiał `incoming.theme` na wartość IDENTYCZNĄ jak nowy domyślny stan, co uczyniłoby asercję
+bezsensowną (nie odróżniałaby "zapis się nie wykonał" od "zapis się wykonał, ale dał tę samą
+wartość") - naprawione ustawieniem `incoming.theme` na wartość RÓŻNĄ od stanu startowego.
+
+Weryfikacja: `cargo test` 433/433, `cargo clippy --all-targets -- -D warnings` czyste (poza
+wcześniej zgłoszonym, niezwiązanym dead code - `task_c91d280f`), `cargo fmt --check` czyste.
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.

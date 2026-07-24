@@ -23,8 +23,8 @@ fn default_true() -> bool {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ThemeMode {
-    #[default]
     Dark,
+    #[default]
     Light,
     System,
 }
@@ -537,7 +537,11 @@ mod tests {
         let prefs: Preferences = serde_json::from_str("{}").expect("pusty obiekt");
 
         assert_eq!(prefs, Preferences::default());
-        assert_eq!(prefs.appearance.theme, ThemeMode::Dark);
+        assert_eq!(
+            prefs.appearance.theme,
+            ThemeMode::Light,
+            "jasny jest domyślnym motywem (świadoma decyzja użytkownika, nie ciemny)"
+        );
         assert_eq!(prefs.behavior.draft_autosave_seconds.as_seconds(), 10);
         assert!(prefs.defaults.report_include_costs);
         assert!(
@@ -666,13 +670,17 @@ mod tests {
     #[test]
     fn reset_sekcji_dotyka_wylacznie_tej_sekcji() {
         let mut prefs = Preferences::default();
-        prefs.appearance.theme = ThemeMode::Light;
+        prefs.appearance.theme = ThemeMode::Dark;
         prefs.behavior.startup_view = StartupView::Reports;
         prefs.notifications.sound = true;
 
         prefs.reset_section(PreferencesSection::Appearance);
 
-        assert_eq!(prefs.appearance.theme, ThemeMode::Dark, "zresetowana");
+        assert_eq!(
+            prefs.appearance.theme,
+            ThemeMode::Light,
+            "zresetowana do domyślnego (jasny)"
+        );
         assert_eq!(
             prefs.behavior.startup_view,
             StartupView::Reports,

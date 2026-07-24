@@ -117,10 +117,13 @@ mod tests {
 
     #[test]
     fn niepoprawna_wartosc_odrzuca_caly_zapis_sekcji() {
+        // Stan startowy to domyślny (jasny) - `incoming.theme` musi być INNĄ wartością, żeby
+        // asercja niżej faktycznie odróżniała "zapis się nie wykonał" od "zapis się wykonał,
+        // ale przypadkiem dał tę samą wartość co wcześniej".
         let service = service_with(Preferences::default());
 
         let mut incoming = Preferences::default();
-        incoming.appearance.theme = ThemeMode::Light; // poprawne
+        incoming.appearance.theme = ThemeMode::Dark; // poprawne, ale INNE niż stan startowy
         incoming.appearance.accent_color = "bez sensu".to_string(); // niepoprawne
 
         let result = service.update_section(PreferencesSection::Appearance, incoming);
@@ -129,7 +132,7 @@ mod tests {
         let after = service.get().expect("odczyt");
         assert_eq!(
             after.appearance.theme,
-            ThemeMode::Dark,
+            ThemeMode::Light,
             "poprawna część sekcji też NIE może zostać zapisana - zapis jest atomowy"
         );
     }
@@ -137,7 +140,7 @@ mod tests {
     #[test]
     fn reset_sekcji_nie_rusza_pozostalych() {
         let mut initial = Preferences::default();
-        initial.appearance.theme = ThemeMode::Light;
+        initial.appearance.theme = ThemeMode::Dark;
         initial.behavior.startup_view = StartupView::Accounts;
         let service = service_with(initial);
 
@@ -145,7 +148,11 @@ mod tests {
             .reset_section(PreferencesSection::Appearance)
             .expect("reset");
 
-        assert_eq!(after.appearance.theme, ThemeMode::Dark);
+        assert_eq!(
+            after.appearance.theme,
+            ThemeMode::Light,
+            "zresetowana do domyślnego (jasny)"
+        );
         assert_eq!(after.behavior.startup_view, StartupView::Accounts);
     }
 }
