@@ -2773,6 +2773,31 @@ minut nie pokazują '0 min'"), pozostałe 12 bez zmian. Po cofnięciu: `git diff
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **341/341** (39 plików, +13 nowych testów).
 
+**O7, część 73: `datetime.ts` (27 linii) - konwersja `<input type="datetime-local">` ↔ ISO UTC
+dla backendu, używana przy edycji czasu otwarcia/zamknięcia transakcji (TradeFormModal,
+CloseTradeModal), zero testów.** Wyższe ryzyko niż czyste formatowanie prezentacyjne - błąd tu
+cicho zapisałby transakcję z PRZESUNIĘTYM czasem (np. o offset strefy), co psuje Kalendarz,
+raporty dzienne i kolejność transakcji na liście.
+
+Nowy `app/datetime.test.ts` (10 testów, zero mockowania): `toDatetimeLocalValue` zamienia
+`null`/pusty string/nieprawidłowy ISO na pusty string (bez wyjątku), dokłada zera wiodące dla
+miesiąca/dnia/godziny/minuty/sekundy poniżej 10 i zachowuje dwucyfrowe wartości bez obcinania;
+`fromDatetimeLocalValue` zamienia pusty string/same spacje/nieprawidłową wartość na `null`;
+dodatkowy test round-trip (`toDatetimeLocalValue(fromDatetimeLocalValue(x)) === x`) potwierdza
+brak przesunięcia strefy przy zapisie i odczycie tej samej lokalnej chwili. Testy budują
+oczekiwane wartości przez te same API `Date`, więc działają niezależnie od strefy czasowej
+maszyny uruchamiającej testy.
+
+Zweryfikowane testem mutacyjnym: tymczasowo usunięty `.padStart(2, "0")` w `pad()` -
+**dokładnie 2 z 10 testów padły** (test zer wiodących i test round-trip, oba jedyne wrażliwe na
+brak paddingu), pozostałe 8 bez zmian. Po cofnięciu: `git diff --stat` na `datetime.ts` pusty.
+(Osobno sprawdzone i odrzucone jako niediagnostyczna: mutacja `.trim()` na samo `!value` - test
+"same spacje" nadal przechodził, bo `new Date("   ")` i tak daje `NaN` przez późniejszy warunek;
+`.trim()` samo w sobie nie ma unikalnej gałęzi do złapania, więc nie wymaga osobnego dowodu.)
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **351/351** (40 plików, +10 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
