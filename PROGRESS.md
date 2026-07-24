@@ -3612,6 +3612,35 @@ cofnięciu: `git diff --stat` na `TradeAttachments.tsx` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **540/540** (72 pliki, +6 nowych testów).
 
+**O7, część 106: `InstrumentFormModal` (parametry instrumentu MT5) - zero testów.** Trzy
+nieoczywiste rzeczy w tym dużym formularzu: (1) pętla walidacji w `handleSubmit` sprawdza WSZYSTKIE
+pola dziesiętne (podstawowe + zaawansowane) NIEZALEŻNIE od tego, czy sekcja zaawansowana jest w
+danej chwili rozwinięta (`showAdvanced`) - pole schowane, ale niepoprawne, wciąż blokuje zapis; (2)
+`dec()` normalizuje przecinek na kropkę OSOBNO dla każdego z ~30 pól liczbowych przed wysyłką -
+przecinek trafiający do `Decimal::from_str` w Ruście wywaliłby parsowanie; (3) `factory_index !=
+null` przełącza dolny przycisk między "Przywróć wartości fabryczne" (instrument z katalogu MT5) a
+"Usuń" (instrument własny) - nigdy oba naraz. Przy okazji potwierdzony w praktyce ustalony w tej
+bazie kodu sposób na obejście natywnej blokady `required` dla pustych pól: pojedyncza spacja
+przechodzi natywną walidację, ale wciąż pada na własnej `isValidDecimalString`.
+
+Nowy `pages/InstrumentFormModal.test.tsx` (6 testów, `ToastProvider` + `ConfirmProvider`): błędny
+"Point" blokuje zapis komunikatem TEGO KONKRETNEGO pola, nie woła backendu; przecinek w polu
+dziesiętnym trafia do `create_instrument` jako kropka; instrument fabryczny pokazuje "Przywróć
+wartości fabryczne" i NIE pokazuje "Usuń" (i odwrotnie dla instrumentu własnego); "Usuń" pyta o
+potwierdzenie - "Anuluj" NIE woła `delete_instrument`; "Anuluj" po wejściu w edycję odrzuca
+wpisaną wartość, w podsumowaniu wraca oryginalna.
+
+Zweryfikowane 3 niezależnymi mutacjami: (1) `isValidDecimalString(...)` zastąpione `if (false)`
+(walidacja nigdy nie blokuje) - **dokładnie 1 z 6 testów padł** (i ujawniło przy okazji brak
+`afterEach(() => invokeCommand.mockReset())` we własnym pliku testowym - bez tego mock zostawiał
+wywołania między testami, co fałszywie psuło NIEPOWIĄZANY test przez odczyt cudzego wywołania;
+dopisane, zgodnie z ustalonym wzorcem z `CashOperationsModal.test.tsx`); (2) `dec()` zredukowane do
+`return value` (bez normalizacji) - **dokładnie 1 z 6 padł**; (3) `isFactory` na sztywno `false` -
+**dokładnie 1 z 6 padł**. Po każdym cofnięciu: `git diff --stat` na `InstrumentFormModal.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **546/546** (73 pliki, +6 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
