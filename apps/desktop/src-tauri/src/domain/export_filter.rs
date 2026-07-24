@@ -13,9 +13,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::domain::trade::{Trade, TradeSide};
 
-/// Rok/miesiąc otwarcia W LOKALNEJ STREFIE CZASOWEJ - transakcja otwarta tuż po lokalnej
+/// Rok/miesiąc zamknięcia W LOKALNEJ STREFIE CZASOWEJ - transakcja zamknięta tuż po lokalnej
 /// północy jest w UTC wciąż poprzednim dniem, więc porównanie wprost na `DateTime<Utc>` mogło
-/// przypisać ją do złego miesiąca/roku (ta sama poprawka co w `domain::trade_stats`).
+/// przypisać ją do złego miesiąca/roku (ta sama poprawka co w `domain::trade_stats` i
+/// `application::reports::matches_dimensions`).
 fn lokalnie(at: DateTime<Utc>) -> DateTime<Local> {
     at.with_timezone(&Local)
 }
@@ -31,10 +32,11 @@ pub struct ExportFilter {
     pub interval_id: Option<String>,
     #[serde(default)]
     pub side: Option<TradeSide>,
-    /// Rok otwarcia transakcji.
+    /// Rok zamknięcia transakcji (`closed_at`) - ten sam wymiar co `ReportFilter::year` w
+    /// Raportach, żeby eksport nigdy się nie rozjechał z tym, co użytkownik widzi na ekranie.
     #[serde(default)]
     pub year: Option<i32>,
-    /// Miesiąc otwarcia transakcji, 1-12. Brany pod uwagę tylko razem z rokiem - sam miesiąc
+    /// Miesiąc zamknięcia transakcji, 1-12. Brany pod uwagę tylko razem z rokiem - sam miesiąc
     /// bez roku oznaczałby "każdy marzec w historii", czego pasek filtrów nie pozwala wybrać.
     #[serde(default)]
     pub month: Option<u32>,
@@ -73,17 +75,18 @@ impl ExportFilter {
             }
         }
         if let Some(year) = self.year {
-            // Transakcja bez daty otwarcia (szkic) nie należy do żadnego roku, więc zawężenie
-            // po roku musi ją odrzucić - inaczej szkice wpadałyby do KAŻDEGO okresu.
-            let Some(opened_at) = trade.opened_at else {
+            // Transakcja bez daty zamknięcia (szkic/otwarta) nie należy do żadnego zamkniętego
+            // okresu, więc zawężenie po roku musi ją odrzucić - inaczej wpadałaby do KAŻDEGO
+            // okresu. To samo kryterium co `application::reports::matches_dimensions`.
+            let Some(closed_at) = trade.closed_at else {
                 return false;
             };
-            let opened_at = lokalnie(opened_at);
-            if opened_at.year() != year {
+            let closed_at = lokalnie(closed_at);
+            if closed_at.year() != year {
                 return false;
             }
             if let Some(month) = self.month {
-                if opened_at.month() != month {
+                if closed_at.month() != month {
                     return false;
                 }
             }
@@ -120,7 +123,7 @@ mod tests {
             status: TradeStatus::Closed,
             side: TradeSide::Buy,
             opened_at: Some(Utc.with_ymd_and_hms(2026, 3, 15, 10, 0, 0).unwrap()),
-            closed_at: None,
+            closed_at: Some(Utc.with_ymd_and_hms(2026, 3, 15, 10, 0, 0).unwrap()),
             interval_id: None,
             interval: None,
             session: None,
@@ -217,9 +220,9 @@ mod tests {
     fn zawezenie_po_roku_i_miesiacu() {
         let a = trade("a"); // marzec 2026
         let mut b = trade("b");
-        b.opened_at = Some(Utc.with_ymd_and_hms(2026, 4, 1, 10, 0, 0).unwrap());
+        b.closed_at = Some(Utc.with_ymd_and_hms(2026, 4, 1, 10, 0, 0).unwrap());
         let mut c = trade("c");
-        c.opened_at = Some(Utc.with_ymd_and_hms(2025, 3, 1, 10, 0, 0).unwrap());
+        c.closed_at = Some(Utc.with_ymd_and_hms(2025, 3, 1, 10, 0, 0).unwrap());
 
         let rok = ExportFilter {
             year: Some(2026),
@@ -242,7 +245,7 @@ mod tests {
     fn sam_miesiac_bez_roku_nic_nie_zawezaja() {
         let a = trade("a"); // marzec
         let mut b = trade("b");
-        b.opened_at = Some(Utc.with_ymd_and_hms(2026, 4, 1, 10, 0, 0).unwrap());
+        b.closed_at = Some(Utc.with_ymd_and_hms(2026, 4, 1, 10, 0, 0).unwrap());
         let filter = ExportFilter {
             month: Some(3),
             ..Default::default()
@@ -253,14 +256,65 @@ mod tests {
     }
 
     #[test]
-    fn zawezenie_po_roku_odrzuca_transakcje_bez_daty_otwarcia() {
+    fn zawezenie_po_roku_odrzuca_transakcje_bez_daty_zamkniecia() {
         let mut szkic = trade("szkic");
-        szkic.opened_at = None;
+        szkic.closed_at = None;
         let filter = ExportFilter {
             year: Some(2026),
             ..Default::default()
         };
         assert!(apply(vec![szkic], Some(&filter)).is_empty());
+    }
+
+    /// Regresja: `ExportFilter` kiedyś zawężał po `opened_at`, a `matches_dimensions` (Raporty)
+    /// po `closed_at` - dla transakcji otwartej w jednym miesiącu, a zamkniętej w kolejnym, dawało
+    /// to RÓŻNE wyniki, mimo że nagłówek modułu obiecuje "ten sam wycinek danych, co w Raportach".
+    /// Woła bezpośrednio `matches_dimensions`, żeby udowodnić zgodność, a nie tylko zaufać, że oba
+    /// filtry używają tego samego pola.
+    #[test]
+    fn zgodnosc_z_filtrem_raportow_dla_transakcji_otwartej_i_zamknietej_w_roznych_miesiacach() {
+        use crate::application::reports::matches_dimensions;
+
+        let mut t = trade("otwarta-luty-zamknieta-marzec");
+        t.opened_at = Some(Utc.with_ymd_and_hms(2026, 2, 27, 23, 0, 0).unwrap());
+        t.closed_at = Some(Utc.with_ymd_and_hms(2026, 3, 2, 8, 0, 0).unwrap());
+
+        let marzec = ExportFilter {
+            year: Some(2026),
+            month: Some(3),
+            ..Default::default()
+        };
+        let luty = ExportFilter {
+            year: Some(2026),
+            month: Some(2),
+            ..Default::default()
+        };
+
+        // Raport miesiąca zamknięcia (marzec) pokazuje tę transakcję - eksport z tym samym
+        // filtrem musi ją zawierać.
+        assert!(matches_dimensions(
+            &t,
+            None,
+            None,
+            None,
+            None,
+            Some(2026),
+            Some(3)
+        ));
+        assert!(marzec.matches(&t));
+
+        // Raport miesiąca otwarcia (luty) NIE pokazuje tej transakcji (zamknęła się w marcu) -
+        // eksport z tym samym filtrem też musi ją odrzucić.
+        assert!(!matches_dimensions(
+            &t,
+            None,
+            None,
+            None,
+            None,
+            Some(2026),
+            Some(2)
+        ));
+        assert!(!luty.matches(&t));
     }
 
     #[test]

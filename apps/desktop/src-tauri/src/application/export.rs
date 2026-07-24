@@ -425,7 +425,7 @@ mod tests {
         let sell = std::fs::read_to_string(&sell_path).expect("read csv");
         assert_eq!(sell.lines().filter(|l| !l.is_empty()).count(), 1);
 
-        // Ten sam eksport zawężony do roku otwarcia musi zawierać obie transakcje.
+        // Ten sam eksport zawężony do roku zamknięcia musi zawierać obie transakcje.
         let biezacy_rok = ExportFilter {
             year: Some(Utc::now().year()),
             ..Default::default()

@@ -31,7 +31,10 @@ fn lokalnie(at: DateTime<Utc>) -> DateTime<Local> {
     at.with_timezone(&Local)
 }
 
-fn matches_dimensions(
+/// `pub(crate)` (a nie prywatne) tylko po to, żeby `domain::export_filter` mogło w testach
+/// wprost porównać się z tą funkcją i udowodnić, że oba filtry (Raporty i eksport) zawężają
+/// po tym samym wymiarze czasu - patrz `export_filter::tests::zgodnosc_z_filtrem_raportow_*`.
+pub(crate) fn matches_dimensions(
     trade: &Trade,
     instrument_id: Option<&str>,
     strategy_id: Option<&str>,
