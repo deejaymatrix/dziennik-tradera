@@ -351,7 +351,7 @@ pikselowej weryfikacji układu/kolorów (sekcja 23) i przejścia ze zapisanymi, 
 danymi (wymaga uruchomionej aplikacji desktopowej z bazą, nie samego podglądu w przeglądarce)
 — ale znacząco zawęża zakres tego, co jeszcze nie jest sprawdzone.
 
-**Rozszerzenie 2026-07-24: 2 trasy zweryfikowane z PRAWDZIWYMI (fałszywymi, ale poprawnie
+**Rozszerzenie 2026-07-24: 4 trasy zweryfikowane z PRAWDZIWYMI (fałszywymi, ale poprawnie
 ukształtowanymi) danymi, nie tylko stanem błędu.** Metoda: wstrzyknięty fałszywy
 `window.__TAURI_INTERNALS__.invoke` zwracający kompletne, zgodne z prawdziwymi interfejsami TS
 obiekty (`Trade`, `AccountWithBalance`, `AccountReport`), na ŚWIEŻEJ karcie przeglądarki
@@ -370,9 +370,19 @@ Zero błędów konsoli.
 jawny znak (część 49) i poprawną klasę CSS (`profitDay`/`lossDay`) dokładnie zgodną ze znakiem
 wartości. Zero błędów konsoli.
 
+`/raporty` (zakładka Miesięczny, lipiec 2026, pełny `FilteredReport` z 13 pól): statystyki,
+kalendarz miesiąca (`MonthCalendarTable`) i TOP 5 najlepszych/najgorszych transakcji
+(`TopTradesTable`) wyrenderowane poprawnie, `formatSignedMoney` z jawnym znakiem we wszystkich
+trzech miejscach. Przy tej weryfikacji znalezione, że `BreakdownTable.tsx` nigdzie się nie
+renderuje (patrz osobne znalezisko niżej) - „Wynik wg strategii/instrumentu" to wykresy
+Recharts, nie tabele tego komponentu. Zero błędów konsoli.
+
+`/konta` z 2 kontami (prawdziwe + demo): tabela poprawna, `.nameButton` (część 43-44) kliknięty
+FUNKCJONALNIE otworzył `AccountDetailsModal` z poprawnymi danymi konta. Zero błędów konsoli.
+
 To pierwszy raz w tym audycie, gdy naprawy sekcji 21 zostały potwierdzone z prawdziwymi danymi
 w przeglądarce, a nie tylko przez odczyt kodu/testów jednostkowych/stanu błędu bez danych.
-Pozostałe 12 tras wciąż niesprawdzone z danymi (blokada częściowo, nie w pełni, zamknięta).
+Pozostałe 10 tras wciąż niesprawdzone z danymi (blokada częściowo, nie w pełni, zamknięta).
 
 **Znalezisko przy okazji weryfikacji `/raporty`: `BreakdownTable.tsx` (komponent, nie CSS) jest
 martwym kodem od "Fazy 9 v2", NIE od bieżącego redesignu O.** Próba weryfikacji zakładki
@@ -469,11 +479,13 @@ ponownego przeliczania. `cargo test` — 428/428 PASS, bez regresji (427 + nowy 
    konsoli na całej trasie. Stan braku backendu renderuje się wszędzie jako czytelny,
    niekrytyczny komunikat `role="alert"` z przyciskiem ponowienia (nie pusty ekran/crash) -
    potwierdza już wcześniej znany, opisany w pamięci przypadek „Brak środowiska Tauri", nie
-   nową usterkę. **Częściowe domknięcie 2026-07-24:** 2 z 14 tras (`/transakcje`, `/kalendarz`)
-   dodatkowo zweryfikowane z prawdziwymi (fałszywymi, ale poprawnie ukształtowanymi) danymi przez
-   wstrzyknięty mostek Tauri - potwierdzone, że naprawy z części 45/47/49 (klawiaturowo dostępne
-   wiersze, `formatSignedMoney`) faktycznie działają z realnymi danymi. Nadal brakuje: pozostałych
-   12 tras z danymi, prawdziwej aplikacji desktopowej z bazą i weryfikacji pikselowej.
+   nową usterkę. **Częściowe domknięcie 2026-07-24:** 4 z 14 tras (`/transakcje`, `/kalendarz`,
+   `/raporty`, `/konta`) dodatkowo zweryfikowane z prawdziwymi (fałszywymi, ale poprawnie
+   ukształtowanymi) danymi przez wstrzyknięty mostek Tauri - potwierdzone, że naprawy z części
+   43-49 (klawiaturowo dostępne wiersze, `formatSignedMoney`, stan `:active`) faktycznie działają
+   z realnymi danymi; przy okazji znalezione, że `BreakdownTable.tsx` jest martwym kodem (osobny
+   wpis wyżej). Nadal brakuje: pozostałych 10 tras z danymi, prawdziwej aplikacji desktopowej
+   z bazą i weryfikacji pikselowej.
 3. ~~**Pełny manifest plik-po-pliku** (sekcja 27)~~ — **ZAMKNIĘTE 2026-07-24.** Dodana tabela
    z osobnym wierszem i statusem dla każdego pliku (sekcja 2, „Manifest plik-po-pliku"),
    wygenerowana programowo z już zweryfikowanej tabeli grup — 0 pominiętych, 0 nadmiarowych.

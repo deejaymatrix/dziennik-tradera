@@ -2129,7 +2129,7 @@ poprawnie wyrenderowany, DOKŁADNIE ten sam węzeł DOM pola „Cena wejścia" p
 (potwierdzone znacznikiem na obiekcie węzła, nie tylko selektorem), pozycja kursora zachowana,
 zero błędów konsoli. Pełny PASS, bez zmian kodu (kod już był poprawny).
 
-**O7: 2 trasy zweryfikowane z prawdziwymi danymi, nie tylko stanem błędu - pierwszy raz w tym
+**O7: 4 trasy zweryfikowane z prawdziwymi danymi, nie tylko stanem błędu - pierwszy raz w tym
 audycie.** Wstrzyknięty fałszywy `window.__TAURI_INTERNALS__.invoke` zwracający kompletne,
 zgodne z prawdziwymi interfejsami TS obiekty (`Trade`, `AccountWithBalance`, `AccountReport`),
 na świeżych kartach przeglądarki. Cel: potwierdzić, że naprawy tej sesji (część 45 - klawiaturowo
@@ -2144,7 +2144,15 @@ danymi transakcji. Zero błędów konsoli.
 `/kalendarz` z dniem zyskownym i stratnym: oba pokazują jawny znak i poprawną klasę CSS
 (`profitDay`/`lossDay`) zgodną ze znakiem wartości. Zero błędów konsoli.
 
-Pozostałe 12 tras wciąż niesprawdzone z prawdziwymi danymi - blokada częściowo, nie w pełni,
+`/raporty` (zakładka Miesięczny, pełny `FilteredReport`): statystyki, kalendarz miesiąca
+i TOP 5 najlepszych/najgorszych transakcji wyrenderowane poprawnie, `formatSignedMoney`
+z jawnym znakiem wszędzie. Przy tej weryfikacji znalezione, że `BreakdownTable.tsx` nigdzie
+się nie renderuje (osobny wpis wyżej). Zero błędów konsoli.
+
+`/konta` z 2 kontami: `.nameButton` kliknięty FUNKCJONALNIE otworzył `AccountDetailsModal`
+z poprawnymi danymi. Zero błędów konsoli.
+
+Pozostałe 10 tras wciąż niesprawdzone z prawdziwymi danymi - blokada częściowo, nie w pełni,
 zamknięta.
 
 **O7, znalezisko przy okazji: `BreakdownTable.tsx` jest martwym kodem od „Fazy 9 v2", nie od
