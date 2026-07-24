@@ -4029,6 +4029,39 @@ każdym cofnięciu: `git diff --stat` na `KalkulatorPozycjiPage.tsx` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **629/629** (87 plików, +6 nowych testów).
 
+**O7, część 121: `ReportMonthlyTab` (podraport miesięczny) - zero testów, mimo oznaczonego "Audyt"
+w tabeli zadań (ręczna weryfikacja wizualna, nie automatyczne testy).** Czysty komponent
+prezentacyjny - bez własnych efektów/komend, więc testy nie potrzebują żadnego mockowania
+`invokeCommand`. Dwie nieoczywiste rzeczy: (1) `formatDayLabel` parsuje datę ISO ze świadomie
+wymuszoną strefą UTC (`timeZone: "UTC"`) - bez tego "2026-03-01" mógłby wyświetlić się jako
+"28.02" w strefie o UJEMNYM przesunięciu względem UTC (np. USA), bo `new
+Date("2026-03-01T00:00:00Z")` w lokalnej strefie cofa się na poprzedni dzień; (2) karta
+"Zrealizowane na pozycjach otwartych" pojawia się TYLKO gdy `partially_closed_trades > 0` - żeby
+nie zaśmiecać raportu zerem.
+
+Techniczna pułapka złapana przy pisaniu testu strefy czasowej: maszyna CI bywa w strefie o
+DODATNIM przesunięciu względem UTC (Europe/Berlin) - tam usunięcie `timeZone: "UTC"` NIE cofa dnia
+(dodatnie przesunięcie od północy UTC zostaje w tym samym dniu kalendarzowym), więc test w tej
+strefie nie łapałby regresji wcale. Naprawione przez świadome wymuszenie `process.env.TZ =
+"America/New_York"` (potwierdzone bezpośrednio w Node, że zmiana działa w locie, bez restartu
+procesu) na czas tego jednego testu, z przywróceniem w `finally`.
+
+Nowy `pages/ReportMonthlyTab.test.tsx` (7 testów): `report === null` pokazuje "Wybierz rok i
+miesiąc"; karta pozycji częściowo zamkniętych ukryta/widoczna wg licznika; **`formatDayLabel` NIE
+cofa dnia przez strefę czasową**; najlepszy/najgorszy dzień i najlepsza/najgorsza strategia
+wybierają SKRAJNE wartości `net_pnl` (nie pierwszy/ostatni wpis w tablicy); brak strategii pokazuje
+"—".
+
+Zweryfikowane 3 niezależnymi mutacjami: (1) `timeZone: "UTC"` usunięty z `formatDayLabel` -
+**dokładnie 1 z 7 testów padł** (w wymuszonej strefie New York, z dokładnie przewidzianym objawem:
+"28.02" zamiast "01.03"); (2) `bestOf` zredukowane do `rows[0]` (bez sortowania) - **dokładnie 2 z
+7 padły** (oba testy zależne od wyboru skrajnej wartości - dzień i strategia, bo `bestOf` jest
+współdzielone); (3) warunek `partially_closed_trades > 0` zastąpiony `true` - **dokładnie 1 z 7
+padł**. Po każdym cofnięciu: `git diff --stat` na `ReportMonthlyTab.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **636/636** (88 plików, +7 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
