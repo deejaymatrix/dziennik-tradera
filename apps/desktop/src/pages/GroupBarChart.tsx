@@ -9,14 +9,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { BarShapeProps } from "recharts";
 import { formatMoney } from "../app/decimal";
 import type { GroupBreakdown } from "../app/types/report";
 import { estimateYAxisWidth } from "./chartAxis";
+import { makeBarShape } from "./barShape";
 import styles from "./GroupBarChart.module.css";
 import {
   CHART_GRID_PROPS,
-  chartSeriesColor,
   CHART_TOOLTIP_CONTENT_STYLE,
   CHART_TOOLTIP_ITEM_STYLE,
   CHART_TOOLTIP_LABEL_STYLE,
@@ -43,25 +42,6 @@ export interface GroupBarChartProps {
 interface BarDatum {
   label: string;
   value: number;
-}
-
-function makeBarShape(tone: "profit-loss" | "neutral") {
-  return function BarShape(props: BarShapeProps): ReactElement {
-    const { x, y, width, height, value } = props;
-    const numericValue = Array.isArray(value) ? value[0] : value;
-    const fill =
-      tone === "neutral"
-        ? chartSeriesColor(0)
-        : numericValue >= 0
-          ? "var(--color-profit)"
-          : "var(--color-loss)";
-    // Słupki poniżej zera dostają od Recharts ujemną wysokość - SVG odmawia narysowania <rect>
-    // z ujemną szerokością/wysokością (błąd spec., element się nie renderuje), więc trzeba
-    // znormalizować do dodatniej wysokości i przesunąć y o różnicę.
-    const normalizedY = height < 0 ? y + height : y;
-    const normalizedHeight = Math.abs(height);
-    return <rect x={x} y={normalizedY} width={width} height={normalizedHeight} fill={fill} />;
-  };
 }
 
 /** Słupkowy wykres wyniku netto wg grupy (miesiąc/rok/dzień tygodnia/instrument/strategia) -

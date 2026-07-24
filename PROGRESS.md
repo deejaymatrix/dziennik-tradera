@@ -3486,6 +3486,38 @@ cofnięciu: `git diff --stat` na `ImportMt5TradesModal.tsx` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **516/516** (67 plików, +5 nowych testów).
 
+**O7, część 101: `makeBarShape` (kształt słupka `GroupBarChart`) - kolor NIEZALEŻNY od znaku dla
+metryk "neutral" (win rate, liczba transakcji), zero testów.** `tone="neutral"` MUSI ignorować
+znak wartości - 20% win rate nie jest "stratą" tylko dlatego, że ktoś by pomylił dodatnią liczbę
+z zyskiem. Druga ryzykowna część: Recharts daje słupkom poniżej zera UJEMNĄ wysokość, a SVG
+odmawia narysowania `<rect>` z ujemną szerokością/wysokością (błąd spec., element się PO PROSTU
+NIE RENDERUJE) - trzeba znormalizować do dodatniej wysokości i przesunąć `y` o różnicę, inaczej
+słupki strat cicho znikają z wykresu.
+
+Przy okazji: `makeBarShape` był prywatną funkcją zagnieżdżoną w `GroupBarChart.tsx` - wyjęty do
+nowego `pages/barShape.tsx` (mirror wzorca `chartAxis.ts`/`chartTheme.ts` w tym samym katalogu),
+zamiast eksportować z pliku komponentu, co odpaliłoby ostrzeżenie eslint
+`react-refresh/only-export-components` (Fast Refresh traci stan przy edycji pliku eksportującego
+funkcję obok komponentu). Testowanie pełnego `GroupBarChart` przez Recharts w jsdom jest znane z
+niestabilności (`ResponsiveContainer` polega na `ResizeObserver`/layout, których jsdom nie ma) -
+`chartTheme.test.ts` już ustalił konwencję testowania czystych funkcji wprost, nie renderowania
+całego wykresu.
+
+Nowy `pages/barShape.test.tsx` (5 testów, renderowanie zwróconego `<rect>` w gołym `<svg>`):
+`tone="profit-loss"` koloruje wg znaku (zysk/strata); **`tone="neutral"` z UJEMNĄ wartością
+NADAL dostaje neutralny kolor serii, nie kolor straty**; dodatnia wysokość zostaje bez zmian;
+**ujemna wysokość: `y` przesunięty o różnicę, `height` znormalizowane do `|height|`**.
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) usunięta gałąź `tone === "neutral"` (kolor zawsze wg
+znaku) - **dokładnie 1 z 5 testów padł**, pokazując dokładnie przewidziany błąd: ujemna wartość
+neutralna dostała `var(--color-loss)`; (2) usunięta normalizacja ujemnej wysokości (`normalizedY
+= y`, `normalizedHeight = height`) - **dokładnie 1 z 5 padł**. Po każdym cofnięciu: `git diff` na
+`barShape.tsx` ograniczony wyłącznie do zamierzonych zmian.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto (ostrzeżenie Fast
+Refresh zniknęło po przeniesieniu), `pnpm exec prettier --check` czysto, `pnpm test -- --run`
+**521/521** (68 plików, +5 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
