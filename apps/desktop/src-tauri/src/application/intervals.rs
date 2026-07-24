@@ -51,11 +51,6 @@ impl IntervalsService {
         self.repository.restore_with_label(id, label)
     }
 
-    /// Podpowiedź wolnej nazwy dla interfejsu proponującego przywrócenie pod inną nazwą.
-    pub fn suggest_free_label(&self, label: &str) -> Result<String, AppError> {
-        self.repository.suggest_free_label(label)
-    }
-
     pub fn delete_permanently(&self, id: &str) -> Result<(), AppError> {
         self.repository.delete_permanently(id)
     }
