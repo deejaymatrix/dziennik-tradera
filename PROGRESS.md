@@ -1706,6 +1706,14 @@ bez zmian kodu, najciaśniej w motywie jasnym (3,32-3,69, wciąż z marginesem),
 5,99-7,59. Zapisane jako trwały test regresyjny (nie jednorazowe sprawdzenie), żeby przyszła
 zmiana koloru fokusu albo powierzchni nie przeszła cicho poniżej progu. `pnpm test` 60/60 PASS.
 
+**O7, kolejna znaleziona luka „jedno źródło prawdy" (ta sama klasa co z-index/font-weight/
+line-height): `border-radius: 999px` na sztywno w 3 plikach** (`SettingRow.module.css`,
+`ColorPicker.module.css`, `FormPanel.module.css`), mimo że token `--radius-full: 999px` już
+istniał w `tokens.css` - po prostu nie wszędzie użyty. Przepięte na `var(--radius-full)`
+we wszystkich 3 - wizualnie identyczne (ta sama wartość), tylko jedno źródło zamiast trzech
+niezależnie wpisanych liczb. `border-radius: 50%` na okrągłych próbkach koloru świadomie
+pominięty - inny idiom („koło niezależnie od rozmiaru pudełka", nie skala promienia).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat

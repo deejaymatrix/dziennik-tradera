@@ -51,7 +51,7 @@
 .status {
   font-size: var(--font-size-xs);
   padding: 0.15rem 0.5rem;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   white-space: nowrap;
   flex-shrink: 0;
 }
