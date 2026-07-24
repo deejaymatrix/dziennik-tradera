@@ -2352,6 +2352,24 @@ Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check`,
 275/275 - wszystkie czyste. Tras zweryfikowanych z prawdziwymi danymi: 13 z 14 (patrz
 `MACIERZ_AUDYTU_REDESIGN_O.md`) - pozostało tylko `/ustawienia`.
 
+**O7, część 57: `/ustawienia` - próba weryfikacji z danymi ujawniła twardy limit narzędzia, nie
+błąd w kodzie, sweep tras zamknięty w praktycznym zakresie.** `PreferencesProvider` (globalny,
+opakowuje cały router) pobiera `get_preferences` dokładnie raz przy montowaniu, bez ponowienia
+poza pełnym przeładowaniem strony - celowy projekt ("brak backendu nie może zostawić aplikacji
+bez wyglądu", komentarz w kodzie). Fałszywy mostek Tauri da się wstrzyknąć dopiero PO pierwszym
+wczytaniu strony, ale to pierwsze wczytanie (z konieczności bez mostka) już nieodwracalnie
+zapisało błąd w kontekście dostawcy - a przycisk „Odśwież" (`window.location.reload()`, jedyny
+poprawny sposób ponowienia) kasuje mostek zanim nowe drzewo React się zamontuje, w kółko.
+
+Potwierdzone za to, że stan błędu renderuje się poprawnie (czytelny komunikat PL + działający
+„Odśwież", ten sam wzorzec co reszta 14 tras w oryginalnym sweepie bez danych). Zapisane jako
+punkt 10 w pamięci sesji - nie próbować tego ponownie, to strukturalny limit narzędzia, nie
+brakująca weryfikacja.
+
+Stan sekcji 24 (pełny test z prawdziwymi danymi): 13 z 14 tras z prawdziwymi danymi, 14 z 14 ze
+stanem błędu, `/ustawienia` udokumentowane jako jedyny wyjątek z jasnym uzasadnieniem
+technicznym - blokada uznana za zamkniętą w praktycznym zakresie dostępnym z tego narzędzia.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
