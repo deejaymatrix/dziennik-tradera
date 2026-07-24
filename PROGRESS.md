@@ -1772,6 +1772,13 @@ nietknięte. Po cofnięciu: `git diff` na `tokens.css` czysty, 62/62 PASS ponown
 potwierdza, że testy color-mix realnie chronią przed regresją, a nie tylko przechodzą,
 bo akurat nikt niczego nie zepsuł.
 
+**O7, ten sam test mutacyjny zastosowany do testu pierścienia fokusu (część 21).** Tymczasowo
+zmieniony `--color-focus-ring` (motyw ciemny) na kolor bliski `--color-surface` (gwarantowana
+porażka poniżej 3:1), uruchomione testy, cofnięte. Wynik: dokładnie 1 test padł ("pierścień
+fokusu... motyw ciemny"), pozostałych 61 bez zmian, w tym test motywu jasnego (token
+nietknięty). Po cofnięciu: `git diff` czysty, 62/62 PASS ponownie. Ten sam wniosek co przy
+`--tint-badge` - test realnie chroni, nie tylko przechodzi przypadkiem.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
