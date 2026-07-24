@@ -547,6 +547,17 @@ mod tests {
     }
 
     #[test]
+    fn domyslny_akcent_to_niebieski_nie_zloto() {
+        // Pin na literalną wartość, nie porównanie funkcji samej ze sobą - redesign O1
+        // świadomie zmienił domyślną markę ze złota (#c9a85a) na niebieski. Bez tego testu
+        // cichy powrót do starej wartości (albo literówka w nowej) nie zostałby złapany,
+        // bo `assert_eq!(x, default_accent())` w innych testach jest tautologiczny.
+        // Frontend (`PreferencesProvider.tsx`, stała `DEFAULT_ACCENT`) musi mieć tę samą
+        // wartość - synchronizacja pilnowana dziś tylko komentarzem, nie automatem.
+        assert_eq!(default_accent(), "#4c7dff");
+    }
+
+    #[test]
     fn brakujace_pojedyncze_pole_przyjmuje_wartosc_domyslna() {
         // Dokładnie przypadek "starsza baza nie zna nowego ustawienia".
         let json = r#"{"appearance":{"theme":"light"}}"#;

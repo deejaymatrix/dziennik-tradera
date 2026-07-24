@@ -1648,6 +1648,18 @@ przejścia z prawdziwymi danymi i weryfikacji pikselowej) - ale znacząco zawę�
 zostało do sprawdzenia. Pełne wpisy: [MACIERZ_AUDYTU_REDESIGN_O.md](MACIERZ_AUDYTU_REDESIGN_O.md),
 sekcja 4.
 
+**O7, znaleziona i naprawiona realna luka w testach: brak pinu na literalną wartość
+domyślnego akcentu.** Cały sens redesignu O1 to zmiana domyślnej marki ze złota (`#c9a85a`)
+na niebieski (`#4c7dff`) - ale istniejący test (`brakujace_pojedyncze_pole_przyjmuje_wartosc_domyslna`)
+porównuje `prefs.appearance.accent_color` z wynikiem wywołania `default_accent()`, czyli
+tej samej funkcji - tautologia, która przeszłaby nawet po cichym powrocie do złota. Dodany
+`domyslny_akcent_to_niebieski_nie_zloto`: porównanie z literałem `"#4c7dff"` wprost.
+Frontend (`PreferencesProvider.tsx`, stała `DEFAULT_ACCENT`, nieeksportowana, używana tylko
+kosmetycznie do podświetlenia presetu) świadomie NIE dostał analogicznego testu - dodanie
+całego pliku testowego dla złożonego providera tylko dla jednej stałej byłoby nieproporcjonalne
+do realnego ryzyka (rozjazd tam skutkowałby najwyżej złym podświetleniem presetu, nie utratą
+danych); zsynchronizowanie pilnowane komentarzem w kodzie, jak dotychczas.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
