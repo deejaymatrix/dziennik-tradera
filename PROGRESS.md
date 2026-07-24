@@ -2164,7 +2164,13 @@ fałszywy negatyw przez opóźnienie MIĘDZY wywołaniami, nie prawdziwy błąd 
 klik + wszystkie odczyty w JEDNYM atomowym skrypcie z wewnętrznymi `await`. Zapisane w pamięci
 sesji jako nowy punkt 9, żeby nie powtórzyć tego błędu testowego.
 
-Pozostałe 8 tras wciąż niesprawdzone z prawdziwymi danymi - blokada częściowo, nie w pełni,
+`/kosz` (`KoszPage.tsx` część 52, `IconButton` część 53): lista poprawna, `dependency_note`
+wyświetlany dla powiązanych kont, „Opróżnij kosz" otworzyło prawdziwy `ConfirmDialog`
+z poprawną treścią, potwierdzenie faktycznie wywołało `empty_trash`/`restore_trash_item`
+z `aria-busy`/`disabled`/spinnerem aktywnym przez cały czas operacji. Zero błędów konsoli
+w żadnym z kilku przebiegów tej trasy.
+
+Pozostałe 7 tras wciąż niesprawdzone z prawdziwymi danymi - blokada częściowo, nie w pełni,
 zamknięta.
 
 **O7, część 51: kontrakt `formatSignedMoney` (część 49) złamany w 5 KOLEJNYCH miejscach -
