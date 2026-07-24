@@ -33,6 +33,7 @@ export function IntervalsSection(): ReactElement {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
@@ -60,29 +61,38 @@ export function IntervalsSection(): ReactElement {
   }, []);
 
   async function handleToggleHidden(interval: Interval): Promise<void> {
+    setBusy(true);
     try {
       await invokeCommand("set_interval_hidden", { id: interval.id, hidden: !interval.hidden });
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
   async function handleArchive(interval: Interval): Promise<void> {
+    setBusy(true);
     try {
       await invokeCommand("archive_interval", { id: interval.id });
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
   async function handleRestore(interval: Interval): Promise<void> {
+    setBusy(true);
     try {
       await invokeCommand("restore_interval", { id: interval.id });
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -95,12 +105,15 @@ export function IntervalsSection(): ReactElement {
     if (!renamingId || !renameValue.trim()) {
       return;
     }
+    setBusy(true);
     try {
       await invokeCommand("update_interval_label", { id: renamingId, label: renameValue.trim() });
       setRenamingId(null);
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -117,11 +130,14 @@ export function IntervalsSection(): ReactElement {
     if (item !== undefined) {
       next.splice(target, 0, item);
     }
+    setBusy(true);
     try {
       await invokeCommand("reorder_intervals", { orderedIds: next.map((i) => i.id) });
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -197,6 +213,7 @@ export function IntervalsSection(): ReactElement {
                     <IconButton
                       icon={<Check size={16} />}
                       aria-label="Zapisz nazwę"
+                      loading={busy}
                       onClick={() => {
                         void handleConfirmRename();
                       }}
@@ -227,6 +244,7 @@ export function IntervalsSection(): ReactElement {
                       icon={<ArrowUp size={16} />}
                       aria-label={`Przesuń w górę: ${interval.label}`}
                       disabled={index === 0}
+                      loading={busy}
                       onClick={() => {
                         void handleMove(index, -1);
                       }}
@@ -235,6 +253,7 @@ export function IntervalsSection(): ReactElement {
                       icon={<ArrowDown size={16} />}
                       aria-label={`Przesuń w dół: ${interval.label}`}
                       disabled={index === intervals.length - 1}
+                      loading={busy}
                       onClick={() => {
                         void handleMove(index, 1);
                       }}
@@ -244,6 +263,7 @@ export function IntervalsSection(): ReactElement {
                       aria-label={
                         interval.hidden ? `Pokaż ${interval.label}` : `Ukryj ${interval.label}`
                       }
+                      loading={busy}
                       onClick={() => {
                         void handleToggleHidden(interval);
                       }}
@@ -259,6 +279,7 @@ export function IntervalsSection(): ReactElement {
                           <IconButton
                             icon={<ArchiveRestore size={16} />}
                             aria-label={`Przywróć ${interval.label}`}
+                            loading={busy}
                             onClick={() => {
                               void handleRestore(interval);
                             }}
@@ -267,6 +288,7 @@ export function IntervalsSection(): ReactElement {
                           <IconButton
                             icon={<Archive size={16} />}
                             aria-label={`Archiwizuj ${interval.label}`}
+                            loading={busy}
                             onClick={() => {
                               void handleArchive(interval);
                             }}

@@ -24,6 +24,7 @@ export function EmotionalStatesSection(): ReactElement {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   async function load(): Promise<void> {
     try {
@@ -48,11 +49,14 @@ export function EmotionalStatesSection(): ReactElement {
   }, []);
 
   async function handleToggleHidden(state: EmotionalState): Promise<void> {
+    setBusy(true);
     try {
       await invokeCommand("set_emotional_state_hidden", { id: state.id, hidden: !state.hidden });
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -60,11 +64,14 @@ export function EmotionalStatesSection(): ReactElement {
     if (!(await confirm(`Usunąć stan emocjonalny "${state.name}"?`))) {
       return;
     }
+    setBusy(true);
     try {
       await invokeCommand("delete_emotional_state", { id: state.id });
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Wystąpił nieoczekiwany błąd.", "error");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -140,6 +147,7 @@ export function EmotionalStatesSection(): ReactElement {
                 <IconButton
                   icon={state.hidden ? <Eye size={16} /> : <EyeOff size={16} />}
                   aria-label={state.hidden ? `Pokaż ${state.name}` : `Ukryj ${state.name}`}
+                  loading={busy}
                   onClick={() => {
                     void handleToggleHidden(state);
                   }}
@@ -148,6 +156,7 @@ export function EmotionalStatesSection(): ReactElement {
                   <IconButton
                     icon={<Trash2 size={16} />}
                     aria-label={`Usuń ${state.name}`}
+                    loading={busy}
                     onClick={() => {
                       void handleDelete(state);
                     }}

@@ -370,7 +370,7 @@ pikselowej weryfikacji układu/kolorów (sekcja 23) i przejścia ze zapisanymi, 
 danymi (wymaga uruchomionej aplikacji desktopowej z bazą, nie samego podglądu w przeglądarce)
 — ale znacząco zawęża zakres tego, co jeszcze nie jest sprawdzone.
 
-**Rozszerzenie 2026-07-24: 10 tras zweryfikowanych z PRAWDZIWYMI (fałszywymi, ale poprawnie
+**Rozszerzenie 2026-07-24: 12 tras zweryfikowanych z PRAWDZIWYMI (fałszywymi, ale poprawnie
 ukształtowanymi) danymi, nie tylko stanem błędu.** Metoda: wstrzyknięty fałszywy
 `window.__TAURI_INTERNALS__.invoke` zwracający kompletne, zgodne z prawdziwymi interfejsami TS
 obiekty (`Trade`, `AccountWithBalance`, `AccountReport`), na ŚWIEŻEJ karcie przeglądarki
@@ -442,9 +442,27 @@ z fałszywym opóźnieniem 700ms w `set_instrument_visibility`: `aria-busy`/`dis
 Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check` - wszystkie
 czyste. Zero błędów konsoli.
 
+`/interwaly` (`IntervalsSection.tsx`, 1 wbudowany + 1 własny interwał): lista wyrenderowana
+poprawnie. `/stan-emocjonalny` (`EmotionalStatesSection.tsx`, ten sam wzorzec, analogiczne dane):
+lista wyrenderowana poprawnie. **Ten sam brak `busy` co w części 54 (`InstrumentsPage`) znaleziony
+w OBU komponentach** - żaden z `IconButton` (ukryj/pokaż, usuń, przesuń wyżej/niżej, archiwizuj/
+przywróć, zapisz zmianę nazwy) nie blokował się i nie pokazywał spinnera podczas
+`invokeCommand`. Naprawione tym samym wzorcem: `useState<boolean>` + `setBusy(true)`/
+`finally setBusy(false)` we wszystkich async handlerach obu plików, podpięte jako `loading={busy}`
+- pominięte tylko „Anuluj zmianę nazwy" (X - nie wywołuje `invokeCommand`) i „Zmień nazwę"
+(Pencil - tylko otwiera tryb edycji, ten sam ustalony wzorzec „dialog/tryb-otwierający nie
+potrzebuje loading"). `submitting` przy „Dodaj" w obu plikach był już poprawny wcześniej - nie
+ruszany, `busy` to osobna, niezależna zmienna dla akcji na istniejących elementach listy.
+
+Zweryfikowane w przeglądarce oba komponenty z fałszywym opóźnieniem 700ms (`set_interval_hidden`/
+`set_emotional_state_hidden`): `aria-busy`/`disabled` poprawnie `true` przez cały czas trwania
+(jeden atomowy skrypt, punkt 9 pamięci), wraca po zakończeniu. Zero błędów konsoli na obu
+trasach. Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check`,
+`pnpm test` 275/275 - wszystkie czyste.
+
 To pierwszy raz w tym audycie, gdy naprawy sekcji 21 zostały potwierdzone z prawdziwymi danymi
 w przeglądarce, a nie tylko przez odczyt kodu/testów jednostkowych/stanu błędu bez danych.
-Pozostałe 4 trasy wciąż niesprawdzone z danymi (blokada częściowo, nie w pełni, zamknięta).
+Pozostałe 2 trasy wciąż niesprawdzone z danymi (blokada częściowo, nie w pełni, zamknięta).
 
 **Znalezisko przy okazji weryfikacji `/raporty`: `BreakdownTable.tsx` (komponent, nie CSS) jest
 martwym kodem od "Fazy 9 v2", NIE od bieżącego redesignu O.** Próba weryfikacji zakładki

@@ -2307,6 +2307,29 @@ Weryfikacja: `pnpm typecheck`, `pnpm exec eslint src/pages/InstrumentsPage.tsx`,
 konsoli. Tras zweryfikowanych z prawdziwymi danymi: 10 z 14 (patrz
 `MACIERZ_AUDYTU_REDESIGN_O.md`).
 
+**O7, część 55: `/interwaly` + `/stan-emocjonalny` zweryfikowane - ten sam brak `busy` co
+w części 54, tym razem w DWÓCH plikach naraz.** `IntervalsSection.tsx` i
+`EmotionalStatesSection.tsx` (ten sam wzorzec, jeden opisany w komentarzu jako wzorowany na
+drugim) nie śledziły stanu `busy` w ogóle - żaden `IconButton` (ukryj/pokaż, usuń, przesuń
+wyżej/niżej, archiwizuj/przywróć, zapisz zmianę nazwy) nie blokował się i nie pokazywał
+spinnera podczas `invokeCommand`.
+
+Naprawione identycznym wzorcem co część 52-54: nowa zmienna `useState<boolean>` w obu plikach
++ `setBusy(true)`/`finally setBusy(false)` we wszystkich async handlerach, podpięte jako
+`loading={busy}` wszędzie poza „Anuluj zmianę nazwy" (X - bez `invokeCommand`) i „Zmień nazwę"
+(Pencil - tylko otwiera tryb edycji). Istniejący `submitting` przy przycisku „Dodaj" w obu
+plikach zostawiony bez zmian - to osobna, niezależna zmienna od `busy` (dodawanie nowego
+elementu vs akcja na istniejącym).
+
+Zweryfikowane w przeglądarce oba komponenty (fałszywe opóźnienie 700ms w
+`set_interval_hidden`/`set_emotional_state_hidden`): `aria-busy`/`disabled` poprawnie `true`
+przez cały czas trwania operacji (jeden atomowy skrypt, punkt 9 pamięci sesji), wraca po
+zakończeniu. Zero błędów konsoli na obu trasach.
+
+Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check`, `pnpm test`
+275/275 - wszystkie czyste. Tras zweryfikowanych z prawdziwymi danymi: 12 z 14 (patrz
+`MACIERZ_AUDYTU_REDESIGN_O.md`) - pozostały `/zasady-handlu` i `/ustawienia`.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
