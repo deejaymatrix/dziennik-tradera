@@ -3321,6 +3321,30 @@ padł**. Po każdym cofnięciu: `git diff --stat` na `EmotionsEditor.tsx` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **479/479** (60 plików, +12 nowych testów).
 
+**O7, część 94: `EmotionalStatesSection.tsx` (193 linie, Ustawienia → Stany emocjonalne) -
+usuwanie WŁASNYCH stanów przechodzi przez `useConfirm()`, operacja nieodwracalna, zero testów.**
+Błąd tu (np. pominięte potwierdzenie) usuwałby dane bez pytania - wprost naruszałoby zasadę
+projektu "nigdy nie niszcz danych bez potwierdzenia". Wbudowane stany można TYLKO ukryć, nigdy
+usunąć - drugi niezależny guard.
+
+Nowy `pages/EmotionalStatesSection.test.tsx` (6 testów, `ToastProvider` + `ConfirmProvider` +
+`vi.mock` na `invokeCommand`): **anulowanie potwierdzenia NIE usuwa stanu** (`invokeCommand`
+NIGDY wywołane z `delete_emotional_state`); potwierdzenie usuwa stan przez
+`delete_emotional_state` z poprawnym `id`; wbudowany stan NIE ma przycisku usuwania w ogóle;
+przycisk "Dodaj" wyłączony przy pustym/samych spacjach polu; Enter w polu nazwy zatwierdza
+dodanie tak jak klik przycisku; klik na widocznym stanie woła `set_emotional_state_hidden` z
+`hidden: true`.
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) usunięty warunek `if (!(await confirm(...)))
+return;` (usuwanie zawsze przechodzi, niezależnie od odpowiedzi użytkownika) - **dokładnie 1 z 6
+testów padł**, pokazując dokładnie przewidziany scenariusz: anulowanie NADAL wywołało
+`delete_emotional_state`; (2) usunięty warunek `!state.is_builtin` wokół przycisku usuwania
+(przycisk zawsze widoczny) - **dokładnie 1 z 6 padł**. Po każdym cofnięciu: `git diff --stat` na
+`EmotionalStatesSection.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **485/485** (61 plików, +6 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
