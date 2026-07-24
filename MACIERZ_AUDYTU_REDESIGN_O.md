@@ -240,15 +240,16 @@ ponownego przeliczania. `cargo test` — 428/428 PASS, bez regresji (427 + nowy 
 
 ## 6. Narzędzia kontroli (sekcja 28)
 
-| Narzędzie                    | Wynik                                                                                                                                 |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm format:check`          | PASS                                                                                                                                  |
-| `pnpm lint`                  | 1 błąd — zweryfikowany jako pre-istniejący baseline (self-referencyjny `useCallback` w `UpdateMonitorProvider.tsx`, sprzed redesignu) |
-| `pnpm typecheck`             | PASS, 0 błędów                                                                                                                        |
-| `pnpm test`                  | PASS, 269/269 (233 + 34 nowych color-mix + 2 nowe pierścień fokusu, wszystkie w `tokens.test.ts`)                                     |
-| `cargo fmt --check`          | PASS                                                                                                                                  |
-| `cargo clippy --all-targets` | PASS, 0 błędów                                                                                                                        |
-| `cargo test`                 | PASS, 428/428                                                                                                                         |
+| Narzędzie                                            | Wynik                                                                                                                                                                                |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm format:check`                                  | PASS                                                                                                                                                                                 |
+| `pnpm lint`                                          | 1 błąd — zweryfikowany jako pre-istniejący baseline (self-referencyjny `useCallback` w `UpdateMonitorProvider.tsx`, sprzed redesignu)                                                |
+| `pnpm typecheck`                                     | PASS, 0 błędów                                                                                                                                                                       |
+| `pnpm test`                                          | PASS, 269/269 (233 + 34 nowych color-mix + 2 nowe pierścień fokusu, wszystkie w `tokens.test.ts`)                                                                                    |
+| `cargo fmt --check`                                  | PASS                                                                                                                                                                                 |
+| `cargo clippy --all-targets`                         | PASS, 0 błędów                                                                                                                                                                       |
+| `cargo test`                                         | PASS, 428/428                                                                                                                                                                        |
+| Konsola przeglądarki po naprawach WCAG (część 15-29) | 0 błędów/ostrzeżeń na Dashboardzie (`HeatmapTable`), Kalendarzu (`CalendarPage`), Koncie (`Badge`) - ponownie sprawdzone 2026-07-24 PO zmianach w tych komponentach, nie tylko przed |
 
 ## Podsumowanie blokad do werdyktu GOTOWE
 
