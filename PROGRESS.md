@@ -2501,9 +2501,30 @@ Weryfikacja: `cargo test` 433/433, `cargo clippy --all-targets -- -D warnings` c
 4 wcześniej istniejącymi, niezwiązanymi ostrzeżeniami dead_code + 1 `large_enum_variant`,
 zgłoszonymi osobno w tle - `task_c91d280f`), `cargo fmt --check` czyste.
 
-**Pozostało**: frontend - nowy modal importu (wzorem `ImportBrokerModal.tsx`) z przyciskiem na
-`TransactionsPage.tsx`, pokazujący podgląd (liczba pozycji, rozpoznane/nierozpoznane symbole,
-już zaimportowane) przed zatwierdzeniem.
+**Frontend dokończony (2026-07-24) - ✅ funkcja kompletna.** Nowy `ImportMt5TradesModal.tsx`
+(wzorem `ImportBrokerModal.tsx`) z przyciskiem "Importuj z MT5" na `TransactionsPage.tsx`, obok
+"Dodaj transakcję". Świadoma decyzja użytkownika w trakcie budowy: panel zostaje w Historii
+transakcji (nie w Eksport i kopie/Ustawienia, jak rozważano chwilę wcześniej), a wybór KONTA
+DOCELOWEGO jest jawnym, pierwszym krokiem kreatora (własny `<Select>` wewnątrz modala, wypełniony
+listą kont ze strony) - transakcje z importu muszą trafić na świadomie wskazane konto, nie na
+cokolwiek akurat wybrane w filtrze strony. Podgląd pokazuje: liczbę rozpoznanych pozycji, ile
+gotowych do zaimportowania, ile już wcześniej zaimportowanych, listę nierozpoznanych symboli -
+nic nie zapisuje się przed kliknięciem "Importuj".
+
+**Przy okazji naprawiony pre-istniejący błąd wizualny zgłoszony przez użytkownika (zrzut ekranu
+z bardzo szerokiego okna):** pasek `.header` na `TransactionsPage` (filtry + przyciski) używał
+`justify-content: space-between` bez żadnego ograniczenia szerokości strony - na szerokim oknie
+filtry i OBA przyciski akcji (będące osobnymi dziećmi tego samego kontenera) rozjeżdżały się
+równomiernie po całej szerokości ekranu, wyglądając jak nierówno rozstawione zęby. Naprawione
+dwiema zmianami w `TransactionsPage.module.css`: (1) `.page` dostał `max-width: 87.5rem` - tabela
+pod spodem i tak nie potrzebuje więcej miejsca; (2) nowa klasa `.headerActions` grupuje oba
+przyciski w jeden flex-kontener z małym odstępem, więc `space-between` działa już tylko między
+DWIEMA grupami (filtry / przyciski), nie między trzema osobnymi elementami.
+
+Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check`, `pnpm test`
+275/275 - wszystkie czyste. Port 1430 zajęty przez serwer użytkownika (potwierdzone realnym
+`LISTENING`/`ESTABLISHED` w `netstat`, nie tylko martwym `SYN_SENT`) - zgodnie z zasadą sesji NIE
+dotknięty, weryfikacja wizualna zostawiona użytkownikowi na jego własnym uruchomionym oknie.
 
 ## Zasady pracy przy tym planie
 

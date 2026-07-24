@@ -3,7 +3,16 @@ import { NEW_TRADE_PARAM } from "../shell/Header";
 import { TradeInspector } from "./TradeInspector";
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
-import { ArchiveRestore, Flag, Pencil, Plus, Search, Trash2, TrendingUp } from "lucide-react";
+import {
+  ArchiveRestore,
+  Flag,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  TrendingUp,
+  Upload,
+} from "lucide-react";
 import { formatSignedMoney } from "../app/decimal";
 import { invokeCommand } from "../app/invokeCommand";
 import type { AccountWithBalance } from "../app/types/account";
@@ -22,6 +31,7 @@ import { Table, tableStyles } from "../ui/components/Table/Table";
 import { TextField } from "../ui/components/TextField/TextField";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import { CloseTradeModal } from "./CloseTradeModal";
+import { ImportMt5TradesModal } from "./ImportMt5TradesModal";
 import { TradeFormModal } from "./TradeFormModal";
 import styles from "./TransactionsPage.module.css";
 
@@ -90,6 +100,7 @@ export function TransactionsPage(): ReactElement {
   // go po raz drugi.
   const [formOpen, setFormOpen] = useState(() => searchParams.has(NEW_TRADE_PARAM));
   const [busy, setBusy] = useState(false);
+  const [mt5ImportOpen, setMt5ImportOpen] = useState(false);
 
   useEffect(() => {
     if (!searchParams.has(NEW_TRADE_PARAM)) {
@@ -275,9 +286,14 @@ export function TransactionsPage(): ReactElement {
             onChange={(e) => setIncludeDeleted(e.target.checked)}
           />
         </div>
-        <Button variant="primary" onClick={openCreateForm} disabled={!selectedAccount}>
-          <Plus size={16} aria-hidden="true" /> Dodaj transakcję
-        </Button>
+        <div className={styles.headerActions}>
+          <Button variant="secondary" onClick={() => setMt5ImportOpen(true)}>
+            <Upload size={16} aria-hidden="true" /> Importuj z MT5
+          </Button>
+          <Button variant="primary" onClick={openCreateForm} disabled={!selectedAccount}>
+            <Plus size={16} aria-hidden="true" /> Dodaj transakcję
+          </Button>
+        </div>
       </div>
 
       {tradesError && (
@@ -474,6 +490,13 @@ export function TransactionsPage(): ReactElement {
           }}
           trade={closingTrade}
           accountCurrency={selectedAccount.currency}
+        />
+      )}
+      {mt5ImportOpen && (
+        <ImportMt5TradesModal
+          accounts={accounts}
+          onClose={() => setMt5ImportOpen(false)}
+          onImported={loadTrades}
         />
       )}
     </div>
