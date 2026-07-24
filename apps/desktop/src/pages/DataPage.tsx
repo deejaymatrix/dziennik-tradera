@@ -192,9 +192,10 @@ export function DataPage(): ReactElement {
                 void handleExport("csv");
               }}
               disabled={exporting !== null}
+              loading={exporting === "csv"}
             >
               <Table2 size={16} aria-hidden="true" />
-              {exporting === "csv" ? "Eksportowanie..." : "Eksportuj CSV"}
+              Eksportuj CSV
             </Button>
             <Button
               variant="secondary"
@@ -202,9 +203,10 @@ export function DataPage(): ReactElement {
                 void handleExport("xlsx");
               }}
               disabled={exporting !== null}
+              loading={exporting === "xlsx"}
             >
               <FileSpreadsheet size={16} aria-hidden="true" />
-              {exporting === "xlsx" ? "Eksportowanie..." : "Eksportuj XLSX"}
+              Eksportuj XLSX
             </Button>
             <Button
               variant="secondary"
@@ -212,9 +214,10 @@ export function DataPage(): ReactElement {
                 void handleExport("pdf");
               }}
               disabled={exporting !== null}
+              loading={exporting === "pdf"}
             >
               <FileText size={16} aria-hidden="true" />
-              {exporting === "pdf" ? "Eksportowanie..." : "Eksportuj PDF"}
+              Eksportuj PDF
             </Button>
           </div>
         </section>
@@ -234,9 +237,10 @@ export function DataPage(): ReactElement {
               void handleCreateBackup();
             }}
             disabled={creatingBackup}
+            loading={creatingBackup}
           >
             <Archive size={16} aria-hidden="true" />
-            {creatingBackup ? "Tworzenie kopii..." : "Utwórz kopię zapasową"}
+            Utwórz kopię zapasową
           </Button>
         </div>
       </section>
@@ -256,9 +260,10 @@ export function DataPage(): ReactElement {
               void handleRestoreBackup();
             }}
             disabled={restoring}
+            loading={restoring}
           >
             <Upload size={16} aria-hidden="true" />
-            {restoring ? "Weryfikowanie..." : "Wybierz plik kopii i przywróć"}
+            Wybierz plik kopii i przywróć
           </Button>
         </div>
       </section>

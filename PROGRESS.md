@@ -1839,6 +1839,23 @@ Wszystkie trzy PASS, bez zmian kodu - ale to pierwsza chwila, gdy dało się je 
 przeciw rzeczywistej liczbie/tekstowi promptu, a nie przeciw odtworzonemu z pamięci
 przybliżeniu.
 
+**O7, znaleziony i naprawiony realny błąd: `DataPage.tsx` pominięty przy migracji na stan
+`loading` (część 4).** Czytając pełną listę komponentów z sekcji 9 promptu ("każdy komponent
+ma posiadać komplet stanów... loading"), ponownie sprawdzeni wszyscy konsumenci `Button` -
+`DataPage.tsx` (5 przycisków: eksport CSV/XLSX/PDF, kopia zapasowa, przywracanie) wciąż używał
+starego ręcznego wzorca (`{x ? "..." : "..."}` + `disabled`), pominięty przy pierwotnej migracji
+9 innych plików. Naprawione: wszystkie 5 przycisków dostały `loading={warunek}`, tekst
+przestał się zmieniać (spinner NAD stałym tekstem, konsystentnie z resztą aplikacji).
+Klasyfikacja ważności (sekcja 29): **Wysoki** - jedyny plik z 10 realnie potrzebujących tego
+stanu, który go nie miał, akurat w miejscu z najdłuższą operacją (backup/restore całej bazy).
+
+Weryfikacja: `pnpm typecheck` PASS, sprawdzone w przeglądarce (kliknięcie „Utwórz kopię
+zapasową", `aria-busy` poprawnie `null` w stanie spoczynku, zero błędów konsoli po kliknięciu,
+przycisk wraca do normalnego stanu po nieudanym wywołaniu Tauri) - pełny cykl `loading` nie do
+zaobserwowania bez prawdziwego backendu (operacja kończy się/odrzuca zbyt szybko w tym
+środowisku), ale poprawność oparta na identycznym, już 7-krotnie przetestowanym wzorcu
+`Button.tsx`.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
