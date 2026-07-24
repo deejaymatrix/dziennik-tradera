@@ -3641,6 +3641,34 @@ dopisane, zgodnie z ustalonym wzorcem z `CashOperationsModal.test.tsx`); (2) `de
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **546/546** (73 pliki, +6 nowych testów).
 
+**O7, część 107: `TradeInspector` (panel szczegółów obok tabeli, Split View + Inspector) - zero
+testów.** Cztery nieoczywiste reguły: (1) wewnętrzny `Row` chowa CAŁY wiersz (etykieta + wartość),
+gdy wartość jest `null` LUB pustym stringiem - inaczej lista pęczniałaby od pustych "Interwał: "
+dla każdej transakcji bez interwału; (2)-(3) sekcje "Częściowe zamknięcia" i "Notatki" renderują
+się TYLKO gdy jest co pokazać (`plan_before ?? conclusion` - wystarczy JEDNA z dwóch notatek, nie
+obie); (4) "Edytuj" jest wyłączony dla transakcji z ustawionym `deleted_at` (widoczna w koszu, ale
+nieedytowalna) - wciąż da się ją podejrzeć, tylko nie zmienić.
+
+Nowy `pages/TradeInspector.test.tsx` (10 testów): `net_pnl === null` pokazuje "Brak danych" bez
+klasy profit/loss; dodatni/ujemny wynik dostaje klasę profit/loss; pole `null` chowa wiersz, pole
+z danymi pokazuje; **pusty string (nie `null`) też chowa wiersz**; brak częściowych zamknięć -
+sekcja nie renderuje się wcale; obecne - nagłówek pokazuje liczbę; brak obu notatek - sekcja
+Notatki nie renderuje się; **sama jedna notatka wystarczy**; "Edytuj" wyłączony/aktywny wg
+`deleted_at`.
+
+Zweryfikowane 4 niezależnymi mutacjami: (1) usunięty warunek `value === ""` z `Row` (zostawiony
+tylko `value === null`) - **dokładnie 1 z 10 testów padł** (dedykowany test pustego stringa -
+pierwsza wersja testów tego NIE łapała, dopisany dopiero po tym, jak mutacja przeszła bez
+żadnego niepowodzenia, mimo istniejącego już testu na `null`); (2) `zamkniecia.length > 0`
+zastąpione `true` (sekcja zawsze widoczna, nawet dla 0) - **dokładnie 1 z 10 padł**; (3)
+`plan_before ?? conclusion` zastąpione `plan_before && conclusion` (wymaga OBU notatek) -
+**dokładnie 1 z 10 padł**; (4) `disabled={Boolean(trade.deleted_at)}` zastąpione `disabled={false}`
+
+- **dokładnie 1 z 10 padł**. Po każdym cofnięciu: `git diff --stat` na `TradeInspector.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **556/556** (74 pliki, +10 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
