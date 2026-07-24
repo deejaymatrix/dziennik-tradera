@@ -2897,6 +2897,27 @@ read properties of null`), nie tylko złym wynikiem. Po każdym cofnięciu: `git
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **379/379** (44 pliki, +9 nowych testów).
 
+**O7, część 78: `RouteErrorScreen.tsx` (26 linii) - ekran błędu tras routera, jedyne, co
+użytkownik zobaczy zamiast surowego zrzutu stosu Reacta przy awarii widoku, zero testów.** React
+Router potrafi przekazać do `useRouteError()` DOWOLNĄ rzuconą wartość, nie tylko instancję
+`Error` - błąd w gałęzi `String(error)` pokazałby nieczytelne "[object Object]" zamiast
+prawdziwego komunikatu. Ani ten komponent, ani jego podpięcie w `router.tsx` nie miały testu
+(pokrewny `ErrorBoundary.test.tsx` sprawdza tylko wspólny wygląd ekranu odzyskiwania, nie tę
+konkretną gałąź konwersji błędu ani przycisk przeładowania).
+
+Nowy `app/RouteErrorScreen.test.tsx` (3 testy, `vi.mock("react-router", ...)` na
+`useRouteError`): pokazuje `message` z instancji `Error`; **rzuconą wartość NIEBĘDĄCĄ instancją
+Error konwertuje przez `String()`** (zwykły string, nie `"[object Object]"`); klik "Uruchom
+ponownie" woła `window.location.reload()` dokładnie raz.
+
+Zweryfikowane testem mutacyjnym: tymczasowo `error instanceof Error ? error.message :
+String(error)` zastąpione samym `String(error)` - **dokładnie 1 z 3 testów padł** (test instancji
+Error pokazał "Error: ..." zamiast czystego `message`), pozostałe 2 bez zmian. Po cofnięciu:
+`git diff --stat` na `RouteErrorScreen.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **382/382** (45 plików, +3 nowe testy).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
