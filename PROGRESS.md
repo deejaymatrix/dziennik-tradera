@@ -3754,6 +3754,35 @@ Po każdym cofnięciu: `git diff --stat` na `FormPanel.tsx` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **581/581** (78 plików, +9 nowych testów).
 
+**O7, część 112: `AccountsPage` (lista kont z filtrem "Pokaż zarchiwizowane") - zero testów, pierwszy
+test PEŁNEJ strony w tym audycie.** Nieoczywiste rzeczy: (1) przełączenie filtra wywołuje
+`list_accounts` PONOWNIE z nową wartością `includeArchived` (efekt zależny od stanu, nie
+renderowanie pochodne); (2) przycisk archiwizacji/przywracania i odznaka statusu zależą od
+`archived_at` - konto zarchiwizowane NIGDY nie pokazuje obu przycisków naraz. Przy pisaniu testów
+wyszła na jaw PUŁAPKA specyficzna dla testowania całych stron: `AccountFormModal` jest zamontowany
+ZAWSZE (nawet przy `open={false}`) i sam, niezależnie, woła `list_broker_templates` przy
+montowaniu - jeden, współdzielony mock `invokeCommand` musi więc rozróżniać komendy po nazwie
+(ustalony wzorzec z `AccountFormModal.test.tsx`), inaczej odpowiedź przeznaczona dla
+`list_accounts` trafia do niewłaściwego wywołania i odwrotnie, co objawiało się losowym
+`accounts === undefined` i crashem całego drzewa React (brak error boundary).
+
+Nowy `pages/AccountsPage.test.tsx` (5 testów, `nastawKomendy()` routing po nazwie komendy): pusta
+lista pokazuje `EmptyState`, nie tabelę; błąd wczytywania pokazuje `ErrorState` z komunikatem,
+"Spróbuj ponownie" wywołuje `list_accounts` ponownie; przełączenie "Pokaż zarchiwizowane" woła
+`list_accounts` z `{ includeArchived: true }`; konto aktywne pokazuje odznakę "Aktywne" i przycisk
+"Archiwizuj" (nie "Przywróć"); konto zarchiwizowane odwrotnie.
+
+Zweryfikowane 4 niezależnymi mutacjami: (1) odznaka na sztywno "Aktywne" (usunięty warunek
+`archived_at`) - **dokładnie 1 z 5 testów padł**; (2) przycisk na sztywno "Archiwizuj" - **dokładnie
+1 z 5 padł**; (3) `{ includeArchived }` zastąpione na sztywno `{ includeArchived: false }` -
+**dokładnie 1 z 5 padł** (test przełącznika przez timeout w `waitFor`); (4) warunek `EmptyState`
+(`accounts.length === 0`) zastąpiony `false` - **dokładnie 2 z 5 padły** (oba testy zależne od
+napisu "Brak kont" - poprawnie, to jeden i ten sam warunek w kodzie). Po każdym cofnięciu: `git
+diff --stat` na `AccountsPage.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **586/586** (79 plików, +5 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
