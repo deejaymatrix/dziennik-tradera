@@ -246,6 +246,15 @@ ponownego przeliczania. `cargo test` — 428/428 PASS, bez regresji (427 + nowy 
    Ponownie potwierdzone 2026-07-24 (trzeci raz): `computer{action:"screenshot"}` z działającym
    serwerem deweloperskim na porcie 1430 nadal zwraca „the Browser pane is not displayed, so the
    page is not compositing frames" — stabilna, nie przejściowa usterka środowiska.
+   **Doprecyzowanie tej samej blokady (2026-07-24):** `design/tokens.test.ts` sprawdza WYŁĄCZNIE
+   surowe wartości tokenów z `tokens.css` - nie obejmuje 15 miejsc w aplikacji używających
+   `color-mix()` (podświetlenia hover/active, odznaki, komórki kalendarza z wynikiem, banery
+   ostrzeżeń - np. `Sidebar.module.css`, `Badge.module.css`, `CalendarPage.module.css`).
+   Wzorzec ten jest STARSZY niż redesign O (istniał już przed blokiem O) i używa niskich,
+   spójnych wartości procentowych (6-18%), więc ryzyko realnego naruszenia WCAG jest niskie -
+   ale bez działającego pomiaru na żywo (dokładnie ten sam brak co reszta tej blokady) nie da
+   się tego POTWIERDZIĆ, tylko ocenić jako prawdopodobnie bezpieczne. Nie nowa, osobna blokada -
+   ten sam brakujący dowód, tylko nazwany precyzyjniej.
 2. **Pełne przejście jak użytkownik końcowy** (sekcja 24) — nie wykonane dla przebudowanej
    warstwy wizualnej w całości (tylko częściowo, przy okazji innych sprawdzeń). Dodatkowa
    cząstkowa weryfikacja 2026-07-24: nawigacja Dashboard→Raporty przez klik (nie przez URL —
