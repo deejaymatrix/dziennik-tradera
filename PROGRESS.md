@@ -4170,6 +4170,25 @@ przedistniejące ostrzeżenia `react-refresh/only-export-components` w innych pl
 lint` nie ma `--max-warnings 0`), `pnpm exec prettier --check` czysto, `pnpm test -- --run`
 **656/656** (91 plików, +9 nowych testów).
 
+**O7, część 125: `ReportSymbolTab` (podraport symbolu) - zero testów.** Najcieńszy z podraportów -
+czysty komponent prezentacyjny bez własnych obliczeń, tylko jeden warunek (`!report`) i
+przekazanie pól `report.stats`/`report.by_*` dalej do `StatCard`/`GroupBarChart`. Samo formatowanie
+(`formatPercent`/`formatMinutes`) ma już bezpośrednie testy w `reportFormat.test.ts` - tu chodzi
+wyłącznie o okablowanie: czy właściwe pole trafia do właściwej karty.
+
+Nowy `pages/ReportSymbolTab.test.tsx` (2 testy): `report === null` → pusty stan "Najpierw wybierz
+instrument"; z raportem → nagłówek z `selectedLabel` i karty "Win rate"/"Śr. czas w trade" pokazują
+wartości policzone z odpowiednich pól `stats`.
+
+Zweryfikowane 2 mutacjami: (1) warunek `!report` zastąpiony `false` - **dokładnie 1 z 2 testów
+padł** (crash zamiast błędnego renderu, bo `report` używane dalej jako `null.stats`, ale efekt ten
+sam - zły test wykrył problem); (2) `StatCard label="Win rate"` podpięty pod `formatPercent(null)`
+zamiast `report.stats.win_rate` - **dokładnie 1 z 2 padł**. Po każdym cofnięciu: `git diff --stat`
+na `ReportSymbolTab.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **658/658** (92 pliki, +2 nowe testy).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
