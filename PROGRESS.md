@@ -2704,6 +2704,30 @@ na `ConfirmDialog.tsx` czysty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **315/315** (36 plików, +5 nowych testów).
 
+**O7, część 70: `useOptionalConfirm.ts` - bezpośredni konsument `ConfirmDialog` (część 69), TA
+SAMA klasa ryzyka bezpieczeństwa danych, też bez ŻADNEGO testu.** Ten hak respektuje przełączniki
+„Potwierdzenie przeniesienia do kosza"/„Potwierdzenie operacji nieodwracalnej" z Ustawień -
+pomylony `kind` (np. `trash` sprawdzający po cichu `confirm_permanent_operation` zamiast
+własnego pola, klasyczny błąd kopiuj-wklej przy dodawaniu drugiego rodzaju potwierdzenia) mógłby
+albo cicho pomijać potwierdzenie, którego użytkownik NIE wyłączył, albo pokazywać je mimo
+wyłączenia - w żadną stronę to nie jest tylko kosmetyczny problem.
+
+Nowy `app/useOptionalConfirm.test.tsx` (5 testów, render `PreferencesProvider` + `ConfirmProvider`
+razem - hak wymaga obu): pokazuje prawdziwe okno, gdy dany rodzaj potwierdzenia jest włączony;
+pomija okno i rozwiązuje na `true`, gdy wyłączony; **i kluczowo - dwa testy krzyżowe potwierdzające
+NIEZALEŻNOŚĆ obu przełączników** (wyłączenie potwierdzenia kosza nie rusza potwierdzenia operacji
+nieodwracalnej, i odwrotnie) - to właśnie te dwa testy łapią błąd „sprawdzone złe pole".
+
+Zweryfikowane testem mutacyjnym na DOKŁADNIE tym opisanym scenariuszu: tymczasowo `enabled`
+zawsze czytające `confirm_permanent_operation`, ignorując `kind` - **dokładnie 2 z 5 testów
+padły** (oba dwa testy krzyżowe dla `kind="trash"` z rozbieżnymi wartościami obu pól), pozostałe
+3 (w tym test z obiema wartościami `true`, gdzie mutacja przypadkiem dawała ten sam wynik) bez
+zmian - dokładnie zgodnie z przewidywaniem. Po cofnięciu: `git diff` na `useOptionalConfirm.ts`
+czysty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **320/320** (37 plików, +5 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
