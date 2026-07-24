@@ -148,6 +148,16 @@
   --z-popover: 20; /* tooltip, rozwijany selektor koloru - pływają nad treścią strony */
   --z-overlay: 100; /* paleta poleceń, toasty - nakładki na poziomie całej aplikacji */
   --z-skip-link: 200; /* link "przejdź do treści" - musi być nad dosłownie wszystkim po focusie */
+
+  /* Intensywność color-mix() dla "kolorowy tekst na przyciemnionym tle tego samego koloru"
+     (odznaki, dzień z wynikiem w kalendarzu, tag restartu). Znaleziona podczas audytu O7 realna
+     luka WCAG AA: w motywie jasnym semantyczne kolory są już same w sobie dość ciemne (żeby
+     przejść kontrast jako zwykły tekst), więc nawet niewielki procent mieszania z bliską bieli
+     powierzchnią szybko zbliża tło do koloru tekstu - stąd osobna, dużo niższa wartość dla
+     jasnego motywu niżej. Każdy procent PRZETESTOWANY w design/tokens.test.ts, nie zgadywany. */
+  --tint-badge: 10%;
+  --tint-calendar-day: 10%;
+  --tint-tag: 14%;
 }
 
 /* Motyw jasny to PEŁNOPRAWNY wariant, a nie odwrócony ciemny - wartości dokładnie z promptu
@@ -201,6 +211,10 @@
 
   --shadow-sm: 0 1px 2px rgba(20, 32, 51, 0.08);
   --shadow-md: 0 4px 12px rgba(20, 32, 51, 0.1);
+
+  --tint-badge: 7%;
+  --tint-calendar-day: 7%;
+  --tint-tag: 7%;
 }
 
 /* Poziomy skalowania z Ustawień → Wygląd. Wartości spoza tej listy są niemożliwe: interfejs

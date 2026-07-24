@@ -45,10 +45,13 @@
 }
 
 /* Aktywna pozycja wyróżniona tłem, wagą czcionki ORAZ paskiem - sam kolor tekstu bywa
-   nieczytelny przy niektórych kolorach akcentu. */
+   nieczytelny przy niektórych kolorach akcentu. `color: var(--color-text)` zamiast
+   dziedziczonego `--color-text-muted` z `.menuItem` (znaleziona podczas audytu O7 realna luka
+   WCAG AA: przyciemniony tekst na przyciemnionym tle nie dawał 4,5:1 w żadnym z motywów) -
+   aktywna pozycja i tak nie powinna wyglądać na "przygaszoną". */
 .menuItemActive {
   background: color-mix(in srgb, var(--color-accent) 14%, transparent);
-  color: inherit;
+  color: var(--color-text);
   font-weight: var(--font-weight-semibold);
   box-shadow: inset 3px 0 0 var(--color-accent);
 }

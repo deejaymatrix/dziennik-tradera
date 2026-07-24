@@ -12,12 +12,15 @@ export interface HeatmapTableProps {
 
 /** Skala koloru komórki "Wynik netto" - im dalej od zera (w danym kierunku), tym silniejszy
  * odcień zysku/straty. `maxAbs` to największa wartość absolutna w całej tabeli (skala wspólna
- * dla wszystkich wierszy, żeby kolory były porównywalne między sobą). */
+ * dla wszystkich wierszy, żeby kolory były porównywalne między sobą). Górna granica 0,55 (nie
+ * 0,70 jak poprzednio) - znaleziona podczas audytu O7 realna luka WCAG AA: przy `--color-text`
+ * na tle mieszanym z `--color-profit` w motywie ciemnym kontrast schodził poniżej 4,5:1 dopiero
+ * powyżej ~0,59 - 0,55 zostawia margines bezpieczeństwa, zweryfikowany w tokens.test.ts. */
 function pnlOpacity(value: number, maxAbs: number): number {
   if (maxAbs === 0) {
     return 0;
   }
-  return 0.15 + 0.55 * (Math.abs(value) / maxAbs);
+  return 0.15 + 0.4 * (Math.abs(value) / maxAbs);
 }
 
 /**

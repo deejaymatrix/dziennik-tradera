@@ -19,26 +19,26 @@
 }
 
 .accent {
-  background-color: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  background-color: color-mix(in srgb, var(--color-accent) var(--tint-badge), transparent);
   color: var(--color-accent);
 }
 
 .profit {
-  background-color: color-mix(in srgb, var(--color-profit) 18%, transparent);
+  background-color: color-mix(in srgb, var(--color-profit) var(--tint-badge), transparent);
   color: var(--color-profit);
 }
 
 .loss {
-  background-color: color-mix(in srgb, var(--color-loss) 18%, transparent);
+  background-color: color-mix(in srgb, var(--color-loss) var(--tint-badge), transparent);
   color: var(--color-loss);
 }
 
 .info {
-  background-color: color-mix(in srgb, var(--color-info) 18%, transparent);
+  background-color: color-mix(in srgb, var(--color-info) var(--tint-badge), transparent);
   color: var(--color-info);
 }
 
 .warning {
-  background-color: color-mix(in srgb, var(--color-warning) 18%, transparent);
+  background-color: color-mix(in srgb, var(--color-warning) var(--tint-badge), transparent);
   color: var(--color-warning);
 }

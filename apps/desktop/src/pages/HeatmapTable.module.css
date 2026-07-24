@@ -2,13 +2,17 @@
   position: relative;
 }
 
+/* Tekst `--color-text` zamiast koloru wyniku (znaleziona podczas audytu O7 realna luka WCAG AA:
+   ten sam kolor co tło przy silniejszym nasyceniu komórki dawał nawet 1,7:1 zamiast wymaganych
+   4,5:1 - tekst tego samego koloru co przyciemnione tło zbliża się do niego, aż w końcu staje
+   się nieczytelny). Intensywność tła nadal niesie siłę wyniku - tylko tekst już jej nie kopiuje. */
 .profit {
   background-color: color-mix(
     in srgb,
     var(--color-profit) calc(var(--cell-opacity) * 100%),
     transparent
   );
-  color: var(--color-profit);
+  color: var(--color-text);
   font-weight: var(--font-weight-semibold);
 }
 
@@ -18,6 +22,6 @@
     var(--color-loss) calc(var(--cell-opacity) * 100%),
     transparent
   );
-  color: var(--color-loss);
+  color: var(--color-text);
   font-weight: var(--font-weight-semibold);
 }

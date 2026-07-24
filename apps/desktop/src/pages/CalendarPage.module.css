@@ -70,7 +70,11 @@
 
 .profitDay {
   border-color: color-mix(in srgb, var(--color-profit) 40%, var(--color-border));
-  background-color: color-mix(in srgb, var(--color-profit) 10%, var(--color-surface));
+  background-color: color-mix(
+    in srgb,
+    var(--color-profit) var(--tint-calendar-day),
+    var(--color-surface)
+  );
 }
 
 .profitDay .dayPnl {
@@ -79,7 +83,11 @@
 
 .lossDay {
   border-color: color-mix(in srgb, var(--color-loss) 40%, var(--color-border));
-  background-color: color-mix(in srgb, var(--color-loss) 10%, var(--color-surface));
+  background-color: color-mix(
+    in srgb,
+    var(--color-loss) var(--tint-calendar-day),
+    var(--color-surface)
+  );
 }
 
 .lossDay .dayPnl {

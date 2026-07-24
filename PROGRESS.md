@@ -1660,6 +1660,37 @@ całego pliku testowego dla złożonego providera tylko dla jednej stałej było
 do realnego ryzyka (rozjazd tam skutkowałby najwyżej złym podświetleniem presetu, nie utratą
 danych); zsynchronizowanie pilnowane komentarzem w kodzie, jak dotychczas.
 
+**O7, znaleziona i naprawiona realna luka WCAG AA: `color-mix()` na tle tekstu tego samego
+koloru.** `design/tokens.test.ts` sprawdzał wyłącznie surowe tokeny - zamiast zostawić 15 miejsc
+używających `color-mix()` jako niepotwierdzone ryzyko (jak w poprzednim wpisie), dopisana
+matematyczna symulacja `color-mix(in srgb, ...)` (funkcja `mieszaj()`, interpolacja liniowa
+kanałów w sRGB) i uruchomiona na każdym miejscu, gdzie tekst renderuje się na takim tle.
+Wynik: **14 realnych naruszeń**, nie zero:
+
+- `Badge` (wszystkie 5 wariantów) - tekst semantyczny na 18%-owym tle tego samego koloru: 3,9-4,07
+  zamiast ≥4,5 w obu motywach.
+- `HeatmapTable` - tekst wyniku w kolorze wyniku na tle o sile aż do 70% - przy silnym nasyceniu
+  kontrast spadał do 1,7:1 (tekst praktycznie znikał).
+- `SettingsPage .menuItemActive` - dziedziczony `--color-text-muted` (nie `--color-text`) na tle
+  akcentu: 4,13-4,36.
+- `SettingRow .restartTag` (4,18) i `CalendarPage .dayPnl` (4,43) w motywie jasnym.
+
+Naprawione, nie tylko udokumentowane: `Badge`/`CalendarPage`/`SettingRow` dostały nowe tokeny
+intensywności PER MOTYW (`--tint-badge`/`--tint-calendar-day`/`--tint-tag` w `tokens.css`) -
+motyw jasny potrzebuje dużo niższego procentu, bo jego kolory semantyczne są już same w sobie
+ciemniejsze (dobrane pod kontrast jako zwykły tekst), więc nawet niewielkie mieszanie z bliską
+bieli powierzchnią szybko zbliża tło do koloru tekstu. `menuItemActive` dostał `color:
+var(--color-text)` zamiast dziedziczonego wyciszonego koloru - aktywna pozycja i tak nie powinna
+wyglądać na przygaszoną. `HeatmapTable` dostał `color: var(--color-text)` zamiast koloru wyniku
+(intensywność tła nadal niesie magnitudę, tylko tekst już jej nie kopiuje) i obniżony pułap
+`pnlOpacity()` z 0,70 do 0,55 (margines pod dokładną granicą 0,593 w motywie ciemnym, gdzie
+nawet stały `--color-text` traci kontrast przy bardzo silnym tle).
+
+Wszystkie 14 przypadków przeliczone w teście z realnych tokenów, nie hardkodowane oczekiwane
+wartości - `pnpm test` 52/52 PASS po poprawce (261/261 w całym froncie). Pełne wpisy z dowodami:
+[MACIERZ_AUDYTU_REDESIGN_O.md](MACIERZ_AUDYTU_REDESIGN_O.md), sekcja 1 (ostatni wiersz) i blokada
+#1 w podsumowaniu.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat

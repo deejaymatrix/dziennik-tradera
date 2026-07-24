@@ -49,7 +49,7 @@
 
 .restartTag {
   color: var(--color-warning);
-  background: color-mix(in srgb, var(--color-warning) 14%, transparent);
+  background: color-mix(in srgb, var(--color-warning) var(--tint-tag), transparent);
 }
 
 .lockedTag {
