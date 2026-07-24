@@ -3437,6 +3437,29 @@ sukcesie (zostaje samo `onClosed()`) - **dokładnie 1 z 5 padł**. Po każdym co
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **505/505** (65 plików, +5 nowych testów).
 
+**O7, część 99: `ImportBrokerModal.tsx` (188 linii) - kreator importu CSV brokera, zero testów.**
+Dwie łatwe do przeoczenia granice: (1) anulowanie natywnego okna wyboru pliku (`open()` z
+`@tauri-apps/plugin-dialog` zwraca `null`) musi zostawić modal w spoczynku, bez wywołania
+`preview_broker_import` - inaczej podgląd próbowałby się wczytać dla `sourcePath: null`; (2)
+tabela podglądu obcina się na DOKŁADNIE 50 wierszach z licznikiem reszty - błąd o jeden w tę czy
+w drugą stronę jest klasyczny i niewidoczny bez testu na granicznej liczbie (50 vs 51 wierszy).
+
+Nowy `pages/ImportBrokerModal.test.tsx` (6 testów, mock `invokeCommand` +
+`@tauri-apps/plugin-dialog`): anulowanie okna NIE woła `preview_broker_import`, nie pokazuje
+podglądu, "Importuj" zostaje wyłączony; nazwa pliku wyciąga się poprawnie z pełnej ścieżki
+zarówno Windows (`\`) jak i Unix (`/`); **dokładnie 50 wierszy pokazuje wszystkie bez licznika
+"więcej", 51 wierszy pokazuje tylko pierwsze 50 z licznikiem "...i 1 więcej."**; wariant `MINI`
+dostaje odznakę, inny wariant myślnik.
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) `preview.rows.slice(0, 50)` zmienione na `slice(0,
+51)` - **dokładnie 1 z 6 testów padł**, pokazując dokładnie przewidziany błąd o jeden (52 wiersze
+w DOM zamiast 51 licząc nagłówek); (2) usunięta straż `!path || Array.isArray(path)` po
+anulowaniu wyboru pliku - **dokładnie 1 z 6 padł**, `preview_broker_import` wywołane z
+`sourcePath: null`. Po każdym cofnięciu: `git diff --stat` na `ImportBrokerModal.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **511/511** (66 plików, +6 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
