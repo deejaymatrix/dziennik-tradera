@@ -3,6 +3,7 @@ import { formatMoney, formatSignedMoney, sumDecimalStrings } from "../app/decima
 import { formatNumber, formatPercent } from "../app/reportFormat";
 import type { FilteredReport, GroupBreakdown } from "../app/types/report";
 import { Table, tableStyles } from "../ui/components/Table/Table";
+import { TruncatedText } from "../ui/components/TruncatedText/TruncatedText";
 import { ChartCard } from "./ChartCard";
 import { CumulativeLineChart } from "./CumulativeLineChart";
 import { GroupBarChart } from "./GroupBarChart";
@@ -176,19 +177,27 @@ export function ReportYearlyTab({ report, currency, year }: ReportYearlyTabProps
         <dl className={styles.leaderboard}>
           <div className={styles.leaderCard}>
             <span className={styles.leaderLabel}>Najlepsza strategia</span>
-            <span className={styles.leaderValue}>{bestStrategy?.label ?? "—"}</span>
+            <span className={styles.leaderValue}>
+              {bestStrategy ? <TruncatedText text={bestStrategy.label} /> : "—"}
+            </span>
           </div>
           <div className={styles.leaderCard}>
             <span className={styles.leaderLabel}>Najgorsza strategia</span>
-            <span className={styles.leaderValue}>{worstStrategy?.label ?? "—"}</span>
+            <span className={styles.leaderValue}>
+              {worstStrategy ? <TruncatedText text={worstStrategy.label} /> : "—"}
+            </span>
           </div>
           <div className={styles.leaderCard}>
             <span className={styles.leaderLabel}>Najlepszy instrument</span>
-            <span className={styles.leaderValue}>{bestInstrument?.label ?? "—"}</span>
+            <span className={styles.leaderValue}>
+              {bestInstrument ? <TruncatedText text={bestInstrument.label} /> : "—"}
+            </span>
           </div>
           <div className={styles.leaderCard}>
             <span className={styles.leaderLabel}>Najgorszy instrument</span>
-            <span className={styles.leaderValue}>{worstInstrument?.label ?? "—"}</span>
+            <span className={styles.leaderValue}>
+              {worstInstrument ? <TruncatedText text={worstInstrument.label} /> : "—"}
+            </span>
           </div>
           <div className={styles.leaderCard}>
             <span className={styles.leaderLabel}>Najaktywniejszy miesiąc</span>

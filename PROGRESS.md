@@ -2658,6 +2658,39 @@ obsłużone czytelnym „—", bez ryzyka crasha na pustych danych).
 Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check`, `pnpm test`
 278/278 - wszystkie czyste. Zero błędów konsoli w obu testach przeglądarkowych.
 
+**Raport roczny (zadanie 3, zamknięte) - zastosowany ten sam wzorzec `TruncatedText` na
+"Liderzy roku" (najlepsza/najgorsza strategia/instrument) - `min-width:0` na `.leaderCard` już
+naprawiony wspólnie dla wszystkich podraportów w części wyżej. "Najlepszy/najgorszy miesiąc/
+kwartał" (w `StatCard`, nie w `.leaderCard`) świadomie NIE dostały `TruncatedText` - etykiety
+miesiąca/kwartału są z definicji bounded (nazwa miesiąca + rok, "Q1".."Q4"), nie treść tworzona
+przez użytkownika. `CumulativeLineChart` sprawdzony i pominięty - jedyne użycie to ten sam
+podraport z etykietami miesięcy, ten sam niski poziom ryzyka.
+
+**Znalezisko krytyczne przy weryfikacji na żywo - `TruncatedText` z części 2 (raport miesięczny)
+BYŁ NIEFUNKCJONALNY mimo przechodzących testów jednostkowych.** Zmierzone realnie w przeglądarce
+(`getBoundingClientRect`/`scrollWidth` vs `clientWidth` na prawdziwym renderze, nie w JSDOM):
+`Tooltip.wrapper` (`display: inline-flex`) IGNOROWAŁ szerokość odziedziczoną z rodzica i rósł do
+pełnej treści dziecka - więc obcięty tekst (`.truncate`, poprawnie `max-width: 100%`) wracał do
+PEŁNEJ szerokości w momencie owinięcia w `Tooltip` (co dzieje się zawsze, gdy tekst faktycznie
+jest za długi - czyli w DOKŁADNIE tych przypadkach, dla których cały komponent powstał). Testy
+jednostkowe tego nie złapały, bo JSDOM nie liczy prawdziwego layoutu (`scrollWidth`/`clientWidth`
+są tam ręcznie mockowane, nie mierzone) - to nie był błąd w logice wykrywania obcięcia, tylko
+w CSS, który JSDOM z definicji nie weryfikuje. Naprawione w jednym miejscu, źródłowo: dodane
+`max-width: 100%; min-width: 0;` do `Tooltip.module.css .wrapper` - naprawia WSZYSTKIE dotychczasowe
+i przyszłe użycia `TruncatedText` (w tym już zacommitowane w raporcie miesięcznym), nie tylko
+raport roczny. Zweryfikowane ponownie na żywo po poprawce: `scrollWidth`/`clientWidth` poprawnie
+różne (654px/147px), wielokropek faktycznie widoczny.
+
+**Wniosek metodologiczny zapisany do pamięci sesji:** dla komponentów łączących CSS truncation
+z innym istniejącym komponentem (`Tooltip`), sama zielona suita testów jednostkowych NIE
+wystarcza - `scrollWidth`/`clientWidth` w JSDOM są iluzją (mockowaną wartością testu, nie
+prawdziwym layoutem), więc test może przechodzić, mimo że prawdziwe CSS nigdy by tego nie
+osiągnęło. Realna weryfikacja w przeglądarce (fałszywy mostek + pomiar geometrii) jest
+obowiązkowa dla każdego nowego komponentu opartego na obcinaniu/przepełnieniu tekstu.
+
+Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check`, `pnpm test`
+278/278 - wszystkie czyste. Zero błędów konsoli.
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.

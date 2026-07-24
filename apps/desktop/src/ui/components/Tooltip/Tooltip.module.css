@@ -1,6 +1,11 @@
 .wrapper {
   position: relative;
   display: inline-flex;
+  /* Bez tego `inline-flex` ignoruje szerokość odziedziczoną z rodzica i rośnie do pełnej treści
+     dziecka (kurczy/rozciąga się do zawartości z definicji) - znalezione przez `TruncatedText`,
+     gdzie owinięcie obciętego tekstu w Tooltip cofało obcięcie z powrotem do pełnej szerokości. */
+  max-width: 100%;
+  min-width: 0;
 }
 
 .bubble {
