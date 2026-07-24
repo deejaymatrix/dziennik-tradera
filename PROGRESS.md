@@ -3183,6 +3183,33 @@ onRowClick"). Po każdym cofnięciu: `git diff --stat` na `BreakdownTable.tsx` p
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **437/437** (55 plików, +7 nowych testów).
 
+**O7, część 89: `TradeBalanceCard.tsx` (57 linii, sekcja "Saldo przed/po/aktualne" w formularzu
+transakcji) - DWA NIEZALEŻNE źródła "aktualnego salda" zależnie od trybu, zero testów.** Dla
+nowej transakcji pokazuje ŻYWY prop `currentBalance`; dla edytowanej - ZAMROŻONĄ migawkę
+`context.current_balance` sprzed rozpoczęcia edycji (komentarz w źródle: "nie przelicza się na
+żywo przy zmianie pól w formularzu"). Pomylenie tych dwóch źródeł byłoby niewidoczne przy
+pobieżnym teście (oba nazywają się "saldo", oba się renderują) - trzeba świadomie ustawić je na
+RÓŻNE wartości w teście, żeby regresja była w ogóle wykrywalna.
+
+Nowy `pages/TradeBalanceCard.test.tsx` (3 testy): nowa transakcja (`!isEdit`) pokazuje TYLKO
+żywe saldo z propa `currentBalance`, bez wierszy przed/po; edycja bez wczytanego kontekstu
+pokazuje stan ładowania, nie żadne saldo; **edycja z kontekstem: "Aktualne saldo konta" pochodzi
+z ZAMROŻONEJ migawki `context.current_balance`, NIE z żywego propa `currentBalance`** - test
+celowo ustawia oba źródła na skrajnie różne wartości (2000 vs 999999,99), żeby regresja była
+jednoznacznie wykrywalna, nie przypadkowo zgodna.
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) źródło "Aktualne saldo konta" w gałęzi edycji
+zamienione z `context.current_balance` na żywy `currentBalance` - **dokładnie 1 z 3 testów
+padł** (test migawki, migawka zniknęła z DOM); (2) usunięty guard `if (!context)` (stan
+ładowania) - **dokładnie 1 z 3 padł**, z realnym `TypeError: Cannot read properties of null`
+(próba odczytu `context.current_balance` na `null`), nie tylko złym wynikiem. Po każdym
+cofnięciu: `git diff --stat` na `TradeBalanceCard.tsx` pusty. (Przy okazji: `Intl.NumberFormat`
+w tym środowisku grupuje tysiące spacją niełamiącą U+00A0 tylko od 6 cyfr wzwyż - test dobrany
+tak, żeby nie zależeć od tego szczegółu.)
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **440/440** (56 plików, +3 nowe testy).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
