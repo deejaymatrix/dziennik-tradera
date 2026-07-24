@@ -2315,11 +2315,12 @@ wyżej/niżej, archiwizuj/przywróć, zapisz zmianę nazwy) nie blokował się i
 spinnera podczas `invokeCommand`.
 
 Naprawione identycznym wzorcem co część 52-54: nowa zmienna `useState<boolean>` w obu plikach
-+ `setBusy(true)`/`finally setBusy(false)` we wszystkich async handlerach, podpięte jako
-`loading={busy}` wszędzie poza „Anuluj zmianę nazwy" (X - bez `invokeCommand`) i „Zmień nazwę"
-(Pencil - tylko otwiera tryb edycji). Istniejący `submitting` przy przycisku „Dodaj" w obu
-plikach zostawiony bez zmian - to osobna, niezależna zmienna od `busy` (dodawanie nowego
-elementu vs akcja na istniejącym).
+
+- `setBusy(true)`/`finally setBusy(false)` we wszystkich async handlerach, podpięte jako
+  `loading={busy}` wszędzie poza „Anuluj zmianę nazwy" (X - bez `invokeCommand`) i „Zmień nazwę"
+  (Pencil - tylko otwiera tryb edycji). Istniejący `submitting` przy przycisku „Dodaj" w obu
+  plikach zostawiony bez zmian - to osobna, niezależna zmienna od `busy` (dodawanie nowego
+  elementu vs akcja na istniejącym).
 
 Zweryfikowane w przeglądarce oba komponenty (fałszywe opóźnienie 700ms w
 `set_interval_hidden`/`set_emotional_state_hidden`): `aria-busy`/`disabled` poprawnie `true`
@@ -2384,6 +2385,7 @@ podpięty pod `loading=` na przycisku zapisu.
 
 Znalezione i naprawione 4 pliki, ten sam wzorzec `useState<boolean>` + `setBusy(true)`/
 `finally setBusy(false)` + `loading={busy}`:
+
 - `TradeAttachments.tsx` - `busy` JUŻ ISTNIAŁ (użyty na "Dodaj zdjęcie"/"Wklej ze schowka"/"Dodaj"
   z części 52) i faktycznie się ustawiał przez `withBusy()` przy przesuwaniu/usuwaniu załącznika -
   ale 3 `IconButton` (przesuń wyżej/niżej, usuń) nie miały `loading={busy}` w JSX, więc stan był
@@ -2481,6 +2483,7 @@ być przesunięta trailing stopem w stronę zysku, co złamałoby walidację "SL
 ryzyka").
 
 Zbudowane (backend, `apps/desktop/src-tauri`):
+
 - `domain/mt5_import.rs` - czysty, testowalny parser sekcji "Pozycje" (`parse_positions`) + funkcja
   re-kodująca UTF-16→UTF-8. 5 testów, w tym regresja na prawdziwy błąd UTF-16 i fikstura budowana
   programowo przez `rust_xlsxwriter` (już zależność projektu, żadnego nowego pliku binarnego).
@@ -2561,6 +2564,7 @@ tylko w Kalendarzu - inaczej dzień pokazany w Kalendarzu mógłby nie pasować 
 Raporcie miesięcznym/rocznym (nowa niespójność zamiast starej).
 
 Naprawione w 3 plikach:
+
 - `domain/trade_stats.rs` - nowa funkcja `zamkniecie_lokalnie()` (konwersja do `chrono::Local`)
   używana przez `compute_calendar`/`compute_monthly_breakdown`/`compute_calendar_month_breakdown`/
   `compute_yearly_breakdown`/`compute_day_of_week_breakdown`/`compute_four_hour_breakdown`/
@@ -2632,6 +2636,7 @@ gdy tekst faktycznie nie mieści się, pokazuje pełną wartość w `Tooltip` na
 teraz JEDNO miejsce do użycia wszędzie, gdzie wartość może być dowolnie długa.
 
 **Raport miesięczny (zadanie 2, zamknięte) - 2 realne znaleziska:**
+
 1. Sekcja "Podsumowanie jakościowe" (najlepszy/najgorszy dzień/strategia/instrument) renderowała
    surowe etykiety bez obcinania w siatce kart o `minmax(11rem, 1fr)` - klasyczna pułapka CSS
    Grid (`min-width: auto` elementu siatki nie pozwala mu zejść poniżej szerokości NIEOBCIĘTEJ
@@ -2745,6 +2750,7 @@ Po znalezieniu identycznego wzorca w `TradeInspector`, zamiast czekać na przypa
 kolejnych wystąpień, wykonany systematyczny przegląd CAŁEGO frontendu: `grep -rln
 "text-overflow: ellipsis" src --include="*.css"` (9 plików). Znalezione i naprawione 2 kolejne
 identyczne przypadki tego samego brakującego `white-space: nowrap`:
+
 1. `TradeFormModal.module.css .workflowAccount` - nazwa wybranego konta w nagłówku formularza
    nowej transakcji (`TradeFormModal.tsx:753`), tworzona przez użytkownika, może być dowolnie
    długa.
@@ -2788,11 +2794,13 @@ wyświetlenia. Frontend w kilku miejscach interpolował te wartości WPROST, bez
 **Rozwiązanie:** nowa współdzielona funkcja `formatDecimal()` w `app/decimal.ts` - obcina zera
 POWYŻEJ 2 miejsc po przecinku (bez utraty cyfr znaczących), ale nigdy nie schodzi poniżej 2 miejsc.
 Limit górny ustawiony na 10 miejsc (nie 8, jak we wcześniejszym lokalnym `formatLot` z kalkulatora)
+
 - dobrany na podstawie REALNYCH danych z pliku Vantage: pola `tick_value_profit`/`tick_value_loss`
-bywają naprawdę precyzyjne do 10 miejsc (przeliczony kurs krzyżowy, nie zera z wypełnienia), więc
-niższy limit ucinałby przez zaokrąglenie prawdziwe cyfry, nie tylko sztuczne zera.
+  bywają naprawdę precyzyjne do 10 miejsc (przeliczony kurs krzyżowy, nie zera z wypełnienia), więc
+  niższy limit ucinałby przez zaokrąglenie prawdziwe cyfry, nie tylko sztuczne zera.
 
 Naprawione (surowe interpolacje zamienione na `formatDecimal`):
+
 1. `InstrumentFormModal.tsx` - podsumowanie tylko-do-odczytu istniejącego instrumentu (`point`,
    `trade_tick_size`, `trade_tick_value`, `tick_value_profit`, `tick_value_loss`, `contract_size`,
    `volume_min/max/step`) - to jest DOKŁADNIE ekran, o którym mówił użytkownik.
@@ -2840,6 +2848,7 @@ istniejące ostrzeżenia `react-refresh/only-export-components`), `pnpm exec tsc
 czysto, `pnpm exec prettier --check` czysto, `pnpm test -- --run` 283/283.
 
 **Kalendarz (zadanie 9, zamknięte) - 2 znaleziska.**
+
 1. `.dayPnl` (kwota wyniku dnia + waluta) i `.dayCount` ("N transakcji") w `CalendarPage.module.css`
    nie miały `white-space: nowrap` - spacja między kwotą a kodem waluty (`formatSignedMoney` sklejа
    je spacją) jest prawidłowym miejscem zawinięcia bez tej deklaracji. Przy węższym oknie komórka
@@ -2862,6 +2871,7 @@ Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `p
 --check` czysto, `pnpm test -- --run` 283/283. Bez weryfikacji na żywo w przeglądarce - port 1430
 zajęty przez prawdziwą sesję użytkownika przez cały czas tego zadania (`netstat` potwierdzone
 LISTENING+ESTABLISHED), a mój własny serwer podglądu używa TEGO SAMEGO portu (`.claude/launch.json`)
+
 - zgodnie ze standing instrukcją audyt oparty wyłącznie o przegląd kodu.
 
 **Konta - lista i modale (zadanie 10, zamknięte) - 1 znalezisko, ale we WSPÓLNYM komponencie.**
@@ -2923,6 +2933,7 @@ dlaczego) - potwierdzone ponownym, dokładnym przeczytaniem, bez potrzeby żadne
 Weryfikacja: `pnpm test -- --run` 283/283 (bez zmian kodu w tym zadaniu).
 
 **Zasady handlu (zadanie 14, zamknięte) - 2 znaleziska.**
+
 1. `{visibleRules.length} pytań` w `ZasadyHandluPage.tsx` był STAŁYM tekstem bez ŻADNEJ odmiany -
    "1 pytań" i "2 pytań" byłyby błędne (powinno być "1 pytanie", "2 pytania"). To DRUGI przypadek
    dokładnie tego samego braku odmiany liczebnikowej co licznik transakcji dnia w Kalendarzu
@@ -2972,6 +2983,7 @@ Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `p
 
 **Ustawienia - wszystkie sekcje (zadanie 17, zamknięte) - 4 znaleziska w `settings/DataSection.tsx`,
 reszta bez zmian.**
+
 1. `Usuniętych zostanie {N} niezapisanych szkiców` - CZWARTY przypadek braku odmiany liczebnikowej
    (po Kalendarzu, Zasadach handlu, Koszu) - naprawiony przez `pluralPl()`.
 2. `Wyczyszczono {N} szkiców` - ten sam brak, ta sama naprawa.
@@ -2980,7 +2992,7 @@ reszta bez zmian.**
    z sąsiadującym polem "Rozmiar bazy", które już używało `Intl.NumberFormat`. Dodana nowa lokalna
    `formatCount()` (ten sam wzorzec co już istniejące `formatBytes()` w tym samym pliku).
 4. `.updateNotes` (notatki wydania aktualizacji) w `SettingsPage.module.css` miał `white-space:
-   pre-wrap` bez `overflow-wrap: anywhere` - pojedynczy długi token bez spacji (np. link w notatkach
+pre-wrap` bez `overflow-wrap: anywhere` - pojedynczy długi token bez spacji (np. link w notatkach
    wydania) mógłby wypchnąć kartę. Ten sam wzorzec naprawy co `.answer` w Zasadach handlu (zadanie 14).
 
 Reszta ekranu (współdzielony `SettingRow` używany przez WSZYSTKIE sekcje preferencji, `PreferenceSections.tsx`
@@ -3015,6 +3027,61 @@ głównego kolumnowego flexa, z obszernym komentarzem o wcześniej znalezionym b
 scrolla) - fundament, na którym stoi reszta audytu, już od dawna poprawny.
 
 Weryfikacja: `pnpm test -- --run` 289/289 (bez zmian kodu w tym zadaniu).
+
+## Finalna regresja + tabela PASS/FAIL (zadanie 20, zamknięte)
+
+**Tabela PASS/FAIL - każdy ekran audytu wizualnego formatowania, żaden nie pominięty:**
+
+| #   | Ekran                                            | Status                                           | Znaleziska                                                                                  |
+| --- | ------------------------------------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| 1   | Baseline (wspólny system formatowania)           | PASS                                             | Zbudowany `TruncatedText`, wykorzystano istniejące `Table.wrapper`/`.numeric`/`formatMoney` |
+| 2   | Raport miesięczny                                | PASS (2 poprawki)                                | Obcinanie liderów jakościowych + skalowanie długich etykiet wykresu                         |
+| 3   | Raport roczny                                    | PASS (1 poprawka + 1 krytyczne)                  | Liderzy roku + `Tooltip.wrapper` defekt (naprawiał WSZYSTKIE użycia `TruncatedText`)        |
+| 4   | Raport porównania kont                           | PASS (1 poprawka)                                | `LeaderCard` bez obcinania                                                                  |
+| 5   | Raport instrumentu                               | PASS bez zmian                                   | Ponowne użycie już naprawionych komponentów                                                 |
+| 6   | Raport strategii                                 | PASS bez zmian                                   | Ponowne użycie już naprawionych komponentów                                                 |
+| 7   | Dashboard                                        | PASS bez zmian                                   | Brak `.leaderCard` na tym ekranie                                                           |
+| 8   | Historia transakcji                              | PASS (4 poprawki)                                | Brakujący `white-space: nowrap` w 4 plikach (systematyczny sweep całego frontendu)          |
+| 9   | Kalendarz                                        | PASS (2 poprawki)                                | Obcięcie wyniku dnia zamiast zawinięcia + odmiana liczebnikowa transakcji                   |
+| 10  | Konta                                            | PASS (1 poprawka we wspólnym komponencie)        | `ReadOnlyField` - pułapka CSS Grid, naprawia od razu 4 ekrany                               |
+| 11  | Strategie                                        | PASS bez zmian                                   | W tym dokładnie zweryfikowana pozorna pułapka w `ColorPicker` (nieszkodliwa)                |
+| 12  | Instrumenty i szablony brokerów                  | PASS bez zmian                                   | Naprawa już w zadaniu 23                                                                    |
+| 13  | Interwały i Stan emocjonalny                     | PASS bez zmian                                   | `EmotionsEditor` już wzorcowo poprawny                                                      |
+| 14  | Zasady handlu                                    | PASS (2 poprawki)                                | Odmiana liczebnikowa pytań (wydzielona `pluralPl()`) + obcięcie długich odpowiedzi          |
+| 15  | Eksport i kopie (DataPage)                       | PASS bez zmian                                   | Statyczny tekst, brak tabel                                                                 |
+| 16  | Kosz                                             | PASS (5 poprawek)                                | 5 komunikatów bez odmiany liczebnikowej                                                     |
+| 17  | Ustawienia (wszystkie sekcje)                    | PASS (4 poprawki)                                | 2× odmiana liczebnikowa szkiców, separator tysięcy, obcięcie notatek aktualizacji           |
+| 18  | Kalkulator pozycji                               | PASS bez nowych zmian                            | Naprawa już w zadaniu 23                                                                    |
+| 19  | Powłoka aplikacji                                | PASS bez zmian                                   | `Sidebar` już naprawiony w zadaniu 8, `AppShell.main` fundament już poprawny                |
+| -   | Formatowanie liczb dziesiętnych (całą aplikacja) | PASS (zadanie 23, osobne zgłoszenie użytkownika) | Nowa `formatDecimal()`, naprawione 10 plików, zweryfikowane na realnym pliku brokera        |
+
+**Podsumowanie liczbowe:** 19/19 ekranów PASS, zero FAIL. Łącznie znalezionych i naprawionych ~30
+konkretnych defektów formatowania w ~25 plikach, plus 2 nowe współdzielone narzędzia (`formatDecimal`,
+`pluralPl`) zapobiegające powrotowi tych samych klas błędów. Żadna kalkulacja, agregacja ani logika
+biznesowa nie została dotknięta - wyłącznie prezentacja.
+
+**Finalna regresja całej aplikacji (dokładne komendy CI z `.github/workflows/ci.yml`, nie gołe
+odpowiedniki - zgodnie z ustaloną zasadą tego projektu):**
+
+- `pnpm lint` (`eslint .`) - 0 błędów (10 niegroźnych, od dawna istniejących ostrzeżeń `react-refresh`)
+- `pnpm format:check` (`prettier --check .`) - przy okazji znalezione i naprawione 2 realne pliki
+  (`PROGRESS.md`, `MACIERZ_AUDYTU_REDESIGN_O.md`) z niepoprawnym formatowaniem Markdown (wyłącznie
+  odstępy/łamanie list - zero zmiany treści, zweryfikowane `git diff -w`); pozostałe 8 ostrzeżeń to
+  pliki w `.claude/worktrees/` - potwierdzone jako `git`-ignorowane (`git ls-files` nie zwraca nic),
+  więc CI robiące świeży checkout nigdy ich nie zobaczy
+- `pnpm typecheck` - czysto
+- `pnpm test` (`vitest run`, cały monorepo) - 289/289
+- `cargo fmt --check` (src-tauri) - czysto
+- `cargo clippy --all-targets -- -D warnings` (src-tauri) - **5 błędów, ale WSZYSTKIE
+  przedawnione/niezwiązane z tą sesją** (martwy kod: `as_seconds`, `PLATFORMA`, `wpis_windows` +
+  duży wariant enuma `DbState`) - potwierdzone `git log` na dotkniętych plikach: ostatnie commity to
+  wcześniejsza praca nad Blokiem O/motywem, NIE ten audyt (który nie dotknął ani jednego pliku
+  `.rs`). Zgodnie z wcześniejszym ustaleniem z użytkownikiem, ten dług już czeka w osobnym,
+  wcześniej zgłoszonym zadaniu (`task_c91d280f`) - świadomie NIE naprawiane tutaj, żeby nie mieszać
+  zakresów
+- `cargo test` (src-tauri) - 435/435 - to jest WŁAŚCIWA weryfikacja braku regresji obliczeniowej;
+  zero zmian w kalkulacjach/agregacjach, potwierdzone przechodzącym kompletem testów logiki
+  biznesowej bez żadnej modyfikacji
 
 ## Zasady pracy przy tym planie
 
