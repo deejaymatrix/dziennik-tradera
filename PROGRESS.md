@@ -2115,6 +2115,20 @@ Uczciwie oznaczone jako CZĘŚCIOWO ZWERYFIKOWANE, nie PASS - zgodnie z zasadą 
 oznaczaj PASS wyłącznie przez założenie"). Wysoka pewność z przeglądu kodu (identyczny,
 świadomie powtórzony wzorzec w 2 miejscach), ale bez pełnego domknięcia dowodem z przeglądarki.
 
+**O7: domknięta powyższa częściowa weryfikacja - teraz pełny PASS.** Odczytany wprost pełny
+interfejs `PositionSizingResult` w `KalkulatorPozycjiPage.tsx:22-36` (13 pól, w tym pominięty
+wcześniej `warnings: string[]`) i zbudowany kompletny, poprawny fałszywy mostek Tauri zamiast
+zgadywanego. Dodatkowo: uruchomione na ŚWIEŻEJ karcie przeglądarki (`tabs_create`), nie na tej
+samej co poprzednia nieudana próba - odkryte przy okazji, że `read_console_messages` kumuluje
+historię przez cały czas życia karty, nie tylko od ostatniej nawigacji (stary błąd z poprzedniej
+próby dalej pojawiał się w konsoli mimo poprawnie działającej strony i wielu świeżych nawigacji;
+dopiero nowa karta pokazała czystą konsolę) - zapisane jako nowy punkt w pamięci sesji.
+
+Na czystej karcie: `calculate_position_size` faktycznie wywołane z poprawnym payloadem, wynik
+poprawnie wyrenderowany, DOKŁADNIE ten sam węzeł DOM pola „Cena wejścia" pozostał skupiony
+(potwierdzone znacznikiem na obiekcie węzła, nie tylko selektorem), pozycja kursora zachowana,
+zero błędów konsoli. Pełny PASS, bez zmian kodu (kod już był poprawny).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
