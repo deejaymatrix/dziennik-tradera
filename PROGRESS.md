@@ -2752,6 +2752,27 @@ cofnięciu (`git checkout` na pojedynczym pliku): `git diff` czysty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **328/328** (38 plików, +8 nowych testów).
 
+**O7, część 72: `reportFormat.ts` (31 linii) - cztery czyste funkcje formatujące wskaźniki
+raportów, używane w 7 miejscach (Dashboard, ReportMonthlyTab, ReportYearlyTab,
+ReportAccountComparisonTab, ReportSymbolTab, BreakdownTable, HeatmapTable), zero testów.** Ten
+sam rodzaj ryzyka co część 71 - błąd tu cicho zniekształca prezentację prawdziwych wyników
+finansowych (np. pokazuje "0.00%" zamiast "—" dla brakującej wartości, albo odwrotnie).
+
+Nowy `app/reportFormat.test.ts` (13 testów, zero mockowania): `formatNumber` zamienia `null` na
+myślnik, zaokrągla do 2 miejsc domyślnie (konfigurowalne), zwraca niezmienioną wartość dla
+stringa niebędącego liczbą (nie chowa go pod myślnikiem), a pusty string traktuje jako `0`, nie
+jako `null`; `formatPercent`/`formatR` doklejają odpowiedni symbol; `formatMinutes` pokazuje same
+minuty poniżej godziny, **pomija "0 min" przy pełnych godzinach**, a przy reszcie minut pokazuje
+oba składniki.
+
+Zweryfikowane testem mutacyjnym: tymczasowo usunięty warunek `minutes === 0` w `formatMinutes`
+(zawsze renderujący oba składniki) - **dokładnie 1 z 13 testów padł** ("pełne godziny bez reszty
+minut nie pokazują '0 min'"), pozostałe 12 bez zmian. Po cofnięciu: `git diff --stat` na
+`reportFormat.ts` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **341/341** (39 plików, +13 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
