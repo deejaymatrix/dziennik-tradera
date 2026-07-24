@@ -1824,6 +1824,21 @@ i przeczytany w całości. Kluczowe ustalenia:
 Pełne wpisy: [MACIERZ_AUDYTU_REDESIGN_O.md](MACIERZ_AUDYTU_REDESIGN_O.md), nowa sekcja
 „Doprecyzowanie zakresu" na początku dokumentu i sekcja 1.2.
 
+**O7, trzy konkretne wymogi sekcji 21 (dostępność) sprawdzone WPROST przeciw literalnemu
+tekstowi po raz pierwszy** (wcześniej tylko rekonstruowane z pamięci):
+
+- „Animacje trwają około 120-180 ms" - `--motion-fast/-normal/-slow` w `tokens.css` to
+  dokładnie 120ms/160ms/180ms - trafienie w widełki, nie przybliżenie.
+- „Tooltipy są dostępne z klawiatury" - `Tooltip.tsx` ma `onFocus`/`onBlur` obok
+  `onMouseEnter`/`onMouseLeave`, z komentarzem w kodzie wprost tłumaczącym dlaczego.
+- Jedyne wystąpienie `tabIndex={-1}` w całej aplikacji (`AppShell.tsx`, `<main
+id="main-content">`) to poprawny, standardowy wzorzec skip-linku, nie błąd - pozwala
+  przenieść fokus programowo bez dodawania do normalnej kolejności Tab.
+
+Wszystkie trzy PASS, bez zmian kodu - ale to pierwsza chwila, gdy dało się je zweryfikować
+przeciw rzeczywistej liczbie/tekstowi promptu, a nie przeciw odtworzonemu z pamięci
+przybliżeniu.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
