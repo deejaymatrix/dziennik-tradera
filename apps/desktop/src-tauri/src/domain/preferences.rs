@@ -91,7 +91,7 @@ pub struct AppearancePreferences {
 }
 
 fn default_accent() -> String {
-    "#c9a85a".to_string()
+    "#4c7dff".to_string()
 }
 
 impl Default for AppearancePreferences {

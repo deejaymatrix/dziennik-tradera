@@ -28,9 +28,10 @@ export interface NavGroup {
 }
 
 /**
- * Grupy nawigacji wg sekcji 5.1 promptu „Institutional Adaptive Workspace": Start, Handel,
- * Analiza, Zarządzanie, System - grupowane po RODZAJU PRACY, a nie po tym, czy coś jest
- * „konfiguracją".
+ * Grupy nawigacji: Start, Handel, Analiza, Zarządzanie, System - grupowane po RODZAJU PRACY,
+ * a nie po tym, czy coś jest „konfiguracją". Ten sam podział wymaga też sekcja 6.1 finalnego
+ * promptu redesignu „TradingView Pro × Apple Fintech" - struktura się nie zmienia, zmienia się
+ * wyłącznie warstwa wizualna (tokeny, kolory, komponenty).
  *
  * Dwie świadome decyzje względem listy z promptu:
  *

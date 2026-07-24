@@ -1,8 +1,14 @@
 /*
- * Tokeny systemu wizualnego (sekcja 11 specyfikacji). Motyw ciemny jest domyślny;
- * jasny jest pełnoprawną opcją włączaną atrybutem [data-theme="light"] na <html>.
- * Wszystkie kolory/odstępy/promienie/typografia komponentów mają odwoływać się
- * WYŁĄCZNIE do tych zmiennych - nigdy do wartości "na sztywno".
+ * Tokeny systemu wizualnego. Motyw ciemny jest domyślny; jasny jest pełnoprawną opcją
+ * włączaną atrybutem [data-theme="light"] na <html>. Wszystkie kolory/odstępy/promienie/
+ * typografia komponentów mają odwoływać się WYŁĄCZNIE do tych zmiennych - nigdy do
+ * wartości "na sztywno".
+ *
+ * Paleta „TradingView Pro × Apple Fintech" (2026-07-24) zastępuje poprzednią
+ * Institutional Black & Gold - świadomie: nowa specyfikacja wprost zabrania złota
+ * i „ciężkiego institutional terminala", czyli dokładnie tego, co budowała poprzednia.
+ * Niebieski jest teraz jedynym akcentem UI; zielony/czerwony zostają wyłącznie dla
+ * wyniku dodatniego/ujemnego, nigdy dla nawigacji czy przycisków głównych.
  */
 
 :root {
@@ -21,55 +27,56 @@
   font-size: calc(16px * var(--ui-scale));
 
   /* ---------------------------------------------------------------------------------------
-     Kolory - motyw ciemny (domyślny), paleta "Institutional Black & Gold".
-     Chłodna grafitowa czerń zamiast granatu, ciepłe szampańskie złoto jako JEDYNY akcent.
-     Złoto wskazuje hierarchię, nie dekoruje każdej krawędzi. Czysta czerń i czysta biel
-     świadomie nieużywane - hierarchia tonów jest czytelniejsza przy wielogodzinnej pracy.
+     Kolory - motyw ciemny (domyślny), paleta "TradingView Pro × Apple Fintech".
+     Wartości dokładnie z promptu (sekcja 7.2) - niebieski akcent, zysk/strata mają WŁASNE,
+     przyciemnione na jasnym/rozjaśnione na ciemnym odcienie zielieni/czerwieni.
      --------------------------------------------------------------------------------------- */
-  --color-bg: #0b0d10;
-  /* Najciemniejsza powierzchnia - menu boczne. Odróżnia nawigację od treści bez rysowania
-     grubej kreski. */
-  --color-surface-nav: #0e1116;
-  --color-surface: #12161c;
-  --color-surface-alt: #171c23;
-  --color-surface-hover: #1d232c;
-  --color-border: #2a313b;
-  --color-border-strong: #3a4350;
-  --color-text: #f3f4f6;
-  --color-text-secondary: #a8b0bc;
-  /* Kontrast do tła kart wynosił 4,34:1 - poniżej progu WCAG AA (4,5:1) dla zwykłego
-     tekstu, a tym kolorem są etykiety pól, podpisy i podpowiedzi. Rozjaśnione tak, żeby
-     przechodziło na WSZYSTKICH trzech tłach: --color-bg, --color-surface i -surface-alt. */
-  --color-text-muted: #828c99;
-  --color-accent: #c9a85a;
-  --color-accent-hover: #d8ba72;
-  --color-accent-contrast: #17130a;
-  --color-profit: #35c784;
-  --color-loss: #f05b68;
-  --color-info: #5ca8ff;
-  --color-warning: #e3a93b;
+  --color-bg: #0b111b;
+  --color-surface-nav: #0f1724;
+  --color-surface: #111a28;
+  --color-surface-alt: #172234;
+  /* Powierzchnia PODNIESIONA (modale, popovery, karty nad kartami) - jaśniejsza od zwykłej
+     powierzchni, żeby warstwowanie było czytelne bez cienia udającego szkło. */
+  --color-surface-raised: #1b2738;
+  --color-surface-hover: #172743;
+  --color-border: #263347;
+  --color-border-strong: #3a4a63;
+  --color-text: #f4f7fb;
+  --color-text-secondary: #9eabc0;
+  /* Wartość z promptu (#718098) dawała 4,36:1 na --color-surface-hover - poniżej progu WCAG
+     AA (4,5:1) dla zwykłego tekstu (etykiety pól, podpowiedzi). Rozjaśnione o najmniejszą
+     ilość, która przechodzi na WSZYSTKICH powierzchniach z tekstem, sam odcień bez zmian. */
+  --color-text-muted: #818ea4;
+  /* Wartość z promptu (#4c7dff) dawała 4,32:1 jako TEKST na --color-surface-hover - poniżej
+     progu. Przyciemniona/rozjaśniona o minimum potrzebne minimum; jako WYPEŁNIENIE przycisku
+     (nie tekst) nadal wygląda tak samo niebiesko. */
+  --color-accent: #5a87ff;
+  --color-accent-hover: #6b94ff;
+  --color-accent-contrast: #06101f;
+  --color-profit: #39c58a;
+  --color-loss: #ef6b78;
+  --color-info: #70a5ff;
+  --color-warning: #e7b24d;
   /* Neutralny/BE - wynik zerowy nie jest ani zyskiem, ani stratą. */
-  --color-neutral: #9aa3ae;
-  --color-focus-ring: var(--color-accent);
+  --color-neutral: #8997ad;
+  --color-focus-ring: #7ea1ff;
 
   /* WYKRESY.
-     Główna seria to złoto (akcent), zysk/strata mają własne kolory semantyczne. Dodatkowe serie
-     mają CELOWO tylko cztery kolory - ograniczona paleta wymuszona przez sekcję 17 promptu.
-     Wykres wymagający piątego koloru jest wykresem, który trzeba rozbić na dwa, a nie dosypać
-     mu kolorów; dlatego lista jest krótka i domknięta.
-     Kolejność jest dobrana tak, żeby sąsiednie serie różniły się też jasnością, a nie samym
-     odcieniem - inaczej dwie serie byłyby nie do odróżnienia bez rozpoznawania barw. */
-  --color-chart-series-1: #5ca8ff;
+     Główna seria jest niebieska (akcent) - sekcja 16 promptu wymaga tego wprost. Zysk/strata
+     mają własne kolory semantyczne. Dodatkowe serie mają CELOWO tylko cztery kolory - wykres
+     wymagający piątego jest wykresem, który trzeba rozbić na dwa, nie dosypać mu kolorów.
+     Kolejność dobrana tak, żeby sąsiednie serie różniły się też jasnością, nie samym odcieniem. */
+  --color-chart-series-1: #5a87ff;
   --color-chart-series-2: #b38ce8;
   --color-chart-series-3: #4fc7c0;
-  --color-chart-series-4: #e3a93b;
+  --color-chart-series-4: #e7b24d;
   /* Siatka jest subtelna: ma pomóc odczytać wartość, nie konkurować z serią. */
-  --color-chart-grid: #232a33;
+  --color-chart-grid: #1d2a3d;
   /* Tooltip celowo NIE używa --color-surface: nakłada się na karty o tym samym tle i zlewałby
      się z nimi. Ma być wyraźnie ciemniejszy/jaśniejszy od wszystkiego pod spodem. */
-  --color-tooltip-bg: #05070a;
+  --color-tooltip-bg: #05080d;
   --color-tooltip-text: #f8f9fa;
-  --color-tooltip-border: #3a424e;
+  --color-tooltip-border: #3a4a63;
 
   /* Wysokości kontrolek - jedno źródło, żeby input, select, pole daty i przycisk miały
      dokładnie tę samą wysokość. Skalują się razem z interfejsem. */
@@ -122,52 +129,57 @@
   --header-height: calc(56px * var(--ui-scale));
 }
 
-/* Motyw jasny to PEŁNOPRAWNY wariant, a nie odwrócony ciemny: ciepła biel i delikatny beż
-   zamiast sterylnej bieli, oraz ciemniejsze złoto, bo szampańskie nie ma kontrastu na jasnym.
-   Kolory semantyczne mają własne, ciemniejsze odcienie - te z motywu ciemnego byłyby na białym
-   tle zbyt jasne, żeby przejść kontrast. */
+/* Motyw jasny to PEŁNOPRAWNY wariant, a nie odwrócony ciemny - wartości dokładnie z promptu
+   (sekcja 7.1). Kolory semantyczne mają własne, ciemniejsze odcienie niż w motywie ciemnym,
+   bo tamte byłyby na białym tle zbyt jasne, żeby przejść kontrast WCAG AA. */
 :root[data-theme="light"] {
   color-scheme: light;
 
-  --color-bg: #f4f2ed;
-  --color-surface-nav: #ece8df;
+  --color-bg: #f6f7f9;
+  --color-surface-nav: #ffffff;
   --color-surface: #ffffff;
-  --color-surface-alt: #faf8f3;
-  --color-surface-hover: #f0ece3;
-  --color-border: #d9d4c9;
-  --color-border-strong: #beb7aa;
-  --color-text: #1a1d22;
-  --color-text-secondary: #5e6670;
-  /* Analogicznie w motywie jasnym: 3,58:1 na białej karcie i 3,20:1 na tle strony. Wartość jest
-     dobrana pod NAJTRUDNIEJSZE tło, czyli beżowe tło menu (--color-surface-nav) - na nim
-     kontrast wynosi 4,75:1, a na pozostałych powierzchniach jest wyższy. */
-  --color-text-muted: #5f666f;
-  /* Złoto motywu jasnego jest ciemniejsze niż szampańskie z motywu ciemnego, bo tamto nie ma
-     kontrastu na bieli. Ten odcień przechodzi AA także na NAJEHANYM wierszu (4,99:1) - przy
-     #8a681f wychodziło tam 4,37:1, więc akcent jako tekst w podświetlonym wierszu nie spełniał
-     progu. */
-  --color-accent: #805f16;
-  --color-accent-hover: #6b4f12;
+  --color-surface-alt: #f1f4f8;
+  /* Prompt nie definiuje osobnej "podniesionej" powierzchni dla jasnego motywu - biel jest już
+     najjaśniejszym możliwym tłem, więc elewację modali/popoverów niesie tu wyłącznie cień
+     (--shadow-md), nie kolor. */
+  --color-surface-raised: #ffffff;
+  --color-surface-hover: #edf3ff;
+  --color-border: #e4e8ef;
+  --color-border-strong: #c7cedb;
+  --color-text: #142033;
+  /* Wartości z promptu (#657188, #8c97a9) dawały 4,46:1 i 2,75:1 na najtrudniejszych tłach
+     (--color-surface-alt/--color-surface-hover i --color-bg) - poniżej progu WCAG AA. Obie
+     przyciemnione o minimum potrzebne, sam odcień bez zmian. */
+  --color-text-secondary: #646f86;
+  --color-text-muted: #67707d;
+  /* Wartość z promptu (#2962ff) dawała 4,44:1 na --color-surface-hover - poniżej progu jako
+     KOLOR TEKSTU (np. link, wartość podświetlona). Jako wypełnienie przycisku różnica jest
+     wizualnie niezauważalna. */
+  --color-accent: #2860fb;
+  --color-accent-hover: #1f52d5;
   --color-accent-contrast: #ffffff;
-  --color-neutral: #606a75;
-  --color-profit: #087a4b;
-  --color-loss: #b42332;
-  --color-info: #1e64b7;
-  --color-warning: #875a00;
+  --color-neutral: #637084;
+  --color-profit: #197e53;
+  --color-loss: #b94a54;
+  --color-info: #2860fb;
+  --color-warning: #98641a;
+  /* Prompt daje "focus" jako WŁASNY, trzeci odcień niebieskiego - różny od akcentu i jego
+     hover (#2962FF / #1F52D5) - żeby pierścień fokusu był rozpoznawalny niezależnie od stanu
+     hover elementu, na którym stoi. */
+  --color-focus-ring: #4c7dff;
 
-  /* Wykresy w motywie jasnym: te same role, ale kolory przyciemnione, żeby zachowały kontrast
-     na białym tle. Tooltip odwraca się na ciemny - na jasnej stronie to on ma być "wycięty". */
-  --color-chart-series-1: #1e64b7;
+  /* Wykresy w motywie jasnym: te same role, niebieski jako główna seria zgodnie z sekcją 16. */
+  --color-chart-series-1: #2860fb;
   --color-chart-series-2: #6b3fa0;
   --color-chart-series-3: #0f7a74;
-  --color-chart-series-4: #875a00;
-  --color-chart-grid: #e2ded3;
-  --color-tooltip-bg: #1a1d22;
+  --color-chart-series-4: #98641a;
+  --color-chart-grid: #e4e8ef;
+  --color-tooltip-bg: #142033;
   --color-tooltip-text: #f8f9fa;
-  --color-tooltip-border: #3a424e;
+  --color-tooltip-border: #2a374d;
 
-  --shadow-sm: 0 1px 2px rgba(26, 29, 34, 0.08);
-  --shadow-md: 0 4px 12px rgba(26, 29, 34, 0.1);
+  --shadow-sm: 0 1px 2px rgba(20, 32, 51, 0.08);
+  --shadow-md: 0 4px 12px rgba(20, 32, 51, 0.1);
 }
 
 /* Poziomy skalowania z Ustawień → Wygląd. Wartości spoza tej listy są niemożliwe: interfejs

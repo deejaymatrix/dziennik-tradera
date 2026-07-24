@@ -1478,6 +1478,24 @@ wszędzie. Zrobione dotąd tokeny i paleta zostają jako fundament.
 | A6   | Narzędzia: prettier ✓, ESLint 0 błędów (8 ostrzeżeń react-refresh o HMR), typecheck ✓, 149 testów frontu, cargo fmt --check ✓, clippy 0 błędów, 390 testów Rust                                  | ✅     |
 | A7   | Raport końcowy z macierzą audytową: [RAPORT_AUDYTU.md](RAPORT_AUDYTU.md) - 12 znalezisk, wszystkie zamknięte, każde z testem blokującym powrót                                                   | ✅     |
 
+## Blok O — redesign „TradingView Pro × Apple Fintech" (zastępuje Institutional Black & Gold)
+
+Użytkownik przysłał `Prompt_finalny_redesign_O_TradingView_Apple_Fintech_i_pelny_audyt.md`
+(2026-07-24). Dokument zastępuje WYŁĄCZNIE wygląd/UX z poprzedniego promptu (M1-M5, Institutional
+Black & Gold) — funkcje, logika biznesowa i zabezpieczenia zostają. Nowa paleta świadomie
+zabrania złota i "instytucjonalnego terminala", czyli dokładnie tego, co budował poprzedni
+redesign — to pełna wymiana warstwy wizualnej, nie korekta.
+
+| Poz. | Zakres                                                                                                                                                                                                                            | Status |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| O1   | Design tokens: nowa paleta jasna/ciemna (wartości z promptu, 8 skorygowanych o minimum pod WCAG AA - test blokujący), usunięcie złota (Rust+TS+preset), reaktywny tryb „zgodny z systemem" (nasłuch zmiany na żywo - już istniał) | ✅     |
+| O2   | BUY/SELL z jawnym tekstem/ikoną obok koloru (wymóg wprost z sekcji 7.3 - informacja nie może iść wyłącznie kolorem)                                                                                                               | ⬜     |
+| O3   | Wykresy: paleta serii na niebieskim jako głównym, zgodność siatki/tooltipu z nowym motywem                                                                                                                                        | ⬜     |
+| O4   | Audyt hardkodowanych kolorów poza tokenami we wszystkich komponentach i widokach                                                                                                                                                  | ⬜     |
+| O5   | Przegląd każdego widoku pod kątem pozostałości starego motywu (złoto, ciężki institutional terminal, nadmierne zaokrąglenia)                                                                                                      | ⬜     |
+| O6   | Kontrast WCAG AA przeliczony od nowa na nowej palecie (test blokujący jak w A1)                                                                                                                                                   | ⬜     |
+| O7   | Audyt końcowy + macierz audytowa (sekcje 23-32 promptu) - werdykt GOTOWE/NIEGOTOWE                                                                                                                                                | ⬜     |
+
 ## Blok E — instalator (Cel 1.9)
 
 Zablokowany do decyzji użytkownika: wymaga certyfikatu Authenticode. Nie budować bez zgody.

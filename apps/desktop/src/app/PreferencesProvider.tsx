@@ -39,8 +39,8 @@ function contrastColorFor(hex: string): string {
   return luminance > 0.45 ? "#10151d" : "#ffffff";
 }
 
-/** Domyślne złoto - musi zgadzać się z `default_accent()` w `domain/preferences.rs`. */
-const DEFAULT_ACCENT = "#c9a85a";
+/** Domyślny niebieski - musi zgadzać się z `default_accent()` w `domain/preferences.rs`. */
+const DEFAULT_ACCENT = "#4c7dff";
 
 function isDefaultAccent(hex: string): boolean {
   return hex.toLowerCase() === DEFAULT_ACCENT;
@@ -62,8 +62,8 @@ function applyAppearance(appearance: AppearancePreferences): void {
   root.setAttribute("data-radius", appearance.corner_radius);
   root.setAttribute("data-reduce-motion", String(appearance.reduce_motion));
   root.setAttribute("data-animations", appearance.animations ? "on" : "off");
-  // Przy DOMYŚLNYM złocie nie nadpisujemy tokenu, tylko zostawiamy ten z motywu: ciemny ma
-  // szampańskie złoto, jasny ciemniejsze, bo szampańskie na białym tle nie ma kontrastu.
+  // Przy DOMYŚLNYM niebieskim nie nadpisujemy tokenu, tylko zostawiamy ten z motywu: ciemny
+  // ma jaśniejszy niebieski, jasny ciemniejszy, żeby oba zachowały kontrast na swoim tle.
   // Dopiero WŁASNY kolor użytkownika wchodzi inline i wygrywa z regułą motywu - to jego
   // świadomy wybór, więc obowiązuje w obu wariantach.
   if (isDefaultAccent(appearance.accent_color)) {
