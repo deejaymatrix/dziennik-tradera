@@ -1762,6 +1762,16 @@ tekst renderuje się na takim tle, ma już test. `Switch` (kolor toru przy zazna
 kontrast obramowań), nie czytelność tekstu. 0 kolejnych luk - ten wątek audytu uznany za
 faktycznie zamknięty, nie tylko "na razie bez nowych znalezisk".
 
+**O7, test mutacyjny: czy testy color-mix NAPRAWDĘ łapią regresję, czy tylko przechodzą
+przez przypadek.** Tymczasowo cofnięty `--tint-badge` (motyw jasny) ze świadomie poprawnej
+wartości 7% z powrotem na starą, zepsutą 18% - uruchomione testy, sprawdzone, cofnięte
+z powrotem. Wynik: dokładnie 8 testów padło (5 wariantów `Badge` + 3 `FormPanel`, jedyne
+komponenty dzielące ten token, WYŁĄCZNIE w motywie jasnym) - ani jednego więcej, ani mniej,
+dokładnie zgodnie z przewidywaniem. `--tint-calendar-day`/`--tint-tag` (osobne tokeny)
+nietknięte. Po cofnięciu: `git diff` na `tokens.css` czysty, 62/62 PASS ponownie. To
+potwierdza, że testy color-mix realnie chronią przed regresją, a nie tylko przechodzą,
+bo akurat nikt niczego nie zepsuł.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
