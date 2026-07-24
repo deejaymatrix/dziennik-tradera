@@ -3368,6 +3368,25 @@ szablonu, `""` zamiast `null`), pozostałe 4 bez zmian. Po cofnięciu: `git diff
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **490/490** (62 pliki, +5 nowych testów).
 
+**O7, część 96: `TradeAuditLog.tsx` (41 linii, dziennik zmian pól transakcji) - `null` i pusta
+tablica muszą dawać IDENTYCZNY efekt (nic w DOM), zero testów.** Błąd tu (np. tylko sprawdzenie
+`!entries` bez `entries.length === 0`) pokazałby pusty, myloący blok "Historia zmian (0)" zamiast
+nic nie renderować - komponent ma prawo nic nie pokazywać, ale nie "prawie nic".
+
+Nowy `pages/TradeAuditLog.test.tsx` (4 testy): `entries === null` i pusta tablica wpisów NIC nie
+renderują (identyczny efekt, dwa niezależne testy); pokazuje liczbę wpisów w nagłówku i zmiany
+pól z wielu wpisów naraz; brak starej/nowej wartości pokazuje myślnik, nie `"null"` ani pusty
+tekst.
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) `!entries || entries.length === 0` zastąpione samym
+`!entries` (pusta tablica przechodzi guard) - **dokładnie 1 z 4 testów padł**, pokazując
+dokładnie przewidziany błąd: pusty blok "Historia zmian (0)" zamiast `null`; (2) usunięte oba
+`?? "—"` - **dokładnie 1 z 4 padł**, pokazując pusty tekst zamiast myślnika. Po każdym cofnięciu:
+`git diff --stat` na `TradeAuditLog.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **494/494** (63 pliki, +4 nowe testy).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
