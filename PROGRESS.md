@@ -2678,6 +2678,32 @@ bez zmian). Po cofnięciu: `git diff` na `tokens.css` czysty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **310/310** (35 plików, +4 nowe testy).
 
+**O7, część 69: `ConfirmDialog.tsx` (zastępuje `window.confirm` w 16+ miejscach, w tym przy
+NIEODWRACALNYCH operacjach) nie miał ŻADNEGO testu - tu ryzyko jest bezpieczeństwem danych, nie
+tylko dostępnością/formatowaniem jak w częściach 62-68.** Błąd w `Promise<boolean>` tego
+komponentu (np. "Anuluj" po cichu rozwiązujący się na `true`) mógłby wywołać nieodwracalną
+operację (opróżnienie kosza, trwałe usunięcie) mimo że użytkownik jawnie kliknął odmowę -
+dokładnie przeciwieństwo zasady „nigdy nie niszczyć danych" tego projektu.
+
+Nowy `ui/components/ConfirmDialog/ConfirmDialog.test.tsx` (5 testów, harness z `useConfirm()`
+
+- `.then(onWynik)` żeby obserwować rzeczywiste rozwiązanie Promise'a, nie tylko renderowanie):
+  `confirm()` rozwiązuje się na `true` po kliknięciu przycisku potwierdzenia; **rozwiązuje się na
+  `false` po „Anuluj" - NIE na `true`**; rozwiązuje się na `false` przy zamknięciu przez Escape
+  (`cancel` na `<dialog>`, ten sam wzorzec co część 67 - wymagał ręcznego `await Promise.resolve()`
+  po `dispatchEvent`, bo surowe wywołanie zdarzenia, w odróżnieniu od `user.click()`, nie odczekuje
+  samo na mikrozadanie `.then()`); własne etykiety przycisków i `danger` renderują się poprawnie;
+  skrót tekstowy (`confirm("...")`) działa tak samo jak pełny obiekt opcji.
+
+Zweryfikowane testem mutacyjnym na DOKŁADNIE tym niebezpiecznym scenariuszu z opisu wyżej:
+tymczasowo przycisk „Anuluj" wołający `settle(true)` zamiast `settle(false)` - **dokładnie 2
+z 5 testów padły** (oba klikające „Anuluj"/"Zostaw", pokazując `Received: [true]` zamiast
+`[false]`), pozostałe 3 (potwierdzenie, Escape, sam tekst) bez zmian. Po cofnięciu: `git diff`
+na `ConfirmDialog.tsx` czysty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **315/315** (36 plików, +5 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
