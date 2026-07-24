@@ -2596,6 +2596,27 @@ Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto (brak cyklu importów `pages/`
 `pnpm exec eslint` czysto, `pnpm exec prettier --check` czysto, `pnpm test -- --run` **295/295**
 (31 plików).
 
+**O7, część 65: CZWARTY przypadek tej samej klasy luki - dostępność `Select`/`Textarea` (sekcja
+1.1 macierzy) była potwierdzona wyłącznie `grep`-em po źródle, nie rzeczywistym renderem.**
+Zapis w macierzy wprost mówił: „`aria-invalid`/`aria-describedby`/`aria-required`/`role=\"alert\"`
+na komunikacie błędu: potwierdzone w `TextField.tsx`, i PRZEZ GREP - to samo w `Select.tsx`/
+`Textarea.tsx`" - `TextField.test.tsx` istniał i faktycznie renderował komponent (3 testy), ale
+`Select`/`Textarea` nie miały ŻADNEGO pliku testowego mimo identycznej, jawnie udokumentowanej
+gwarancji dostępności.
+
+Dodane `ui/components/Select/Select.test.tsx` i `ui/components/Textarea/Textarea.test.tsx` (6
+testów łącznie) - lustrzane odbicie już sprawdzonego wzorca z `TextField.test.tsx`: powiązanie
+etykiety z kontrolką (dostępna nazwa), realna interakcja użytkownika (wpisywanie/wybór opcji),
+`aria-invalid="true"` + `role="alert"` z treścią komunikatu przy błędzie.
+
+Zweryfikowane testem mutacyjnym na `Select.tsx`: tymczasowo `aria-invalid={undefined}` zamiast
+`Boolean(error) || undefined` - test „marks the field invalid..." **padł dokładnie tak, jak
+powinien** (pozostałe 2 testy w tym samym pliku bez zmian, zgodnie z przewidywaniem). Po
+cofnięciu: `git diff` na `Select.tsx` czysty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **301/301** (33 plików, +6 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
