@@ -1699,6 +1699,13 @@ od razu: 4,04-4,19 zamiast ≥4,5 w motywie jasnym (dark już przechodził). Nap
 `--tint-badge` z `Badge` zamiast tworzyć nowy - to ten sam wzorzec wizualny (kolorowa "pigułka"
 statusu), nie osobny przypadek. `pnpm test` 58/58 PASS w `tokens.test.ts` po dodaniu.
 
+**O7, dopisany test dla kryterium WCAG 1.4.11 (pierścień fokusu), nigdy dotąd niesprawdzonego
+wprost.** `--color-focus-ring` musi mieć ≥3:1 (nie 4,5:1 jak tekst) wobec KAŻDEJ powierzchni,
+na której realnie się renderuje. Policzone na 5 powierzchniach w obu motywach - wszystkie PASS
+bez zmian kodu, najciaśniej w motywie jasnym (3,32-3,69, wciąż z marginesem), w ciemnym
+5,99-7,59. Zapisane jako trwały test regresyjny (nie jednorazowe sprawdzenie), żeby przyszła
+zmiana koloru fokusu albo powierzchni nie przeszła cicho poniżej progu. `pnpm test` 60/60 PASS.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat

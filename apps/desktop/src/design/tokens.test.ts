@@ -125,6 +125,8 @@ const KOLORY_SEMANTYCZNE = [
 ];
 
 const PROG_AA = 4.5;
+/** WCAG 1.4.11 (kontrast niedotekstowy - obwódki fokusu, kontrolki) - próg 3:1, nie 4,5:1. */
+const PROG_UI = 3;
 
 describe.each([
   ["ciemny", ":root {"],
@@ -169,6 +171,18 @@ describe.each([
       expect(kontrast(wartosc(kolor), wartosc(tlo)), `${kolor} na ${tlo}`).toBeGreaterThanOrEqual(
         PROG_AA,
       );
+    }
+  });
+
+  // WCAG 1.4.11 - nigdy dotąd niesprawdzone wprost. Pierścień fokusu (`outline: 2px solid
+  // var(--color-focus-ring)`) musi się odróżniać od KAŻDEJ powierzchni, na której realnie
+  // się renderuje, próg 3:1 (nie 4,5:1 jak tekst - to kontur, nie litery).
+  it("pierścień fokusu spełnia próg 3:1 na każdej powierzchni", () => {
+    for (const tlo of TLA) {
+      expect(
+        kontrast(wartosc("--color-focus-ring"), wartosc(tlo)),
+        `--color-focus-ring na ${tlo}`,
+      ).toBeGreaterThanOrEqual(PROG_UI);
     }
   });
 
