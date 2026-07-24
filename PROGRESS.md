@@ -1787,6 +1787,12 @@ Wynik: dokładnie jeden test padł, z czytelnym komunikatem asercji (`left: "#c9
 fokusu, akcent w Rust) mają teraz eksperymentalne dowody, że realnie łapią regresję - nie
 tylko przechodzą, bo akurat nic nie jest zepsute.
 
+**O7, sprawdzone bezpieczeństwo zależności JS/TS: `pnpm audit` - „No known vulnerabilities
+found".** Redesign nie dodał żadnej nowej zależności (0 zmian w `package.json`), więc to
+potwierdzenie stanu sprzed O1-O7, nie nowa ochrona wprowadzona przez redesign. `cargo audit`
+niedostępny w tym środowisku (nie jest wbudowaną podkomendą `cargo`, wymagałby instalacji
+nowego narzędzia bez wyraźnej prośby użytkownika - świadomie NIE zainstalowany).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
