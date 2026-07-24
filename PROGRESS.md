@@ -2463,6 +2463,46 @@ zgłoszony osobno (`task_c91d280f`) - świadomie nie mieszany z zakresem O7.
 Weryfikacja: bez zmian kodu w tej części - wyłącznie ręczne przeliczenia i odczyt istniejących
 testów/promptu. `cargo test` 435/435 potwierdzone ponownie.
 
+**O7, część 60: sprostowanie do części 59 - znaleziony PRAWDZIWY, dedykowany moduł „audyt A4"
+(sekcje 25+26), lepszy niż to, co ręcznie odtworzyłem.** Część 59 przeliczyła ręcznie 4 ścieżki
+z ogólnych testów jednostkowych `trade_calculations`/`position_sizing`/`trade_stats`, nie
+wiedząc jeszcze o `src-tauri/src/audyt.rs` - osobnym pliku z wcześniejszego audytu (Blok D),
+który robi DOKŁADNIE to, czego dosłownie żąda sekcja 26 ("wykonaj niezależne obliczenia
+referencyjne"), i to szerzej niż moja ręczna weryfikacja:
+
+- `mod obliczenia_referencyjne` (sekcja 26) - **P&L SELL jako jawne LUSTRO P&L BUY**
+  (`pnl_sell_jest_lustrem_pnl_buy` - ten sam ruch ceny, przeciwny znak, "najczęstsze miejsce na
+  błąd znaku" wprost w komentarzu; moja część 59 sprawdziła tylko BUY), punkty-a-nie-ticki jako
+  osobna metryka, liniowe skalowanie wyniku przez lot (1/0,5/0,01), koszty odejmujące się OD
+  zysku I OD straty, **jawny test konwencji znaku swapu** (naliczony swap jako koszt, swap na
+  korzyść jako wartość ujemna - z komentarzem ostrzegającym, że odwrócenie znaku po cichu
+  przeliczyłoby WSZYSTKIE historyczne transakcje), osobna wartość ticka zysk/strata, przeliczenie
+  walutowe (z twardym zakazem zgadywania kursu), częściowe zamknięcia z CELOWO sprzeczną ceną
+  wyjścia (żeby złapać podwójne liczenie, gdyby silnik jednak użył ceny zamiast sumy kwot),
+  dokładność dziesiętna (`0,10+0,20=0,30` skontrastowane wprost z wynikiem na `f64`), dzielenie
+  przez zero przy zerowym ticku/ryzyku.
+- `mod pieniadze_bez_float` - **automatyczna, trwała gwarancja całego wymogu "pieniądze nie mogą
+  używać binarnego float"**: test czyta ŹRÓDŁO 5 modułów pieniężnych
+  (`trade_calculations`/`trade_partial_close`/`balance`/`trade_stats`/`cash_operation`) i
+  odrzuca każde wystąpienie `f64`/`f32` poza komentarzem/testem dokumentującym problem - nie
+  jednorazowe sprawdzenie, tylko regresja pilnująca tego na zawsze.
+- `mod wartosci_graniczne` w tym samym pliku - osobno pokrywa niemal całą listę sekcji 25 (puste
+  pola/same spacje, polskie znaki, bardzo długa nazwa, ujemne/zerowe saldo, bardzo duże saldo,
+  loty dziesiętne, zamknięcie przed otwarciem, duplikat nazwy, nieobsługiwana waluta, zamknięcie
+  większe od lota, zerowe/ujemne częściowe zamknięcie, zamknięcie całego lota) - potwierdza,
+  że część 59's odwołanie do "pokrycia z bloku D" miało realne, sprawdzalne pokrycie, a nie
+  tylko domniemanie.
+
+Uruchomione wprost: `cargo test audyt::` - **41/41 PASS** (w tym cały `obliczenia_referencyjne`,
+`pieniadze_bez_float`, `wartosci_graniczne`). Ręczna weryfikacja z części 59 zostaje jako
+DODATKOWE potwierdzenie (inny punkt wejścia - ogólne testy jednostkowe modułów domenowych, nie
+dedykowany plik audytowy), nie jest już jedynym dowodem dla sekcji 26 - `audyt.rs` jest
+właściwym, autorytatywnym źródłem. Zapisane tutaj wprost, żeby przyszła praca nie odtwarzała
+ręcznie tego, co już istnieje w gotowej, lepszej formie.
+
+Weryfikacja: bez zmian kodu - `cargo test audyt::` 41/41 PASS, `cargo test` (całość) 435/435
+bez regresji.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
