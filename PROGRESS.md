@@ -2885,6 +2885,20 @@ Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `p
 --check` czysto, `pnpm test -- --run` 283/283. Bez weryfikacji na żywo - port 1430 nadal zajęty
 przez sesję użytkownika.
 
+**Strategie - lista, modale, checklisty (zadanie 11, zamknięte) - BEZ zmian kodu.** Przejrzane:
+`StrategiesPage` (tagi w `flex-wrap`, nazwa w scrollowalnej tabeli - zaakceptowane wzorce), `RuleListEditor`
+(pola edytowalne dziedziczą `min-width: 0` z `TextField`/`Select`), `StrategyChecklistEditor`
+(`.itemName` w `.row` bez wymuszonego `white-space: nowrap` - tekst zasady swobodnie zawija się na
+słowach zamiast łamać układ, to pożądane zachowanie, nie błąd), `ColorPicker` (sprawdzone dokładnie:
+`.colorField` w gridzie `StrategyFormModal` bez `min-width: 0` WYGLĄDA jak znana pułapka, ale nie
+jest nią - jedyna zawsze-widoczna treść wyzwalacza to swatch + krótki kod HEX, a cały panel wyboru
+koloru jest `position: absolute`, więc nie liczy się do minimalnej szerokości rodzica; `.previewLabel`
+w środku panelu już wcześniej miał poprawne obcięcie). Świadomie NIE wprowadzona żadna zmiana - to
+prawdziwy PASS, nie przeoczenie.
+
+Weryfikacja: `pnpm test -- --run` 283/283 (bez zmian kodu w tym zadaniu, testy uruchomione dla
+pewności po przeglądzie).
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.
