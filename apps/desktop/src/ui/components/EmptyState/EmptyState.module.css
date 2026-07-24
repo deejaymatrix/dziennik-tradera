@@ -10,7 +10,7 @@
 
 .icon {
   font-size: 2rem;
-  line-height: 1;
+  line-height: var(--line-height-none);
 }
 
 .title {

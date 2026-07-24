@@ -1511,6 +1511,12 @@ wspólnego źródła. Dodane `--font-weight-regular/-medium/-semibold/-bold`, ws
 przepięte mechanicznie (regex + weryfikacja że po zamianie zostało zero surowych liczb).
 Cztery wagi, nie więcej - zgodnie z sekcją 10 promptu.
 
+Ta sama luka trzeci raz: `line-height` miał dwa tokeny (`--tight`, `--normal`), ale 6 miejsc
+wpisywało surowe `1` (odznaki/ikony jednowierszowe) i `1.5` (duplikat `--normal`) wprost. Dodany
+`--line-height-none: 1`, wszystkie 5 realnych duplikatów przepięte (jeden `1.1` w kalkulatorze
+zostawiony bez zmian - to świadomy, jednorazowy dobór dla dużej liczby wynikowej, nie duplikat
+żadnego tokenu).
+
 ### Rozszerzenie na macOS (druga wersja promptu O, 2026-07-24)
 
 Nowa wersja dokumentu dodaje macOS (Apple Silicon `arm64` + Intel `x86_64`) jako drugą

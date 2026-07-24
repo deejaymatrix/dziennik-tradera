@@ -110,6 +110,9 @@
   --font-size-xl: 1.75rem;
   --line-height-tight: 1.25;
   --line-height-normal: 1.5;
+  /* Dla elementów jednowierszowych (odznaki, ikony) - zero dodatkowego miejsca nad/pod
+     znakiem, którego "normal"/"tight" by nie dawały. */
+  --line-height-none: 1;
   /* Cztery wagi, nie więcej - sekcja 10 promptu wprost: "nie używaj zbyt wielu wag fontu". */
   --font-weight-regular: 400;
   --font-weight-medium: 500;

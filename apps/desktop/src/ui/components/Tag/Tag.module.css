@@ -23,7 +23,7 @@
   color: var(--color-text-muted);
   cursor: pointer;
   border-radius: var(--radius-full);
-  line-height: 1;
+  line-height: var(--line-height-none);
   padding: 0;
 }
 
