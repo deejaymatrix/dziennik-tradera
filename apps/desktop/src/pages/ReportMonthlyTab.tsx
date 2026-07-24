@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { formatMoney } from "../app/decimal";
+import { formatMoney, formatSignedMoney } from "../app/decimal";
 import { formatMinutes, formatNumber, formatPercent } from "../app/reportFormat";
 import type { FilteredReport, GroupBreakdown } from "../app/types/report";
 import { EmptyState } from "../ui/components/EmptyState/EmptyState";
@@ -87,7 +87,7 @@ export function ReportMonthlyTab({
         <StatCard label="Win rate" value={formatPercent(report.stats.win_rate)} />
         <StatCard
           label="P&L netto"
-          value={formatMoney(report.stats.net_pnl, currency)}
+          value={formatSignedMoney(report.stats.net_pnl, currency)}
           tone={Number(report.stats.net_pnl) >= 0 ? "profit" : "loss"}
         />
         <StatCard
@@ -100,7 +100,7 @@ export function ReportMonthlyTab({
         {report.stats.partially_closed_trades > 0 && (
           <StatCard
             label={`Zrealizowane na pozycjach otwartych (${report.stats.partially_closed_trades})`}
-            value={formatMoney(report.stats.partially_realized_pnl, currency)}
+            value={formatSignedMoney(report.stats.partially_realized_pnl, currency)}
             tone={Number(report.stats.partially_realized_pnl) >= 0 ? "profit" : "loss"}
           />
         )}

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { Link } from "react-router";
 import { BarChart2, ListPlus, SlidersHorizontal, Wallet } from "lucide-react";
-import { formatMoney } from "../app/decimal";
+import { formatMoney, formatSignedMoney } from "../app/decimal";
 import { invokeCommand } from "../app/invokeCommand";
 import { formatNumber, formatPercent, formatR } from "../app/reportFormat";
 import { toAccountComparisonFilter, useReportFilter } from "../app/useReportFilter";
@@ -175,7 +175,7 @@ export function DashboardPage(): ReactElement {
                     <StatCard
                       emphasis="primary"
                       label="Wynik netto"
-                      value={formatMoney(report.stats.net_pnl, selectedAccount.currency)}
+                      value={formatSignedMoney(report.stats.net_pnl, selectedAccount.currency)}
                       tone={Number(report.stats.net_pnl) >= 0 ? "profit" : "loss"}
                       to="/raporty"
                     />

@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { formatMoney, sumDecimalStrings } from "../app/decimal";
+import { formatMoney, formatSignedMoney, sumDecimalStrings } from "../app/decimal";
 import { formatNumber, formatPercent } from "../app/reportFormat";
 import type { FilteredReport, GroupBreakdown } from "../app/types/report";
 import { Table, tableStyles } from "../ui/components/Table/Table";
@@ -70,7 +70,7 @@ export function ReportYearlyTab({ report, currency, year }: ReportYearlyTabProps
         <StatCard label="Liczba transakcji" value={String(report.stats.closed_trades)} />
         <StatCard
           label="P&L netto roku"
-          value={formatMoney(report.stats.net_pnl, currency)}
+          value={formatSignedMoney(report.stats.net_pnl, currency)}
           tone={Number(report.stats.net_pnl) >= 0 ? "profit" : "loss"}
         />
         <StatCard label="Win rate roku" value={formatPercent(report.stats.win_rate)} />
@@ -82,7 +82,7 @@ export function ReportYearlyTab({ report, currency, year }: ReportYearlyTabProps
         {report.stats.partially_closed_trades > 0 && (
           <StatCard
             label={`Zrealizowane na pozycjach otwartych (${report.stats.partially_closed_trades})`}
-            value={formatMoney(report.stats.partially_realized_pnl, currency)}
+            value={formatSignedMoney(report.stats.partially_realized_pnl, currency)}
             tone={Number(report.stats.partially_realized_pnl) >= 0 ? "profit" : "loss"}
           />
         )}

@@ -2155,6 +2155,29 @@ z poprawnymi danymi. Zero błędów konsoli.
 Pozostałe 10 tras wciąż niesprawdzone z prawdziwymi danymi - blokada częściowo, nie w pełni,
 zamknięta.
 
+**O7, część 51: kontrakt `formatSignedMoney` (część 49) złamany w 5 KOLEJNYCH miejscach -
+znalezione dopiero przy weryfikacji `/raporty` i Dashboardu z prawdziwymi danymi.** Sweep
+części 49 szukał literalnego `styles.profit`/`styles.loss` w kodzie konsumentów - PRZEOCZYŁ
+konsumentów `StatCard`/`ReadOnlyField`, które przekazują `tone` jako zwykły PROP, bez
+odwołania do klasy CSS wprost w tym samym pliku. Odkryte wizualnie: Dashboard pokazywał
+„Wynik netto: 100,00 USD" na zielonym tle, bez „+". Poprawiony sweep: `grep -rn "tone={"` w
+całym `apps/desktop/src` (dokładna metoda zamiast przybliżonej) - znalazł dokładnie 5 miejsc
+z dynamicznym `tone={Number(x) >= 0 ? "profit" : "loss"}`, wszystkie formatujące przez zwykłe
+`formatMoney`: `DashboardPage.tsx` („Wynik netto"), `ReportMonthlyTab.tsx` („P&L netto",
+„Zrealizowane na pozycjach otwartych"), `ReportYearlyTab.tsx` („P&L netto roku", „Zrealizowane
+na pozycjach otwartych").
+
+Naprawione identycznie jak część 49: `formatMoney`→`formatSignedMoney` wyłącznie w tych 5
+wywołaniach. Reszta `tone=` w tych samych plikach świadomie NIE zmieniona - `tone="profit"`/
+`tone="loss"` STATYCZNE na wartościach inherentnie jednoznakowych („Średni zysk"/„Średnia
+strata" - etykieta już niesie znaczenie).
+
+Weryfikacja: `pnpm format:check`, `pnpm typecheck`, `pnpm test` 271/271. Zweryfikowane w
+przeglądarce na fałszywym `FilteredReport`/`AccountComparisonRow` (świeża karta) - PRZED
+naprawą Dashboard pokazywał „100,00 USD" bez znaku, PO naprawie (HMR podchwycił zmianę na
+żywo) „+100,00 USD" - to samo potwierdzone na zakładkach Miesięczny i Roczny raportów. Zero
+błędów konsoli.
+
 **O7, znalezisko przy okazji: `BreakdownTable.tsx` jest martwym kodem od „Fazy 9 v2", nie od
 bieżącego redesignu.** Próba weryfikacji zakładki „Strategia"/„Instrument" z prawdziwymi danymi
 ujawniła, że „Wynik wg strategii"/„Wynik wg instrumentu" w zakładce Miesięcznej to wykresy
