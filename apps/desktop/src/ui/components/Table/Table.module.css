@@ -26,7 +26,7 @@
   z-index: var(--z-sticky);
   background-color: var(--color-surface-alt);
   text-align: left;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--color-border-strong);

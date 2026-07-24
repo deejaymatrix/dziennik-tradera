@@ -5,7 +5,7 @@
   gap: var(--space-2);
   font-family: var(--font-sans);
   font-size: var(--font-size-sm);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
   border-radius: var(--radius-md);
   border: 1px solid transparent;

@@ -9,7 +9,7 @@
 .cardTitle {
   margin: 0 0 var(--space-3);
   font-size: var(--font-size-md);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .cardNote {
@@ -69,7 +69,7 @@
   padding: 0.35rem 0.9rem;
   border-radius: var(--radius-sm);
   color: var(--color-accent-contrast);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   font-size: var(--font-size-sm);
 }
 
@@ -82,12 +82,12 @@
 /* Kolory semantyczne w podglądzie są CELOWO stałe - pokazują, że wybrany akcent ich nie zmienia. */
 .previewProfit {
   color: var(--color-profit);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   font-variant-numeric: tabular-nums;
 }
 
 .previewLoss {
   color: var(--color-loss);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   font-variant-numeric: tabular-nums;
 }

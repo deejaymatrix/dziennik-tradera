@@ -41,7 +41,7 @@
 }
 
 .title {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   flex: 1;
   min-width: 0;
 }

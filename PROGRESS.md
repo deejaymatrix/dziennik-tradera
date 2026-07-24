@@ -1505,6 +1505,12 @@ miejsc przepięte z weryfikacją że dopasowanie trafiło dokładnie raz. Natywn
 świadomie POZA tą skalą - przeglądarka renderuje go we własnej warstwie "top layer" zawsze nad
 z-index, więc wpisanie go do skali byłoby mylące.
 
+Ta sama klasa luki znaleziona w `font-weight`: `font-size` ma pełną skalę tokenów, ale wagi
+czcionki (400/500/600/700) były wpisane jako gołe liczby w 69 miejscach w 42 plikach - zero
+wspólnego źródła. Dodane `--font-weight-regular/-medium/-semibold/-bold`, wszystkie 69 miejsc
+przepięte mechanicznie (regex + weryfikacja że po zamianie zostało zero surowych liczb).
+Cztery wagi, nie więcej - zgodnie z sekcją 10 promptu.
+
 ### Rozszerzenie na macOS (druga wersja promptu O, 2026-07-24)
 
 Nowa wersja dokumentu dodaje macOS (Apple Silicon `arm64` + Intel `x86_64`) jako drugą

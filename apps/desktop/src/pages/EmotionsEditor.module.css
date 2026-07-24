@@ -83,7 +83,7 @@
 }
 
 .name {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -128,5 +128,5 @@
   background: var(--color-accent);
   border-color: var(--color-accent);
   color: var(--color-accent-contrast);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
 }

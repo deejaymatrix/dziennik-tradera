@@ -9,7 +9,7 @@
     transparent
   );
   color: var(--color-profit);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .loss {
@@ -19,5 +19,5 @@
     transparent
   );
   color: var(--color-loss);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }

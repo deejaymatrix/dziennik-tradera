@@ -7,7 +7,7 @@
 .title {
   margin: 0;
   font-size: var(--font-size-sm);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-muted);
 }
 
@@ -19,7 +19,7 @@
 
 .groupTitle {
   font-size: var(--font-size-xs);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -61,7 +61,7 @@
 
 .requiredMark {
   color: var(--color-loss);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
 }
 
 .statusSelect {

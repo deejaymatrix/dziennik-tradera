@@ -23,7 +23,7 @@
   flex: 1;
   min-width: 0;
   font-size: var(--font-size-md);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .chevron {
@@ -63,7 +63,7 @@
 
 .stats dd {
   margin: 0;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   font-variant-numeric: tabular-nums;
 }
 

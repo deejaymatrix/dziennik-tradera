@@ -52,7 +52,7 @@
 }
 
 .categoryName {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .categoryCount {
@@ -106,7 +106,7 @@
 
 .question {
   margin: 0;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .hiddenRule {
@@ -114,7 +114,7 @@
 }
 
 .hiddenBadge {
-  font-weight: 400;
+  font-weight: var(--font-weight-regular);
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
 }

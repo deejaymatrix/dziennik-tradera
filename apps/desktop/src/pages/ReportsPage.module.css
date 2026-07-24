@@ -13,7 +13,7 @@
 .tab {
   font-family: var(--font-sans);
   font-size: var(--font-size-sm);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-muted);
   background: none;
   border: 1px solid var(--color-border);
@@ -63,7 +63,7 @@
 
 .dimensionLabel {
   font-size: var(--font-size-lg);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .chartsGrid {
@@ -111,7 +111,7 @@
 
 .leaderValue {
   font-size: var(--font-size-md);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 /* Eksport bieżącego podraportu - po prawej stronie paska zakładek, żeby był powiązany
