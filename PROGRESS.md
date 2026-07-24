@@ -3669,6 +3669,32 @@ zastąpione `true` (sekcja zawsze widoczna, nawet dla 0) - **dokładnie 1 z 10 p
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **556/556** (74 pliki, +10 nowych testów).
 
+**O7, część 108: `ColorPicker` (selektor koloru strategii) - zero testów komponentu.** Czysta
+matematyka konwersji HSV/HEX ma własne testy w `colorMath.test.ts` od dawna - tu brakowało testów
+samego komponentu i jego stanu. Kluczowa, nieoczywista zasada: kolor NIE trafia do formularza w
+trakcie wybierania - `onChange` woła się WYŁĄCZNIE po kliknięciu "Zatwierdź", nigdy podczas
+przeciągania suwaka barwy czy pisania w polu HEX. "Anuluj" porzuca szkic, a KOLEJNE otwarcie panelu
+startuje od `value` obowiązującego w formularzu (przez `useEffect` na `[open, value]`), nie od
+porzuconego szkicu - inaczej "pobawienie się" kolorem i wycofanie zostawiłoby ślad przy następnym
+otwarciu.
+
+Nowy `ui/components/ColorPicker/ColorPicker.test.tsx` (6 testów): przycisk pokazuje aktualny kolor
+formularza przed otwarciem panelu; zmiana suwaka barwy NIE woła `onChange` - dopiero "Zatwierdź";
+"Anuluj" zamyka panel BEZ wołania `onChange`, mimo wpisanej zmiany w polu HEX; **ponowne otwarcie
+po "Anuluj" wraca do koloru formularza, nie do porzuconego szkicu**; niepoprawny tekst HEX zostaje
+w polu tekstowym, ale NIE zmienia podglądu koloru; pusta `sampleLabel` pokazuje zastępczy tekst
+"Nazwa strategii".
+
+Zweryfikowane 3 niezależnymi mutacjami: (1) "Anuluj" dodatkowo wołające `onChange(draftHex)` (symulacja
+przypadkowego zatwierdzenia przy anulowaniu) - **dokładnie 1 z 6 testów padł**; (2) warunek
+`if (open)` w resetującym `useEffect` zastąpiony `if (false)` (brak resetu przy otwarciu) -
+**dokładnie 1 z 6 padł**; (3) `handleHexInput` wywołujące `setHsv` bezwarunkowo, nawet dla
+niepoprawnego tekstu (fallback do `FALLBACK` zamiast zachowania poprzedniego koloru) - **dokładnie
+1 z 6 padł**. Po każdym cofnięciu: `git diff --stat` na `ColorPicker.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **562/562** (75 plików, +6 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
