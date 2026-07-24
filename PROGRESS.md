@@ -2550,6 +2550,27 @@ Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto (w 
 `@typescript-eslint/unbound-method` przez własne liczniki zamiast `expect(mock.metoda)`),
 `pnpm exec prettier --check` czysto, `pnpm test -- --run` **293/293** (4 nowe testy, 29 plików).
 
+**O7, część 63: ta sama klasa luki co część 62 - O2 ("BUY/SELL z jawnym tekstem obok koloru")
+też nie miało ŻADNEGO testu.** `grep` po `TRADE_SIDE_LABELS` w plikach testowych - zero wyników.
+Status ✅ w tabeli O2 opierał się wyłącznie na przeglądzie kodu (3 konsumenci:
+`TransactionsPage`/`TradeInspector`/`DayTradesModal`, wszystkie renderują tekst wewnątrz
+`Badge`), bez automatycznej regresji pilnującej, że tekst NIE zniknie przy przyszłym
+refaktorze zostawiającym tylko kolor - dokładnie wymóg WCAG 1.4.1, który O2 dokumentuje.
+
+Nowy plik `pages/DayTradesModal.test.tsx` (wybrany jako cel, bo przyjmuje `trades: Trade[]`
+bezpośrednio jako prop - bez potrzeby mockowania całego backendu jak przy
+`TransactionsPage`/`TradeInspector`): render z jedną transakcją BUY i jedną SELL, asercja że
+tekst „BUY"/„SELL" faktycznie trafia na ekran (`screen.getByText`), nie tylko że stała
+`TRADE_SIDE_LABELS` istnieje gdzieś w kodzie.
+
+Zweryfikowane testem mutacyjnym: tymczasowo usunięte `{TRADE_SIDE_LABELS[trade.side]}` z dzieci
+`Badge` (zostawiony sam kolor wariantu) - test **padł dokładnie tak, jak powinien**
+(`screen.getByText("BUY")` nie znalazło elementu). Po cofnięciu: `git diff` czysty, test znów
+PASS.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **294/294** (30 plików).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
