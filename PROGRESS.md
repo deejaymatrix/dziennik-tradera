@@ -3243,6 +3243,31 @@ faktyczny błąd "100,00 USD (—%)"; (2) usunięty warunkowy spread `tone` (ust
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **449/449** (57 plików, +9 nowych testów).
 
+**O7, część 91: `RuleListEditor.tsx` (139 linii) - WSPÓLNY edytor zasad wejścia i zarządzania
+pozycją strategii (dodawanie/reorder/usuwanie), zero testów.** Klasyczna klasa błędu: `sort_order`
+musi zostać PRZELICZONY na nowo (sekwencyjnie od 0) po KAŻDEJ zmianie kolejności albo usunięciu -
+inaczej po usunięciu środkowego elementu zostaje DZIURA w numeracji (np. 0,2,3 zamiast 0,1,2), co
+cicho psuje sortowanie zapisane w bazie przy następnym wczytaniu.
+
+Nowy `pages/RuleListEditor.test.tsx` (9 testów, kontrolowany wrapper z lokalnym stanem + spy na
+`onChange`): pusta lista pokazuje komunikat zachęty; **nowa zasada dostaje `sort_order` RÓWNY
+DŁUGOŚCI listy, nadpisując to, co dał `makeBlankRule`**; **usunięcie ŚRODKOWEJ zasady
+przenumerowuje pozostałe sekwencyjnie (0,1), bez dziury**; przesunięcie środkowej zasady w górę
+zamienia kolejność I przelicza `sort_order`; strzałki "w górę"/"w dół" są wyłączone na
+granicach listy (pierwsza/ostatnia pozycja); edycja nazwy jednej zasady nie dotyka pozostałych;
+przełącznik "Wymagana" pokazuje/ukrywa się zgodnie z `showRequiredToggle`.
+
+Zweryfikowane 3 niezależnymi mutacjami: (1) usunięte przeliczenie `sort_order` po usunięciu
+(`.map((rule, i) => ({...rule, sort_order: i}))`) - **dokładnie 1 z 9 testów padł**, pokazując
+dokładnie przewidzianą dziurę `[0, 2]` zamiast `[0, 1]`; (2) usunięte nadpisanie `sort_order:
+rules.length` przy dodawaniu (zostaje to, co dał `makeBlankRule`) - **dokładnie 1 z 9 padł**,
+pokazując przeciek zaślepki `999`; (3) `disabled={index === 0}` zastąpione stałym `false` -
+**dokładnie 1 z 9 padł** (przycisk "w górę" na pierwszej pozycji przestał być wyłączony). Po
+każdym cofnięciu: `git diff --stat` na `RuleListEditor.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **458/458** (58 plików, +9 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
