@@ -127,6 +127,19 @@
   --sidebar-width-expanded: calc(248px * var(--ui-scale));
   --sidebar-width-collapsed: calc(64px * var(--ui-scale));
   --header-height: calc(56px * var(--ui-scale));
+  /* Szerokość Inspectora (Split View) - stała, NIE skaluje się z --ui-scale: to szerokość
+     panelu w jednostkach czytelności treści (rem), nie elementu chrome jak pasek boczny. */
+  --inspector-width-min: 20rem;
+  --inspector-width-max: 26rem;
+
+  /* Warstwy - jedna skala zamiast ośmiu niezależnie wymyślonych liczb w ośmiu plikach
+     (sekcja 9 promptu wymaga tego wprost). Natywny <dialog> (Modal) świadomie NIE jest tu
+     ujęty - przeglądarka renderuje go we własnej warstwie "top layer", zawsze NAD tą skalą,
+     niezależnie od z-index, więc nadanie mu wartości z tej listy byłoby mylące. */
+  --z-sticky: 1; /* nagłówki tabel, przyklejone paski filtrów - w obrębie WŁASNEGO kontenera */
+  --z-popover: 20; /* tooltip, rozwijany selektor koloru - pływają nad treścią strony */
+  --z-overlay: 100; /* paleta poleceń, toasty - nakładki na poziomie całej aplikacji */
+  --z-skip-link: 200; /* link "przejdź do treści" - musi być nad dosłownie wszystkim po focusie */
 }
 
 /* Motyw jasny to PEŁNOPRAWNY wariant, a nie odwrócony ciemny - wartości dokładnie z promptu

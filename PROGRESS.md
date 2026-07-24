@@ -1494,7 +1494,16 @@ redesign — to pełna wymiana warstwy wizualnej, nie korekta.
 | O4   | Audyt hardkodowanych kolorów: 0 poza uzasadnionymi wyjątkami (tęcza ColorPicker); znaleziony i naprawiony resztkowy domyślny kolor nowej strategii (złoto → niebieski)                                                            | ✅     |
 | O5   | Przegląd pod kątem pozostałości starego motywu: 5 komentarzy „złoto”→„akcent” (Button/Sidebar/Table/TransactionsPage/chartTheme), naprawiony realny bug układu (`.main` bez `min-width:0` ucinał szeroką treść bez scrolla)       | ✅     |
 | O6   | Kontrast WCAG AA - zrobione w ramach O1 (8 wartości skorygowanych, test `design/tokens.test.ts` 24/24 PASS na obu motywach)                                                                                                       | ✅     |
-| O7   | Audyt końcowy + macierz audytowa (sekcje 23-32 promptu) - werdykt GOTOWE/NIEGOTOWE                                                                                                                                                | ⬜     |
+| O7   | Audyt końcowy + macierz audytowa (sekcje 23-32 promptu) - werdykt GOTOWE/NIEGOTOWE                                                                                                                                                | 🚧     |
+
+**O7, postęp cząstkowy:** znaleziona i naprawiona realna luka względem sekcji 9 ("jedno źródło
+prawdy dla... warstw i z-index; szerokości Inspectora") - `z-index` był rozrzucony jako 8
+niezależnie wymyślonych liczb (1/1/1/20/20/100/100/200) w 8 plikach, a szerokość Inspectora
+(`minmax(20rem, 26rem)`) była wpisana wprost w siatkę Split View. Dodana skala `--z-sticky/
+--z-popover/--z-overlay/--z-skip-link` i tokeny `--inspector-width-min/-max`, wszystkie 8
+miejsc przepięte z weryfikacją że dopasowanie trafiło dokładnie raz. Natywny `<dialog>` (Modal)
+świadomie POZA tą skalą - przeglądarka renderuje go we własnej warstwie "top layer" zawsze nad
+z-index, więc wpisanie go do skali byłoby mylące.
 
 ### Rozszerzenie na macOS (druga wersja promptu O, 2026-07-24)
 

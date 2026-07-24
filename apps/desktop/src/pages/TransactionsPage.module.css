@@ -40,7 +40,10 @@
    jest konieczne - bez tego szeroka tabela rozpycha siatkę i wypycha panel poza ekran. */
 .splitView {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(20rem, 26rem);
+  grid-template-columns: minmax(0, 1fr) minmax(
+      var(--inspector-width-min),
+      var(--inspector-width-max)
+    );
   gap: var(--space-3);
   align-items: start;
 }

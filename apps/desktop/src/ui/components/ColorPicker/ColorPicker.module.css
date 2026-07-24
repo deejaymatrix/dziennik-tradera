@@ -37,7 +37,7 @@
    stronę przy zatwierdzeniu. */
 .panel {
   position: absolute;
-  z-index: 20;
+  z-index: var(--z-popover);
   top: calc(100% + var(--space-2));
   left: 0;
   width: 17rem;

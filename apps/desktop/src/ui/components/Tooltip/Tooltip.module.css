@@ -16,6 +16,6 @@
   font-size: var(--font-size-xs);
   white-space: nowrap;
   box-shadow: var(--shadow-sm);
-  z-index: 20;
+  z-index: var(--z-popover);
   pointer-events: none;
 }
