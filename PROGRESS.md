@@ -3973,6 +3973,33 @@ cofnięciu: `git diff --stat` na `DashboardPage.tsx` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **618/618** (85 plików, +5 nowych testów).
 
+**O7, część 119: `ReportsPage` (pasek zakładek podraportów, zapamiętane filtry per zakładka) - zero
+testów.** Dwie nieoczywiste rzeczy: (1) przełączenie zakładki z ISTNIEJĄCYM zapamiętanym filtrem
+(`localStorage`, osobno per zakładka) przywraca go W CAŁOŚCI i KOŃCZY tam (`return` po
+`setFilter(remembered)`) - dopiero gdy zapamiętanego filtru NIE MA, czyści pole miesiąca przy
+przejściu na "Roczny" (pole tam ukryte, ale ustawione w tle zawężałoby raport niewidocznie dla
+użytkownika); (2) Raport Roczny wymaga wybranego roku, Raport Miesięczny wymaga ROKU I MIESIĄCA
+naraz - inaczej podkomponent dostaje `report={null}` i pokazuje własny pusty stan (już przetestowany
+osobno w częściach 2-6 tego audytu).
+
+Nowy `pages/ReportsPage.test.tsx` (5 testów, `PreferencesProvider` bo `get_preferences` jest
+odrzucane jak w częściach 114/116): "Roczny" bez roku pokazuje "Wybierz rok"; "Miesięczny" z rokiem
+ale bez miesiąca pokazuje "Wybierz rok i miesiąc"; przyciski eksportu ukryte na "Porównanie kont";
+**przełączenie na zakładkę z zapamiętanym filtrem przywraca go W CAŁOŚCI** (miesiąc na wciąż
+aktywnej zakładce ustawiony na INNĄ wartość niż zapamiętana, żeby test odróżniał "przywrócono" od
+"zignorowano przełączenie"); przełączenie na "Roczny" BEZ zapamiętanego filtru czyści miesiąc
+(zweryfikowane przez PÓŹNIEJSZE przejście na "Instrument", bo pole miesiąca jest ukryte na samym
+"Rocznym").
+
+Zweryfikowane 3 niezależnymi mutacjami: (1) przywracanie zapamiętanego filtru zablokowane `if
+(false && remembered)` - **dokładnie 1 z 5 testów padł**; (2) czyszczenie miesiąca przy przejściu
+na "Roczny" zablokowane `if (false)` - **dokładnie 1 z 5 padł**; (3) warunek ukrycia eksportu na
+zakładce "Porównanie kont" (`activeTab !== "compare"`) usunięty - **dokładnie 1 z 5 padł**. Po
+każdym cofnięciu: `git diff --stat` na `ReportsPage.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **623/623** (86 plików, +5 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
