@@ -3004,6 +3004,18 @@ tekst użytkownika) - niskie ryzyko, zgodnie z tą samą zasadą co `dependency_
 
 Weryfikacja: `pnpm test -- --run` 289/289 (bez nowych zmian kodu w tym zadaniu).
 
+**Powłoka aplikacji - Sidebar, Header, CommandPalette (zadanie 19, zamknięte) - BEZ nowych zmian.**
+`Sidebar.navLabel` już naprawiony w zadaniu 8; `.brandName`/`.groupLabel` mają stałą, znaną z góry
+treść (nazwa aplikacji, nazwy grup nawigacji) - bezpieczne nawet bez pełnego trio obcięcia.
+`CommandPalette.itemLabel` już był wzorcowo poprawny (potwierdzone ponownym czytaniem - pełne
+`min-width:0`+`overflow:hidden`+`text-overflow:ellipsis`+`white-space:nowrap`). `Header` pokazuje
+wyłącznie stałe etykiety nawigacji. `AppShell.module.css .main` ma już udokumentowaną naprawę
+DOKŁADNIE tego samego rodzaju błędu na poziomie CAŁEJ aplikacji (`min-width: 0` na osi krzyżowej
+głównego kolumnowego flexa, z obszernym komentarzem o wcześniej znalezionym błędzie ucinania bez
+scrolla) - fundament, na którym stoi reszta audytu, już od dawna poprawny.
+
+Weryfikacja: `pnpm test -- --run` 289/289 (bez zmian kodu w tym zadaniu).
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.
