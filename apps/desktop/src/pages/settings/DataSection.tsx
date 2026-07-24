@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { Link } from "react-router";
 import { AlertTriangle, ChevronRight } from "lucide-react";
 import { invokeCommand } from "../../app/invokeCommand";
+import { pluralPl } from "../../app/pluralize";
 import type { DataPreferences } from "../../app/types/preferences";
 import { Button } from "../../ui/components/Button/Button";
 import { SectionCard } from "../../ui/components/SectionCard/SectionCard";
@@ -57,6 +58,10 @@ interface DataOverview {
   database_size_bytes: number | null;
   attachments_size_bytes: number | null;
   integrity_ok: boolean;
+}
+
+function formatCount(count: number): string {
+  return new Intl.NumberFormat("pl-PL").format(count);
 }
 
 function formatBytes(bytes: number | null): string {
@@ -136,7 +141,7 @@ export function DataSection({
     }
     const ok = await confirm({
       title: "Wyczyścić zapisane szkice?",
-      message: `Usuniętych zostanie ${count} niezapisanych szkiców formularza transakcji.\n\nZapisane transakcje pozostaną nietknięte - szkic to wyłącznie kopia niedokończonego formularza.`,
+      message: `Usuniętych zostanie ${count} ${pluralPl(count, ["niezapisany szkic", "niezapisane szkice", "niezapisanych szkiców"])} formularza transakcji.\n\nZapisane transakcje pozostaną nietknięte - szkic to wyłącznie kopia niedokończonego formularza.`,
       confirmLabel: "Wyczyść szkice",
       danger: true,
     });
@@ -144,7 +149,10 @@ export function DataSection({
       return;
     }
     const removed = clearStoredDrafts();
-    showToast(`Wyczyszczono ${removed} szkiców.`, "success");
+    showToast(
+      `Wyczyszczono ${removed} ${pluralPl(removed, ["szkic", "szkice", "szkiców"])}.`,
+      "success",
+    );
   }
 
   return (
@@ -203,19 +211,19 @@ export function DataSection({
             <dl className={maintenance.stats}>
               <div>
                 <dt>Konta</dt>
-                <dd>{overview.accounts}</dd>
+                <dd>{formatCount(overview.accounts)}</dd>
               </div>
               <div>
                 <dt>Transakcje</dt>
-                <dd>{overview.trades}</dd>
+                <dd>{formatCount(overview.trades)}</dd>
               </div>
               <div>
                 <dt>Strategie</dt>
-                <dd>{overview.strategies}</dd>
+                <dd>{formatCount(overview.strategies)}</dd>
               </div>
               <div>
                 <dt>Załączniki</dt>
-                <dd>{overview.attachments}</dd>
+                <dd>{formatCount(overview.attachments)}</dd>
               </div>
               <div>
                 <dt>Rozmiar bazy</dt>

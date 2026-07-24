@@ -2970,6 +2970,28 @@ kontrolowany `max-width`; `item.label` w standardowej, scrollowalnej tabeli.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` 289/289.
 
+**Ustawienia - wszystkie sekcje (zadanie 17, zamknięte) - 4 znaleziska w `settings/DataSection.tsx`,
+reszta bez zmian.**
+1. `Usuniętych zostanie {N} niezapisanych szkiców` - CZWARTY przypadek braku odmiany liczebnikowej
+   (po Kalendarzu, Zasadach handlu, Koszu) - naprawiony przez `pluralPl()`.
+2. `Wyczyszczono {N} szkiców` - ten sam brak, ta sama naprawa.
+3. Liczniki w sekcji "Stan danych" (konta/transakcje/strategie/załączniki) pokazywały surowe liczby
+   całkowite bez separatora tysięcy (np. "12453" zamiast "12 453"), niespójnie z resztą aplikacji i
+   z sąsiadującym polem "Rozmiar bazy", które już używało `Intl.NumberFormat`. Dodana nowa lokalna
+   `formatCount()` (ten sam wzorzec co już istniejące `formatBytes()` w tym samym pliku).
+4. `.updateNotes` (notatki wydania aktualizacji) w `SettingsPage.module.css` miał `white-space:
+   pre-wrap` bez `overflow-wrap: anywhere` - pojedynczy długi token bez spacji (np. link w notatkach
+   wydania) mógłby wypchnąć kartę. Ten sam wzorzec naprawy co `.answer` w Zasadach handlu (zadanie 14).
+
+Reszta ekranu (współdzielony `SettingRow` używany przez WSZYSTKIE sekcje preferencji, `PreferenceSections.tsx`
+w całości, `UpdatesInfoSection`, menu zakładek) sprawdzona bardzo dokładnie i już POPRAWNA -
+`SettingRow.module.css` ma wzorcowo poprawną pułapkę Grid (`minmax(0, 1fr)` z jawnym komentarzem
+tłumaczącym dlaczego) plus container query na wąskie okno; `.stats` w Danych już miało `min-width: 0`
+na elementach siatki. Żadnych dodatkowych zmian nie było potrzeba.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` 289/289.
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.

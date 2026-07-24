@@ -168,6 +168,7 @@
   margin: 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
