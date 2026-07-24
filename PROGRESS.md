@@ -2864,6 +2864,27 @@ zajęty przez prawdziwą sesję użytkownika przez cały czas tego zadania (`net
 LISTENING+ESTABLISHED), a mój własny serwer podglądu używa TEGO SAMEGO portu (`.claude/launch.json`)
 - zgodnie ze standing instrukcją audyt oparty wyłącznie o przegląd kodu.
 
+**Konta - lista i modale (zadanie 10, zamknięte) - 1 znalezisko, ale we WSPÓLNYM komponencie.**
+`ReadOnlyField` (`ui/components/ReadOnlyField/ReadOnlyField.module.css`) - siatka etykieta→wartość
+używana w AccountDetailsModal, KalkulatorPozycjiPage, TradeBalanceCard i TradePreviewCard - miała
+`grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr))` BEZ `min-width: 0` na `.row` (klasyczna
+pułapka CSS Grid, ta sama co `.leaderCard` w raportach wcześniej w tym audycie) i BEZ
+`overflow-wrap: anywhere` na `.value` - podczas gdy siostrzany, osobny komponent `TradeInspector`'s
+`.value` MIAŁ już oba te zabezpieczenia. Naprawione dopisaniem obu brakujących właściwości - jedna
+poprawka w jednym miejscu naprawia od razu 4 ekrany na raz (w tym 2, które dopiero czekają w
+kolejce audytu: Kalkulator pozycji - zadanie 18).
+
+Reszta zakresu sprawdzona bez problemu: `AccountsPage` (nazwa konta w scrollowalnej tabeli - ten
+sam zaakceptowany wzorzec co rankingi), `AccountDetailsModal.module.css` (`.templateName` już miało
+`min-width: 0`), `AccountFormModal`/`CashOperationsModal` (zwykłe formularze, pola `TextField`/
+`Select` z własnym `min-width: 0`), natywny `<select>` (wewnętrzne renderowanie rozwijanej listy
+i przycinanie tekstu zamkniętego pola to zachowanie przeglądarki, poza zasięgiem CSS aplikacji -
+świadomie pominięte, tak jak wszędzie indziej w aplikacji).
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` 283/283. Bez weryfikacji na żywo - port 1430 nadal zajęty
+przez sesję użytkownika.
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.
