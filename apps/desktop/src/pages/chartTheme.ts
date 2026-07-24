@@ -8,7 +8,7 @@ import type { CSSProperties } from "react";
  * wstawia te wartości wprost do atrybutów SVG, a przeglądarka rozwiązuje `var()` sama.
  */
 
-/** Kolor głównej serii - złoto motywu. Zysk/strata mają własne kolory semantyczne. */
+/** Kolor głównej serii - niebieski akcent motywu. Zysk/strata mają własne kolory semantyczne. */
 export const CHART_PRIMARY_COLOR = "var(--color-accent)";
 
 export const CHART_PROFIT_COLOR = "var(--color-profit)";

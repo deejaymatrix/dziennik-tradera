@@ -36,7 +36,8 @@
   filter: saturate(0.35);
 }
 
-/* JEDYNY przycisk ze złotym tłem - główna akcja widoku. W jednym panelu występuje zwykle jeden. */
+/* JEDYNY przycisk z tłem w kolorze akcentu - główna akcja widoku. W jednym panelu występuje
+   zwykle jeden. */
 .primary {
   background-color: var(--color-accent);
   color: var(--color-accent-contrast);

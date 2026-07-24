@@ -56,8 +56,8 @@
   cursor: pointer;
 }
 
-/* Zaznaczony wiersz musi być odróżnialny od zwykłego najechania - stąd złoty pasek, a nie samo
-   tło, które zlewałoby się z hoverem sąsiada. */
+/* Zaznaczony wiersz musi być odróżnialny od zwykłego najechania - stąd pasek w kolorze akcentu,
+   a nie samo tło, które zlewałoby się z hoverem sąsiada. */
 .selectedRow td {
   background-color: color-mix(in srgb, var(--color-accent) 8%, transparent);
 }

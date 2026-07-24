@@ -12,7 +12,7 @@
 }
 
 /* Nagłówek wyraźny, ale NIE jaskrawy: ciemniejsza powierzchnia i mocniejsza kreska pod spodem
-   wystarczą, żeby oddzielić go od danych. Złota tu nie ma celowo - ma wskazywać hierarchię
+   wystarczą, żeby oddzielić go od danych. Akcentu tu nie ma celowo - ma wskazywać hierarchię
    w kilku miejscach aplikacji, a nie obrysowywać każdą tabelę. */
 .table thead tr {
   background-color: var(--color-surface-alt);

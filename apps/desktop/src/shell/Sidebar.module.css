@@ -92,9 +92,10 @@
   outline-offset: 2px;
 }
 
-/* Aktywna pozycja: delikatne tło, ZŁOTY pionowy pasek i mocniejszy tekst. Specyfikacja wprost
-   zabrania wypełniania całej pozycji jaskrawym złotem - pasek wskazuje miejsce, nie krzyczy.
-   Tekst zostaje w kolorze podstawowym, bo złoty napis na złotawym tle bywa nieczytelny. */
+/* Aktywna pozycja: delikatne tło, pionowy pasek w kolorze akcentu i mocniejszy tekst. Cały
+   wypełniony jaskrawym akcentem wyglądałby krzykliwie - pasek wskazuje miejsce, nie krzyczy.
+   Tekst zostaje w kolorze podstawowym, bo akcent jako kolor tekstu na tle w tym samym akcencie
+   bywa nieczytelny. */
 .navLinkActive {
   background-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
   color: var(--color-text);
