@@ -1,3 +1,5 @@
+pub mod ai_inference;
+pub mod ai_model_download;
 pub mod backup_archive;
 pub mod pdf_report;
 pub mod sqlite_account_repository;

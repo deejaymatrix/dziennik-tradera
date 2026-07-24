@@ -4952,3 +4952,46 @@ odpowiedniki - zgodnie z ustaloną zasadą tego projektu):**
 - Commit małymi krokami, po polsku, push po każdym commicie.
 - Nie oznaczać pozycji jako gotowej bez testów i przechodzącego lint/typecheck.
 - Nie budować instalatora bez wyraźnej zgody użytkownika.
+
+## Blok F — Lokalny Asystent AI (nowa inicjatywa, 2026-07-24/25)
+
+Użytkownik przesłał obszerną specyfikację lokalnego, w pełni offline asystenta AI (bez chmury,
+bez konta, bez klucza API) - analiza pojedynczych transakcji, ~10 rodzajów raportów, czat po
+własnych danych, ścisłe oddzielenie deterministycznych KPI (zawsze liczone przez Rust) od
+interpretacji AI. Ustalono wspólnie: budowa etapami, zaczynając od jednego pionowego wycinka
+(plan: `C:\Users\matri\.claude\plans\iridescent-dreaming-pearl.md`) - Etap 1 (wybór modelu +
+pobieranie), Etap 2 (runtime), Etap 3 (jedna analiza end-to-end: transakcja), Etap 4 (demo).
+Wyjątek macOS (tylko dla tej funkcji, na wyraźną prośbę użytkownika): kod pisany pod Windows i
+macOS jednocześnie, ścieżki macOS pozostają NIEZWERYFIKOWANE (brak sprzętu testowego).
+
+**Etap 1a - `llama-cpp-2` jako silnik W PROCESIE (nie sidecar).** Dodano zależność
+`llama-cpp-2`/`llama-cpp-sys-2` (kompiluje `llama.cpp` z C++ przy `cargo build`, wymaga CMake +
+libclang/LLVM - oba doinstalowane przez winget za zgodą użytkownika, bo `rusqlite`'owy kompilator
+C już był, ale CMake/LLVM nie). Zweryfikowana kompilacja - `cargo build` przechodzi czysto.
+
+**Etap 1b - `infrastructure/ai_model_download.rs`.** Wzorem `update_manifest.rs` (Cel 1.8):
+`reqwest` + `AppError::io` z logowaniem, testy na lokalnym serwerze TCP. Strumieniowe pobieranie
+z bieżącym postępem, wznowienie przerwanego pobrania przez `Range`, weryfikacja SHA-256 CAŁEGO
+pliku PRZED przeniesieniem pod docelową nazwę - uszkodzony/sfałszowany plik nigdy nie zostaje
+uznany za gotowy model. Kandydaci (`KANDYDACI`) mają przypięte adresy/sumy SHA-256/rozmiary,
+zweryfikowane bezpośrednio z plików wskaźnikowych Git LFS na Hugging Face (surowy odczyt w
+przeglądarce, NIE podsumowanie AI). 6 nowych testów, wszystkie zielone.
+
+**Etap 1c - harness benchmarkowy (`infrastructure/ai_inference.rs`).** Cienki wrapper nad
+`llama-cpp-2` (`uruchom_prompt`) - ładuje model, koduje prompt, generuje aż do tokenu końca tury
+albo limitu. Test ignorowany domyślnie (`benchmark_kandydatow`, pobiera ~12 GB, realna inferencja
+na CPU) - odpalany ręcznie za wyraźną zgodą użytkownika (podano nazwy plików/rozmiary przed
+pobraniem). Odkrycie w trakcie: bez zastosowania szablonu czatu modelu (`chat_template`/
+`apply_chat_template`) WSZYSCY trzej kandydaci nie wiedzieli, kiedy się zatrzymać - naprawione,
+benchmark powtórzony z poprawką. Pełne wyniki i rekomendacja: `docs/AI_ASYSTENT_WYBOR_MODELU.md`.
+Skrót: żaden kandydat nie jest idealny sam z siebie (Bielik-11B niezawodny składniowo ale 188s/
+analizę; Qwen2.5-7B najlepsza jakość/szybkość ale złamał JSON przez niezescapowany cudzysłów w
+tym przebiegu; Qwen2.5-1.5B szybki ale analitycznie płytki) - **rekomendacja: Qwen2.5-7B-Instruct
+
+- gramatyka GBNF wymuszająca poprawność JSON w Etapie 2** (nie polegać na "grzecznym zachowaniu"
+  modelu). `Qwen2.5-3B-Instruct` z pierwotnego planu odrzucony - rzeczywista licencja na Hugging
+  Face to `qwen-research` (ograniczenia komercyjne), nie Apache 2.0; zastąpiony przez
+  `Qwen2.5-1.5B-Instruct` (naprawdę Apache 2.0).
+
+**Następny krok:** punkt kontrolny z użytkownikiem (potwierdzenie modelu/podejścia z gramatyką
+GBNF) przed Etapem 2 (`AiRuntimeService`).
