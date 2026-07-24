@@ -1753,6 +1753,15 @@ przeglądzie (ten sam nawyk co przy manifeście) ujawniła, że `.itemActive` (1
 z dużym marginesem (13,46, daleko nad progiem 4,5) - bez zmian kodu, tylko dopisany trwały
 test regresyjny, żeby przyszła zmiana nie przeszła niezauważona. `pnpm test` 62/62 PASS.
 
+**O7, zamknięcie audytu color-mix wyczerpującym przeglądem, nie kolejną częściową łatką.**
+Zamiast kolejnego `grep -rl "color-mix"` (który dwa razy z rzędu ujawniał tylko JEDEN pominięty
+przypadek na raz - `FormPanel` w części 20, `CommandPalette.itemActive` w części 31), przejrzane
+linia po linii WSZYSTKICH 28 wystąpień `color-mix()` w repozytorium. Wynik: każde miejsce, gdzie
+tekst renderuje się na takim tle, ma już test. `Switch` (kolor toru przy zaznaczeniu) i `Table`
+(obramowanie wiersza) świadomie poza zakresem - to inne kryteria WCAG (odróżnialność stanu,
+kontrast obramowań), nie czytelność tekstu. 0 kolejnych luk - ten wątek audytu uznany za
+faktycznie zamknięty, nie tylko "na razie bez nowych znalezisk".
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
