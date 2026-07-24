@@ -65,7 +65,10 @@ export function StrategyFormModal({
   const { showToast } = useToast();
 
   const [name, setName] = useState(() => strategy?.name ?? "");
-  const [color, setColor] = useState(() => strategy?.color ?? "#d7b45a");
+  // Domyślny kolor nowej strategii to ten sam niebieski, co domyślny akcent aplikacji
+  // (PreferencesProvider.DEFAULT_ACCENT) - spójne z resztą nowej palety, nie pozostałość
+  // starego złota.
+  const [color, setColor] = useState(() => strategy?.color ?? "#4c7dff");
   const [tagsText, setTagsText] = useState(() => tagsToText(strategy?.tags ?? []));
   const [description, setDescription] = useState(() => strategy?.description ?? "");
   const [entryRules, setEntryRules] = useState<EntryRule[]>(() => strategy?.entry_rules ?? []);
