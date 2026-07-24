@@ -79,19 +79,32 @@ To realnie zawęża wybór. Sprawdzone 2026-07-24 (wyszukiwanie na żywo, nie z 
 | **EV** (Extended Validation)                           | **NIE**                       | znika od razu                                                                  | wymaga zarejestrowanej firmy/działalności — jako osoba prywatna go nie kupisz                                                                                             |
 | **Microsoft Trusted Signing** (Azure Artifact Signing) | **NIE dla Ciebie**            | znika szybciej niż przy OV, bo reputację buduje Microsoft                      | tani (od $9,99/mies.), ale zapisy dla osób prywatnych są **wstrzymane w wersji preview**, a nawet gdy działały, obejmowały wyłącznie USA i Kanadę — Polska poza zasięgiem |
 
-**Praktyczny wniosek dla Ciebie: kup certyfikat OV/IV (Individual Validation) u SSL.com,
-DigiCert, Sectigo albo pośrednika (np. Certum — polski wydawca, może być wygodniejszy przy
-polskim dowodzie/rachunku).** EV odpada — nie masz zarejestrowanej działalności, a certyfikat
-EV bez niej nie istnieje. Trusted Signing też odpada — nie obejmuje Polski.
+**Uwaga — nazwa „OV" myli.** OV (Organization Validation) z definicji wymaga zarejestrowanej
+firmy. To, czego potrzebujesz jako osoba prywatna, to osobny produkt: **IV (Individual
+Validation)** — nie każdy wydawca w ogóle go ma, więc samo szukanie „code signing OV" trafi
+Cię na formularze proszące o numer rejestru firmy, których nie wypełnisz.
+
+Sprawdzeni wydawcy, którzy FAKTYCZNIE sprzedają certyfikat dla osoby prywatnej (2026-07-24):
+
+- **Certum** — polski wydawca, wprost dla osób prywatnych bez firmy. Prawdopodobnie
+  najwygodniejszy dla Ciebie: polski support, polski dowód osobisty, płatność w PLN.
+- **Sectigo** — ma osobną opcję „Individual" obok organizacyjnej.
+- **DigiCert** — akceptuje osobę prywatną, weryfikacja głównie paszportem ze zdjęciem.
+- **SSL.com** — własny produkt nazwany wprost „IV" (Individual Validated).
+
+Szukaj na stronie wydawcy produktu nazwanego **„Code Signing Certificate"** z opcją
+„Individual"/„osoba fizyczna" — NIE produktu SSL/TLS (tamte mają DV, które w ogóle nie
+istnieje dla podpisu kodu, patrz wyżej) i NIE formularza wymagającego numeru KRS/NIP firmy.
 
 Weryfikacja tożsamości jako osoby prywatnej: skan dowodu osobistego lub paszportu, czasem
 dodatkowo potwierdzenie adresu. Trwa zwykle od kilku dni do dwóch tygodni — to najdłuższy
 element całego wydania, więc jeśli chcesz wydać w konkretnym terminie, zacznij od tego.
 
-**Ważna zmiana od 2026:** od 1 marca 2026 CA/Browser Forum ogranicza maksymalną ważność
-publicznie zaufanych certyfikatów podpisu kodu do 458 dni (SSL.com egzekwuje to już od
-27 lutego 2026) — krócej niż dawne certyfikaty wieloletnie. Licz się z odnowieniem częściej
-niż raz na parę lat.
+**Ważna zmiana od 2026:** CA/Browser Forum ogranicza maksymalną ważność publicznie zaufanych
+certyfikatów podpisu kodu do 458 dni (reguła obowiązuje od 27 lutego/1 marca 2026, zależnie
+od wydawcy). Część wydawców (np. DigiCert) sprzedaje w praktyce plany roczne w ramach tego
+limitu. W obu przypadkach: krócej niż dawne certyfikaty wieloletnie — licz się z odnowieniem
+co rok, nie raz na kilka lat.
 
 **Decyzja, u którego wydawcy kupić i kiedy, jest Twoja i wiąże się z wydatkiem — nie podejmę
 jej za Ciebie.** Kiedy będziesz miał certyfikat, dopiszemy do procesu wydania podpisywanie
