@@ -8,6 +8,7 @@ import type {
   FilteredReport,
 } from "../app/types/report";
 import { EmptyState } from "../ui/components/EmptyState/EmptyState";
+import { toAccountBreakdown } from "./accountBreakdown";
 import { ChartCard } from "./ChartCard";
 import { GroupBarChart } from "./GroupBarChart";
 import styles from "./ReportsPage.module.css";
@@ -71,15 +72,7 @@ export function ReportStrategyTab({
     );
   }
 
-  const accountBreakdown = accountRows?.map((row) => ({
-    key: row.account_id,
-    label: accounts.find((a) => a.id === row.account_id)?.name ?? row.account_id,
-    trade_count: row.stats.closed_trades,
-    win_count: row.stats.win_count,
-    loss_count: row.stats.loss_count,
-    win_rate: row.stats.win_rate,
-    net_pnl: row.stats.net_pnl,
-  }));
+  const accountBreakdown = accountRows ? toAccountBreakdown(accountRows, accounts) : null;
 
   return (
     <div className={styles.tabContent}>

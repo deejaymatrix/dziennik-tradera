@@ -4099,6 +4099,40 @@ cofnięciu: `git diff --stat` na `ReportYearlyTab.tsx` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **642/642** (89 plików, +6 nowych testów).
 
+**O7, część 123: `ReportStrategyTab` (podraport strategii) - zero testów, mimo oznaczonego
+"Audyt".** Jedyny podraport dociągający DODATKOWE dane spoza `FilteredReport` - wykres "Wynik wg
+konta" liczy się osobno przez `compare_accounts_report` (bo `FilteredReport` jest zawężony do
+jednego konta), więc wymaga mockowania `invokeCommand`, w odróżnieniu od części 121/122. Przy
+pisaniu testu na jaw wyszedł ustalony w tej bazie kodu problem: `GroupBarChart`
+(Recharts+`ResponsiveContainer`) nie renderuje etykiet w jsdom (brak layoutu/`ResizeObserver`), więc
+nazwa konta na wykresie nigdy nie trafiłaby do drzewa DOM podczas testu renderującego cały
+komponent - **rozwiązane wydzieleniem mapowania `toAccountBreakdown` do osobnego pliku
+`accountBreakdown.ts`** (ten sam wzorzec co `barShape.tsx`/`cumulativeSeries.ts` w częściach
+101/102 - przy okazji unika też ostrzeżenia `react-refresh/only-export-components`, które pojawiło
+się przy pierwszej próbie eksportu funkcji wprost z pliku komponentu).
+
+Nieoczywiste rzeczy: (1) nazwa konta w "Wynik wg konta" ma fallback do samego `account_id`, gdy
+konto zniknęło z listy `accounts` między zapytaniami (np. zarchiwizowane w międzyczasie); (2) pusty
+stan pokazuje się, gdy brakuje ALBO raportu, ALBO filtru konta (`!report || !accountFilter`) - obie
+połówki złożonego warunku trzeba sprawdzić osobno; (3) dopóki `compare_accounts_report` nie
+odpowie, wykres "Wynik wg konta" pokazuje "Wczytywanie..." zamiast pustego/błędnego wykresu.
+
+Nowy `pages/accountBreakdown.ts` (czysta funkcja `toAccountBreakdown`) + `pages/ReportStrategyTab.test.tsx`
+(5 testów): **znane konto dostaje nazwę, nieznane dostaje fallback do `account_id`** (testowane
+BEZPOŚREDNIO na czystej funkcji, bez renderowania wykresu); `report === null` i `accountFilter ===
+null` osobno pokazują pusty stan; wykres "Wynik wg konta" pokazuje "Wczytywanie..." przed
+odpowiedzią backendu.
+
+Zweryfikowane 3 niezależnymi mutacjami: (1) fallback `?? row.account_id` zastąpiony `?? ""` w
+`toAccountBreakdown` - **dokładnie 1 z 5 testów padł**; (2) `!accountFilter` usunięty ze złożonego
+warunku pustego stanu - **dokładnie 1 z 5 padł**; (3) placeholder "Wczytywanie..." zastąpiony
+bezwarunkowym renderowaniem wykresu z pustą tablicą - **dokładnie 1 z 5 padł**. Po każdym
+cofnięciu: `git diff --stat` na obu plikach `.tsx` pusty, `accountBreakdown.ts` zgodny z docelową
+wersją.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **647/647** (90 plików, +5 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
