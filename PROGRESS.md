@@ -2945,6 +2945,31 @@ zachowania wyboru po `reloadAccounts()`); (2) usunięta gałąź `else { setRepo
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **389/389** (46 plików, +7 nowych testów).
 
+**O7, część 80: `useAttachments.ts` (87 linii) - zarządzanie załącznikami transakcji (Faza 6),
+zero testów - ostatni nieprzetestowany plik w `app/`.** Dwie ryzykowne, nieoczywiste części: (1)
+obrazy pobierane są WYŁĄCZNIE dla załączników typu `"screenshot"` - błędne wywołanie
+`read_attachment_image` dla `"link"` byłoby marnowaniem zapytań albo błędem; (2) `runThenReload`
+przy niepowodzeniu akcji PONOWNIE RZUCA błąd (nie tylko ustawia `error`) - wywołujący (formularz
+dodawania załącznika w `TradeAttachments`) polega na tym, żeby np. nie zamykać okna po nieudanej
+operacji. Zamiana rethrow na ciche połknięcie błędu byłaby niewidoczna w code review - kod nadal
+"obsługuje błąd", tylko niepoprawnie dla wywołującego.
+
+Nowy `app/useAttachments.test.ts` (5 testów, `vi.mock("./invokeCommand", ...)`): puste `tradeId`
+nic nie ładuje (tryb nowej, niezapisanej transakcji z komentarza w źródle); ładuje listę i obrazy
+WYŁĄCZNIE dla `"screenshot"`, nie dla `"link"`; `addLink()` woła komendę z poprawnymi argumentami
+i odświeża listę po powodzeniu; **nieudana akcja ustawia `error` i PONOWNIE RZUCA** - obietnica
+zwrócona wywołującemu faktycznie się odrzuca, nie tylko stan wewnętrzny się zmienia; `reload()`
+ponownie ładuje listę dla aktualnego `tradeId`.
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) usunięty `throw e` z `catch` w `runThenReload` -
+**dokładnie 1 z 5 padł** (obietnica zwrócona z `addLink()` rozwiązała się zamiast odrzucić); (2)
+usunięty `.filter((a) => a.kind === "screenshot")` przed pobieraniem obrazów - **dokładnie 1 z 5
+padł** (obraz pobrany też dla załącznika typu `"link"`). Po każdym cofnięciu: `git diff --stat`
+na `useAttachments.ts` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **394/394** (47 plików, +5 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
