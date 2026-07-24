@@ -2406,6 +2406,63 @@ Weryfikacja: `pnpm typecheck`, `pnpm exec eslint`, `pnpm exec prettier --check`,
 275/275 - wszystkie czyste. To zamyka sweep `IconButton`/`busy` w całej aplikacji - wszystkie 24
 pliki z `IconButton` sprawdzone, nie tylko te dotknięte wcześniejszymi częściami.
 
+**O7, część 59: sekcja 26 promptu ("niezależne obliczenia referencyjne") - 4 ścieżki liczbowe
+zweryfikowane ręcznie, nie tylko przez odczytanie, że test istnieje.** Dotąd żadna część O7 nie
+przeliczyła niczego SAMODZIELNIE wbrew dosłownemu brzmieniu sekcji 26 ("wykonaj niezależne
+obliczenia referencyjne i porównaj je z aplikacją") - poprzednie części ufały istniejącym testom
+Rust bez ręcznego przeliczenia ich wejść. Odczytany oryginalny dokument promptu
+(`Prompt_finalny_redesign_O_TradingView_Apple_Fintech_i_pelny_audyt (2).md` w `Downloads`),
+sekcje 22/23/26/28 - jedyne trzy z 23-32 bez dotychczasowego literalnego odniesienia w tym pliku.
+
+Cztery reprezentatywne ścieżki przeliczone ręcznie z surowych danych wejściowych testu (nie
+przepisane z oczekiwanego wyniku):
+
+1. `trade_calculations::buy_profit_when_exit_above_entry` - EURUSD, wejście 1,10000/wyjście
+   1,10500/SL 1,09500/TP 1,11000/prowizja 5/saldo 10000: 500 punktów × 1 USD/punkt = brutto 500,
+   netto 495, ryzyko 500, zysk potencjalny 1000, RR 2, R 0,99, ryzyko% 5, wynik% 4,95 - wszystkie
+   8 wartości zgodne z ręcznym przeliczeniem.
+2. `trade_calculations::czesciowe_zamkniecia_sa_jedynym_zrodlem_wyniku_pienieznego` - suma
+   częściowych zamknięć (180 + (-30) = 150) jako JEDYNE źródło brutto, NIE dodane do 500 z ceny
+   wyjścia (co byłoby podwójnym liczeniem) - netto 150-5-2-1=142, punkty (metryka cenowa, nie
+   pieniężna) liczone niezależnie z ceny = 500 - zgodne.
+3. `position_sizing::liczy_lot_z_ryzyka_procentowego` - saldo 10000, ryzyko 1%=100 USD, SL 1000
+   punktów×1 USD=1000 USD strata/lot → sugerowany lot 100/1000=0,10, jednostki 0,10×100000=10000
+   - zgodne.
+4. `trade_stats::max_drawdown_is_the_largest_peak_to_trough_drop` (ślad kapitału 100→-50→-20→180)
+   - ręczne śledzenie szczytu: max drawdown = szczyt 100 minus dołek -50 = 150, kolejny dołek -20
+     (drawdown 120 od tego samego szczytu) mniejszy, nowy szczyt 180 zeruje drawdown - zgodne z
+     `max_drawdown = Some(150)`. `win_rate_and_profit_factor_from_wins_and_losses` (2 zyski, 1
+     strata) - win_rate 2/3×100, profit_factor 300/50=6, expectancy 250/3, average_r (1+2-1)/3 -
+     wszystkie zgodne z ręcznym przeliczeniem.
+
+Redesign O (i osobny audyt formatowania z tej samej sesji) nie dotknął ANI JEDNEGO pliku
+kalkulacyjnego - potwierdzone `git log --oneline` na `domain/trade_calculations.rs`,
+`domain/position_sizing.rs`, `domain/trade_stats.rs`: ostatnie commity dotykające tych plików
+to sprzed Bloku O (nie widnieją w żadnym z commitów tej sesji ani poprzednich części O1-O7).
+`cargo test` 435/435 PASS bez zmian przez całą sesję redesignu i audytu formatowania -
+mechaniczny dowód braku regresji uzupełniony teraz ręczną, niezależną weryfikacją arytmetyki.
+
+Sekcja 22 (rozmiary okna/skalowanie Windows/macOS) i sekcja 23 (obowiązkowy audyt wizualny +
+zrzuty ekranu) pozostają zablokowane TĄ SAMĄ, trzykrotnie potwierdzoną usterką środowiska
+(`computer{action:"screenshot"}` nie kompozytuje klatek) - żadna nowa próba nie zmieniłaby tego
+wyniku. Za to CAŁA lista ekranów z sekcji 23 („Dashboard; Nową transakcję; historię; Inspector;
+konta; strategie; instrumenty; szablony brokerów; kalkulator; wszystkie raporty; Stan emocjonalny;
+Zasady handlu; Kosz; Ustawienia; modale; menu; długie teksty; duże liczby; polskie znaki") została
+w MIĘDZYCZASIE wyczerpująco sprawdzona na poziomie kodu przez OSOBNY, równoległy audyt tej samej
+sesji (`TaskList` #1-23 w tym pliku, tabela PASS/FAIL 19/19) - inny punkt wyjścia (zgłoszenie
+użytkownika o formatowaniu liczb), ale identyczny zakres ekranów co sekcja 23. Krzyżowe odniesienie
+zapisane tutaj zamiast duplikowania już wykonanej pracy.
+
+Sekcja 28 (narzędzia kontroli) - wszystkie wymagane narzędzia już uruchamiane rutynowo przy
+każdej części tej sesji i w finalnej regresji audytu formatowania: `pnpm lint`/`format:check`/
+`typecheck`/`test`, `cargo fmt --check`/`clippy -D warnings`/`test`. Jedyny czerwony punkt
+(`cargo clippy`, 5 błędów martwego kodu w `preferences.rs`/`update_manifest.rs`/`state.rs`)
+potwierdzony jako przedawniony dług sprzed tej sesji (`git log` na dotkniętych plikach), już
+zgłoszony osobno (`task_c91d280f`) - świadomie nie mieszany z zakresem O7.
+
+Weryfikacja: bez zmian kodu w tej części - wyłącznie ręczne przeliczenia i odczyt istniejących
+testów/promptu. `cargo test` 435/435 potwierdzone ponownie.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
