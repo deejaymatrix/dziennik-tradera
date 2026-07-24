@@ -436,6 +436,7 @@ export function KoszPage(): ReactElement {
                         icon={<RotateCcw size={16} />}
                         aria-label={`Przywróć ${item.label}`}
                         disabled={busy}
+                        loading={busy}
                         onClick={() => {
                           void handleRestore(item);
                         }}
@@ -444,6 +445,7 @@ export function KoszPage(): ReactElement {
                         icon={<Trash2 size={16} />}
                         aria-label={`Usuń trwale ${item.label}`}
                         disabled={busy}
+                        loading={busy}
                         onClick={() => {
                           void handlePurge(item);
                         }}

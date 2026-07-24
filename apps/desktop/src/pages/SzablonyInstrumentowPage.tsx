@@ -256,6 +256,7 @@ export function SzablonyInstrumentowPage(): ReactElement {
                           aria-label={`Duplikuj: ${template.name}`}
                           onClick={() => void handleDuplicate(template)}
                           disabled={busy}
+                          loading={busy}
                         />
                         <IconButton
                           icon={<Link2 size={14} />}
@@ -269,6 +270,7 @@ export function SzablonyInstrumentowPage(): ReactElement {
                             aria-label={`Odepnij: ${template.name}`}
                             onClick={() => void handleUnassign(template)}
                             disabled={busy}
+                            loading={busy}
                           />
                         )}
                         <IconButton
@@ -276,6 +278,7 @@ export function SzablonyInstrumentowPage(): ReactElement {
                           aria-label={`Do Kosza: ${template.name}`}
                           onClick={() => void handleArchive(template)}
                           disabled={busy}
+                          loading={busy}
                         />
                       </div>
                     </td>

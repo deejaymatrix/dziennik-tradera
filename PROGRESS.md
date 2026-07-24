@@ -465,13 +465,16 @@ Dodane (bez zmiany MECHANIZMU aktualizacji, czego zabrania sekcja 3 promptu rede
   w tyle, aktualizacja jest proponowana w kółko po zainstalowaniu; gdy wyprzedza — nigdy się
   nie pokaże. Diagnostyka czyta wersję z tej samej stałej, więc nie ma drugiego źródła.
 
-**⚠️ Wymaga uwagi użytkownika przed pierwszym wydaniem** (szczegóły w
-`docs/adr/0005-autoaktualizacja.md`): `tauri.conf.json` ma placeholder
-`TWOJA-NAZWA-UZYTKOWNIKA/dziennik-tradera` zamiast prawdziwego adresu repozytorium GitHub -
-trzeba go podmienić i dodać dwa sekrety (`TAURI_SIGNING_PRIVATE_KEY`,
-`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`) w ustawieniach repozytorium, zanim autoaktualizacja
-zadziała naprawdę. Do tego czasu przycisk "Sprawdź aktualizacje" będzie zwracał błąd - to
-oczekiwane.
+**Aktualizacja 2026-07-24: oba sekrety GitHub Actions już ustawione.** Placeholder w
+`tauri.conf.json` był już podmieniony wcześniej (patrz „Resprawdzenie po audycie" niżej).
+Sprawdzone na żywo przez `gh secret list`: `TAURI_SIGNING_PRIVATE_KEY` był już dodany przez
+użytkownika, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (pusta wartość - klucz nie ma hasła, ale
+sekret i tak musi istnieć) dodany teraz na wyraźną prośbę użytkownika. **Jedyne, co zostaje
+przed pierwszym prawdziwym sprawdzeniem end-to-end: wypchnięcie tagu wydania (`git tag
+v1.0.0 && git push origin v1.0.0`) - to już wprost dotyczy Celu 1.9/instalatora i czeka na
+osobną, wyraźną zgodę użytkownika, zgodnie z „BEZWZGLĘDNĄ BRAMKĄ JAKOŚCI"
+(`Prompt_finalny_redesign_O...md`, sekcja po 31).** Do tego czasu przycisk "Sprawdź
+aktualizacje" nadal zwraca błąd braku wydania - to oczekiwane.
 
 ### Rozszerzenie zakresu (2026-07-23/24): dokument uzupełniający z obowiązkowym audytem
 
@@ -2236,6 +2239,29 @@ istniejącej karcie. „Opróżnij kosz" z fałszywym opóźnieniem 700ms w `emp
 `disabled` poprawnie `true` przez cały czas trwania operacji (odczyty w JEDNYM atomowym
 skrypcie, zgodnie z punktem 9 w pamięci sesji), wraca do `null`/`false` po zakończeniu, zero
 błędów konsoli.
+
+**O7, część 53: domknięte architektoniczne ograniczenie z części 52 - `IconButton` dostał
+obsługę `loading`.** Część 52 świadomie NIE naprawiła `IconButton` w `KoszPage`/
+`SzablonyInstrumentowPage` (przywróć/usuń trwale/duplikuj/odepnij/do kosza), bo komponent
+w ogóle nie miał propa `loading` - zgłoszone wtedy jako osobne zadanie w tle. Uznane teraz za
+wystarczająco małe i dobrze uzasadnione, żeby zrobić bez czekania na osobną sesję.
+
+Dodany prop `loading?: boolean` do `IconButtonProps`, spinner (`position: absolute; inset: 0`)
+analogiczny do `Button.module.css`, ikona chowana przez `visibility` (nie `display: none`)
+w nowym `.iconWrapper` - dokładnie ten sam wzorzec co `Button`. Podpięty w 5 miejscach
+wyzwalających realny `invokeCommand` (`KoszPage`: przywróć/usuń trwale per wiersz;
+`SzablonyInstrumentowPage`: duplikuj/odepnij/do kosza) - NIE podpięty w 3 miejscach, które
+tylko nawigują/otwierają dialog („Edytuj instrumenty", „Zmień nazwę", „Przypisz do konta" - ten
+sam wzorzec „Cancel/dialog-opening nie potrzebuje loading" co w części 52).
+
+Nowy plik `IconButton.test.tsx` (4 testy, wzorem `Button.test.tsx`) - komponent nie miał
+wcześniej ŻADNEGO testu jednostkowego, mimo że jest używany w dziesiątkach miejsc w aplikacji.
+
+Weryfikacja: `pnpm format:check`, `pnpm typecheck`, `pnpm test` 275/275 (26 plików, +1 nowy +4
+testy). Port 1430 przestał odpowiadać w międzyczasie (proces z wcześniejszej fazy zniknął) -
+uruchomiony własny serwer, świeża karta. „Przywróć" w Koszu z fałszywym opóźnieniem 600ms:
+`aria-busy`/`disabled`/spinner poprawnie aktywne przez cały czas trwania (odczyty w jednym
+atomowym skrypcie), wraca po zakończeniu, zero błędów konsoli.
 
 ## Blok E — instalator (Cel 1.9)
 
