@@ -1993,6 +1993,27 @@ Weryfikacja: `pnpm format:check`, `pnpm typecheck`, `pnpm test` 271/271. Port 14
 `.header:hover` w obu plikach) w realnie serwowanym CSS, zero błędów konsoli, `preview_stop` po
 zakończeniu.
 
+**O7: zweryfikowana wprost pułapka fokusu `Modal`-a (sekcja 21) - nigdy wcześniej sprawdzona
+realnie w tym audycie.** `Modal.tsx` jest oparty na natywnym `<dialog>` + `showModal()` -
+istniejący `Modal.test.tsx` sprawdza tylko render i klik przycisku „Zamknij", nie samą pułapkę
+fokusu (JSDOM nie implementuje realnej pułapki `<dialog>`, więc test jednostkowy nie mógłby tego
+uczciwie sprawdzić). Port 1430 wolny - otwarty `AccountFormModal` w przeglądarce, potwierdzone 9
+elementów fokusowalnych, wysłane 12× Tab i 15× Shift+Tab (celowo więcej niż liczba elementów) -
+fokus ANI RAZU nie uciekł poza `<dialog>` w żadnym kierunku. Zgodnie z zasadą sekcji 30 („nie
+oznaczaj PASS wyłącznie przez założenie") - to realny dowód, nie odczytanie kodu i zaufanie mu.
+
+Przy tej samej weryfikacji znaleziona GRANICA NARZĘDZIA, nie błąd aplikacji: syntetyczny Escape
+przez `computer{action:"key"}` nie wyzwala natywnego zamknięcia `<dialog>`, mimo że zdarzenie
+jest `isTrusted:true` i `defaultPrevented:false` (zainstrumentowane listenery to potwierdziły).
+Sprawdzone, że żaden kod aplikacji nie przechwytuje Escape (`grep` całego repo - tylko
+`CommandPalette` obsługuje Escape, i tylko we własnym polu, bez `preventDefault`), a kliknięcie
+przycisku „Anuluj" zamyka modal natychmiast - `onClose` jest więc okablowany poprawnie. Ta sama
+klasa ograniczenia narzędzia co już znane „Enter/Spacja nie aktywują przycisków" w Browser pane -
+zapisane jako nowy punkt w pamięci sesji, żeby nie badać tego ponownie w przyszłości.
+
+Weryfikacja: bez zmian kodu (kod już był poprawny), `preview_start`+`computer`+`javascript_tool`
+2026-07-24, `preview_stop` po zakończeniu.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
