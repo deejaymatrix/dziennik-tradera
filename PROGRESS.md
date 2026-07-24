@@ -3518,6 +3518,34 @@ Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto (os
 Refresh zniknęło po przeniesieniu), `pnpm exec prettier --check` czysto, `pnpm test -- --run`
 **521/521** (68 plików, +5 nowych testów).
 
+**O7, część 102: `computeCumulativeSeries` (suma narastająca `CumulativeLineChart`) - liczona przez
+`Number(...)` w pętli, zero testów.** Ten sam wzorzec błędu binarnej zmiennoprzecinkowości co przy
+`MonthCalendarTable` (część 85): `net_pnl` przychodzi z Rusta jako napis właśnie po to, żeby nie
+przechodzić przez `Number`, ale logika sumowania żyła wprost w ciele komponentu Recharts, sumując
+`Number(narastajaco) + Number(row.net_pnl)` w pętli - kilkaset grup i ostatni punkt wykresu
+odchyla się od salda konta o grosze, bez żadnego sygnału, że coś jest nie tak.
+
+Wyjęta do nowego `pages/cumulativeSeries.ts` (ten sam wzorzec ekstrakcji co `barShape.tsx` w
+części 101 - czysta funkcja obok komponentu Recharts, żeby dało się ją testować bez renderowania
+całego wykresu w jsdom). `computeCumulativeSeries` liczy sumę narastającą przez `sumDecimalStrings`
+(BigInt) w kolejności podanych grup, konwersja na `number` jest ostatnim krokiem wyłącznie do
+rysowania. `CumulativeLineChart.tsx` zredukowany do `const data = computeCumulativeSeries(rows);`.
+
+Nowy `pages/cumulativeSeries.test.ts` (4 testy): pusta tablica daje pustą serię; **suma
+`0.1 + 0.2 + 0.1` daje dokładnie `[0.1, 0.3, 0.4]`** (klasyczny błąd zmiennoprzecinkowy dałby
+`0.30000000000000004`); zachowane etykiety i kolejność wejściowych grup; ujemne wartości cofające
+sumę poniżej zera.
+
+Zweryfikowane mutacją: `sumDecimalStrings([narastajaco, row.net_pnl]) ?? narastajaco` zastąpione
+`String(Number(narastajaco) + Number(row.net_pnl))` - **dokładnie 1 z 4 testów padł** (test
+precyzji `0.1+0.2+0.1`, otrzymane `0.30000000000000004` zamiast `0.3`), pozostałe 3 (puste dane,
+kolejność etykiet, wartości ujemne) nie są dość precyzyjne, żeby złapać błąd zmiennoprzecinkowy.
+Po cofnięciu: wszystkie 4 testy zielone, `git diff` na `cumulativeSeries.ts` ograniczony wyłącznie
+do zamierzonej zmiany.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **525/525** (69 plików, +4 nowe testy).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
