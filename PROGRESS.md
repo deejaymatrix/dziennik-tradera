@@ -2844,6 +2844,31 @@ warunek typu `message` w `isAppErrorPayload` - **dokładnie 1 z 11 padł** (test
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **365/365** (42 pliki, +11 nowych testów).
 
+**O7, część 76: `useTauriQuery.ts` (54 linie) - współdzielony hook do wywoływania komend Tauri ze
+stanem loading/ready/error i `refetch`, zero testów wprost.** Jedyne dotychczasowe użycie
+(`SettingsPage.test.tsx`) podmienia cały hook przez `vi.mock`, więc jego własna logika - w tym
+ochrona przed wyścigiem (`cancelled`), która ma nie dopuścić, by SPÓŹNIONA odpowiedź STAREGO
+zapytania nadpisała wynik nowszego po `refetch()` - nigdy nie została wykonana przez żaden test.
+Bez tej ochrony np. szybkie kolejne odświeżenie ustawień mogłoby pokazać przestarzałe dane, gdyby
+stare zapytanie odpowiedziało później niż nowe.
+
+Nowy `app/useTauriQuery.test.ts` (5 testów, `renderHook` + `vi.mock("@tauri-apps/api/core", ...)`
+
+- ręcznie sterowalne odroczone obietnice): stan startowy `"loading"`; przejście do `"ready"` z
+  danymi po powodzeniu; przejście do `"error"` z czytelnym komunikatem (przez `extractErrorMessage`)
+  po niepowodzeniu; `refetch()` woła komendę ponownie i podmienia wynik; **spóźniona odpowiedź
+  STAREGO zapytania NIE nadpisuje wyniku nowszego** - kluczowy test ochrony przed wyścigiem, celowo
+  rozwiązujący dwie obietnice w odwrotnej kolejności niż wywołania (`refetch()`, potem druga
+  obietnica najpierw, pierwsza dopiero po niej).
+
+Zweryfikowane testem mutacyjnym: tymczasowo usunięty warunek `if (!cancelled)` wokół `setState`
+ścieżki sukcesu - **dokładnie 1 z 5 testów padł** (test ochrony przed wyścigiem, wynik "stare"
+nadpisał "nowe" zamiast zostać odrzucony), pozostałe 4 bez zmian. Po cofnięciu: `git diff --stat`
+na `useTauriQuery.ts` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **370/370** (43 pliki, +5 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
