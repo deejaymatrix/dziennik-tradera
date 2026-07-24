@@ -470,8 +470,9 @@ function AssignAccountModal({
             variant="primary"
             onClick={() => void handleAssign()}
             disabled={saving || !selected}
+            loading={saving}
           >
-            {saving ? "Przypisywanie..." : "Przypisz"}
+            Przypisz
           </Button>
         </div>
       </div>

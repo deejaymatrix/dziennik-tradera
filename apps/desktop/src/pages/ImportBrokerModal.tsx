@@ -175,8 +175,9 @@ export function ImportBrokerModal({
             variant="primary"
             onClick={() => void handleImport()}
             disabled={busy || !preview}
+            loading={busy}
           >
-            {busy ? "Import..." : "Importuj"}
+            Importuj
           </Button>
         </div>
       </div>

@@ -1856,6 +1856,23 @@ zaobserwowania bez prawdziwego backendu (operacja kończy się/odrzuca zbyt szyb
 środowisku), ale poprawność oparta na identycznym, już 7-krotnie przetestowanym wzorcu
 `Button.tsx`.
 
+**O7, część 41 nie była ostatnia: 5 KOLEJNYCH pominiętych przycisków tego samego wzorca.**
+Rozszerzony `grep` po całym `apps/desktop/src/pages` na dokładny wzorzec `{x ? "..." : "..."}`
+(nie tylko powtórka sprawdzenia konsumentów z części 4) ujawnił: `CloseTradeModal.tsx`
+(„Zamknij pozycję"), `ImportBrokerModal.tsx` („Importuj"), `NewTemplateModal.tsx` („Utwórz
+szablon"), `settings/DataSection.tsx` („Sprawdź integralność danych") i - co najbardziej
+zaskakujące - DRUGI przycisk w `SzablonyInstrumentowPage.tsx` („Przypisz"), pliku uznanym
+wcześniej za już w pełni zmigrowany w części 4. To pokazuje, że „plik zmigrowany" nie znaczy
+„każdy przycisk w pliku zmigrowany" - trzeba sprawdzać przycisk po przycisku.
+
+Naprawione identycznie jak `DataPage.tsx`: `loading={warunek}` dopisany obok istniejącego
+`disabled`, tekst przycisku ustabilizowany (bez zmiany na "..." podczas ładowania - to teraz
+robi spinner). Zweryfikowane szerszym regexem: 0 pozostałych wystąpień wzorca w całym
+`apps/desktop/src`. Klasyfikacja: **Wysoki** (ta sama klasa co część 41).
+
+Weryfikacja: `pnpm typecheck`, `pnpm test` 271/271, `pnpm format:check` - wszystko zielone,
+ten sam znany błąd lintu sprzed redesignu, zero nowych.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat

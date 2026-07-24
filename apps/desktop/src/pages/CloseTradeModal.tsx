@@ -182,8 +182,8 @@ export function CloseTradeModal({
           <Button type="button" variant="secondary" onClick={onClose} disabled={submitting}>
             Anuluj
           </Button>
-          <Button type="submit" variant="primary" disabled={submitting}>
-            {submitting ? "Zamykanie..." : "Zamknij pozycję"}
+          <Button type="submit" variant="primary" disabled={submitting} loading={submitting}>
+            Zamknij pozycję
           </Button>
         </div>
       </form>

@@ -92,8 +92,8 @@ export function NewTemplateModal({ onClose, onCreated }: NewTemplateModalProps):
           <Button type="button" variant="secondary" onClick={onClose} disabled={busy}>
             Anuluj
           </Button>
-          <Button type="submit" variant="primary" disabled={busy}>
-            {busy ? "Tworzenie..." : "Utwórz szablon"}
+          <Button type="submit" variant="primary" disabled={busy} loading={busy}>
+            Utwórz szablon
           </Button>
         </div>
       </form>

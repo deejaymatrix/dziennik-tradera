@@ -237,11 +237,12 @@ export function DataSection({
               <Button
                 variant="secondary"
                 disabled={overviewLoading}
+                loading={overviewLoading}
                 onClick={() => {
                   void loadOverview();
                 }}
               >
-                {overviewLoading ? "Sprawdzanie..." : "Sprawdź integralność danych"}
+                Sprawdź integralność danych
               </Button>
             </SettingRow>
           </>
