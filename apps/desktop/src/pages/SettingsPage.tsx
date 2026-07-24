@@ -274,6 +274,7 @@ function UpdatesInfoSection(): ReactElement {
           <Button
             variant="secondary"
             disabled={diagnosticsBusy}
+            loading={diagnosticsBusy}
             onClick={() => {
               void copyDiagnostics();
             }}
@@ -283,6 +284,7 @@ function UpdatesInfoSection(): ReactElement {
           <Button
             variant="secondary"
             disabled={diagnosticsBusy}
+            loading={diagnosticsBusy}
             onClick={() => {
               void exportDiagnostics();
             }}
@@ -565,6 +567,7 @@ export function SettingsPage(): ReactElement {
           <Button
             variant="primary"
             disabled={saving}
+            loading={saving}
             onClick={() => {
               void (async () => {
                 if (!isPreferenceSection) {

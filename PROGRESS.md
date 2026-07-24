@@ -2204,6 +2204,39 @@ pliku z części 43-45/47 tej sesji były technicznie poprawne, ale obecnie nie 
 naprawiany w ramach O7 (usunięcie/reintegracja to osobna zmiana architektoniczna) - zgłoszony
 jako osobne zadanie w tle.
 
+**O7, część 52: migracja `loading` (część 41-42) DALEJ nie była wyczerpująca - 14 KOLEJNYCH
+przycisków bez `loading` w 8 plikach, znalezionych przy weryfikacji `/kosz` z prawdziwymi
+danymi.** Kliknięcie „Opróżnij kosz" nie pokazywało spinnera mimo że `disabled` poprawnie się
+aktywował - sprawdzenie kodu ujawniło `disabled={busy}` bez towarzyszącego `loading={busy}`.
+Rozszerzony sweep: znalezione wszystkie pliki w `apps/desktop/src/pages` z `disabled={` wprost
+odwołującym się do zmiennej stanu async (`busy`/`saving`/`submitting`/`diagnosticsBusy`/
+`creatingBackup`), każdy przycisk sprawdzony ręcznie.
+
+Znalezione 14 przycisków w 8 plikach, wszystkie wyzwalające realny `invokeCommand`, żaden bez
+`loading`: `KoszPage.tsx` (3 - „Opróżnij kosz" NIEODWRACALNA operacja, „Przywróć zaznaczone",
+„Usuń trwale zaznaczone"), `SettingsPage.tsx` (3 - kopiuj/eksportuj diagnostykę, „Zapisz" w
+dialogu nawigacji), `EmotionalStatesSection.tsx`/`IntervalsSection.tsx` (po 1 - „Dodaj"),
+`ImportBrokerModal.tsx` (1 - „Wybierz plik CSV", `busy` aktywne podczas parsowania pliku, nie
+podczas natywnego okna wyboru), `settings/DataSection.tsx` (1 - „Przywróć domyślne"),
+`TradeAttachments.tsx` (3 - „Dodaj zdjęcie", „Wklej ze schowka", „Dodaj" link),
+`TradeFormModal.tsx` (1 - „Zapisz szkic", brat „Zapisz transakcję" który już miał `loading`).
+
+Rozróżnione od poprawnych przypadków bez `loading`: przyciski „Anuluj"/otwierające dialog
+(ustalony wzorzec - nigdy nie potrzebują `loading`), `IconButton` w `KoszPage`/
+`SzablonyInstrumentowPage` (architektoniczne ograniczenie - komponent nie ma w ogóle propa
+`loading`, NIE naprawiane tu, poza zakresem punktowej poprawki). Klasyfikacja ważności (sekcja
+29): **Wysoki** dla „Opróżnij kosz" - brak spinnera przy trwałej, nieodwracalnej operacji
+wygląda jak kliknięcie nic nie zrobiło.
+
+Naprawione dodaniem `loading={ta sama zmienna co disabled}` do wszystkich 14, bez zmiany reszty
+logiki. Weryfikacja: `pnpm format:check`, `pnpm typecheck`, `pnpm test` 271/271.
+`preview_start` - port 1430 był zajęty przez MÓJ WŁASNY serwer z wcześniejszej fazy tej samej
+sesji (potwierdzone `preview_list` przed użyciem, nie serwer użytkownika), więc kontynuowane na
+istniejącej karcie. „Opróżnij kosz" z fałszywym opóźnieniem 700ms w `empty_trash`: `aria-busy`/
+`disabled` poprawnie `true` przez cały czas trwania operacji (odczyty w JEDNYM atomowym
+skrypcie, zgodnie z punktem 9 w pamięci sesji), wraca do `null`/`false` po zakończeniu, zero
+błędów konsoli.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat

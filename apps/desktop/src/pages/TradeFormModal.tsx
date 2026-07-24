@@ -1132,6 +1132,7 @@ export function TradeFormModal({
                 type="button"
                 variant="secondary"
                 disabled={submitting || submitLocked}
+                loading={submitting}
                 onClick={() => {
                   void handleSubmit(null, "draft");
                 }}

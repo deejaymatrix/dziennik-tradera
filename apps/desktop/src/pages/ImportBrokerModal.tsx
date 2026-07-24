@@ -114,6 +114,7 @@ export function ImportBrokerModal({
             variant="secondary"
             onClick={() => void handlePickFile()}
             disabled={busy}
+            loading={busy}
           >
             {sourcePath ? "Zmień plik" : "Wybierz plik CSV"}
           </Button>

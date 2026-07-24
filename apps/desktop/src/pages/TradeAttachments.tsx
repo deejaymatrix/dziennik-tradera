@@ -292,6 +292,7 @@ export function TradeAttachments({
             size="sm"
             variant="secondary"
             disabled={busy}
+            loading={busy}
             onClick={() => {
               void handlePickFromDisk();
             }}
@@ -302,6 +303,7 @@ export function TradeAttachments({
             size="sm"
             variant="secondary"
             disabled={busy}
+            loading={busy}
             onClick={() => {
               void handlePasteFromClipboard();
             }}
@@ -355,7 +357,7 @@ export function TradeAttachments({
             >
               Anuluj
             </Button>
-            <Button type="button" size="sm" disabled={busy} onClick={submitLink}>
+            <Button type="button" size="sm" disabled={busy} loading={busy} onClick={submitLink}>
               Dodaj
             </Button>
           </div>

@@ -170,6 +170,7 @@ export function EmotionalStatesSection(): ReactElement {
         <Button
           variant="secondary"
           disabled={submitting || !newName.trim()}
+          loading={submitting}
           onClick={() => {
             void handleAdd();
           }}

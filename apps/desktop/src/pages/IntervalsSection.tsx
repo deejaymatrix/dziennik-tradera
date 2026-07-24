@@ -293,6 +293,7 @@ export function IntervalsSection(): ReactElement {
         <Button
           variant="secondary"
           disabled={submitting || !newLabel.trim()}
+          loading={submitting}
           onClick={() => {
             void handleAdd();
           }}

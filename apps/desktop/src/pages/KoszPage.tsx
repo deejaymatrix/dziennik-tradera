@@ -321,6 +321,7 @@ export function KoszPage(): ReactElement {
         <Button
           variant="danger"
           disabled={busy || !items || items.length === 0}
+          loading={busy}
           onClick={() => {
             void handleEmptyTrash();
           }}
@@ -372,6 +373,7 @@ export function KoszPage(): ReactElement {
               <Button
                 variant="secondary"
                 disabled={busy}
+                loading={busy}
                 onClick={() => {
                   void handleBulkRestore();
                 }}
@@ -381,6 +383,7 @@ export function KoszPage(): ReactElement {
               <Button
                 variant="danger"
                 disabled={busy}
+                loading={busy}
                 onClick={() => {
                   void handleBulkPurge();
                 }}

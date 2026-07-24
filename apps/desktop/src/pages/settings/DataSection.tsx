@@ -297,6 +297,7 @@ export function DataSection({
               <Button
                 variant="secondary"
                 disabled={busy}
+                loading={busy}
                 onClick={() => {
                   void handleResetAll();
                 }}
