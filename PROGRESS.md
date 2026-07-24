@@ -2660,6 +2660,24 @@ w pliku bez zmian. Po cofnięciu: `git diff` na `Modal.tsx` czysty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **306/306** (34 pliki, +1 nowy test w istniejącym pliku).
 
+**O7, część 68: SIÓDMY przypadek tej samej klasy luki - czas animacji (sekcja 21: „ok.
+120-180 ms") nigdy nie miał testu.** Macierz: „Pierwsza weryfikacja wprost przeciw literalnej
+liczbie z promptu... `--motion-fast: 120ms`... trafienie w widełki, nie przybliżenie" - ale to
+był jednorazowy odczyt `tokens.css`, nie test pilnujący, że przyszła zmiana (np. „przyspieszmy
+animacje dla lepszego UX") nie wypchnie wartości poza wymagane widełki po cichu.
+
+Nowy plik `design/motion.test.ts` (osobny od `tokens.test.ts`, bo to inny wymiar - czas, nie
+kontrast kolorów): czyta `--motion-fast/-normal/-slow` WPROST z `tokens.css` (ten sam wzorzec
+co `tokens.test.ts` dla kolorów - nie kopiuje wartości do testu), sprawdza że każdy mieści się
+w 120-180ms, plus że kolejność jest rosnąca (`fast < normal < slow`).
+
+Zweryfikowane testem mutacyjnym: tymczasowo `--motion-slow: 300ms` w `tokens.css` - **dokładnie
+1 z 4 testów padł** (ten dla `--motion-slow` konkretnie, pozostałe dwa tokeny i test kolejności
+bez zmian). Po cofnięciu: `git diff` na `tokens.css` czysty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **310/310** (35 plików, +4 nowe testy).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
