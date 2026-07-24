@@ -1489,12 +1489,34 @@ redesign — to pełna wymiana warstwy wizualnej, nie korekta.
 | Poz. | Zakres                                                                                                                                                                                                                            | Status |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
 | O1   | Design tokens: nowa paleta jasna/ciemna (wartości z promptu, 8 skorygowanych o minimum pod WCAG AA - test blokujący), usunięcie złota (Rust+TS+preset), reaktywny tryb „zgodny z systemem" (nasłuch zmiany na żywo - już istniał) | ✅     |
-| O2   | BUY/SELL z jawnym tekstem/ikoną obok koloru (wymóg wprost z sekcji 7.3 - informacja nie może iść wyłącznie kolorem)                                                                                                               | ⬜     |
-| O3   | Wykresy: paleta serii na niebieskim jako głównym, zgodność siatki/tooltipu z nowym motywem                                                                                                                                        | ⬜     |
-| O4   | Audyt hardkodowanych kolorów poza tokenami we wszystkich komponentach i widokach                                                                                                                                                  | ⬜     |
-| O5   | Przegląd każdego widoku pod kątem pozostałości starego motywu (złoto, ciężki institutional terminal, nadmierne zaokrąglenia)                                                                                                      | ⬜     |
-| O6   | Kontrast WCAG AA przeliczony od nowa na nowej palecie (test blokujący jak w A1)                                                                                                                                                   | ⬜     |
+| O2   | BUY/SELL z jawnym tekstem/ikoną obok koloru - zweryfikowane, już poprawne wszędzie (TRADE_SIDE_LABELS jako tekst, nie sam kolor odznaki)                                                                                          | ✅     |
+| O3   | Wykresy: paleta serii na niebieskim jako głównym - zweryfikowane, wszystko czyta tokeny przez `var()`, zero hardkodowanych hexów w GroupBarChart/EquityCurveChart/SimplePieChart/chartTheme.ts                                    | ✅     |
+| O4   | Audyt hardkodowanych kolorów: 0 poza uzasadnionymi wyjątkami (tęcza ColorPicker); znaleziony i naprawiony resztkowy domyślny kolor nowej strategii (złoto → niebieski)                                                            | ✅     |
+| O5   | Przegląd pod kątem pozostałości starego motywu: 5 komentarzy „złoto”→„akcent” (Button/Sidebar/Table/TransactionsPage/chartTheme), naprawiony realny bug układu (`.main` bez `min-width:0` ucinał szeroką treść bez scrolla)       | ✅     |
+| O6   | Kontrast WCAG AA - zrobione w ramach O1 (8 wartości skorygowanych, test `design/tokens.test.ts` 24/24 PASS na obu motywach)                                                                                                       | ✅     |
 | O7   | Audyt końcowy + macierz audytowa (sekcje 23-32 promptu) - werdykt GOTOWE/NIEGOTOWE                                                                                                                                                | ⬜     |
+
+### Rozszerzenie na macOS (druga wersja promptu O, 2026-07-24)
+
+Nowa wersja dokumentu dodaje macOS (Apple Silicon `arm64` + Intel `x86_64`) jako drugą
+platformę docelową, obok Windows. **Użytkownik potwierdził: nie ma dostępu do żadnego Maca.**
+Dokument sam przewiduje ten dokładny przypadek: _"Brak dostępu do rzeczywistego Maca lub
+właściwego runnera macOS oznacza, że wydanie macOS pozostaje niezweryfikowane i nie wolno
+przedstawiać go jako gotowego."_ Ustalony podział pracy:
+
+- **Zrobię:** dopasowania kodu, które są tanie i weryfikowalne testem bez Maca - np. skrót
+  `Cmd+K` obok `Ctrl+K` w palecie poleceń, wykrywanie platformy do wyświetlania właściwych
+  etykiet skrótów, unikanie założeń specyficznych dla Windows w kodzie ścieżek/plików (Tauri
+  już abstrahuje to w większości). Mogę też dodać budowanie `.dmg` na prawdziwym runnerze
+  macOS w GitHub Actions (`macos-latest` - to realny sprzęt/VM Apple, nie cross-compiling
+  z Windows) - to da REALNY artefakt, tylko nikt na nim nie klika jak użytkownik.
+- **NIE zrobię (fizycznie niemożliwe stąd):** interaktywnego testu jako użytkownik końcowy
+  (Gatekeeper, przeciągnięcie do Applications, uruchomienie, potwierdzenie zachowania danych)
+  - to wymaga rąk na prawdziwym Macu. Ta część zostaje oznaczona `NIEZWERYFIKOWANY`, zgodnie
+    z jawnym przyzwoleniem dokumentu, a nie ukrywana ani obchodzona.
+- Werdykt Celu 1.9 (gdy do niego dojdzie) będzie więc co najwyżej
+  `GOTOWY FUNKCJONALNIE, macOS NIEZWERYFIKOWANY` - nigdy pełne `GOTOWE` dla macOS, dopóki ktoś
+  z dostępem do Maca nie przeprowadzi realnego testu.
 
 ## Blok E — instalator (Cel 1.9)
 
