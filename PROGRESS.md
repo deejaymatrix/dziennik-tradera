@@ -3565,6 +3565,25 @@ każdym cofnięciu: `git diff --stat` na `TopTradesTable.tsx` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **529/529** (70 plików, +4 nowe testy).
 
+**O7, część 104: `StatCard` (kafelek KPI na Dashboardzie i w raportach) - zero testów.** Dwie
+nieoczywiste z samego JSX rzeczy: (1) `to` przełącza CAŁY kafelek między `<Link>` (klikalny,
+prowadzi do danych źródłowych KPI) a zwykłym `<div>` - bez `to` kafelek nie powinien wyglądać ani
+zachowywać się jak link; (2) `tone` dokłada klasę `profit`/`loss` do samej WARTOŚCI (`<span>`), nie
+do całej karty.
+
+Nowy `pages/StatCard.test.tsx` (5 testów, `MemoryRouter` dla wariantu z `to`, wzorzec z
+`Sidebar.test.tsx`): bez `to` renderuje zwykły `div`, nie `link`; z `to` renderuje `link` z
+poprawnym `href`; `tone="profit"`/`"loss"` dokłada klasę do wartości; `emphasis="primary"` dokłada
+klasę do całej karty.
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) usunięta gałąź `if (to) return <Link>...` (zawsze
+`<div>`) - **dokładnie 1 z 5 testów padł** (wariant z `to`, `getByRole("link")` nie znalazł
+elementu); (2) `tone === "loss" && styles.loss` zastąpione `false && styles.loss` - **dokładnie
+1 z 5 padł**. Po każdym cofnięciu: `git diff --stat` na `StatCard.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **534/534** (71 plików, +5 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
