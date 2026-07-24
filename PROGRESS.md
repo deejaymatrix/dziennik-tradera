@@ -2869,6 +2869,34 @@ na `useTauriQuery.ts` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **370/370** (43 pliki, +5 nowych testów).
 
+**O7, część 77: `ThemeProvider.tsx`/`useTheme` (65 linii) - jednoklikowy przełącznik motywu w
+nagłówku, zero testów.** Najbardziej nieoczywista część: `toggleTheme()` zapisuje ROZWIĄZANY
+motyw, nie surową wartość z preferencji - więc przełączenie z trybu „systemowy" zawsze ląduje na
+KONKRETNYM motywie (przeciwnym do aktualnie widocznego), nigdy nie zostaje w trybie systemowym.
+Błąd tu (np. użycie surowej wartości zamiast rozwiązanej) mógłby po cichu utknąć w pętli "system
+→ system" albo przeskoczyć na złą stronę, gdy motyw systemu Windows nie zgadza się z tym, co
+użytkownik aktualnie widzi.
+
+Nowy `app/ThemeProvider.test.tsx` (9 testów, `renderHook` + prawdziwy `<PreferencesProvider>` +
+`vi.mock("./invokeCommand", ...)`): rozwiązywanie `theme` dla `"dark"`/`"light"`/`"system"` (oba
+warianty `matchMedia`); `toggleTheme()` z `"dark"` zapisuje `"light"`; **z trybu `"system"`
+rozwiązanego na `"light"` zapisuje KONKRETNE `"dark"`, a rozwiązanego na `"dark"` zapisuje
+KONKRETNE `"light"`** (dwa niezależne testy, bo pierwsza wersja przypadkiem dawała ten sam wynik
+dla obu wariantów kodu - patrz niżej); `toggleTheme()` nic nie zapisuje, gdy preferencje jeszcze
+się nie wczytały; `useTheme()` poza `<ThemeProvider>` rzuca czytelny błąd po polsku.
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) `resolved === "dark"` zamienione na
+`appearance?.theme === "dark"` (użycie SUROWEJ wartości zamiast rozwiązanej) - **pierwsza wersja
+testu (tylko scenariusz "system→light") przeszła MIMO mutacji**, bo dla tego konkretnego wejścia
+oba warunki dają ten sam wynik (żadna z wartości nie jest dosłownie `"dark"`) - dodany drugi test
+("system→dark") naprawdę odróżnia te dwie wersje kodu, **złapał dokładnie 1 z 9** po dodaniu;
+(2) usunięty `if (!preferences) return` - **dokładnie 1 z 9 padł** z realnym `TypeError` (`Cannot
+read properties of null`), nie tylko złym wynikiem. Po każdym cofnięciu: `git diff --stat` na
+`ThemeProvider.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **379/379** (44 pliki, +9 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
