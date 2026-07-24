@@ -28,6 +28,9 @@ export type { BadgeProps, BadgeVariant } from "./components/Badge/Badge";
 export { Tooltip } from "./components/Tooltip/Tooltip";
 export type { TooltipProps } from "./components/Tooltip/Tooltip";
 
+export { TruncatedText } from "./components/TruncatedText/TruncatedText";
+export type { TruncatedTextProps } from "./components/TruncatedText/TruncatedText";
+
 export { Modal } from "./components/Modal/Modal";
 export type { ModalProps } from "./components/Modal/Modal";
 
