@@ -1508,6 +1508,32 @@ w `release.yml` - nic w kodzie nie trzeba przez to zmieniać.
 certyfikacie i decyzja o starcie prac nad instalatorem to dwie różne rzeczy. Czekam na
 wyraźne potwierdzenie, że mam zacząć Cel 1.9.
 
+### Specyfikacja wyglądu instalatora (zapisana na później, z drugiej wersji promptu O)
+
+Otrzymany dokument dodaje pełną specyfikację wizualną instalatora NSIS/MUI2 w stylu
+„TradingView Pro × Apple Fintech" - zapisana tutaj, żeby nie zginęła do czasu startu Celu 1.9:
+
+- **Ekrany:** powitalny (nazwa, logo, wersja, wydawca, opis, „Rozpocznij instalację"/„Anuluj") →
+  opcje instalacji (ścieżka, skróty pulpit/Start, wymagane miejsce, bez zbędnych ustawień
+  technicznych) → proces (prawdziwy pasek postępu, etapy: Przygotowanie/Kopiowanie
+  plików/Tworzenie skrótów/Rejestrowanie aplikacji/Finalizacja) → zakończenie (potwierdzenie,
+  wersja, „Uruchom Dziennik Tradera") → błąd (opis po polsku, szczegóły techniczne rozwijane,
+  bez częściowej instalacji).
+- **Tryb aktualizacji** (gdy wykryta starsza wersja): nazwij „Aktualizacja" nie reinstalacją,
+  pokaż wersję obecną i docelową, zachowaj bazę/ustawienia/załączniki/backupy/skróty bez
+  ponownego pytania o wszystko.
+- **Wymagania techniczne:** zasoby lokalne (bez pobierania z sieci), jeden stabilny
+  identyfikator aplikacji, jedna nazwa produktu/wydawcy, **prawdziwy podpis Authenticode
+  instalatora ORAZ pliku `.exe` aplikacji - wprost zabronione użycie certyfikatu testowego
+  albo self-signed do dystrybucji publicznej**. To wiąże ten wygląd z blokerem certyfikatu
+  wyżej: nawet dopracowany wizualnie instalator nie spełni tej sekcji promptu bez prawdziwego
+  certyfikatu.
+- **Kontrola jakości:** Windows 10/11 x64, skalowanie 100/125/150%, czysty system i system
+  z poprzednią wersją, anulowanie w trakcie, brak miejsca/uprawnień, zablokowane pliki,
+  zachowanie danych przy aktualizacji i odinstalowaniu.
+- Prompt wprost wymaga pokazania zrzutów/podglądu ekranów instalatora **do zatwierdzenia
+  PRZEZ UŻYTKOWNIKA przed** zbudowaniem finalnej wersji - nie budować w ciemno.
+
 ## Zasady pracy przy tym planie
 
 - Commit małymi krokami, po polsku, push po każdym commicie.
