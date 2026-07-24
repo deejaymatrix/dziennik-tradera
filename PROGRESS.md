@@ -3210,6 +3210,39 @@ tak, żeby nie zależeć od tego szczegółu.)
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **440/440** (56 plików, +3 nowe testy).
 
+**O7, część 90: `TradePreviewCard.tsx` (83 linie, podgląd na żywo silnika przeliczeń w
+formularzu transakcji) - każde z siedmiu pól NIEZALEŻNIE opcjonalne, zero testów.** Dwie
+najbardziej ryzykowne części: (1) "Ryzyko (SL)" ma ZŁOŻONE formatowanie - dokleja "(X%)" tylko
+gdy `risk_percent` JEST dostępny, inaczej zostawia samą kwotę bez pustego nawiasu (np. "100,00
+USD" zamiast błędnego "100,00 USD (—%)"); (2) "Wynik netto" dostaje kolor (profit/loss) TYLKO
+gdy `net_pnl` nie jest `null` - przy `null` kolor nie może "przeciekać" (np. przez `Number(null)
+
+> = 0`dający fałszywe`true`).
+
+Nowy `pages/TradePreviewCard.test.tsx` (9 testów): brak kalkulacji pokazuje podpowiedź, nie
+kartę; wszystkie pola `null` → każdy wiersz "—"; **"Ryzyko (SL)": kwota bez procentu pokazuje
+samą kwotę bez pustych nawiasów, kwota z procentem dokleja "(X%)", brak kwoty daje "—"
+niezależnie od procentu**; **"Wynik netto": dodatni/ujemny `net_pnl` dostaje profit/loss, `null`
+NIE dostaje żadnego z dwóch kolorów**; pozostałe pola (R, Punkty) formatują się poprawnie.
+
+Przy okazji odkryto i zgłoszono (bez samodzielnej naprawy - pytanie UX, nie oczywisty bug):
+`formatDecimalNumber` w tym pliku (i `formatNumber`/`formatPercent`/`formatR` w
+`reportFormat.ts`, już przetestowane w części 72) używają kropki dziesiętnej (`toFixed`), podczas
+gdy `formatMoney`/`formatSignedMoney` używają polskiego przecinka (`Intl.NumberFormat("pl-PL")`)
+
+- rozjazd konsekwentny w całej aplikacji, ale niejasne czy zamierzony. Zgłoszone jako osobne
+  zadanie do decyzji użytkownika (`task_c4f9ee38`), testy w tej części dobrane zgodnie z
+  FAKTYCZNYM, obecnym zachowaniem (kropka), nie z założeniem, jak "powinno" być.
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) usunięty warunkowy dodatek "(X%)" (dokleja go
+zawsze, nawet przy `risk_percent === null`) - **dokładnie 1 z 9 testów padł**, pokazując
+faktyczny błąd "100,00 USD (—%)"; (2) usunięty warunkowy spread `tone` (ustawiony zawsze,
+`Number(null) >= 0` dający fałszywe "profit") - **dokładnie 1 z 9 padł**. Po każdym cofnięciu:
+`git diff --stat` na `TradePreviewCard.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **449/449** (57 plików, +9 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
