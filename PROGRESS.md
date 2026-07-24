@@ -1969,6 +1969,30 @@ Weryfikacja: `pnpm format:check`, `pnpm typecheck`, `pnpm test` 271/271. Port 14
 not-allowed; opacity: 0.6; filter: saturate(0.35); }` w realnie serwowanym CSS, zero błędów
 konsoli, `preview_stop` po zakończeniu.
 
+**O7, część 47: ten sam sweep dla `:hover` - 2 realne błędy, jeden we WŁASNEJ pracy tej sesji.**
+Skrzyżowane 21 plików z `cursor: pointer` z 21 plikami z `:hover` (ale nie te same 21 - różne
+zestawy). 6 kandydatów bez hover: 4 to natywne elementy już uzasadnione (`<summary>` w
+`TradeAuditLog`/`ZasadyHandluPage`, `Checkbox`, `Switch`), 2 to realne błędy.
+
+`TransactionsPage.module.css`'s `.clickableRow` nie miał `:hover`, mimo że WŁASNY komentarz przy
+`.selectedRow` w tym samym pliku zakłada, że hover istnieje ("stąd pasek w kolorze akcentu, a nie
+samo tło, które zlewałoby się z hoverem sąsiada") - `BreakdownTable.clickableRow` (identyczny
+wzorzec drill-down) miał `:hover` od początku, `TransactionsPage` nigdy go nie dostał.
+
+`settings/DataSection.module.css`'s `.header` - poważniejsze, bo to błąd WE WŁASNEJ PRACY tej
+sesji (część 44): komentarz dodany wtedy mówi dosłownie „brak hover/focus-visible/active tu było
+luką", ale naprawiono tylko `:focus-visible` i `:active` - `:hover` obiecany w komentarzu nigdy
+nie trafił do kodu. Znalezione i naprawione w tym samym cyklu audytu, zanim urosło w kolejny dług
+techniczny do odkrycia później.
+
+Oba naprawione identycznie jak `FormPanel.header` (ten sam wzorzec "rozwijana sekcja"):
+`background: var(--color-surface-alt)` na `:hover`.
+
+Weryfikacja: `pnpm format:check`, `pnpm typecheck`, `pnpm test` 271/271. Port 1430 wolny -
+`preview_start` + `javascript_tool` potwierdził obie reguły (`.clickableRow:hover` w obu plikach,
+`.header:hover` w obu plikach) w realnie serwowanym CSS, zero błędów konsoli, `preview_stop` po
+zakończeniu.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat

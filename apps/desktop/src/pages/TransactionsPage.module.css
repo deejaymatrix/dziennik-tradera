@@ -59,6 +59,13 @@
   cursor: pointer;
 }
 
+/* Brakowało tu całkowicie - znalezione podczas audytu O7. `.selectedRow` niżej zakłada w swoim
+   komentarzu, że hover istnieje ("zlewałoby się z hoverem sąsiada"), a nie było go w kodzie.
+   Ten sam wzorzec co `BreakdownTable.module.css`'s `.clickableRow:hover`. */
+.clickableRow:hover {
+  background-color: var(--color-surface-alt);
+}
+
 /* Wiersz jest teraz też celem klawiatury (tabIndex+onKeyDown w TransactionsPage.tsx) -
    znaleziona podczas audytu O7 realna luka WCAG 2.1.1 (funkcjonalność dostępna tylko myszą).
    focus-visible na `outline` (nie na `<tr>` bezpośrednio - przeglądarki różnie renderują
