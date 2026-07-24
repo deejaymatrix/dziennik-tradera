@@ -3088,6 +3088,32 @@ etykieta jest w ŚRODKU tablicy), pozostałe 3 bez zmian. Po cofnięciu: `git di
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **417/417** (51 plików, +4 nowe testy).
 
+**O7, część 85: `MonthCalendarTable.tsx` (83 linie, sekcja "Kalendarz miesiąca" w Raportach) -
+skumulowany P&L liczony DOKŁADNIE przez `sumDecimalStrings` (arytmetyka na napisach), nie
+`Number(...)`, zero testów.** Komentarz w źródle mówi wprost, że wcześniej `Number(...)` przez 30
+dni miesiąca odchylało ostatni wiersz od wyniku o grosze - to dokładnie ten sam błąd, którego
+regresji ten test pilnuje. Druga ryzykowna część: kolumna "Skum. P&L" ma kolor ze ZNAKU
+SKUMULOWANEJ wartości (`decimalSign(cumulative)`), a kolumna "P&L netto" - ze znaku SAMEGO DNIA
+(`Number(day.net_pnl)`) - dwie niezależne kolumny, łatwo pomylić przy kopiowaniu kodu.
+
+Nowy `pages/MonthCalendarTable.test.tsx` (3 testy): **sumuje kolejne wiersze DOKŁADNIE, bez
+błędu zmiennoprzecinkowego** (`0.1 + 0.2 + 0.1` daje `0,40`, nie `0,39999...` ani `0,40000...4`);
+kolumna dnia i kolumna skumulowana mają NIEZALEŻNE kolory - dzień zyskowny (+50) w miesiącu wciąż
+ujemnym (-150 po tym dniu) pokazuje zielony dla swojej kolumny i czerwony dla skumulowanej,
+w TYM SAMYM wierszu; data i dzień tygodnia renderują się po polsku dla znanej daty.
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) kolor kolumny skumulowanej zamieniony z
+`decimalSign(cumulative)` na `Number(day.net_pnl)` (użycie znaku DNIA zamiast SKUMULOWANEJ
+wartości) - **dokładnie 1 z 3 testów padł** (test niezależnych kolorów); (2) `days.slice(0,
+index + 1)` zamienione na `days.slice(0, index)` (pominięcie bieżącego dnia w sumie narastającej)
+
+- **dokładnie 2 z 3 testów padły** (suma i kolory - oba zależne od poprawnej wartości
+  skumulowanej), test formatowania daty bez zmian. Po każdym cofnięciu: `git diff --stat` na
+  `MonthCalendarTable.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **420/420** (52 pliki, +3 nowe testy).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
