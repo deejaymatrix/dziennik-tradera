@@ -290,15 +290,20 @@ ponownego przeliczania. `cargo test` — 428/428 PASS, bez regresji (427 + nowy 
    hardkodowane oczekiwane wartości) - **58/58 PASS** po poprawce.
 
 2. **Pełne przejście jak użytkownik końcowy** (sekcja 24) — nie wykonane dla przebudowanej
-   warstwy wizualnej w całości (tylko częściowo, przy okazji innych sprawdzeń). Dodatkowa
-   cząstkowa weryfikacja 2026-07-24: nawigacja Dashboard→Raporty przez klik (nie przez URL —
-   SPA nie reaguje na `navigate` bezpośrednio na trasę), zero błędów w konsoli, stan braku
-   backendu Tauri renderuje się jako czytelny, niekrytyczny komunikat z przyciskiem ponowienia
-   (nie pusty ekran/crash) — potwierdza już wcześniej znany, opisany w pamięci przypadek
-   „Brak środowiska Tauri", nie nowa usterka.
+   warstwy wizualnej w PIKSELOWYM sensie (wymaga zrzutów ekranu, patrz blokada 1), ale
+   nawigacja klikiem przez WSZYSTKIE 14 pozycji menu bocznego zweryfikowana 2026-07-24
+   (szczegóły i tabela: sekcja 4) - każda strona renderuje własny chrome (nagłówki/opisy/
+   filtry/formularze) niezależnie od braku backendu Tauri w tym podglądzie, zero błędów
+   konsoli na całej trasie. Stan braku backendu renderuje się wszędzie jako czytelny,
+   niekrytyczny komunikat `role="alert"` z przyciskiem ponowienia (nie pusty ekran/crash) -
+   potwierdza już wcześniej znany, opisany w pamięci przypadek „Brak środowiska Tauri", nie
+   nową usterkę. Nadal brakuje: przejścia z PRAWDZIWYMI zapisanymi danymi (wymaga uruchomionej
+   aplikacji desktopowej z bazą) i weryfikacji pikselowej.
 3. ~~**Pełny manifest plik-po-pliku** (sekcja 27)~~ — **ZAMKNIĘTE 2026-07-24.** Dodana tabela
-   z osobnym wierszem i statusem dla każdego z 70 plików (sekcja 2, „Manifest plik-po-pliku"),
+   z osobnym wierszem i statusem dla każdego pliku (sekcja 2, „Manifest plik-po-pliku"),
    wygenerowana programowo z już zweryfikowanej tabeli grup — 0 pominiętych, 0 nadmiarowych.
+   Odświeżona 2026-07-24 (część 25) po kolejnych 12 commitach: 70 → 73 pliki, ta sama metoda
+   weryfikacji.
 
 Żadna z pozostałych dwóch blokad nie jest znanym błędem — to brakujący DOWÓD, nie brakująca
 poprawka. Kod jest zweryfikowany tam, gdzie da się to zrobić bez pikselowego podglądu.
