@@ -3412,6 +3412,31 @@ fallback do surowego `amount` jest nieosiągalny w praktyce - nie testowany osob
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **500/500** (64 pliki, +6 nowych testów).
 
+**O7, część 98: `CloseTradeModal.tsx` (193 linie) - skupiona akcja "zamknij pozycję", zero
+testów.** Cena wyjścia sprawdzana DWOMA niezależnymi warstwami: wspólnym
+`validateTradeFormFormat` (format liczby, dzielony ze zwykłym formularzem transakcji, już
+przetestowanym w `tradeForm.test.ts`) i WŁASNYM dodatkowym `!exitPrice.trim()` - wspólny
+walidator celowo POMIJA puste/samo-spacjowe pole (`value.trim() && ...`, bo w zwykłym
+formularzu cena wyjścia bywa opcjonalna), ale przy zamykaniu pozycji jest OBOWIĄZKOWA, stąd druga
+warstwa specyficzna dla tego modalu.
+
+Nowy `pages/CloseTradeModal.test.tsx` (5 testów, `ToastProvider` + `vi.mock` na `invokeCommand`):
+`trade === null` nic nie renderuje; **same spacje w cenie wyjścia pokazują WŁASNY komunikat
+modalu** ("Podaj cenę wyjścia..."), **nieliczbowa cena wyjścia pokazuje komunikat WSPÓLNEGO
+walidatora formatu** ("Cena wyjścia musi być liczbą...") - dwa różne teksty z dwóch różnych
+warstw, oba blokujące zapis; powodzenie woła `update_trade` z poprawnym `id` i
+`expectedUpdatedAt` (optymistyczna kontrola współbieżności), potem `onClosed()` I `onClose()` w
+tej kolejności; błąd backendu pokazuje jego komunikat i NIE woła żadnego z dwóch callbacków.
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) usunięta własna straż `!exitPrice.trim()` - same
+spacje przeszły dalej i uderzyły w zamockowany backend, pokazując "nieoczekiwana komenda" zamiast
+własnego komunikatu - **dokładnie 1 z 5 testów padł**; (2) usunięte wywołanie `onClose()` po
+sukcesie (zostaje samo `onClosed()`) - **dokładnie 1 z 5 padł**. Po każdym cofnięciu: `git diff
+--stat` na `CloseTradeModal.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **505/505** (65 plików, +5 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
