@@ -69,23 +69,34 @@ Bez niego instalator się zbuduje i będzie działał, ale przy każdej instalac
 ostrzeżenie SmartScreen („Windows chronił Twój komputer"), a użytkownik musi kliknąć
 „Więcej informacji" → „Uruchom mimo to". Dla aplikacji finansowej to zły pierwszy kontakt.
 
-### Co trzeba wybrać
+### Co trzeba wybrać — Ty jesteś osobą prywatną, nie firmą
 
-| Rodzaj                           | Ostrzeżenie SmartScreen                                                        | Uwagi                                                            |
-| -------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| **OV** (Organization Validation) | znika dopiero po zbudowaniu reputacji — pierwsze setki pobrań nadal ostrzegają | tańszy                                                           |
-| **EV** (Extended Validation)     | znika od razu                                                                  | droższy, wymaga klucza sprzętowego albo usługi podpisu w chmurze |
+To realnie zawęża wybór. Sprawdzone 2026-07-24 (wyszukiwanie na żywo, nie z pamięci):
 
-Wydawcy: DigiCert, Sectigo, SSL.com i pośrednicy. Weryfikacja tożsamości trwa zwykle
-od kilku dni do dwóch tygodni — to najdłuższy element całego wydania, więc jeśli chcesz wydać
-w konkretnym terminie, zacznij od tego.
+| Rodzaj                                                 | Dostępny dla osoby prywatnej? | Ostrzeżenie SmartScreen                                                        | Uwagi                                                                                                                                                                     |
+| ------------------------------------------------------ | ----------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **OV/IV** (Organization / Individual Validation)       | **TAK**                       | znika dopiero po zbudowaniu reputacji — pierwsze setki pobrań nadal ostrzegają | weryfikacja dokumentem tożsamości (dowód/paszport), nie wpisem do rejestru firmy                                                                                          |
+| **EV** (Extended Validation)                           | **NIE**                       | znika od razu                                                                  | wymaga zarejestrowanej firmy/działalności — jako osoba prywatna go nie kupisz                                                                                             |
+| **Microsoft Trusted Signing** (Azure Artifact Signing) | **NIE dla Ciebie**            | znika szybciej niż przy OV, bo reputację buduje Microsoft                      | tani (od $9,99/mies.), ale zapisy dla osób prywatnych są **wstrzymane w wersji preview**, a nawet gdy działały, obejmowały wyłącznie USA i Kanadę — Polska poza zasięgiem |
 
-Certyfikat wymaga potwierdzenia tożsamości (dla osoby fizycznej zwykle dokument tożsamości
-i potwierdzenie adresu; dla firmy — wpis do rejestru).
+**Praktyczny wniosek dla Ciebie: kup certyfikat OV/IV (Individual Validation) u SSL.com,
+DigiCert, Sectigo albo pośrednika (np. Certum — polski wydawca, może być wygodniejszy przy
+polskim dowodzie/rachunku).** EV odpada — nie masz zarejestrowanej działalności, a certyfikat
+EV bez niej nie istnieje. Trusted Signing też odpada — nie obejmuje Polski.
 
-**Decyzja jest Twoja i wiąże się z wydatkiem — nie podejmę jej za Ciebie.** Kiedy będziesz
-miał certyfikat, dopiszemy do procesu wydania podpisywanie `signtool` ze znacznikiem czasu
-i dopiero wtedy blok E (instalator) przestanie być zablokowany.
+Weryfikacja tożsamości jako osoby prywatnej: skan dowodu osobistego lub paszportu, czasem
+dodatkowo potwierdzenie adresu. Trwa zwykle od kilku dni do dwóch tygodni — to najdłuższy
+element całego wydania, więc jeśli chcesz wydać w konkretnym terminie, zacznij od tego.
+
+**Ważna zmiana od 2026:** od 1 marca 2026 CA/Browser Forum ogranicza maksymalną ważność
+publicznie zaufanych certyfikatów podpisu kodu do 458 dni (SSL.com egzekwuje to już od
+27 lutego 2026) — krócej niż dawne certyfikaty wieloletnie. Licz się z odnowieniem częściej
+niż raz na parę lat.
+
+**Decyzja, u którego wydawcy kupić i kiedy, jest Twoja i wiąże się z wydatkiem — nie podejmę
+jej za Ciebie.** Kiedy będziesz miał certyfikat, dopiszemy do procesu wydania podpisywanie
+`signtool` ze znacznikiem czasu i dopiero wtedy blok E (instalator) przestanie być
+zablokowany.
 
 ---
 
