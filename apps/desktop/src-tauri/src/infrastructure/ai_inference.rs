@@ -8,6 +8,7 @@
 //! na wyjściu", żeby dało się ją przetestować/zbenchmarkować bez reszty infrastruktury.
 
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use llama_cpp_2::context::params::LlamaContextParams;
@@ -85,26 +86,32 @@ tekst ::= "\"" ([^"\\] | "\\" (["\\/bfnrt] | "u" [0-9a-fA-F] [0-9a-fA-F] [0-9a-f
 #[derive(Debug, Clone)]
 pub struct WynikGenerowania {
     pub tekst: String,
-    pub czas_ladowania: Duration,
     pub czas_generowania: Duration,
     pub tokenow_wygenerowanych: usize,
 }
 
-/// Ładuje model spod `sciezka_modelu` i generuje odpowiedź na `prompt`. Synchroniczne i
-/// blokujące (CPU-bound) - wywołujący (harness benchmarkowy, docelowo `AiRuntimeService`) ma
-/// odpowiadać za to, żeby to nie działo się na wątku obsługującym UI.
-pub fn uruchom_prompt(
-    sciezka_modelu: &Path,
-    prompt: &str,
-    konfiguracja: &KonfiguracjaGenerowania,
-) -> Result<WynikGenerowania, AppError> {
-    let poczatek_ladowania = Instant::now();
+/// Załadowany do pamięci silnik + model. ŁADOWANIE JEST KOSZTOWNE (4-19 s), więc robimy je RAZ
+/// i przetrzymujemy w `AiRuntimeService` (Etap 2), tworząc świeży, tani kontekst na każde
+/// generowanie. `LlamaModel` jest `Send + Sync` (patrz `unsafe impl` w llama-cpp-2), a
+/// `LlamaBackend` to pusty strażnik (auto `Send + Sync`), więc całość da się trzymać w `Arc` i
+/// współdzielić między wątkami - realne generowanie i tak serializujemy w `AiRuntimeService`
+/// (wymóg "jedna analiza naraz"), więc nigdy nie używamy tego współbieżnie.
+///
+/// `backend` jest polem, a nie tworzonym lokalnie strażnikiem, bo `LlamaBackend::init()` zwraca
+/// błąd przy DRUGIM wywołaniu w procesie (a `Drop` zwalnia silnik). Trzymając JEDEN backend przez
+/// całe życie usługi, unikamy tego cyklu i nie płacimy za reinicjalizację przy każdej analizie.
+pub struct ZaladowanyModel {
+    // Pole nieużywane bezpośrednio, ale MUSI żyć tak długo jak `model` - `Drop` na `LlamaBackend`
+    // zwalnia globalny stan silnika, po którym `model` byłby nieważny.
+    _backend: LlamaBackend,
+    model: LlamaModel,
+}
 
-    // Inicjalizacja jest idempotentna (dokumentacja `llama-cpp-2`) - bezpieczna przy wielu
-    // wywołaniach `uruchom_prompt` w tym samym procesie (kolejne kandydaci w benchmarku).
+/// Ładuje model z pliku GGUF do pamięci. Kosztowne (rozmiar modelu w RAM, 4-19 s) - wołać RAZ,
+/// nie na każdą analizę.
+pub fn zaladuj_model(sciezka_modelu: &Path) -> Result<ZaladowanyModel, AppError> {
     let backend = LlamaBackend::init()
         .map_err(|e| AppError::io(format!("nie udało się zainicjalizować silnika AI: {e}")))?;
-
     let model_params = LlamaModelParams::default();
     let model =
         LlamaModel::load_from_file(&backend, sciezka_modelu, &model_params).map_err(|e| {
@@ -112,15 +119,41 @@ pub fn uruchom_prompt(
                 "nie udało się wczytać modelu {sciezka_modelu:?}: {e}"
             ))
         })?;
+    Ok(ZaladowanyModel {
+        _backend: backend,
+        model,
+    })
+}
+
+/// Powód, dla którego generowanie skończyło się przed naturalnym końcem odpowiedzi modelu -
+/// pozwala wywołującemu (usłudze) odróżnić "użytkownik anulował" od "przekroczono limit czasu"
+/// od "model sam skończył/dobił do limitu tokenów", bez zgadywania z treści.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PowodPrzerwania {
+    Anulowano,
+    Timeout,
+}
+
+/// Generuje odpowiedź na `prompt` używając WCZEŚNIEJ załadowanego modelu. Tworzy świeży kontekst
+/// (tanie względem ładowania modelu). Sprawdza `anuluj` oraz `limit_czasu` PRZY KAŻDYM tokenie -
+/// dzięki temu "Przerwij analizę" i timeout działają bez zabijania procesu/wątku (pętla po prostu
+/// kończy się kontrolowanym błędem). Synchroniczne i blokujące (CPU-bound) - wywołujący ma zadbać,
+/// żeby to nie działo się na wątku UI (np. `spawn_blocking`).
+pub fn generuj(
+    zaladowany: &ZaladowanyModel,
+    prompt: &str,
+    konfiguracja: &KonfiguracjaGenerowania,
+    anuluj: &AtomicBool,
+    limit_czasu: Option<Duration>,
+) -> Result<WynikGenerowania, AppError> {
+    let model = &zaladowany.model;
+    let poczatek_generowania = Instant::now();
 
     let ctx_params =
         LlamaContextParams::default().with_n_ctx(std::num::NonZeroU32::new(konfiguracja.n_ctx));
     let mut ctx = model
-        .new_context(&backend, ctx_params)
+        .new_context(&zaladowany._backend, ctx_params)
         .map_err(|e| AppError::io(format!("nie udało się utworzyć kontekstu modelu: {e}")))?;
-
-    let czas_ladowania = poczatek_ladowania.elapsed();
-    let poczatek_generowania = Instant::now();
 
     // Bez zastosowania szablonu czatu model dostaje surowy tekst jako "dokańczanie", nie jako
     // prawdziwą turę rozmowy - w praktyce nie wie, KIEDY się zatrzymać (nie emituje tokenu końca
@@ -170,7 +203,7 @@ pub fn uruchom_prompt(
     // crash silnika w tej wersji `llama-cpp-2` (patrz dokumentacja `GRAMATYKA_ANALIZY_JSON`).
     let mut samplery: Vec<LlamaSampler> = Vec::new();
     if let Some(gramatyka) = konfiguracja.gramatyka_json {
-        let sampler_gramatyki = LlamaSampler::grammar(&model, gramatyka, "root")
+        let sampler_gramatyki = LlamaSampler::grammar(model, gramatyka, "root")
             .map_err(|e| AppError::io(format!("nie udało się zbudować gramatyki JSON: {e}")))?;
         samplery.push(sampler_gramatyki);
     }
@@ -189,6 +222,17 @@ pub fn uruchom_prompt(
     let limit = n_cur + konfiguracja.max_nowych_tokenow;
 
     while n_cur <= limit {
+        // Anulowanie i timeout sprawdzane PRZED każdym kosztownym krokiem generowania - to jest
+        // to, co daje "Przerwij analizę" i limit czasu bez zabijania wątku.
+        if anuluj.load(Ordering::SeqCst) {
+            return Err(przerwanie_do_bledu(PowodPrzerwania::Anulowano));
+        }
+        if let Some(limit_czasu) = limit_czasu {
+            if poczatek_generowania.elapsed() >= limit_czasu {
+                return Err(przerwanie_do_bledu(PowodPrzerwania::Timeout));
+            }
+        }
+
         let token = sampler.sample(&ctx, batch.n_tokens() - 1);
         sampler.accept(token);
 
@@ -217,10 +261,40 @@ pub fn uruchom_prompt(
 
     Ok(WynikGenerowania {
         tekst,
-        czas_ladowania,
         czas_generowania: poczatek_generowania.elapsed(),
         tokenow_wygenerowanych: wygenerowano,
     })
+}
+
+/// Anulowanie i timeout to POPRAWNE, oczekiwane zakończenia (użytkownik przerwał / minął limit),
+/// nie awarie - zwracamy je jako `AppError::Validation`, którego komunikat trafia w całości do
+/// użytkownika (nie jest chowany jak techniczne `Io`/`Database`).
+fn przerwanie_do_bledu(powod: PowodPrzerwania) -> AppError {
+    match powod {
+        PowodPrzerwania::Anulowano => AppError::Validation("Analiza AI przerwana.".to_string()),
+        PowodPrzerwania::Timeout => {
+            AppError::Validation("Analiza AI przekroczyła limit czasu.".to_string())
+        }
+    }
+}
+
+/// Ładuje model i generuje odpowiedź jednym wywołaniem - wyłącznie na potrzeby benchmarku
+/// (`benchmark_wyboru_modelu`), gdzie ładujemy każdego kandydata świeżo. Kod produkcyjny używa
+/// `zaladuj_model` + `generuj` osobno, żeby nie płacić za ładowanie modelu przy każdej analizie.
+#[cfg(test)]
+fn uruchom_prompt(
+    sciezka_modelu: &Path,
+    prompt: &str,
+    konfiguracja: &KonfiguracjaGenerowania,
+) -> Result<WynikGenerowania, AppError> {
+    let zaladowany = zaladuj_model(sciezka_modelu)?;
+    generuj(
+        &zaladowany,
+        prompt,
+        konfiguracja,
+        &AtomicBool::new(false),
+        None,
+    )
 }
 
 #[cfg(test)]
@@ -340,7 +414,6 @@ Bez żadnego tekstu poza tym obiektem JSON."#
                     } else {
                         0.0
                     };
-                    println!("  czas ładowania: {:?}", wynik.czas_ladowania);
                     println!(
                         "  czas generowania: {:?} ({} tokenów, {:.1} tok/s)",
                         wynik.czas_generowania, wynik.tokenow_wygenerowanych, tokeny_na_sekunde
