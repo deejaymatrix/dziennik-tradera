@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { ReactElement } from "react";
+import type { KeyboardEvent, ReactElement } from "react";
 import {
   Archive,
   ArchiveRestore,
@@ -141,6 +141,15 @@ export function IntervalsSection(): ReactElement {
     }
   }
 
+  // Enter zatwierdza dodanie interwału zamiast nie robić nic - ta sama konwencja co przy
+  // dodawaniu interwału bezpośrednio z formularza transakcji (TradeFormModal).
+  function handleNewLabelKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void handleAdd();
+    }
+  }
+
   return (
     <section className={settingsStyles.section} aria-labelledby="settings-intervals">
       <h2 id="settings-intervals" className={settingsStyles.sectionTitle}>
@@ -279,6 +288,7 @@ export function IntervalsSection(): ReactElement {
           className={styles.addField}
           value={newLabel}
           onChange={(e) => setNewLabel(e.target.value)}
+          onKeyDown={handleNewLabelKeyDown}
         />
         <Button
           variant="secondary"

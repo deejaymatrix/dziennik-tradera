@@ -2070,6 +2070,32 @@ ma już dedykowane testy jednostkowe w `decimal.test.ts` (znak dla dodatnich/uje
 z walutą i bez), więc mechaniczna zamiana funkcji formatującej w miejscu wywołania jest w pełni
 pokryta bez potrzeby dodatkowego testu komponentu.
 
+**O7, część 50: „Enter zatwierdza właściwą akcję" (sekcja 21) - 2 z 4 mikro-formularzy „wpisz
+nazwę + Dodaj" nie obsługiwały Enter wcale.** `Button` domyślnie ma `type="button"`, więc ryzyko
+tu nie jest "Enter uruchamia złą akcję" (jak przy `variant="danger"`, sprawdzone osobno - jedyne
+takie miejsce, `KoszPage.tsx`, jest bezpieczne, bo nie ma `<form>` łączącego pole wyszukiwania z
+przyciskiem niszczącym), tylko "Enter nie robi nic", mimo że identyczny wzorzec w innym miejscu
+aplikacji już to obsługuje.
+
+Sweep znalazł 4 miejsca dokładnie tego samego wzorca („Nowy X" + przycisk „Dodaj"):
+`TradeFormModal.tsx` (dodawanie interwału z poziomu formularza transakcji) i
+`TradeAttachments.tsx` (dodawanie linku) już mają jawny `onKeyDown` z komentarzem w kodzie
+tłumaczącym dlaczego ("Bez tego Enter w polu adresu/nazwy trafiłby do formularza karty
+transakcji"). `IntervalsSection.tsx` i `EmotionalStatesSection.tsx` (obie w Ustawieniach) - te
+same widżety dla tych samych operacji (dodanie interwału/stanu emocjonalnego), ale BEZ żadnej
+obsługi Enter.
+
+Naprawione identycznie jak istniejący wzorzec: `onKeyDown` z `event.preventDefault()` +
+wywołaniem tej samej funkcji `handleAdd()`, którą wywołuje przycisk „Dodaj".
+
+Weryfikacja WYKONANIA, nie tylko wyglądu kodu: wstrzyknięty fałszywy
+`window.__TAURI_INTERNALS__.invoke` (technika z pamięci sesji), wpisana wartość pola przez
+natywny setter + zdarzenie `input`, wysłany `Enter` - potwierdzone, że `create_interval`
+i `create_emotional_state` faktycznie wywołują się z poprawną wartością pola
+(`{"label":"M15 test"}`, `{"name":"Euforia test"}`), nie tylko że `event.preventDefault()`
+zwraca `true`. `pnpm format:check`, `pnpm typecheck`, `pnpm test` 271/271, `preview_start` +
+`javascript_tool`, `preview_stop` po zakończeniu.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat

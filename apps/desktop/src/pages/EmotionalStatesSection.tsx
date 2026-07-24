@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { ReactElement } from "react";
+import type { KeyboardEvent, ReactElement } from "react";
 import { Eye, EyeOff, Trash2 } from "lucide-react";
 import { invokeCommand } from "../app/invokeCommand";
 import type { EmotionalState } from "../app/types/emotional_state";
@@ -84,6 +84,15 @@ export function EmotionalStatesSection(): ReactElement {
     }
   }
 
+  // Enter zatwierdza dodanie stanu zamiast nie robić nic - ta sama konwencja co przy dodawaniu
+  // interwału bezpośrednio z formularza transakcji (TradeFormModal).
+  function handleNewNameKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void handleAdd();
+    }
+  }
+
   return (
     <section className={settingsStyles.section} aria-labelledby="settings-emotional-states">
       <h2 id="settings-emotional-states" className={settingsStyles.sectionTitle}>
@@ -156,6 +165,7 @@ export function EmotionalStatesSection(): ReactElement {
           className={styles.addField}
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={handleNewNameKeyDown}
         />
         <Button
           variant="secondary"
