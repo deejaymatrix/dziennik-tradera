@@ -150,6 +150,15 @@
   transform: scale(0.94);
 }
 
+/* Tryb odczytu (`TradeFormModal` w podglądzie) ustawia natywny atrybut `disabled`, ale skala
+   zostaje WIDOCZNA (żeby dało się odczytać zapisaną intensywność) - bez tej reguły przycisk
+   wyglądałby identycznie jak klikalny, mimo że nim nie jest. Ten sam wzorzec co `Button:disabled`. */
+.scaleButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  filter: saturate(0.35);
+}
+
 .scaleButtonActive {
   background: var(--color-accent);
   border-color: var(--color-accent);
