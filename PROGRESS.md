@@ -3838,6 +3838,40 @@ zredukowany do samego `busy` - **dokładnie 1 z 6 padł**. Po każdym cofnięciu
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **597/597** (81 plików, +6 nowych testów).
 
+**O7, część 115: `InstrumentsPage` (lista instrumentów w obrębie szablonu brokera) - zero testów.**
+Trzy nieoczywiste rzeczy: (1) odznaka "MINI" pokazuje się TYLKO dla symboli kończących się na
+"-MINI"; (2) przycisk usuwania jest CAŁKOWICIE ukryty (nie tylko wyłączony) dla instrumentów
+fabrycznych (`factory_index !== null`) - fabrycznych nie da się usunąć wcale, tylko przywrócić do
+wartości domyślnych gdzie indziej (`InstrumentFormModal`); (3) "Zaznacz wszystkie na tej stronie"
+to ten sam przełącznik-zależny-od-stanu co `KoszPage` (część 114). Techniczna pułapka: `load()`
+woła `list_instruments` DWA RAZY na Promise.all (pełny filtr UI dla tabeli + sztywny
+`visibility: "visible"` dla sekcji kolejności) - mock musi rozróżniać po treści `filter`, inaczej
+te same instrumenty renderują się DWA RAZY (raz w tabeli, raz w liście kolejności), co fałszywie
+psuje zapytania po samym tekście symbolu.
+
+Przy pisaniu testu MINI wyszła na jaw druga pułapka, tym razem we WŁASNYM teście: pierwsza wersja
+używała `row.toHaveTextContent("MINI")` (dopasowanie PRZEZ ZAWIERANIE), a symbol "US500-MINI" sam
+w sobie zawiera podciąg "MINI" jako zwykły tekst, NIEZALEŻNIE od tego, czy odznaka w ogóle się
+wyrenderowała - test przechodził nawet z mutacją `isMini = false`, więc de facto nic nie sprawdzał.
+Naprawione przez `within(wiersz).getByText("MINI")` (dopasowanie DOKŁADNE, izolowane do elementu
+odznaki) - dopiero to złapało mutację poprawnie.
+
+Nowy `pages/InstrumentsPage.test.tsx` (5 testów, `MemoryRouter` bo `useNavigate`/`useSearchParams`):
+pusta lista pokazuje `EmptyState`; **odznaka MINI tylko dla `-MINI`, sprawdzone dopasowaniem
+DOKŁADNYM, nie "zawiera"**; instrument fabryczny NIE pokazuje przycisku usuwania, własny pokazuje;
+odznaka Widoczny/Ukryty wg `is_visible`; "Zaznacz wszystkie na tej stronie" zaznacza/odznacza
+zależnie od bieżącego stanu.
+
+Zweryfikowane 4 niezależnymi mutacjami: (1) `isMini` na sztywno `false` - **dokładnie 1 z 5
+testów padł** (dopiero po naprawie własnego testu opisanej wyżej); (2) warunek `factory_index ===
+null` zastąpiony `true` (przycisk usuwania zawsze widoczny) - **dokładnie 1 z 5 padł**; (3) odznaka
+widoczności na sztywno "Widoczny" - **dokładnie 1 z 5 padł**; (4) `allSelected` na sztywno `false`
+w `togglePageSelection` - **dokładnie 1 z 5 padł**. Po każdym cofnięciu: `git diff --stat` na
+`InstrumentsPage.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **602/602** (82 pliki, +5 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
