@@ -3584,6 +3584,34 @@ elementu); (2) `tone === "loss" && styles.loss` zastąpione `false && styles.los
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **534/534** (71 plików, +5 nowych testów).
 
+**O7, część 105: `TradeAttachments` (sekcja "Wykres i załączniki") - tryb oczekujący dla NOWEJ
+transakcji, zero testów.** Dla niezapisanej transakcji (`tradeId === undefined`) komponent trzyma
+załączniki lokalnie w `pending`/`onPendingChange`, zamiast wołać `invokeCommand` bezpośrednio -
+trafiają na serwer dopiero po udanym `create_trade`. Dwie nieoczywiste reguły tego trybu: (1) link
+musi zaczynać się od `https://` (ta sama walidacja co `domain::attachment::is_valid_https_url` w
+backendzie, tu tylko dla natychmiastowej informacji zwrotnej - autorytatywna jest ta przy zapisie);
+(2) usuwanie w trybie oczekującym NIE pyta o potwierdzenie (w odróżnieniu od zapisanej transakcji,
+gdzie usunięcie to nieodwracalna komenda backendu) - `useConfirm()` jest wołane bezwarunkowo przy
+renderze (więc testy i tak muszą owinąć w `ConfirmProvider`), ale w gałęzi oczekującej nigdy nie
+jest wywoływane.
+
+Nowy `pages/TradeAttachments.test.tsx` (6 testów, `ToastProvider` + `ConfirmProvider`, mock
+`invokeCommand` jako pusty stub - `useAttachments("")` świadomie nic nie pobiera dla pustego
+tradeId): pusta lista pokazuje podpowiedź; link bez `https://` pokazuje błąd i NIE wywołuje
+`onPendingChange`; poprawny link `https://` dodaje wpis przez `onPendingChange`; usunięcie w
+trybie oczekującym filtruje `pending` BEZ pytania o potwierdzenie; przesunięcie elementu w dół
+zamienia kolejność; pierwszy element ma wyłączony przycisk "Przesuń wyżej".
+
+Zweryfikowane 4 niezależnymi mutacjami: (1) warunek `https://` zastąpiony `if (false)` - **dokładnie
+1 z 6 testów padł** (walidacja linku); (2) `disabled={index === 0}` zastąpione `disabled={false}` -
+**dokładnie 1 z 6 padł** (przycisk "wyłączony"); (3) usunięty `next.splice` w `handleMove`
+(kolejność bez zmian) - **dokładnie 1 z 6 padł**; (4) `pendingItems.filter(...)` w `handleDelete`
+zastąpione samym `pendingItems` (usuwanie nic nie usuwa) - **dokładnie 1 z 6 padł**. Po każdym
+cofnięciu: `git diff --stat` na `TradeAttachments.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **540/540** (72 pliki, +6 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
