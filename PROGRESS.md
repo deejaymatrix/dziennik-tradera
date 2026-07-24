@@ -3546,6 +3546,25 @@ do zamierzonej zmiany.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **525/525** (69 plików, +4 nowe testy).
 
+**O7, część 103: `TopTradesTable` (sekcja "TOP 5" raportu miesięcznego) - zero testów.**
+`opened_at` przychodzi z Rusta jako `string | null` (transakcja może nie mieć jeszcze zapisanej
+daty otwarcia) - brak obsługi `null` w `formatOpenedAt` wysypałby `new Date(null)` na widoczne
+użytkownikowi "Invalid Date" zamiast czytelnego "—". Druga część: kolor komórki P&L zależy od
+znaku `Number(row.net_pnl)`, niezależnie od `formatSignedMoney` użytego do samego tekstu.
+
+Nowy `pages/TopTradesTable.test.tsx` (4 testy): pusta lista pokazuje komunikat, nie pustą tabelę;
+**`opened_at === null` pokazuje "—", nie "Invalid Date"**; `side` "buy"/"sell" pokazuje "BUY"/
+"SELL"; dodatni `net_pnl` dostaje klasę `profit`, ujemny klasę `loss`.
+
+Zweryfikowane 2 niezależnymi mutacjami: (1) usunięty `if (!value) return "—";` z `formatOpenedAt`
+(zawsze `new Date(value ?? "")`) - **dokładnie 1 z 4 testów padł**, pokazując dokładnie
+przewidziany błąd: wiersz pokazał "Invalid Date"; (2) klasa koloru zawsze `styles.profit`
+(usunięty warunek znaku) - **dokładnie 1 z 4 padł**, komórka straty dostała klasę zysku. Po
+każdym cofnięciu: `git diff --stat` na `TopTradesTable.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **529/529** (70 plików, +4 nowe testy).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
