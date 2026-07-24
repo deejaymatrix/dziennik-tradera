@@ -229,6 +229,29 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   w modułach liczących pieniądze, zgodność numeru wersji między `Cargo.toml`, `tauri.conf.json`
   i `package.json`.
 
+#### Redesign "TradingView Pro × Apple Fintech" (blok O)
+
+- Nowa paleta jasna/ciemna zastępująca "Institutional Black & Gold", z ośmioma wartościami
+  skorygowanymi pod WCAG AA (4,5:1) — pilnuje tego `design/tokens.test.ts` (24/24 kombinacji
+  kolor/powierzchnia).
+- Domyślny kolor akcentu zmieniony ze złota (`#c9a85a`) na niebieski (`#4c7dff`), zsynchronizowany
+  między Rust (`domain::preferences::default_accent`) a frontendem — złoto zostaje wyłącznie jako
+  jeden z presetów do wyboru przez użytkownika, nie jako domyślna marka.
+- Skala tokenów tam, gdzie wcześniej były gołe liczby porozrzucane po plikach: `--z-sticky/
+-popover/-overlay/-skip-link` (8 miejsc), `--font-weight-regular/-medium/-semibold/-bold`
+  (69 wystąpień w 42 plikach), `--line-height-none/-normal` (5 miejsc), `--inspector-width-min/
+-max` (szerokość panelu szczegółów Historii transakcji).
+- Stan `loading` na `Button` (spinner nad tekstem, `aria-busy`, blokada kliknięcia) zastępujący
+  9 miejsc, które ręcznie duplikowały ten sam wzorzec „Zapisywanie...”/`disabled`.
+- Stan `:active` (delikatne `transform: scale()` przy naciśnięciu) na `Button`, `IconButton`,
+  `Switch`, zakładkach Raportów i pozycjach menu bocznego — świadomie pominięty na
+  `CommandPalette` (wyróżnienie tam idzie za klawiaturą, nie kursorem) i `Checkbox` (natywny
+  `accent-color`, custom transform byłby niespójny z renderowaniem przeglądarki).
+- `Cmd+K` obok `Ctrl+K` w palecie poleceń na macOS.
+- Pełna macierz audytowa z manifestem plik-po-pliku (`MACIERZ_AUDYTU_REDESIGN_O.md`) — werdykt
+  na razie `NIEGOTOWE`, jawnie z powodu brakujących zrzutów ekranu (środowisko bez kompozycji
+  klatek) i pełnego testu z prawdziwymi danymi, nie z powodu znanych błędów.
+
 ### Changed
 
 - Etykieta "TPowne" zmieniona na "Zyskowne" we wszystkich raportach.
