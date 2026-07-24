@@ -1930,6 +1930,18 @@ scale(0.97); }`), `--color-focus-ring` rozwiązany do realnego, widocznego kolor
 niedostępne w tym środowisku - trzecie potwierdzenie tego samego ograniczenia narzędzia
 ("Browser pane is not displayed"), nie nowa usterka. `preview_stop` po zakończeniu.
 
+**O7, zamknięcie sweepu `:active` - ponowne przeliczenie wszystkich 21 plików.** Po częściach
+43-45 ponownie skrzyżowane 21 plików z `cursor: pointer` z plikami, które faktycznie mają
+`:active` (teraz 16, nie 5). Zostało dokładnie 6 plików bez `:active` - każdy sprawdzony wprost
+w `.tsx`, czy to naprawdę uzasadniony wyjątek: `BreakdownTable.module.css` i
+`TransactionsPage.module.css` (`.clickableRow` na `<tr>` - świadomie `:focus-visible`+`outline`
+zamiast `transform`, część 45), `TradeAuditLog.module.css` i `ZasadyHandluPage.module.css`
+(`.summary`/`.categorySummary` - potwierdzone jako natywny `<summary>` wewnątrz `<details>`, ta
+sama kategoria co wcześniej uzasadniona), `CommandPalette`/`Checkbox` (uzasadnione wcześniej).
+Wcześniejsza notatka „14 plików" w części 43 była już nieaktualna po części 44 - to pierwsza
+chwila, gdy wszystkie 6 zweryfikowano pojedynczo, a nie zsumowano przybliżeniem. Sweep `:active`
+zamknięty jako wyczerpujący, bez zmian kodu.
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
