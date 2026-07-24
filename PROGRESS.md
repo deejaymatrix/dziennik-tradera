@@ -3912,6 +3912,43 @@ diff --stat` na `TransactionsPage.tsx` pusty.
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **608/608** (83 pliki, +6 nowych testów).
 
+**O7, część 117: `CalendarPage` (siatka miesiąca P&L, klik w dzień → podgląd transakcji) - zero
+testów.** Dwie nieoczywiste rzeczy: (1) dzień bez żadnych zamkniętych transakcji NIE jest klikalny
+WCALE (brak `role="button"`/`tabIndex`/`onClick`), nie tylko wizualnie wyszarzony; (2) grupowanie
+transakcji do podglądu dnia dzieje się po LOKALNEJ dacie `closed_at` - transakcje bez `closed_at`
+(otwarte/szkice) są pomijane całkowicie, inaczej podgląd dnia pokazywałby transakcje, które nigdy
+się nie zamknęły. Zegar systemowy przypięty na 1 marca 2026 (niedziela, `vi.setSystemTime` BEZ
+`vi.useFakeTimers()` - fałszywe timery blokują `findBy*`/`waitFor` z testing-library, które
+polegają na prawdziwych timerach) - `leadingBlanks` w `buildMonthGrid` zależy od dnia tygodnia,
+więc test musi znać dokładny dzień startu miesiąca, żeby policzyć oczekiwaną liczbę pustych
+komórek na początku siatki.
+
+Dwie pułapki złapane PRZY PISANIU testów: (a) nagłówek miesiąca ("Marzec 2026") renderuje się
+NATYCHMIAST, niezależnie od stanu raportu - czekanie na ten tekst (`findByText`) nie gwarantuje, że
+siatka dni (zależna od `report !== null`) już się wyrenderowała; prawdziwy wyścig, naprawiony przez
+`findByRole` bezpośrednio na przycisku dnia; (b) pierwsza wersja testu "otwarta transakcja nie
+wlicza się do dnia" dawała false positive - transakcja bez `closed_at` z domyślnym `opened_at` na
+INNY dzień niż testowany nie mogła w ogóle trafić do złej grupy, niezależnie od tego, czy warunek
+`!trade.closed_at` istniał; naprawione przez ustawienie `opened_at` transakcji na TEN SAM dzień,
+którego dotyczy test.
+
+Nowy `pages/CalendarPage.test.tsx` (5 testów): marzec 2026 (start w niedzielę) ma dokładnie 6
+pustych komórek przed dniem 1; dzień bez transakcji NIE jest klikalny, dzień z wynikiem jest;
+kolor dnia wg znaku `net_pnl`; **klik w dzień pokazuje TYLKO transakcje zamknięte lokalnie tego
+dnia, pomija otwarte**; zmiana miesiąca zamyka otwarty podgląd dnia.
+
+Zweryfikowane 3 niezależnymi mutacjami: (1) `if (!trade.closed_at) continue;` zastąpione fallbackiem
+`trade.closed_at ?? trade.opened_at ?? ""` - **dokładnie 1 z 5 testów padł** (dopiero po naprawie
+testu opisanej wyżej), z dokładnie przewidzianym objawem: otwarta transakcja doliczyła się do dnia
+jako trzeci wiersz; (2) `hasTrades = cell.entry !== null` na sztywno `true` - **dokładnie 1 z 5
+padł**; (3) `leadingBlanks = (firstOfMonth.getDay() + 6) % 7` zredukowane do samego
+`firstOfMonth.getDay()` (tydzień od niedzieli zamiast poniedziałku) - **dokładnie 1 z 5 padł**, z
+dokładnie przewidzianym objawem: 0 pustych komórek zamiast 6. Po każdym cofnięciu: `git diff
+--stat` na `CalendarPage.tsx` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **613/613** (84 pliki, +5 nowych testów).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
