@@ -2798,6 +2798,25 @@ brak paddingu), pozostałe 8 bez zmian. Po cofnięciu: `git diff --stat` na `dat
 Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
 --check` czysto, `pnpm test -- --run` **351/351** (40 plików, +10 nowych testów).
 
+**O7, część 74: `blobToBase64.ts` (15 linii) - kodowanie załączników (wklejenie ze schowka,
+upuszczenie pliku) do base64 przed wysłaniem przez IPC do Tauri, zero testów.** Błąd tu cicho
+zepsułby zapisany plik (np. zostawiony prefiks `data:...;base64,` w bajtach, albo obcięty
+pierwszy znak przy złym indeksie przecinka) - użytkownik zobaczyłby uszkodzony obraz dopiero przy
+próbie otwarcia załącznika, długo po imporcie.
+
+Nowy `app/blobToBase64.test.ts` (3 testy): koduje tekstowy blob do czystego base64 bez prefiksu
+data URL (zdekodowane `atob` daje z powrotem oryginalny tekst); poprawnie koduje bajty binarne
+(sygnatura PNG) bajt-po-bajcie, nie tylko tekst ASCII; odrzuca obietnicę z błędem, gdy odczyt się
+nie powiedzie (podmieniony `FileReader` wywołujący `onerror`).
+
+Zweryfikowane testem mutacyjnym: tymczasowo `result.slice(commaIndex)` zamiast
+`result.slice(commaIndex + 1)` (zostawiony przecinek na początku) - **dokładnie 2 z 3 testów
+padły** (oba testy kodowania - tekstowy i binarny), test ścieżki błędu bez zmian, zgodnie z
+przewidywaniem. Po cofnięciu: `git diff --stat` na `blobToBase64.ts` pusty.
+
+Weryfikacja: `pnpm exec tsc --noEmit -p .` czysto, `pnpm exec eslint` czysto, `pnpm exec prettier
+--check` czysto, `pnpm test -- --run` **354/354** (41 plików, +3 nowe testy).
+
 ## Blok E — instalator (Cel 1.9)
 
 **Decyzja użytkownika (2026-07-24): wydajemy BEZ podpisu Authenticode, świadomie.** Certyfikat
