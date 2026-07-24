@@ -27,7 +27,7 @@ przypuszczenia ani samego przeglądu kodu, zgodnie z wymaganiem promptu.
 | Wersjonowanie                        | PASS                                                  | `src-tauri/src/wersja.rs` — 2 testy: zgodność `Cargo.toml`/`tauri.conf.json`/`package.json`, kształt SemVer. `cargo test wersja::` → `2 passed`.                                                                                                                                                                           |
 | Migracje, backup, przywracanie       | PASS                                                  | System sprzed Celu 1.8 (automatyczna kopia przed migracją, transakcyjność, kontrola integralności) — bez zmian w tym Celu, więc bez nowego ryzyka; pokryty testami spoza tego zakresu (patrz `RAPORT_AUDYTU.md`, sekcja audytu bloku D).                                                                                   |
 | Konfiguracja endpointu               | PASS                                                  | Test `adres_manifestu_zgadza_sie_z_konfiguracja_tauri` pilnuje zgodności adresu w `update_manifest.rs` z `plugins.updater.endpoints` w `tauri.conf.json` — rozjazd wykryłby się natychmiast przy kompilacji testów.                                                                                                        |
-| Skrypty i pipeline wydania           | PASS (workflow) / BLOCKED (przebieg na żywo)          | `.github/workflows/release.yml` istnieje, buduje jako draft; **nigdy nie uruchomiony na żywo** (brak sekretów, patrz sekcja 3).                                                                                                                                                                                            |
+| Skrypty i pipeline wydania           | PASS (workflow) / BLOCKED (przebieg na żywo)          | `.github/workflows/release.yml` istnieje, buduje jako draft; **nigdy nie uruchomiony na żywo**. Aktualizacja 2026-07-24: sekrety już nie są przyczyną - oba potwierdzone przez `gh secret list`. Jedyny pozostały powód: brak tagu wydania (`git tag vX.Y.Z`), co wprost dotyczy Celu 1.9, patrz sekcja 3.                 |
 
 **Znalezione i naprawione podczas audytu tego kroku** (nie tylko wypisane — poprawione
 bezpośrednio w kodzie, zgodnie z wymaganiem):
@@ -142,7 +142,7 @@ i przetestowanego w audycie bloku D (`RAPORT_AUDYTU.md`) — nie duplikowane tut
 | Testy integracyjne                     | PASS                           | `UpdateMonitorProvider.test.tsx` renderuje pełne drzewo Reacta z prawdziwymi efektami i fałszywymi timerami — to integracja, nie test jednostkowy pojedynczej funkcji. |
 | Testy E2E                              | **BLOCKED**                    | Wymaga zbudowanej, podpisanej aplikacji — patrz sekcja 3.                                                                                                              |
 | Testy migracji                         | PASS (poza zakresem tego Celu) | Migracje nie zostały ruszone w Celu 1.8.                                                                                                                               |
-| Testy procesu wydania                  | **BLOCKED**                    | Workflow nigdy nie uruchomiony (brak sekretów/tagu).                                                                                                                   |
+| Testy procesu wydania                  | **BLOCKED**                    | Workflow nigdy nie uruchomiony. Sekrety już ustawione (2026-07-24) - jedyny pozostały powód to brak tagu, co czeka na Cel 1.9.                                         |
 | Testy ręczne z perspektywy użytkownika | **BLOCKED**                    | Wymaga zbudowanej aplikacji na żywej maszynie.                                                                                                                         |
 | `cargo clippy --all-targets`           | PASS                           | 0 błędów.                                                                                                                                                              |
 | `cargo fmt --check`                    | PASS                           | czysto.                                                                                                                                                                |
@@ -162,10 +162,15 @@ tylko test, który ujawnił problem) — widoczne w treści commitów 6/n–8/n.
    instalator działa w 100%, jedyny skutek to ostrzeżenie SmartScreen przy pierwszym
    uruchomieniu. Patrz `docs/KLUCZE_I_WYDANIE.md`. Podpis Authenticode zostaje możliwy do
    dopisania w dowolnym momencie później, bez zmian w kodzie.
-2. **Sekrety GitHub Actions** (`TAURI_SIGNING_PRIVATE_KEY`, `..._PASSWORD`) — dwa kliknięcia,
-   instrukcja w tym samym dokumencie. Nie wykonane przeze mnie celowo — to klucz prywatny
-   użytkownika.
-3. **Pierwsze opublikowane wydanie** — wymaga (1) i (2) najpierw, potem `git tag vX.Y.Z`.
+2. ~~**Sekrety GitHub Actions** (`TAURI_SIGNING_PRIVATE_KEY`, `..._PASSWORD`)~~ — **ZAMKNIĘTE
+   2026-07-24.** Oba sekrety potwierdzone na żywo przez `gh secret list`:
+   `TAURI_SIGNING_PRIVATE_KEY` dodany przez użytkownika samodzielnie, `..._PASSWORD` (pusta
+   wartość - klucz nie ma hasła) dodany na wyraźną prośbę użytkownika. Klucz prywatny sam w
+   sobie nadal nigdy nie był widziany przeze mnie - tylko potwierdzona OBECNOŚĆ sekretu, nie
+   jego treść.
+3. **Pierwsze opublikowane wydanie** — (1) i (2) zamknięte, jedyne co zostaje to `git tag
+vX.Y.Z` + push. To już wprost Cel 1.9/instalator - czeka na osobną, wyraźną zgodę
+   użytkownika, nie wykonywane tutaj.
 4. **Test na niezależnym komputerze Windows 10/11 x64** — fizycznie niemożliwy z tego
    środowiska.
 
