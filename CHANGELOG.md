@@ -240,7 +240,8 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
 - Skala tokenów tam, gdzie wcześniej były gołe liczby porozrzucane po plikach: `--z-sticky/
 -popover/-overlay/-skip-link` (8 miejsc), `--font-weight-regular/-medium/-semibold/-bold`
   (69 wystąpień w 42 plikach), `--line-height-none/-normal` (5 miejsc), `--inspector-width-min/
--max` (szerokość panelu szczegółów Historii transakcji).
+-max` (szerokość panelu szczegółów Historii transakcji), `--radius-full` (3 dodatkowe miejsca
+  z `999px` na sztywno) i `var(--shadow-md)` w miejscu nieudokumentowanego cienia w `ColorPicker`.
 - Stan `loading` na `Button` (spinner nad tekstem, `aria-busy`, blokada kliknięcia) zastępujący
   9 miejsc, które ręcznie duplikowały ten sam wzorzec „Zapisywanie...”/`disabled`.
 - Stan `:active` (delikatne `transform: scale()` przy naciśnięciu) na `Button`, `IconButton`,
@@ -248,9 +249,21 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   `CommandPalette` (wyróżnienie tam idzie za klawiaturą, nie kursorem) i `Checkbox` (natywny
   `accent-color`, custom transform byłby niespójny z renderowaniem przeglądarki).
 - `Cmd+K` obok `Ctrl+K` w palecie poleceń na macOS.
+- Naprawionych 17 realnych naruszeń WCAG AA w tłach budowanych przez `color-mix()` (odznaki,
+  komórki heatmapy wyniku, aktywna pozycja menu Ustawień, tag restartu, dzień z wynikiem
+  w kalendarzu, statusy panelu formularza) — znalezione matematyczną symulacją mieszania barw
+  w `tokens.test.ts`, nie zgadywane; naprawa przez nowe tokeny intensywności per motyw
+  (`--tint-badge/-calendar-day/-tag`) i zamianę tekstu przygaszonego/dziedziczonego na pełny
+  tam, gdzie to on był problemem.
+- Test regresyjny WCAG 1.4.11 (próg 3:1) dla pierścienia fokusu na każdej realnej powierzchni —
+  nigdy dotąd niesprawdzone wprost.
+- Test pinujący literalną wartość domyślnego akcentu w Rust (`#4c7dff`), zamiast porównania
+  funkcji z samą sobą, które nie złapałoby cichego powrotu do złota.
 - Pełna macierz audytowa z manifestem plik-po-pliku (`MACIERZ_AUDYTU_REDESIGN_O.md`) — werdykt
   na razie `NIEGOTOWE`, jawnie z powodu brakujących zrzutów ekranu (środowisko bez kompozycji
-  klatek) i pełnego testu z prawdziwymi danymi, nie z powodu znanych błędów.
+  klatek) i pełnego testu z prawdziwymi danymi, nie z powodu znanych błędów. Kontrast obramowań
+  (WCAG 1.4.11) sprawdzony i świadomie zaakceptowany jako pre-redesignowy kompromis czekający
+  na osobną decyzję, nie ukryty ani naprawiony bez pytania.
 
 ### Changed
 
