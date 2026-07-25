@@ -2,11 +2,29 @@ import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, ReactElement } from "react";
 import { Send, StopCircle } from "lucide-react";
 import { invokeCommand, extractErrorMessage } from "../app/invokeCommand";
-import type { ReportFilter } from "../app/types/report";
+import type { FilteredReport, ReportFilter } from "../app/types/report";
 import type { WiadomoscCzatu } from "../app/types/aiAnalysis";
 import { Button } from "../ui/components/Button/Button";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import styles from "./ChatAi.module.css";
+
+/** Poniżej tylu transakcji ostrzegamy o małej próbie - wnioski z garstki transakcji bywają
+ * przypadkowe, a użytkownik ma o tym wiedzieć, zanim potraktuje odpowiedź poważnie. */
+const PROG_MALEJ_PROBY = 20;
+
+/** Poprawna polska odmiana rzeczownika „transakcja" przez liczbę (1 / 2-4 / 5+, z wyjątkiem
+ * nastek 12-14, które idą jak „5+"). */
+function odmianaTransakcji(n: number): string {
+  const ostatnia = n % 10;
+  const nastki = n % 100;
+  if (n === 1) {
+    return "transakcja";
+  }
+  if (ostatnia >= 2 && ostatnia <= 4 && !(nastki >= 12 && nastki <= 14)) {
+    return "transakcje";
+  }
+  return "transakcji";
+}
 
 export interface ChatAiProps {
   /** Zakres danych, po których czatujemy (snake_case, z `toReportFilter`). */
@@ -29,6 +47,7 @@ export function ChatAi({ filter, zakresOpis, gotowe }: ChatAiProps): ReactElemen
   const [historia, setHistoria] = useState<WiadomoscCzatu[]>([]);
   const [pytanie, setPytanie] = useState("");
   const [mysli, setMysli] = useState(false);
+  const [liczbaTransakcji, setLiczbaTransakcji] = useState<number | null>(null);
   const listaRef = useRef<HTMLDivElement>(null);
 
   // Zmiana zakresu (inne konto) to inna rozmowa - czyścimy historię, żeby nie mieszać danych.
@@ -36,6 +55,32 @@ export function ChatAi({ filter, zakresOpis, gotowe }: ChatAiProps): ReactElemen
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setHistoria([]);
   }, [zakresOpis]);
+
+  // Podstawa danych: pobieramy liczbę transakcji w zakresie z tego samego deterministycznego
+  // silnika raportów, którego fakty widzi model - żeby pokazać, na ilu transakcjach opiera się
+  // rozmowa (i ostrzec, gdy to za mała próba na sensowne wnioski).
+  useEffect(() => {
+    if (!filter.account_id) {
+      return;
+    }
+    let aktualne = true;
+    void invokeCommand<FilteredReport>("get_filtered_report", { filter })
+      .then((raport) => {
+        if (aktualne) {
+          setLiczbaTransakcji(raport.stats.total_trades);
+        }
+      })
+      .catch(() => {
+        if (aktualne) {
+          setLiczbaTransakcji(null);
+        }
+      });
+    return () => {
+      aktualne = false;
+    };
+    // Zależność po `account_id` (prymityw), nie po `filter` (nowy obiekt co render).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter.account_id]);
 
   // Po każdej nowej wiadomości przewijamy na dół, żeby najnowsza była widoczna.
   useEffect(() => {
@@ -95,6 +140,15 @@ export function ChatAi({ filter, zakresOpis, gotowe }: ChatAiProps): ReactElemen
 
   return (
     <div className={styles.czat}>
+      {liczbaTransakcji !== null && (
+        <p className={styles.podstawa}>
+          Podstawa: <strong>{liczbaTransakcji}</strong> {odmianaTransakcji(liczbaTransakcji)} ·{" "}
+          {zakresOpis}
+          {liczbaTransakcji < PROG_MALEJ_PROBY && (
+            <span className={styles.ostrzezenie}> — mała próba, wnioski mogą być niepewne.</span>
+          )}
+        </p>
+      )}
       <div className={styles.rozmowa} ref={listaRef} aria-live="polite">
         {historia.length === 0 && !mysli ? (
           <p className={styles.pusto}>

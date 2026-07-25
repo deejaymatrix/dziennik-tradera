@@ -12,6 +12,18 @@
   line-height: 1.5;
 }
 
+.podstawa {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.ostrzezenie {
+  color: var(--color-warning);
+  font-weight: var(--font-weight-medium);
+}
+
 .rozmowa {
   display: flex;
   flex-direction: column;
