@@ -8,7 +8,8 @@ use tauri::State;
 
 use crate::application::ai_analysis::{AiAnalysisService, StatusModeluAi};
 use crate::application::ai_runtime::OpisModeluStatus;
-use crate::domain::ai_analysis::ZapisanaAnaliza;
+use crate::application::reports::ReportFilter;
+use crate::domain::ai_analysis::{AnalizaWynik, ZapisanaAnaliza};
 use crate::error::AppError;
 use crate::infrastructure::ai_model_download::PostepPobrania;
 use crate::state::{AppState, DbState};
@@ -33,6 +34,23 @@ pub async fn analyze_trade(
     tauri::async_runtime::spawn_blocking(move || service.analizuj_transakcje_blocking(&trade_id))
         .await
         .map_err(|e| AppError::io(format!("zadanie analizy AI nie powiodło się: {e}")))?
+}
+
+/// Analiza CAŁOŚCIOWA raportu/okresu (zagregowane dane wg tego samego filtra co strona Raporty).
+/// `async` + `spawn_blocking` jak `analyze_trade`. Wynik NIE jest zapisywany - zwracany do
+/// pokazania. `zakres_opis` to ludzki opis zakresu do promptu i UI.
+#[tauri::command]
+pub async fn analyze_report(
+    state: State<'_, AppState>,
+    filter: ReportFilter,
+    zakres_opis: String,
+) -> Result<AnalizaWynik, AppError> {
+    let service = require_ai(&state)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        service.analizuj_raport_blocking(filter, zakres_opis)
+    })
+    .await
+    .map_err(|e| AppError::io(format!("zadanie analizy raportu nie powiodło się: {e}")))?
 }
 
 /// Przerywa trwającą analizę.

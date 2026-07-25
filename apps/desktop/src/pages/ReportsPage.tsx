@@ -9,13 +9,19 @@ import { exportTrades, toExportFilter } from "../app/exportTrades";
 import type { ExportFormat } from "../app/exportTrades";
 import { Button } from "../ui/components/Button/Button";
 import { useToast } from "../ui/components/Toast/ToastProvider";
-import { monthYearLabel, toAccountComparisonFilter, useReportFilter } from "../app/useReportFilter";
+import {
+  monthYearLabel,
+  toAccountComparisonFilter,
+  toReportFilter,
+  useReportFilter,
+} from "../app/useReportFilter";
 import type { AccountComparisonRow } from "../app/types/report";
 import { EmptyState } from "../ui/components/EmptyState/EmptyState";
 import { ErrorState } from "../ui/components/ErrorState/ErrorState";
 import { Skeleton } from "../ui/components/Skeleton/Skeleton";
 import { ReportAccountComparisonTab } from "./ReportAccountComparisonTab";
-import { ReportFilterBar } from "./ReportFilterBar";
+import { ReportAiAnalysis } from "./ReportAiAnalysis";
+import { describeReportScope, ReportFilterBar } from "./ReportFilterBar";
 import { ReportMonthlyTab } from "./ReportMonthlyTab";
 import { ReportStrategyTab } from "./ReportStrategyTab";
 import { ReportSymbolTab } from "./ReportSymbolTab";
@@ -275,6 +281,17 @@ export function ReportsPage(): ReactElement {
                 accountFilter={filter.strategyId ? toAccountComparisonFilter(filter) : null}
               />
             )}
+            {/* Analiza AI działa na tym samym zagregowanym raporcie co wykresy wyżej - model
+                dostaje gotowe liczby z silnika deterministycznego i tylko je interpretuje. */}
+            <ReportAiAnalysis
+              filter={toReportFilter(filter)}
+              zakresOpis={describeReportScope(
+                filter,
+                { accounts, instruments, strategies, intervals },
+                activeTab,
+              )}
+              gotoweDoAnalizy
+            />
           </>
         )}
       </div>

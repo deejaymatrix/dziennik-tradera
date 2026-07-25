@@ -263,6 +263,136 @@ pub fn czy_poprawna_odpowiedz(tekst: &str) -> bool {
     waliduj_odpowiedz(tekst).is_ok()
 }
 
+/// Deterministyczne, JUŻ POLICZONE zagregowane dane raportu (całej historii albo zawężonego
+/// okresu/konta/instrumentu/strategii) - spłaszczone do postaci gotowej dla modelu. Warstwa
+/// aplikacyjna wypełnia to z `FilteredReport` (silnik raportów), a domena tylko buduje prompt.
+/// Breakdowny to pary `(nazwa, wynik_netto)` już sformatowane.
+#[derive(Debug, Clone, Default)]
+pub struct DaneAnalizyRaportu {
+    /// Ludzki opis zakresu, np. "Konto Główne · EURUSD · 2026-03" albo "cała historia".
+    pub zakres_opis: String,
+    pub liczba_transakcji: i64,
+    pub zyskowne: i64,
+    pub stratne: i64,
+    pub win_rate: Option<String>,
+    pub wynik_netto: Option<String>,
+    pub profit_factor: Option<String>,
+    pub sredni_wynik_trade: Option<String>,
+    pub max_drawdown: Option<String>,
+    pub laczna_prowizja: Option<String>,
+    pub najlepsza_transakcja: Option<String>,
+    pub najgorsza_transakcja: Option<String>,
+    pub wg_strategii: Vec<(String, String)>,
+    pub wg_instrumentu: Vec<(String, String)>,
+    pub wg_interwalu: Vec<(String, String)>,
+    pub wg_dnia_tygodnia: Vec<(String, String)>,
+    pub wg_kierunku: Vec<(String, String)>,
+    pub wg_miesiaca: Vec<(String, String)>,
+}
+
+impl DaneAnalizyRaportu {
+    fn fakty_json(&self) -> serde_json::Value {
+        fn dodaj(
+            mapa: &mut serde_json::Map<String, serde_json::Value>,
+            klucz: &str,
+            wartosc: &Option<String>,
+        ) {
+            if let Some(v) = wartosc {
+                if !v.trim().is_empty() {
+                    mapa.insert(klucz.to_string(), serde_json::Value::String(v.clone()));
+                }
+            }
+        }
+        fn dodaj_breakdown(
+            mapa: &mut serde_json::Map<String, serde_json::Value>,
+            klucz: &str,
+            pary: &[(String, String)],
+        ) {
+            if pary.is_empty() {
+                return;
+            }
+            let lista: Vec<serde_json::Value> = pary
+                .iter()
+                .map(|(nazwa, wynik)| {
+                    let mut e = serde_json::Map::new();
+                    e.insert(
+                        "nazwa".to_string(),
+                        serde_json::Value::String(nazwa.clone()),
+                    );
+                    e.insert(
+                        "wynik_netto".to_string(),
+                        serde_json::Value::String(wynik.clone()),
+                    );
+                    serde_json::Value::Object(e)
+                })
+                .collect();
+            mapa.insert(klucz.to_string(), serde_json::Value::Array(lista));
+        }
+
+        let mut mapa = serde_json::Map::new();
+        mapa.insert(
+            "zakres".to_string(),
+            serde_json::Value::String(self.zakres_opis.clone()),
+        );
+        mapa.insert(
+            "liczba_transakcji".to_string(),
+            self.liczba_transakcji.into(),
+        );
+        mapa.insert("zyskowne".to_string(), self.zyskowne.into());
+        mapa.insert("stratne".to_string(), self.stratne.into());
+        dodaj(&mut mapa, "win_rate_procent", &self.win_rate);
+        dodaj(&mut mapa, "wynik_netto", &self.wynik_netto);
+        dodaj(&mut mapa, "profit_factor", &self.profit_factor);
+        dodaj(
+            &mut mapa,
+            "sredni_wynik_na_transakcje",
+            &self.sredni_wynik_trade,
+        );
+        dodaj(&mut mapa, "max_drawdown", &self.max_drawdown);
+        dodaj(&mut mapa, "laczna_prowizja", &self.laczna_prowizja);
+        dodaj(
+            &mut mapa,
+            "najlepsza_transakcja",
+            &self.najlepsza_transakcja,
+        );
+        dodaj(
+            &mut mapa,
+            "najgorsza_transakcja",
+            &self.najgorsza_transakcja,
+        );
+        dodaj_breakdown(&mut mapa, "wynik_wg_strategii", &self.wg_strategii);
+        dodaj_breakdown(&mut mapa, "wynik_wg_instrumentu", &self.wg_instrumentu);
+        dodaj_breakdown(&mut mapa, "wynik_wg_interwalu", &self.wg_interwalu);
+        dodaj_breakdown(&mut mapa, "wynik_wg_dnia_tygodnia", &self.wg_dnia_tygodnia);
+        dodaj_breakdown(&mut mapa, "wynik_wg_kierunku", &self.wg_kierunku);
+        dodaj_breakdown(&mut mapa, "wynik_wg_miesiaca", &self.wg_miesiaca);
+        serde_json::Value::Object(mapa)
+    }
+}
+
+/// Buduje polecenie dla modelu z zagregowanych, deterministycznych danych raportu. Ten sam wymóg
+/// schematu odpowiedzi co przy transakcji (`fakty`/`obserwacje`/`rekomendacje`), ale zadanie jest
+/// szersze: znaleźć wzorce W CAŁYM zakresie (które strategie/instrumenty/interwały/dni/kierunki
+/// działają, gdzie są przewagi i słabości), nie interpretować pojedynczej transakcji.
+pub fn zbuduj_prompt_raportu(dane: &DaneAnalizyRaportu) -> String {
+    let fakty =
+        serde_json::to_string_pretty(&dane.fakty_json()).unwrap_or_else(|_| "{}".to_string());
+    format!(
+        "Jesteś asystentem analizującym ZAGREGOWANE wyniki tradera w wybranym zakresie. Wszystkie \
+liczby są JUŻ POLICZONE przez aplikację - nie licz ich ponownie ani nie zmieniaj, tylko \
+interpretuj. Szukaj WZORCÓW w całym zakresie: które strategie, instrumenty, interwały, dni \
+tygodnia i kierunki dają najlepszy i najgorszy wynik, gdzie są przewagi, a gdzie systematyczne \
+słabości.\n\n\
+Oddzielaj fakty od interpretacji. Każda rekomendacja ma wynikać z konkretnych danych. Pisz \
+konkretnie, wspierająco i bez agresywnego oceniania. Nie udzielaj gwarantowanych porad \
+finansowych. Jeśli próba jest mała (mało transakcji), zaznacz to.\n\n\
+Dane zagregowane (JSON):\n{fakty}\n\n\
+Odpowiedz WYŁĄCZNIE jednym obiektem JSON o dokładnie takich kluczach:\n\
+{{\"fakty\": [\"...\"], \"obserwacje\": [\"...\"], \"rekomendacje\": [\"...\"]}}\n\
+Każda wartość to tablica krótkich zdań po polsku. Bez żadnego tekstu poza tym obiektem JSON."
+    )
+}
+
 /// Stan wykonania zapisanej analizy. `Nieaktualna` NIE jest tu - to nie stan zapisu, tylko wynik
 /// porównania `zrodlo_updated_at` z bieżącym `updated_at` transakcji, liczony przy odczycie.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -487,5 +617,47 @@ mod tests {
         assert!(tekst.contains("(brak)")); // pusta sekcja obserwacji
         assert!(tekst.contains("Rekomendacje:"));
         assert!(tekst.contains("- zrób X"));
+    }
+
+    #[test]
+    fn prompt_raportu_zawiera_zakres_zagregowane_dane_i_schemat() {
+        let dane = DaneAnalizyRaportu {
+            zakres_opis: "Konto Główne · EURUSD · 2026-03".to_string(),
+            liczba_transakcji: 12,
+            zyskowne: 7,
+            stratne: 5,
+            win_rate: Some("58.33%".to_string()),
+            wynik_netto: Some("340.50".to_string()),
+            wg_strategii: vec![("Breakout D1".to_string(), "420".to_string())],
+            wg_kierunku: vec![
+                ("BUY".to_string(), "500".to_string()),
+                ("SELL".to_string(), "-159.5".to_string()),
+            ],
+            ..Default::default()
+        };
+        let prompt = zbuduj_prompt_raportu(&dane);
+        assert!(prompt.contains("Konto Główne · EURUSD · 2026-03"));
+        assert!(prompt.contains("340.50"));
+        assert!(prompt.contains("Breakout D1"));
+        assert!(prompt.contains("wynik_wg_kierunku"));
+        // Ten sam schemat odpowiedzi co przy transakcji.
+        assert!(prompt.contains("\"fakty\""));
+        assert!(prompt.contains("\"obserwacje\""));
+        assert!(prompt.contains("\"rekomendacje\""));
+        // Odpowiedź raportu przechodzi tym samym walidatorem.
+        let odpowiedz = r#"{"fakty":["a"],"obserwacje":["b"],"rekomendacje":["c"]}"#;
+        assert!(czy_poprawna_odpowiedz(odpowiedz));
+    }
+
+    #[test]
+    fn puste_breakdowny_i_pola_nie_trafiaja_do_promptu_raportu() {
+        let dane = DaneAnalizyRaportu {
+            zakres_opis: "cała historia".to_string(),
+            liczba_transakcji: 0,
+            ..Default::default()
+        };
+        let prompt = zbuduj_prompt_raportu(&dane);
+        assert!(!prompt.contains("wynik_wg_strategii"));
+        assert!(!prompt.contains("profit_factor"));
     }
 }

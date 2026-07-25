@@ -13,13 +13,16 @@ use chrono::{DateTime, Local, Utc};
 use rust_decimal::Decimal;
 
 use crate::application::accounts::AccountsService;
+use crate::application::reports::{FilteredReport, ReportFilter, ReportsService};
 use crate::domain::ai_analysis::{
-    czy_poprawna_odpowiedz, waliduj_odpowiedz, zbuduj_prompt, AiAnalysisRepository,
-    DaneAnalizyTransakcji, NowaAnaliza, StatusAnalizy, ZapisanaAnaliza, WERSJA_SZABLONU_TRANSAKCJI,
+    czy_poprawna_odpowiedz, waliduj_odpowiedz, zbuduj_prompt, zbuduj_prompt_raportu,
+    AiAnalysisRepository, AnalizaWynik, DaneAnalizyRaportu, DaneAnalizyTransakcji, NowaAnaliza,
+    StatusAnalizy, ZapisanaAnaliza, WERSJA_SZABLONU_TRANSAKCJI,
 };
 use crate::domain::emotional_state::EmotionalStateRepository;
 use crate::domain::strategy_checklist::ChecklistStatus;
 use crate::domain::trade::{Trade, TradeRepository, TradeSide, TradeStatus};
+use crate::domain::trade_stats::GroupBreakdown;
 use crate::error::AppError;
 
 /// Etykieta modelu zapisywana przy analizie (identyfikuje, czym była zrobiona). Trzymana tu, a nie
@@ -42,6 +45,9 @@ pub struct AiAnalysisService {
     trades: Arc<dyn TradeRepository + Send + Sync>,
     accounts: Arc<AccountsService>,
     emotional_states: Arc<dyn EmotionalStateRepository + Send + Sync>,
+    /// Silnik raportów - dostarcza zagregowane, deterministyczne dane do analizy całościowej
+    /// (raport/okres). Budowany z tych samych `trades`/`accounts`, więc bez dodatkowego argumentu.
+    reports: ReportsService,
 }
 
 impl AiAnalysisService {
@@ -52,12 +58,14 @@ impl AiAnalysisService {
         accounts: Arc<AccountsService>,
         emotional_states: Arc<dyn EmotionalStateRepository + Send + Sync>,
     ) -> Self {
+        let reports = ReportsService::new(Arc::clone(&trades), Arc::clone(&accounts));
         Self {
             runtime,
             analizy,
             trades,
             accounts,
             emotional_states,
+            reports,
         }
     }
 
@@ -140,6 +148,25 @@ impl AiAnalysisService {
             zrodlo_updated_at: trade.updated_at.to_rfc3339(),
             status: StatusAnalizy::Ok,
         })
+    }
+
+    /// Analiza CAŁOŚCIOWA (raport/okres): bierze zagregowane, deterministyczne dane z silnika
+    /// raportów dla `filter` i każe modelowi znaleźć wzorce w całym zakresie. `zakres_opis` to
+    /// ludzki opis zakresu (np. "Konto Główne · EURUSD · 2026-03") do pokazania i do promptu.
+    /// NIE zapisujemy tego wyniku (raporty są przeglądowe/przemijające, w przeciwieństwie do analiz
+    /// pojedynczych transakcji) - zwracamy go do pokazania. BLOKUJĄCE - wołać z `spawn_blocking`.
+    pub fn analizuj_raport_blocking(
+        &self,
+        filter: ReportFilter,
+        zakres_opis: String,
+    ) -> Result<AnalizaWynik, AppError> {
+        let raport = self.reports.get_filtered_report(filter)?;
+        let dane = zbuduj_dane_raportu(&raport, zakres_opis);
+        let prompt = zbuduj_prompt_raportu(&dane);
+        let tekst = self
+            .runtime
+            .analizuj_blocking(&prompt, czy_poprawna_odpowiedz)?;
+        waliduj_odpowiedz(&tekst)
     }
 
     /// Najnowsza zapisana analiza transakcji (z policzoną flagą nieaktualności względem bieżącego
@@ -281,6 +308,42 @@ fn format_czas(at: DateTime<Utc>) -> String {
 /// liczbę. To NIE jest formatowanie prezentacyjne (to robi frontend); tu chodzi o wierność.
 fn format_liczba(d: Decimal) -> String {
     d.normalize().to_string()
+}
+
+/// Zamienia breakdown (`by_strategy`/`by_instrument`/...) na pary `(etykieta, wynik_netto)` -
+/// wszystkie wpisy, bo breakdowny są małe (garść strategii/instrumentów, do 12 miesięcy).
+fn breakdown_na_pary(grupy: &[GroupBreakdown]) -> Vec<(String, String)> {
+    grupy
+        .iter()
+        .map(|g| (g.label.clone(), format_liczba(g.net_pnl)))
+        .collect()
+}
+
+/// CZYSTA funkcja mapująca `FilteredReport` (zagregowane, deterministyczne dane silnika raportów)
+/// na pakiet do analizy całościowej. Nic nie liczy od nowa - przenosi już policzone KPI i
+/// breakdowny. Testowalna bez bazy ani modelu.
+pub fn zbuduj_dane_raportu(raport: &FilteredReport, zakres_opis: String) -> DaneAnalizyRaportu {
+    let s = &raport.stats;
+    DaneAnalizyRaportu {
+        zakres_opis,
+        liczba_transakcji: s.closed_trades,
+        zyskowne: s.win_count,
+        stratne: s.loss_count,
+        win_rate: s.win_rate.map(|d| format!("{}%", format_liczba(d))),
+        wynik_netto: Some(format_liczba(s.net_pnl)),
+        profit_factor: s.profit_factor.map(format_liczba),
+        sredni_wynik_trade: s.expectancy.map(format_liczba),
+        max_drawdown: s.max_drawdown.map(format_liczba),
+        laczna_prowizja: Some(format_liczba(s.total_commission)),
+        najlepsza_transakcja: s.best_trade.map(format_liczba),
+        najgorsza_transakcja: s.worst_trade.map(format_liczba),
+        wg_strategii: breakdown_na_pary(&raport.by_strategy),
+        wg_instrumentu: breakdown_na_pary(&raport.by_instrument),
+        wg_interwalu: breakdown_na_pary(&raport.by_interval),
+        wg_dnia_tygodnia: breakdown_na_pary(&raport.by_day_of_week),
+        wg_kierunku: breakdown_na_pary(&raport.by_side),
+        wg_miesiaca: breakdown_na_pary(&raport.calendar_months),
+    }
 }
 
 #[cfg(test)]
@@ -432,5 +495,74 @@ mod tests {
         assert_eq!(dane.prowizja.as_deref(), Some("0"));
         assert_eq!(dane.swap.as_deref(), Some("0"));
         assert_eq!(dane.inne_oplaty.as_deref(), Some("0"));
+    }
+
+    fn grupa(label: &str, net_pnl: rust_decimal::Decimal) -> GroupBreakdown {
+        GroupBreakdown {
+            key: label.to_string(),
+            label: label.to_string(),
+            trade_count: 1,
+            win_count: 1,
+            loss_count: 0,
+            win_rate: Some(dec!(100)),
+            net_pnl,
+        }
+    }
+
+    fn raport_pusty() -> FilteredReport {
+        FilteredReport {
+            stats: crate::domain::trade_stats::compute_stats(&[]),
+            equity_curve: vec![],
+            calendar: vec![],
+            by_strategy: vec![],
+            by_instrument: vec![],
+            by_interval: vec![],
+            monthly: vec![],
+            yearly: vec![],
+            quarterly: vec![],
+            calendar_months: vec![],
+            by_day_of_week: vec![],
+            by_four_hour: vec![],
+            by_side: vec![],
+            top_best_trades: vec![],
+            top_worst_trades: vec![],
+            pnl_distribution: vec![],
+            month_calendar: vec![],
+            period_balance: crate::application::reports::PeriodBalanceSummaryDto {
+                starting_balance: dec!(1000),
+                ending_balance: dec!(1000),
+                net_cash_flow: dec!(0),
+                return_percent: None,
+                max_drawdown: dec!(0),
+                max_drawdown_percent: None,
+            },
+        }
+    }
+
+    #[test]
+    fn dane_raportu_przenosza_zakres_kpi_i_breakdowny() {
+        let mut raport = raport_pusty();
+        raport.by_strategy = vec![grupa("Breakout D1", dec!(420)), grupa("Scalp", dec!(-80))];
+        raport.by_side = vec![grupa("BUY", dec!(500))];
+
+        let dane = zbuduj_dane_raportu(&raport, "Konto Główne · 2026".to_string());
+        assert_eq!(dane.zakres_opis, "Konto Główne · 2026");
+        // Pusty raport: 0 zamkniętych transakcji, wynik netto "0".
+        assert_eq!(dane.liczba_transakcji, 0);
+        assert_eq!(dane.wynik_netto.as_deref(), Some("0"));
+        // Breakdowny przeniesione jako pary (etykieta, wynik).
+        assert_eq!(
+            dane.wg_strategii,
+            vec![
+                ("Breakout D1".to_string(), "420".to_string()),
+                ("Scalp".to_string(), "-80".to_string()),
+            ]
+        );
+        assert_eq!(
+            dane.wg_kierunku,
+            vec![("BUY".to_string(), "500".to_string())]
+        );
+        // Nieustawione breakdowny zostają puste.
+        assert!(dane.wg_instrumentu.is_empty());
     }
 }
