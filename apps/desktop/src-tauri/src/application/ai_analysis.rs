@@ -17,8 +17,8 @@ use crate::application::reports::{FilteredReport, ReportFilter, ReportsService};
 use crate::domain::ai_analysis::{
     czy_poprawna_odpowiedz, waliduj_odpowiedz, zbuduj_prompt, zbuduj_prompt_audytu,
     zbuduj_prompt_emocji, zbuduj_prompt_raportu, AiAnalysisRepository, AnalizaWynik,
-    DaneAnalizyRaportu, DaneAnalizyTransakcji, NowaAnaliza, StatusAnalizy, ZapisanaAnaliza,
-    WERSJA_SZABLONU_TRANSAKCJI,
+    DaneAnalizyRaportu, DaneAnalizyTransakcji, NowaAnaliza, PozycjaBreakdownu, StatusAnalizy,
+    ZapisanaAnaliza, WERSJA_SZABLONU_TRANSAKCJI,
 };
 use crate::domain::ai_chat::{zbuduj_wiadomosci, WiadomoscCzatu};
 use crate::domain::ai_settings::UstawieniaOdpowiedziAi;
@@ -601,12 +601,13 @@ fn format_czas_trzymania(minuty: i64) -> String {
     }
 }
 
-/// Zamienia breakdown (`by_strategy`/`by_instrument`/...) na pary `(etykieta, wynik_netto)` -
-/// wszystkie wpisy, bo breakdowny są małe (garść strategii/instrumentów, do 12 miesięcy).
-fn breakdown_na_pary(grupy: &[GroupBreakdown]) -> Vec<(String, String)> {
+/// Zamienia breakdown (`by_strategy`/`by_instrument`/...) na trójki
+/// `(etykieta, wynik_netto, liczba_transakcji)` - wszystkie wpisy, bo breakdowny są małe (garść
+/// strategii/instrumentów, do 12 miesięcy). Liczba transakcji daje modelowi wagę wiarygodności grupy.
+fn breakdown_na_pary(grupy: &[GroupBreakdown]) -> Vec<PozycjaBreakdownu> {
     grupy
         .iter()
-        .map(|g| (g.label.clone(), format_liczba(g.net_pnl)))
+        .map(|g| (g.label.clone(), format_liczba(g.net_pnl), g.trade_count))
         .collect()
 }
 
@@ -932,18 +933,18 @@ mod tests {
         assert_eq!(
             dane.wg_strategii,
             vec![
-                ("Breakout D1".to_string(), "420".to_string()),
-                ("Scalp".to_string(), "-80".to_string()),
+                ("Breakout D1".to_string(), "420".to_string(), 1),
+                ("Scalp".to_string(), "-80".to_string(), 1),
             ]
         );
         assert_eq!(
             dane.wg_kierunku,
-            vec![("BUY".to_string(), "500".to_string())]
+            vec![("BUY".to_string(), "500".to_string(), 1)]
         );
         // Pora dnia (bloki 4-godzinne) przeniesiona z by_four_hour.
         assert_eq!(
             dane.wg_pory_dnia,
-            vec![("08:00-12:00".to_string(), "200".to_string())]
+            vec![("08:00-12:00".to_string(), "200".to_string(), 1)]
         );
         // Nieustawione breakdowny zostają puste.
         assert!(dane.wg_instrumentu.is_empty());

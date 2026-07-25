@@ -323,10 +323,15 @@ pub fn czy_poprawna_odpowiedz(tekst: &str) -> bool {
     waliduj_odpowiedz(tekst).is_ok()
 }
 
+/// Jedna pozycja breakdownu dla modelu: `(nazwa, wynik_netto, liczba_transakcji)`. Liczba
+/// transakcji pozwala modelowi zważyć wiarygodność (np. "+420" z 2 transakcji to nie to samo, co
+/// z 50) i ostrożniej wnioskować z małych grup - wprost zasila sekcję "jakosc_danych".
+pub type PozycjaBreakdownu = (String, String, i64);
+
 /// Deterministyczne, JUŻ POLICZONE zagregowane dane raportu (całej historii albo zawężonego
 /// okresu/konta/instrumentu/strategii) - spłaszczone do postaci gotowej dla modelu. Warstwa
 /// aplikacyjna wypełnia to z `FilteredReport` (silnik raportów), a domena tylko buduje prompt.
-/// Breakdowny to pary `(nazwa, wynik_netto)` już sformatowane.
+/// Breakdowny to trójki `(nazwa, wynik_netto, liczba_transakcji)` już sformatowane.
 #[derive(Debug, Clone, Default)]
 pub struct DaneAnalizyRaportu {
     /// Ludzki opis zakresu, np. "Konto Główne · EURUSD · 2026-03" albo "cała historia".
@@ -349,14 +354,14 @@ pub struct DaneAnalizyRaportu {
     pub laczna_prowizja: Option<String>,
     pub najlepsza_transakcja: Option<String>,
     pub najgorsza_transakcja: Option<String>,
-    pub wg_strategii: Vec<(String, String)>,
-    pub wg_instrumentu: Vec<(String, String)>,
-    pub wg_interwalu: Vec<(String, String)>,
-    pub wg_dnia_tygodnia: Vec<(String, String)>,
+    pub wg_strategii: Vec<PozycjaBreakdownu>,
+    pub wg_instrumentu: Vec<PozycjaBreakdownu>,
+    pub wg_interwalu: Vec<PozycjaBreakdownu>,
+    pub wg_dnia_tygodnia: Vec<PozycjaBreakdownu>,
     /// Wynik wg PORY DNIA (bloki 4-godzinne) - spec: "zachowanie w konkretnych dniach i godzinach".
-    pub wg_pory_dnia: Vec<(String, String)>,
-    pub wg_kierunku: Vec<(String, String)>,
-    pub wg_miesiaca: Vec<(String, String)>,
+    pub wg_pory_dnia: Vec<PozycjaBreakdownu>,
+    pub wg_kierunku: Vec<PozycjaBreakdownu>,
+    pub wg_miesiaca: Vec<PozycjaBreakdownu>,
 }
 
 impl DaneAnalizyRaportu {
@@ -382,14 +387,14 @@ impl DaneAnalizyRaportu {
         fn dodaj_breakdown(
             mapa: &mut serde_json::Map<String, serde_json::Value>,
             klucz: &str,
-            pary: &[(String, String)],
+            pary: &[PozycjaBreakdownu],
         ) {
             if pary.is_empty() {
                 return;
             }
             let lista: Vec<serde_json::Value> = pary
                 .iter()
-                .map(|(nazwa, wynik)| {
+                .map(|(nazwa, wynik, liczba)| {
                     let mut e = serde_json::Map::new();
                     e.insert(
                         "nazwa".to_string(),
@@ -399,6 +404,7 @@ impl DaneAnalizyRaportu {
                         "wynik_netto".to_string(),
                         serde_json::Value::String(wynik.clone()),
                     );
+                    e.insert("liczba_transakcji".to_string(), (*liczba).into());
                     serde_json::Value::Object(e)
                 })
                 .collect();
@@ -829,10 +835,10 @@ mod tests {
             stratne: 5,
             win_rate: Some("58.33%".to_string()),
             wynik_netto: Some("340.50".to_string()),
-            wg_strategii: vec![("Breakout D1".to_string(), "420".to_string())],
+            wg_strategii: vec![("Breakout D1".to_string(), "420".to_string(), 8)],
             wg_kierunku: vec![
-                ("BUY".to_string(), "500".to_string()),
-                ("SELL".to_string(), "-159.5".to_string()),
+                ("BUY".to_string(), "500".to_string(), 7),
+                ("SELL".to_string(), "-159.5".to_string(), 5),
             ],
             ..Default::default()
         };
@@ -841,6 +847,8 @@ mod tests {
         assert!(prompt.contains("340.50"));
         assert!(prompt.contains("Breakout D1"));
         assert!(prompt.contains("wynik_wg_kierunku"));
+        // Liczba transakcji w grupie trafia do promptu (waga wiarygodności breakdownu).
+        assert!(prompt.contains("liczba_transakcji"));
         // Ten sam schemat odpowiedzi co przy transakcji.
         assert!(prompt.contains("\"fakty\""));
         assert!(prompt.contains("\"obserwacje\""));
