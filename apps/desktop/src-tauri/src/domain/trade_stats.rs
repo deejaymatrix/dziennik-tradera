@@ -483,6 +483,37 @@ pub fn compute_emotion_avg_intensity(trades: &[Trade]) -> HashMap<String, Decima
         .collect()
 }
 
+/// Średni wolumen (wielkość lota) transakcji z daną emocją, po `state_id`, z transakcji
+/// zrealizowanych. Emocja bez ani jednej transakcji z wolumenem nie trafia do mapy. Ta sama emocja
+/// liczy się dla transakcji raz - spójnie z `compute_emotion_breakdown`. Uzupełnia korelację
+/// „emocja↔wynik" o „jak duży lot" (sygnał zwiększania ryzyka pod wpływem emocji).
+pub fn compute_emotion_avg_volume(trades: &[Trade]) -> HashMap<String, Decimal> {
+    let mut sumy: HashMap<String, (Decimal, i64)> = HashMap::new();
+    for trade in realized_trades(trades) {
+        let Some(volume) = trade.volume else {
+            continue;
+        };
+        let Some(emotions) = &trade.emotions else {
+            continue;
+        };
+        let mut widziane: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        for entry in &emotions.entries {
+            if !widziane.insert(entry.state_id.as_str()) {
+                continue;
+            }
+            let e = sumy
+                .entry(entry.state_id.clone())
+                .or_insert((Decimal::ZERO, 0));
+            e.0 += volume;
+            e.1 += 1;
+        }
+    }
+    sumy.into_iter()
+        .filter(|(_, (_, n))| *n > 0)
+        .map(|(id, (suma, n))| (id, suma / Decimal::from(n)))
+        .collect()
+}
+
 /// Deterministyczne sygnały ZACHOWANIA tradera do audytu (overtrading, dyscyplina, handel po
 /// stracie). Wszystko liczone z już policzonych pól transakcji (`net_pnl`, `volume`, checklist) -
 /// model dostaje gotowe liczby i tylko je interpretuje. Bierze wyłącznie transakcje zrealizowane.
@@ -1155,6 +1186,20 @@ mod tests {
         assert_eq!(m.get("s1"), Some(&dec!(3))); // (4+2)/2
         assert_eq!(m.get("s2"), Some(&dec!(5)));
         assert_eq!(m.get("s3"), None); // brak natężenia -> nie ma w mapie
+    }
+
+    #[test]
+    fn sredni_wolumen_emocji_usrednia_i_pomija_bez_wolumenu() {
+        let mut a = z_emocjami(closed_trade("a", 3, dec!(10), None), &["s1"]);
+        a.volume = Some(dec!(1));
+        let mut b = z_emocjami(closed_trade("b", 2, dec!(10), None), &["s1", "s2"]);
+        b.volume = Some(dec!(3));
+        // c ma emocję s1, ale bez wolumenu (base_trade daje None) - nie wchodzi do średniej.
+        let c = z_emocjami(closed_trade("c", 1, dec!(10), None), &["s1"]);
+
+        let m = compute_emotion_avg_volume(&[a, b, c]);
+        assert_eq!(m.get("s1"), Some(&dec!(2))); // (1+3)/2
+        assert_eq!(m.get("s2"), Some(&dec!(3)));
     }
 
     #[test]

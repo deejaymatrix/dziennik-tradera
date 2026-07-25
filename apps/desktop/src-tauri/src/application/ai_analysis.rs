@@ -26,8 +26,8 @@ use crate::domain::emotional_state::EmotionalStateRepository;
 use crate::domain::strategy_checklist::ChecklistStatus;
 use crate::domain::trade::{Trade, TradeRepository, TradeSide, TradeStatus};
 use crate::domain::trade_stats::{
-    compute_behavior_signals, compute_emotion_avg_intensity, compute_emotion_breakdown,
-    GroupBreakdown,
+    compute_behavior_signals, compute_emotion_avg_intensity, compute_emotion_avg_volume,
+    compute_emotion_breakdown, GroupBreakdown,
 };
 use crate::error::AppError;
 
@@ -269,7 +269,8 @@ impl AiAnalysisService {
         let nazwy_emocji = self.mapa_nazw_emocji();
         let wg_emocji = compute_emotion_breakdown(&trades, &nazwy_emocji);
         let natezenia = compute_emotion_avg_intensity(&trades);
-        let dane_json = emocje_do_json(&wg_emocji, &natezenia);
+        let wolumeny = compute_emotion_avg_volume(&trades);
+        let dane_json = emocje_do_json(&wg_emocji, &natezenia, &wolumeny);
         let prompt = format!(
             "{}\n\n{}",
             zbuduj_prompt_emocji(&zakres_opis, &dane_json),
@@ -377,9 +378,14 @@ impl AiAnalysisService {
 }
 
 /// Zamienia deterministyczne rozbicie emocja↔wynik na czytelny JSON dla modelu. Liczby przechodzą
-/// JAK SĄ z `compute_emotion_breakdown`/`compute_emotion_avg_intensity` (już policzone), tu tylko
-/// formatowanie do stringów. `natezenia` (state_id -> średnie natężenie 1-5) dołączane po kluczu.
-fn emocje_do_json(wg_emocji: &[GroupBreakdown], natezenia: &HashMap<String, Decimal>) -> String {
+/// JAK SĄ z `compute_emotion_breakdown`/`compute_emotion_avg_intensity`/`compute_emotion_avg_volume`
+/// (już policzone), tu tylko formatowanie do stringów. `natezenia`/`wolumeny` (state_id -> średnie
+/// natężenie 1-5 / średni wolumen) dołączane po kluczu.
+fn emocje_do_json(
+    wg_emocji: &[GroupBreakdown],
+    natezenia: &HashMap<String, Decimal>,
+    wolumeny: &HashMap<String, Decimal>,
+) -> String {
     let tablica: Vec<serde_json::Value> = wg_emocji
         .iter()
         .map(|g| {
@@ -391,6 +397,7 @@ fn emocje_do_json(wg_emocji: &[GroupBreakdown], natezenia: &HashMap<String, Deci
                 "win_rate": g.win_rate.map(|w| format!("{}%", w.round_dp(1).normalize())),
                 "wynik_netto": g.net_pnl.normalize().to_string(),
                 "srednie_natezenie": natezenia.get(&g.key).map(|n| n.round_dp(1).normalize().to_string()),
+                "sredni_wolumen": wolumeny.get(&g.key).map(|w| w.round_dp(2).normalize().to_string()),
             })
         })
         .collect();
