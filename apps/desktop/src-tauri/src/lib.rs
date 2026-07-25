@@ -233,6 +233,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::ai_analysis::analyze_trade,
             commands::ai_analysis::analyze_report,
+            commands::ai_analysis::analyze_emotions,
             commands::ai_analysis::ai_chat,
             commands::ai_analysis::ai_analysis_history,
             commands::ai_analysis::ai_set_enabled,

@@ -75,6 +75,26 @@ pub async fn ai_chat(
     .map_err(|e| AppError::io(format!("zadanie czatu AI nie powiodło się: {e}")))?
 }
 
+/// Dedykowana analiza EMOCJONALNA konta (korelacja emocja↔wynik z deterministycznego zestawienia).
+/// `async` + `spawn_blocking` jak reszta analiz. Wynik NIE jest zapisywany - zwracany do pokazania.
+#[tauri::command]
+pub async fn analyze_emotions(
+    state: State<'_, AppState>,
+    account_id: String,
+    zakres_opis: String,
+) -> Result<AnalizaWynik, AppError> {
+    let service = require_ai(&state)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        service.analizuj_emocje_blocking(&account_id, zakres_opis)
+    })
+    .await
+    .map_err(|e| {
+        AppError::io(format!(
+            "zadanie analizy emocjonalnej nie powiodło się: {e}"
+        ))
+    })?
+}
+
 /// Przerywa trwającą analizę (albo czat - to ten sam silnik "jedna operacja naraz").
 #[tauri::command]
 pub fn cancel_ai_analysis(state: State<'_, AppState>) -> Result<(), AppError> {

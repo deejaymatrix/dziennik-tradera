@@ -384,6 +384,74 @@ where
     result
 }
 
+/// Rozbicie po EMOCJACH. W odróżnieniu od pozostałych rozbić emocja jest WIELOWARTOŚCIOWA - jedna
+/// transakcja może mieć kilka emocji, więc trafia do KAŻDEGO ich kubełka. Przez to suma `net_pnl`
+/// po grupach NIE równa się wynikowi konta (te same transakcje liczą się w kilku grupach) - to jest
+/// widok korelacji „emocja a wynik", nie podział wyniku. `nazwy_emocji` zamienia `state_id` na
+/// czytelną nazwę (nieznane id zostaje jako id). Transakcje bez zapisanych emocji są pomijane.
+/// Money-math (`net_pnl`, win/loss) identyczna jak w `compute_breakdown` - te same już policzone
+/// pola transakcji, nic nie liczone od nowa.
+pub fn compute_emotion_breakdown(
+    trades: &[Trade],
+    nazwy_emocji: &HashMap<String, String>,
+) -> Vec<GroupBreakdown> {
+    let mut groups: HashMap<String, GroupAccumulator> = HashMap::new();
+
+    for trade in realized_trades(trades) {
+        let net_pnl = trade.net_pnl.expect("realized_trades gwarantuje Some");
+        let Some(emotions) = &trade.emotions else {
+            continue;
+        };
+        // Ta sama emocja liczy się dla transakcji TYLKO RAZ, nawet gdy wpis się powtarza.
+        let mut widziane: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        for entry in &emotions.entries {
+            if !widziane.insert(entry.state_id.as_str()) {
+                continue;
+            }
+            let label = nazwy_emocji
+                .get(&entry.state_id)
+                .cloned()
+                .unwrap_or_else(|| entry.state_id.clone());
+            let acc = groups
+                .entry(entry.state_id.clone())
+                .or_insert_with(|| GroupAccumulator {
+                    label,
+                    trade_count: 0,
+                    win_count: 0,
+                    loss_count: 0,
+                    net_pnl: Decimal::ZERO,
+                });
+            acc.trade_count += 1;
+            acc.net_pnl += net_pnl;
+            if net_pnl.is_sign_positive() && !net_pnl.is_zero() {
+                acc.win_count += 1;
+            } else if net_pnl.is_sign_negative() {
+                acc.loss_count += 1;
+            }
+        }
+    }
+
+    let mut result: Vec<GroupBreakdown> = groups
+        .into_iter()
+        .map(|(key, acc)| {
+            let decided = acc.win_count + acc.loss_count;
+            GroupBreakdown {
+                key,
+                label: acc.label,
+                trade_count: acc.trade_count,
+                win_count: acc.win_count,
+                loss_count: acc.loss_count,
+                win_rate: (decided > 0).then(|| {
+                    Decimal::from(acc.win_count) / Decimal::from(decided) * Decimal::ONE_HUNDRED
+                }),
+                net_pnl: acc.net_pnl,
+            }
+        })
+        .collect();
+    result.sort_by_key(|g| std::cmp::Reverse(g.net_pnl));
+    result
+}
+
 pub fn compute_strategy_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
     compute_breakdown(trades, |t| match &t.strategy_snapshot {
         Some(snapshot) => (snapshot.strategy_id.clone(), snapshot.name.clone()),
@@ -724,6 +792,7 @@ mod tests {
     use crate::domain::instrument::InstrumentSnapshot;
     use crate::domain::strategy::StrategySnapshot;
     use crate::domain::trade::{PnlSource, TradeSide};
+    use crate::domain::trade_emotions::{EmotionEntry, TradeEmotions};
     use crate::domain::trade_partial_close::PartialClose;
     use chrono::{Duration, TimeZone};
     use rust_decimal_macros::dec;
@@ -785,6 +854,67 @@ mod tests {
             pnl_r,
             ..base_trade(id)
         }
+    }
+
+    fn z_emocjami(mut trade: Trade, state_ids: &[&str]) -> Trade {
+        trade.emotions = Some(TradeEmotions {
+            entries: state_ids
+                .iter()
+                .map(|id| EmotionEntry {
+                    state_id: id.to_string(),
+                    intensity: Some(3),
+                })
+                .collect(),
+        });
+        trade
+    }
+
+    #[test]
+    fn rozbicie_emocji_liczy_te_sama_transakcje_w_kilku_grupach() {
+        use std::collections::HashMap;
+        let nazwy: HashMap<String, String> = [
+            ("s1".to_string(), "Strach".to_string()),
+            ("s2".to_string(), "Chciwość".to_string()),
+        ]
+        .into_iter()
+        .collect();
+        let trades = vec![
+            z_emocjami(closed_trade("a", 3, dec!(100), None), &["s1"]),
+            z_emocjami(closed_trade("b", 2, dec!(-50), None), &["s1", "s2"]),
+            z_emocjami(closed_trade("c", 1, dec!(30), None), &["s2"]),
+            closed_trade("d", 1, dec!(20), None), // bez emocji - pomijana
+        ];
+
+        let wynik = compute_emotion_breakdown(&trades, &nazwy);
+        assert_eq!(wynik.len(), 2, "dwie różne emocje");
+        // Sortowane malejąco po net: Strach (+50) przed Chciwością (-20).
+        let strach = &wynik[0];
+        assert_eq!(strach.label, "Strach");
+        assert_eq!(strach.trade_count, 2);
+        assert_eq!(strach.win_count, 1);
+        assert_eq!(strach.loss_count, 1);
+        assert_eq!(strach.net_pnl, dec!(50));
+        let chciwosc = &wynik[1];
+        assert_eq!(chciwosc.label, "Chciwość");
+        assert_eq!(chciwosc.trade_count, 2);
+        assert_eq!(chciwosc.net_pnl, dec!(-20));
+    }
+
+    #[test]
+    fn rozbicie_emocji_liczy_powtorzona_emocje_transakcji_tylko_raz() {
+        use std::collections::HashMap;
+        let nazwy: HashMap<String, String> = HashMap::new();
+        // Ten sam state_id dwa razy w jednej transakcji - ma liczyć się raz, a nieznane id
+        // zostaje jako etykieta.
+        let trades = vec![z_emocjami(
+            closed_trade("a", 1, dec!(40), None),
+            &["x", "x"],
+        )];
+        let wynik = compute_emotion_breakdown(&trades, &nazwy);
+        assert_eq!(wynik.len(), 1);
+        assert_eq!(wynik[0].label, "x");
+        assert_eq!(wynik[0].trade_count, 1);
+        assert_eq!(wynik[0].net_pnl, dec!(40));
     }
 
     #[test]

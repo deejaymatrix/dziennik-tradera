@@ -15,16 +15,16 @@ use rust_decimal::Decimal;
 use crate::application::accounts::AccountsService;
 use crate::application::reports::{FilteredReport, ReportFilter, ReportsService};
 use crate::domain::ai_analysis::{
-    czy_poprawna_odpowiedz, waliduj_odpowiedz, zbuduj_prompt, zbuduj_prompt_raportu,
-    AiAnalysisRepository, AnalizaWynik, DaneAnalizyRaportu, DaneAnalizyTransakcji, NowaAnaliza,
-    StatusAnalizy, ZapisanaAnaliza, WERSJA_SZABLONU_TRANSAKCJI,
+    czy_poprawna_odpowiedz, waliduj_odpowiedz, zbuduj_prompt, zbuduj_prompt_emocji,
+    zbuduj_prompt_raportu, AiAnalysisRepository, AnalizaWynik, DaneAnalizyRaportu,
+    DaneAnalizyTransakcji, NowaAnaliza, StatusAnalizy, ZapisanaAnaliza, WERSJA_SZABLONU_TRANSAKCJI,
 };
 use crate::domain::ai_chat::{zbuduj_wiadomosci, WiadomoscCzatu};
 use crate::domain::ai_settings::UstawieniaOdpowiedziAi;
 use crate::domain::emotional_state::EmotionalStateRepository;
 use crate::domain::strategy_checklist::ChecklistStatus;
 use crate::domain::trade::{Trade, TradeRepository, TradeSide, TradeStatus};
-use crate::domain::trade_stats::GroupBreakdown;
+use crate::domain::trade_stats::{compute_emotion_breakdown, GroupBreakdown};
 use crate::error::AppError;
 
 /// Etykieta modelu zapisywana przy analizie (identyfikuje, czym była zrobiona). Trzymana tu, a nie
@@ -251,6 +251,42 @@ impl AiAnalysisService {
         self.runtime.czat_blocking(wiadomosci)
     }
 
+    /// Dedykowana analiza EMOCJONALNA konta: deterministyczne zestawienie emocja↔wynik
+    /// (`compute_emotion_breakdown` - ta sama matematyka net co raporty) trafia do modelu, który
+    /// szuka zależności. `zakres_opis` to ludzki opis (np. "Konto Główne · cała historia"). Wynik
+    /// NIE jest zapisywany (jak analiza raportu). BLOKUJĄCE - wołać z `spawn_blocking`.
+    pub fn analizuj_emocje_blocking(
+        &self,
+        account_id: &str,
+        zakres_opis: String,
+    ) -> Result<AnalizaWynik, AppError> {
+        self.wymagaj_wlaczony()?;
+        let trades = self.trades.list(account_id, false)?;
+        let nazwy_emocji = self.mapa_nazw_emocji();
+        let wg_emocji = compute_emotion_breakdown(&trades, &nazwy_emocji);
+        let dane_json = emocje_do_json(&wg_emocji);
+        let prompt = format!(
+            "{}\n\n{}",
+            zbuduj_prompt_emocji(&zakres_opis, &dane_json),
+            self.runtime.instrukcja_stylu()
+        );
+        let tekst = self
+            .runtime
+            .analizuj_blocking(&prompt, czy_poprawna_odpowiedz)?;
+        waliduj_odpowiedz(&tekst)
+    }
+
+    /// Mapa `state_id -> nazwa emocji` (z ukrytymi - transakcja mogła użyć później ukrytej emocji,
+    /// a analiza ma pokazać, co RZECZYWIŚCIE zapisano). Wspólna dla analizy transakcji i emocji.
+    fn mapa_nazw_emocji(&self) -> HashMap<String, String> {
+        self.emotional_states
+            .list(true)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|s| (s.id, s.name))
+            .collect()
+    }
+
     /// Najnowsza zapisana analiza transakcji (z policzoną flagą nieaktualności względem bieżącego
     /// stanu transakcji). `None`, gdy transakcji jeszcze nie analizowano.
     pub fn ostatnia_analiza(&self, trade_id: &str) -> Result<Option<ZapisanaAnaliza>, AppError> {
@@ -300,15 +336,7 @@ impl AiAnalysisService {
             Err(_) => (None, None),
         };
 
-        // Mapa state_id -> nazwa emocji (uwzględniamy ukryte, bo transakcja mogła użyć emocji
-        // później ukrytej, a analiza ma pokazać, co RZECZYWIŚCIE zostało zapisane).
-        let nazwy_emocji: HashMap<String, String> = self
-            .emotional_states
-            .list(true)
-            .unwrap_or_default()
-            .into_iter()
-            .map(|s| (s.id, s.name))
-            .collect();
+        let nazwy_emocji = self.mapa_nazw_emocji();
 
         Ok(zbuduj_dane_transakcji(
             trade,
@@ -317,6 +345,25 @@ impl AiAnalysisService {
             &nazwy_emocji,
         ))
     }
+}
+
+/// Zamienia deterministyczne rozbicie emocja↔wynik na czytelny JSON dla modelu. Liczby przechodzą
+/// JAK SĄ z `compute_emotion_breakdown` (już policzone), tu tylko formatowanie do stringów.
+fn emocje_do_json(wg_emocji: &[GroupBreakdown]) -> String {
+    let tablica: Vec<serde_json::Value> = wg_emocji
+        .iter()
+        .map(|g| {
+            serde_json::json!({
+                "emocja": g.label,
+                "liczba_transakcji": g.trade_count,
+                "wygrane": g.win_count,
+                "przegrane": g.loss_count,
+                "win_rate": g.win_rate.map(|w| format!("{}%", w.round_dp(1).normalize())),
+                "wynik_netto": g.net_pnl.normalize().to_string(),
+            })
+        })
+        .collect();
+    serde_json::to_string_pretty(&tablica).unwrap_or_else(|_| "[]".to_string())
 }
 
 /// CZYSTA funkcja mapująca transakcję na pakiet danych do analizy - wszystkie nazwy już
