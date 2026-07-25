@@ -50,11 +50,14 @@ export function ChatAi({ filter, zakresOpis, gotowe }: ChatAiProps): ReactElemen
   const [liczbaTransakcji, setLiczbaTransakcji] = useState<number | null>(null);
   const listaRef = useRef<HTMLDivElement>(null);
 
-  // Zmiana zakresu (inne konto) to inna rozmowa - czyścimy historię, żeby nie mieszać danych.
+  // Inne KONTO to inna rozmowa - czyścimy historię. Klucz to tożsamość konta (`filter.account_id`),
+  // spójnie z pobieraniem podstawy niżej, a nie opis zakresu: dwa konta o tej samej nazwie i walucie
+  // miałyby identyczny `zakresOpis` (historia by nie znikła), a sama zmiana nazwy konta nie powinna
+  // kasować trwającej rozmowy.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setHistoria([]);
-  }, [zakresOpis]);
+  }, [filter.account_id]);
 
   // Podstawa danych: liczba ZAMKNIĘTYCH transakcji w zakresie - dokładnie tyle, ile widzi model
   // (pakiet danych opiera się na `closed_trades`, bo tylko zamknięte mają wynik do analizy). Dzięki
