@@ -17,6 +17,17 @@ function gb(bajty: number): string {
   return `${(bajty / 1_000_000_000).toFixed(1)} GB`;
 }
 
+const FORMAT_DATY = new Intl.DateTimeFormat("pl-PL", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+/** Data wykonania analizy w czytelnej polskiej formie; przy niepoprawnym ISO zwraca surowy string. */
+function data(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : FORMAT_DATY.format(d);
+}
+
 /**
  * Sekcja "Asystent AI" w panelu szczegółów transakcji (Blok F, Etap 3). Trzy stany:
  * (1) model niepobrany - proponuje pobranie z pokazanym rozmiarem i zgodą użytkownika;
@@ -166,8 +177,8 @@ export function TradeAiAnalysis({ tradeId }: TradeAiAnalysisProps): ReactElement
             naglowekKopiowania={`Analiza transakcji (wygenerowano lokalnie: ${ostatnia.wersja_modelu})`}
           />
           <p className={styles.stopka}>
-            Wygenerowane lokalnie ({ostatnia.wersja_modelu}). To interpretacja, nie gwarantowana
-            porada finansowa.
+            Wygenerowane lokalnie {data(ostatnia.utworzono_o)}, model {ostatnia.wersja_modelu}. To
+            interpretacja, nie gwarantowana porada finansowa.
           </p>
         </div>
       )}
