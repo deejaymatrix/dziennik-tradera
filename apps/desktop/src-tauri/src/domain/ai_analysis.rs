@@ -455,10 +455,12 @@ pub fn zbuduj_prompt_audytu(zakres_opis: &str, sygnaly_json: &str) -> String {
     format!(
         "Jesteś asystentem robiącym audyt ZACHOWANIA tradera. Poniżej masz JUŻ POLICZONE przez \
 aplikację sygnały: overtrading (liczba transakcji na dzień), dyscyplinę (wynik transakcji łamiących \
-wymagane zasady wejścia vs przestrzegających) oraz handel po stracie (transakcje zaraz po stratnej: \
-ich wynik i średni wolumen względem ogólnego - sygnał revenge tradingu i eskalacji ryzyka). NIE licz \
-niczego sam i nie zmyślaj.\n\n\
-Oceń skłonność do: overtradingu, revenge tradingu, łamania zasad i zwiększania ryzyka po stracie. \
+wymagane zasady wejścia vs przestrzegających), handel po stracie (transakcje zaraz po stratnej: \
+ich wynik i średni wolumen względem ogólnego - sygnał revenge tradingu i eskalacji ryzyka) oraz \
+najdłuższe serie strat i zysków (sygnał tiltu po serii strat i przepewności po serii zysków). NIE \
+licz niczego sam i nie zmyślaj.\n\n\
+Oceń skłonność do: overtradingu, revenge tradingu, łamania zasad, zwiększania ryzyka po stracie oraz \
+tiltu po serii strat i przepewności po serii zysków. \
 Wskaż konkretne, wykonalne kroki poprawy dyscypliny i zarządzania ryzykiem. Pisz wspierająco, bez \
 agresywnego oceniania. NIE diagnozuj chorób psychicznych ani nie udzielaj porad medycznych czy \
 gwarantowanych porad finansowych. Przy małej próbie zaznacz niepewność w \"jakosc_danych\".\n\n\

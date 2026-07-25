@@ -473,6 +473,10 @@ pub struct BehaviorSignals {
     pub after_loss_net: Decimal,
     pub after_loss_avg_volume: Option<Decimal>,
     pub overall_avg_volume: Option<Decimal>,
+    /// Najdłuższa seria kolejnych strat i kolejnych zysków (chronologicznie). Sygnał tiltu po
+    /// serii strat i przepewności po serii zysków. Breakeven (wynik zero) przerywa obie serie.
+    pub max_losing_streak: i64,
+    pub max_winning_streak: i64,
 }
 
 /// Liczy sygnały zachowania (patrz [`BehaviorSignals`]). Deterministyczne, testowalne bez modelu.
@@ -546,6 +550,27 @@ pub fn compute_behavior_signals(trades: &[Trade]) -> BehaviorSignals {
     }
     let overall_avg_volume = (vol_n > 0).then(|| vol_sum / Decimal::from(vol_n));
 
+    // Najdłuższe serie kolejnych strat/zysków (chronologicznie). Breakeven zeruje obie.
+    let mut max_losing_streak = 0i64;
+    let mut max_winning_streak = 0i64;
+    let mut biezaca_strat = 0i64;
+    let mut biezaca_zyskow = 0i64;
+    for t in &realized {
+        let net = t.net_pnl.expect("realized_trades gwarantuje Some");
+        if net.is_sign_negative() {
+            biezaca_strat += 1;
+            biezaca_zyskow = 0;
+        } else if net.is_sign_positive() && !net.is_zero() {
+            biezaca_zyskow += 1;
+            biezaca_strat = 0;
+        } else {
+            biezaca_strat = 0;
+            biezaca_zyskow = 0;
+        }
+        max_losing_streak = max_losing_streak.max(biezaca_strat);
+        max_winning_streak = max_winning_streak.max(biezaca_zyskow);
+    }
+
     BehaviorSignals {
         total_closed,
         active_days,
@@ -558,6 +583,8 @@ pub fn compute_behavior_signals(trades: &[Trade]) -> BehaviorSignals {
         after_loss_net,
         after_loss_avg_volume,
         overall_avg_volume,
+        max_losing_streak,
+        max_winning_streak,
     }
 }
 
@@ -1051,6 +1078,9 @@ mod tests {
             s.overall_avg_volume,
             Some((dec!(1) + dec!(2) + dec!(1)) / dec!(3))
         );
+        // Serie: strata, zysk, zysk -> najdłuższa seria strat 1, seria zysków 2.
+        assert_eq!(s.max_losing_streak, 1);
+        assert_eq!(s.max_winning_streak, 2);
     }
 
     #[test]
