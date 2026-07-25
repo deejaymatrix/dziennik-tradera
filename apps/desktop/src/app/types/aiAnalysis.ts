@@ -66,6 +66,18 @@ export interface OpisModeluStatus {
   aktywny: boolean;
 }
 
+/** Jedna pozycja historii wykonanych analiz (`PozycjaHistorii` w Rust). `wynik_json` pozwala
+ * rozwinąć fakty/obserwacje/rekomendacje bez osobnego zapytania. */
+export interface PozycjaHistorii {
+  id: string;
+  typ_analizy: string;
+  utworzono_o: string;
+  wersja_modelu: string;
+  status: "ok" | "blad" | "anulowana";
+  etykieta_zakresu: string;
+  wynik_json: string;
+}
+
 /** Jedna wiadomość czatu po danych (`WiadomoscCzatu` w Rust; `rola` = `RolaCzatu` snake_case). */
 export interface WiadomoscCzatu {
   rola: "uzytkownik" | "asystent";

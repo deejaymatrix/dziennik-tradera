@@ -40,6 +40,20 @@ pub struct StatusModeluAi {
     pub rozmiar_bajtow: u64,
 }
 
+/// Jedna pozycja historii wykonanych analiz (do widoku na stronie Asystent AI). Lekki opis +
+/// `wynik_json`, żeby UI mogło rozwinąć fakty/obserwacje/rekomendacje bez osobnego zapytania.
+/// `etykieta_zakresu` jest już rozwiązana do czytelnej postaci ("Transakcja #N").
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct PozycjaHistorii {
+    pub id: String,
+    pub typ_analizy: String,
+    pub utworzono_o: String,
+    pub wersja_modelu: String,
+    pub status: StatusAnalizy,
+    pub etykieta_zakresu: String,
+    pub wynik_json: String,
+}
+
 pub struct AiAnalysisService {
     runtime: Arc<crate::application::ai_runtime::AiRuntimeService>,
     analizy: Arc<dyn AiAnalysisRepository>,
@@ -193,6 +207,30 @@ impl AiAnalysisService {
         let trade = self.trades.get(trade_id)?;
         self.analizy
             .ostatnia_dla_transakcji(trade_id, &trade.updated_at.to_rfc3339())
+    }
+
+    /// Historia wykonanych analiz (najnowsze pierwsze, do `limit`), z etykietą zakresu rozwiązaną
+    /// do czytelnej postaci. Transakcja usunięta/w koszu nie jest błędem - taki wpis dostaje
+    /// etykietę informującą o tym, zamiast wywalać całą listę.
+    pub fn historia_analiz(&self, limit: usize) -> Result<Vec<PozycjaHistorii>, AppError> {
+        let analizy = self.analizy.lista(limit)?;
+        let mut wynik = Vec::with_capacity(analizy.len());
+        for a in analizy {
+            let etykieta_zakresu = match self.trades.get(&a.trade_id) {
+                Ok(trade) => format!("Transakcja #{}", trade.display_number),
+                Err(_) => "Transakcja usunięta lub w koszu".to_string(),
+            };
+            wynik.push(PozycjaHistorii {
+                id: a.id,
+                typ_analizy: a.typ_analizy,
+                utworzono_o: a.utworzono_o,
+                wersja_modelu: a.wersja_modelu,
+                status: a.status,
+                etykieta_zakresu,
+                wynik_json: a.wynik_json,
+            });
+        }
+        Ok(wynik)
     }
 
     pub fn usun_analize(&self, id: &str) -> Result<(), AppError> {

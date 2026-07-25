@@ -8,11 +8,11 @@ import type { AccountWithBalance } from "../app/types/account";
 import type { ReportFilter } from "../app/types/report";
 import { Button } from "../ui/components/Button/Button";
 import { Select } from "../ui/components/Select/Select";
-import { useConfirm } from "../ui/components/ConfirmDialog/ConfirmDialog";
 import { SectionCard } from "../ui/components/SectionCard/SectionCard";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import { ReportAiAnalysis } from "./ReportAiAnalysis";
 import { ChatAi } from "./ChatAi";
+import { HistoriaAnaliz } from "./HistoriaAnaliz";
 import styles from "./AsystentAiPage.module.css";
 
 function gb(bajty: number): string {
@@ -26,7 +26,6 @@ function gb(bajty: number): string {
  */
 export function AsystentAiPage(): ReactElement {
   const { showToast } = useToast();
-  const confirm = useConfirm();
   const [status, setStatus] = useState<StatusModeluAi | null>(null);
   const [pobiera, setPobiera] = useState(false);
   const [postep, setPostep] = useState<PostepPobrania | null>(null);
@@ -87,24 +86,6 @@ export function AsystentAiPage(): ReactElement {
       ankieta.current = null;
       setPobiera(false);
       setPostep(null);
-    }
-  }
-
-  async function usunAnalizy(): Promise<void> {
-    if (
-      !(await confirm({
-        message: "Usunąć WSZYSTKIE zapisane analizy AI? Tej operacji nie można cofnąć.",
-        danger: true,
-        confirmLabel: "Usuń analizy",
-      }))
-    ) {
-      return;
-    }
-    try {
-      await invokeCommand("delete_all_ai_analyses", {});
-      showToast("Wszystkie analizy AI usunięte.", "success");
-    } catch (e) {
-      showToast(extractErrorMessage(e), "error");
     }
   }
 
@@ -216,16 +197,8 @@ export function AsystentAiPage(): ReactElement {
       </SectionCard>
 
       <SectionCard>
-        <h3 className={styles.podtytul}>Zapisane analizy</h3>
-        <p className={styles.info}>
-          Analizy zapisują się przy transakcjach i są objęte kopią zapasową. Możesz usunąć wszystkie
-          naraz.
-        </p>
-        <div className={styles.akcje}>
-          <Button variant="danger" onClick={() => void usunAnalizy()}>
-            Usuń wszystkie analizy AI
-          </Button>
-        </div>
+        <h3 className={styles.podtytul}>Historia analiz</h3>
+        <HistoriaAnaliz />
       </SectionCard>
     </div>
   );

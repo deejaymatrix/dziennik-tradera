@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use tauri::State;
 
-use crate::application::ai_analysis::{AiAnalysisService, StatusModeluAi};
+use crate::application::ai_analysis::{AiAnalysisService, PozycjaHistorii, StatusModeluAi};
 use crate::application::ai_runtime::OpisModeluStatus;
 use crate::application::reports::ReportFilter;
 use crate::domain::ai_analysis::{AnalizaWynik, ZapisanaAnaliza};
@@ -88,6 +88,12 @@ pub fn get_trade_analysis(
     trade_id: String,
 ) -> Result<Option<ZapisanaAnaliza>, AppError> {
     require_ai(&state)?.ostatnia_analiza(&trade_id)
+}
+
+/// Historia wykonanych analiz (najnowsze pierwsze) - do widoku listy na stronie Asystent AI.
+#[tauri::command]
+pub fn ai_analysis_history(state: State<'_, AppState>) -> Result<Vec<PozycjaHistorii>, AppError> {
+    require_ai(&state)?.historia_analiz(200)
 }
 
 /// Usuwa pojedynczą zapisaną analizę.

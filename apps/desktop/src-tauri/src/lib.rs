@@ -234,6 +234,7 @@ pub fn run() {
             commands::ai_analysis::analyze_trade,
             commands::ai_analysis::analyze_report,
             commands::ai_analysis::ai_chat,
+            commands::ai_analysis::ai_analysis_history,
             commands::ai_analysis::cancel_ai_analysis,
             commands::ai_analysis::get_trade_analysis,
             commands::ai_analysis::delete_trade_analysis,

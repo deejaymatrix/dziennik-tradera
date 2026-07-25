@@ -101,6 +101,27 @@ impl AiAnalysisRepository for SqliteAiAnalysisRepository {
         .map_err(AppError::from)
     }
 
+    fn lista(&self, limit: usize) -> Result<Vec<ZapisanaAnaliza>, AppError> {
+        let conn = self
+            .conn
+            .lock()
+            .unwrap_or_else(|zatruty| zatruty.into_inner());
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {KOLUMNY} FROM trade_ai_analyses ORDER BY utworzono_o DESC, id DESC LIMIT ?1"
+        ))?;
+        let wiersze = stmt.query_map([limit as i64], |row| {
+            // Historia nie liczy nieaktualności - podajemy własne `zrodlo_updated_at` wiersza jako
+            // "bieżące", więc `nieaktualna` zawsze wyjdzie `false`.
+            let zrodlo: String = row.get("zrodlo_updated_at")?;
+            map_row(row, &zrodlo)
+        })?;
+        let mut wynik = Vec::new();
+        for w in wiersze {
+            wynik.push(w?);
+        }
+        Ok(wynik)
+    }
+
     fn usun(&self, id: &str) -> Result<(), AppError> {
         let conn = self
             .conn
@@ -259,6 +280,34 @@ mod tests {
             .ostatnia_dla_transakcji("t2", "u")
             .expect("odczyt")
             .is_none());
+    }
+
+    #[test]
+    fn lista_zwraca_wszystkie_analizy_najnowsze_pierwsze() {
+        let repo = repo_testowe();
+        // Trzy analizy z rosnącym `utworzono_o` wymusza sam zapis (Utc::now), ale kolejność
+        // sortowania sprawdzamy po `id` (UUID v7 rośnie w czasie) jako rozstrzygnięciu remisu.
+        let a = repo.zapisz(&nowa("t1", "u")).expect("zapis a");
+        let b = repo.zapisz(&nowa("t2", "u")).expect("zapis b");
+        let c = repo.zapisz(&nowa("t3", "u")).expect("zapis c");
+
+        let lista = repo.lista(100).expect("lista");
+        assert_eq!(lista.len(), 3);
+        // Najnowsza (c) pierwsza, najstarsza (a) ostatnia.
+        assert_eq!(lista[0].id, c.id);
+        assert_eq!(lista[2].id, a.id);
+        assert_eq!(lista[1].id, b.id);
+        // Historia nie oznacza wierszy jako nieaktualne.
+        assert!(lista.iter().all(|w| !w.nieaktualna));
+    }
+
+    #[test]
+    fn lista_respektuje_limit() {
+        let repo = repo_testowe();
+        repo.zapisz(&nowa("t1", "u")).expect("zapis");
+        repo.zapisz(&nowa("t2", "u")).expect("zapis");
+        repo.zapisz(&nowa("t3", "u")).expect("zapis");
+        assert_eq!(repo.lista(2).expect("lista").len(), 2);
     }
 
     #[test]

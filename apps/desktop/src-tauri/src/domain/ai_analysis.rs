@@ -479,6 +479,11 @@ pub trait AiAnalysisRepository: Send + Sync {
         aktualne_updated_at: &str,
     ) -> Result<Option<ZapisanaAnaliza>, AppError>;
 
+    /// Wszystkie zapisane analizy, najnowsze pierwsze, do `limit` pozycji - do widoku historii.
+    /// `nieaktualna` w tych wierszach jest zawsze `false` (aktualność względem transakcji liczymy
+    /// tylko w widoku pojedynczej transakcji, nie na liście historii).
+    fn lista(&self, limit: usize) -> Result<Vec<ZapisanaAnaliza>, AppError>;
+
     /// Usuwa pojedynczą analizę (wymóg specyfikacji: "usunięcie pojedynczej analizy").
     fn usun(&self, id: &str) -> Result<(), AppError>;
 
