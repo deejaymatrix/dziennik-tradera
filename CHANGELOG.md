@@ -265,6 +265,46 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
   (WCAG 1.4.11) sprawdzony i świadomie zaakceptowany jako pre-redesignowy kompromis czekający
   na osobną decyzję, nie ukryty ani naprawiony bez pytania.
 
+#### Asystent AI (Blok F) - lokalny, w pełni offline
+
+- Lokalny asystent AI działający W CAŁOŚCI na komputerze użytkownika: silnik `llama-cpp-2`
+  wkompilowany w binarkę Tauri (bez osobnego procesu, bez terminala, bez Pythona/Node), bez
+  konta, bez klucza API, bez wysyłania danych do sieci i bez telemetrii.
+- Wybór jednego z trzech lokalnych modeli w Ustawieniach (domyślnie Qwen2.5-7B-Instruct Q4_K_M,
+  Apache 2.0; kandydaci Bielik-11B i Qwen2.5-3B) - rzeczywisty benchmark i uzasadnienie w
+  `docs/AI_ASYSTENT_WYBOR_MODELU.md`.
+- Pobieranie modelu z przypiętym adresem i wersją, weryfikacją SHA-256 przed uznaniem za gotowy,
+  strumieniowym progresem, wznawianiem przerwanego pobrania (auto-ponawianie zerwanego strumienia)
+  i możliwością przerwania; usunięcie/ponowne pobranie modelu.
+- Analiza pojedynczej transakcji ("Przeanalizuj z AI") zapisywana w bazie (objęta kopią zapasową),
+  z banerem "analiza nieaktualna", gdy dane transakcji zmieniły się po jej wykonaniu, oraz datą
+  i modelem wykonania w stopce.
+- Analiza całościowa dowolnego zakresu (okres/konto/instrument/strategia/interwał/kierunek) na
+  ekranie Raporty i całego konta na stronie Asystent AI; dedykowana analiza emocjonalna
+  (korelacja emocja↔wynik z bazą odniesienia całego zakresu) i audyt zachowania (overtrading,
+  dyscyplina, handel po stracie, serie strat/zysków - z porównaniem do baz i średnich na
+  transakcję, nie surowych sum).
+- Czat po własnych danych: model odpowiada wyłącznie na podstawie policzonych faktów wybranego
+  zakresu, rozmowa lokalna i nigdzie niezapisywana, jedna odpowiedź naraz z możliwością
+  przerwania; podstawa (liczba zamkniętych transakcji) i ostrzeżenie o małej próbie widoczne nad
+  rozmową.
+- Wynik każdej analizy w pięciu sekcjach (fakty / obserwacje / hipotezy / rekomendacje / jakość
+  danych), z możliwością skopiowania do schowka wraz z nagłówkiem kontekstu (zakres i model);
+  widok historii zapisanych analiz (data, zakres, model, status) z usuwaniem pojedynczo i
+  wszystkich.
+- Ustawienia Asystenta AI: włączenie/wyłączenie (wyłączony blokuje analizy i czat oraz chowa
+  wejścia w UI, nie ruszając modelu ani historii), stan/rozmiar modelu i zajęte miejsce na dysku,
+  język odpowiedzi (polski/angielski) i szczegółowość (zwięźle/standardowo/szczegółowo) wpięte we
+  wszystkie polecenia.
+- Ścisła separacja: WSZYSTKIE liczby (KPI, R, ryzyko, rozbicia, sygnały zachowania) liczy
+  deterministyczny silnik w Rust, model dostaje gotowe wartości i tylko je interpretuje - nigdy
+  nie liczy sam.
+- Zabezpieczenia: notatki i nazwy strategii/instrumentów/emocji trafiają jako DANE, nigdy jako
+  polecenia dla modelu (obrona przed prompt-injection); zakaz diagnozowania chorób i udzielania
+  gwarantowanych porad finansowych; odrzucanie całkowicie pustej odpowiedzi modelu (ponowienie
+  zamiast pustego wyniku); jedna ciężka operacja naraz, przerywanie i limit czasu bez zostawiania
+  procesu w tle; rozmiar kontekstu dobierany do długości polecenia.
+
 ### Changed
 
 - Etykieta "TPowne" zmieniona na "Zyskowne" we wszystkich raportach.
