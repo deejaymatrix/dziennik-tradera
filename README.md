@@ -49,4 +49,7 @@ Sam podgląd frontendu (bez okna Tauri) można uruchomić przez `pnpm dev:vite`.
 - [ROADMAP.md](ROADMAP.md) — plan Etapu 1 i 2.
 - [PROGRESS.md](PROGRESS.md) — bieżący status prac.
 - [CHANGELOG.md](CHANGELOG.md) — historia zmian.
+- [docs/ASYSTENT_AI.md](docs/ASYSTENT_AI.md) — Asystent AI: przewodnik użytkownika.
+- [docs/AI_ASYSTENT_WYBOR_MODELU.md](docs/AI_ASYSTENT_WYBOR_MODELU.md) — uzasadnienie wyboru
+  lokalnego modelu AI (benchmark).
 - [docs/adr/](docs/adr/) — decyzje architektoniczne.
