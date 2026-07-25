@@ -92,7 +92,9 @@ export function AppShell(): ReactElement {
     }
     if (monitor.zadanieOtwarciaUstawien !== poprzednieZadanieRef.current) {
       poprzednieZadanieRef.current = monitor.zadanieOtwarciaUstawien;
-      void navigate("/ustawienia");
+      // Prosto na sekcję Aktualizacje (wymaganie Celu 1.8: „bezpośrednio na oknie aktualizacji"),
+      // a nie na domyślną sekcję Wygląd. `SettingsPage` czyta ten parametr jako sekcję startową.
+      void navigate("/ustawienia?sekcja=updates");
     }
   }, [monitor, navigate]);
 

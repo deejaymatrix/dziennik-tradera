@@ -105,9 +105,9 @@ beforeEach(() => {
   });
 });
 
-function renderPage(): ReactElement {
+function renderPage(sciezka = "/"): ReactElement {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[sciezka]}>
       <PreferencesProvider>
         <ToastProvider>
           <ConfirmProvider>
@@ -164,6 +164,16 @@ describe("SettingsPage", () => {
     await user.click(screen.getByRole("button", { name: /Powiadomienia/ }));
 
     expect(screen.getByRole("heading", { name: "Ciche godziny" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Motyw i kolory" })).not.toBeInTheDocument();
+  });
+
+  it("otwiera się wprost na sekcji Aktualizacje przy ?sekcja=updates (kliknięcie powiadomienia)", async () => {
+    // Kliknięcie natywnego powiadomienia nawiguje do `/ustawienia?sekcja=updates` (AppShell) -
+    // strona ma otworzyć się OD RAZU na Aktualizacjach, nie na domyślnym Wyglądzie.
+    renderPage("/ustawienia?sekcja=updates");
+
+    expect(await screen.findByRole("heading", { name: "Aktualizacje" })).toBeInTheDocument();
+    // Domyślna sekcja Wygląd (jej karta „Motyw i kolory") NIE jest wtedy renderowana.
     expect(screen.queryByRole("heading", { name: "Motyw i kolory" })).not.toBeInTheDocument();
   });
 

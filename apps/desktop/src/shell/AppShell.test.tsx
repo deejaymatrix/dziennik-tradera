@@ -259,9 +259,9 @@ describe("AppShell - nawigacja po kliknięciu powiadomienia systemowego", () => 
     rerender(drzewo("/"));
     expect(navigate).not.toHaveBeenCalled();
 
-    // Licznik faktycznie się zmienia - dopiero teraz nawigacja do Ustawień.
+    // Licznik faktycznie się zmienia - dopiero teraz nawigacja PROSTO na sekcję Aktualizacje.
     useOptionalUpdateMonitor.mockReturnValue({ zadanieOtwarciaUstawien: 1 });
     rerender(drzewo("/"));
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith("/ustawienia"));
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith("/ustawienia?sekcja=updates"));
   });
 });

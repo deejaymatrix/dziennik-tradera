@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
+import { useSearchParams } from "react-router";
 import {
   Bell,
   Database,
@@ -91,6 +92,15 @@ const SECTIONS: {
     icon: Info,
   },
 ];
+
+/** Zbiór poprawnych kluczy sekcji - do walidacji parametru `?sekcja=` z adresu (np. kliknięcie
+ * powiadomienia o aktualizacji otwiera Ustawienia wprost na sekcji „updates"). */
+const KLUCZE_SEKCJI = new Set<string>(SECTIONS.map((s) => s.key));
+
+/** Mapuje wartość parametru `?sekcja=` na klucz sekcji; `null`, gdy brak albo nieznana wartość. */
+function sekcjaZParametru(param: string | null): SectionKey | null {
+  return param !== null && KLUCZE_SEKCJI.has(param) ? (param as SectionKey) : null;
+}
 
 /** Wyszukiwanie sekcji po kluczu bez sięgania po indeks tablicy - `active` jest typu
  * `SectionKey`, a każdy taki klucz na pewno w `SECTIONS` istnieje. */
@@ -323,7 +333,13 @@ export function SettingsPage(): ReactElement {
     usePreferences();
   const { showToast } = useToast();
 
-  const [active, setActive] = useState<SectionKey>("appearance");
+  // Sekcja startowa może przyjść z adresu (`?sekcja=updates` z kliknięcia powiadomienia o
+  // aktualizacji); w innym wypadku domyślnie Wygląd. Czytane raz przy montowaniu - późniejsze
+  // przełączanie idzie przez menu (ze strażnikiem niezapisanych zmian).
+  const [searchParams] = useSearchParams();
+  const [active, setActive] = useState<SectionKey>(
+    () => sekcjaZParametru(searchParams.get("sekcja")) ?? "appearance",
+  );
   const [draft, setDraft] = useState<Preferences | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
