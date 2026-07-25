@@ -28,7 +28,7 @@ use crate::domain::trade::{Trade, TradeRepository, TradeSide, TradeStatus};
 use crate::domain::trade_partial_close;
 use crate::domain::trade_stats::{
     compute_behavior_signals, compute_emotion_avg_intensity, compute_emotion_avg_volume,
-    compute_emotion_breakdown, GroupBreakdown,
+    compute_emotion_breakdown, compute_stats, GroupBreakdown, TradeStats,
 };
 use crate::error::AppError;
 
@@ -283,7 +283,9 @@ impl AiAnalysisService {
         }
         let natezenia = compute_emotion_avg_intensity(&trades);
         let wolumeny = compute_emotion_avg_volume(&trades);
-        let dane_json = emocje_do_json(&wg_emocji, &natezenia, &wolumeny);
+        // Baza odniesienia dla całego zakresu (ta sama matematyka co raporty) - do porównania emocji z tłem.
+        let baza = compute_stats(&trades);
+        let dane_json = emocje_do_json(&wg_emocji, &natezenia, &wolumeny, &baza);
         let prompt = format!(
             "{}\n\n{}",
             zbuduj_prompt_emocji(&zakres_opis, &dane_json),
@@ -403,6 +405,7 @@ fn emocje_do_json(
     wg_emocji: &[GroupBreakdown],
     natezenia: &HashMap<String, Decimal>,
     wolumeny: &HashMap<String, Decimal>,
+    baza: &TradeStats,
 ) -> String {
     let tablica: Vec<serde_json::Value> = wg_emocji
         .iter()
@@ -419,7 +422,19 @@ fn emocje_do_json(
             })
         })
         .collect();
-    serde_json::to_string_pretty(&tablica).unwrap_or_else(|_| "[]".to_string())
+    // Baza odniesienia: ogólny win rate i wynik CAŁEGO zakresu, żeby model porównywał każdą emocję
+    // z tłem bez liczenia samemu. Emocje się nakładają (jedna transakcja może mieć kilka), więc suma
+    // wierszy per-emocja NIE odtwarza całości - baza musi być policzona osobno (`compute_stats`).
+    let baza_json = serde_json::json!({
+        "liczba_zamknietych_transakcji": baza.closed_trades,
+        "ogolny_win_rate": baza.win_rate.map(|w| format!("{}%", w.round_dp(1).normalize())),
+        "ogolny_wynik_netto": baza.net_pnl.normalize().to_string(),
+    });
+    serde_json::to_string_pretty(&serde_json::json!({
+        "baza_calego_zakresu": baza_json,
+        "wg_emocji": tablica,
+    }))
+    .unwrap_or_else(|_| "{}".to_string())
 }
 
 /// CZYSTA funkcja mapująca transakcję na pakiet danych do analizy - wszystkie nazwy już
@@ -947,5 +962,26 @@ mod tests {
         assert_eq!(format_czas_trzymania(1500), "1 dzień 1 godz");
         assert_eq!(format_czas_trzymania(2880), "2 dni");
         assert_eq!(format_czas_trzymania(4380), "3 dni 1 godz");
+    }
+
+    #[test]
+    fn emocje_json_zawiera_baze_odniesienia_calego_zakresu() {
+        // Baza liczona osobno (compute_stats), bo emocje się nakładają i suma per-emocja nie
+        // odtwarza całości - model musi mieć tło do porównania każdej emocji.
+        let mut baza = compute_stats(&[]);
+        baza.closed_trades = 20;
+        baza.win_rate = Some(dec!(55));
+        baza.net_pnl = dec!(1234.5);
+
+        let json = emocje_do_json(&[], &HashMap::new(), &HashMap::new(), &baza);
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            v["baza_calego_zakresu"]["liczba_zamknietych_transakcji"],
+            20
+        );
+        assert_eq!(v["baza_calego_zakresu"]["ogolny_win_rate"], "55%");
+        assert_eq!(v["baza_calego_zakresu"]["ogolny_wynik_netto"], "1234.5");
+        // Rozbicie per-emocja nadal jest, jako osobna tablica.
+        assert!(v["wg_emocji"].is_array());
     }
 }
