@@ -2,11 +2,14 @@
 // domain/ai_analysis.rs, infrastructure/ai_model_download.rs). Nazwy pól MUSZĄ się zgadzać z
 // serializacją serde po stronie backendu.
 
-/** Ustrukturyzowany wynik analizy - fakty/obserwacje/rekomendacje (zserializowany w `wynik_json`). */
+/** Ustrukturyzowany wynik analizy (zserializowany w `wynik_json`). `hipotezy` i `jakosc_danych`
+ * doszły później - starsze zapisy ich nie mają, więc `parsujWynik` domyśla je jako puste. */
 export interface AnalizaWynik {
   fakty: string[];
   obserwacje: string[];
+  hipotezy: string[];
   rekomendacje: string[];
+  jakosc_danych: string[];
 }
 
 /** Zapisana analiza odczytana z bazy (`ZapisanaAnaliza` w Rust). `nieaktualna` liczone przy
@@ -96,14 +99,23 @@ export interface WiadomoscCzatu {
  * listy, gdy JSON jest z jakiegoś powodu nieczytelny (nie powinien być - backend zapisuje tylko
  * zwalidowane wyniki - ale UI nigdy nie zakłada tego na ślepo). */
 export function parsujWynik(wynik_json: string): AnalizaWynik {
+  const pusty: AnalizaWynik = {
+    fakty: [],
+    obserwacje: [],
+    hipotezy: [],
+    rekomendacje: [],
+    jakosc_danych: [],
+  };
   try {
     const parsed = JSON.parse(wynik_json) as Partial<AnalizaWynik>;
     return {
       fakty: Array.isArray(parsed.fakty) ? parsed.fakty : [],
       obserwacje: Array.isArray(parsed.obserwacje) ? parsed.obserwacje : [],
+      hipotezy: Array.isArray(parsed.hipotezy) ? parsed.hipotezy : [],
       rekomendacje: Array.isArray(parsed.rekomendacje) ? parsed.rekomendacje : [],
+      jakosc_danych: Array.isArray(parsed.jakosc_danych) ? parsed.jakosc_danych : [],
     };
   } catch {
-    return { fakty: [], obserwacje: [], rekomendacje: [] };
+    return pusty;
   }
 }

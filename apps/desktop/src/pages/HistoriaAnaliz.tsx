@@ -149,7 +149,9 @@ export function HistoriaAnaliz(): ReactElement {
                 <div className={styles.szczegoly}>
                   <Lista tytul="Fakty" pozycje={wynik.fakty} />
                   <Lista tytul="Obserwacje" pozycje={wynik.obserwacje} />
+                  <Lista tytul="Hipotezy" pozycje={wynik.hipotezy} />
                   <Lista tytul="Rekomendacje" pozycje={wynik.rekomendacje} />
+                  <Lista tytul="Jakość danych" pozycje={wynik.jakosc_danych} />
                   <p className={styles.stopka}>
                     Analiza typu „{p.typ_analizy}", model {p.wersja_modelu}. Objęta kopią zapasową.
                   </p>

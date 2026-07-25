@@ -121,7 +121,9 @@ export function ReportAiAnalysis({
         <div className={styles.wynik}>
           <Lista tytul="Fakty" pozycje={wynik.fakty} />
           <Lista tytul="Obserwacje" pozycje={wynik.obserwacje} />
+          <Lista tytul="Hipotezy" pozycje={wynik.hipotezy} />
           <Lista tytul="Rekomendacje" pozycje={wynik.rekomendacje} />
+          <Lista tytul="Jakość danych" pozycje={wynik.jakosc_danych} />
           <p className={styles.stopka}>
             Analiza zagregowanych danych zakresu „{zakresOpis}". To interpretacja, nie gwarantowana
             porada finansowa.

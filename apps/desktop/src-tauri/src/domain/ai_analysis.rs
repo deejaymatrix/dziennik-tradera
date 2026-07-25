@@ -170,8 +170,12 @@ konkretnie, wspierająco i bez agresywnego oceniania. Nie diagnozuj chorób i ni
 medycznych ani gwarantowanych porad finansowych.\n\n\
 Dane transakcji (JSON):\n{fakty}\n\n\
 Odpowiedz WYŁĄCZNIE jednym obiektem JSON o dokładnie takich kluczach:\n\
-{{\"fakty\": [\"...\"], \"obserwacje\": [\"...\"], \"rekomendacje\": [\"...\"]}}\n\
-Każda wartość to tablica krótkich zdań po polsku. Bez żadnego tekstu poza tym obiektem JSON."
+{{\"fakty\": [\"...\"], \"obserwacje\": [\"...\"], \"hipotezy\": [\"...\"], \"rekomendacje\": [\"...\"], \"jakosc_danych\": [\"...\"]}}\n\
+\"fakty\" to twarde ustalenia z danych; \"obserwacje\" to wnioski wynikające z faktów; \"hipotezy\" \
+to ostrożne przypuszczenia wymagające potwierdzenia; \"rekomendacje\" to konkretne kroki; \
+\"jakosc_danych\" to ostrzeżenia o małej próbie albo brakach danych (pusta tablica, jeśli danych \
+jest dość). Każda wartość to tablica krótkich zdań po polsku. Bez żadnego tekstu poza tym obiektem \
+JSON."
     )
 }
 
@@ -183,7 +187,16 @@ Każda wartość to tablica krótkich zdań po polsku. Bez żadnego tekstu poza 
 pub struct AnalizaWynik {
     pub fakty: Vec<String>,
     pub obserwacje: Vec<String>,
+    /// Ostrożne przypuszczenia wymagające potwierdzenia - oddzielone od twardych obserwacji.
+    /// `#[serde(default)]`, bo starsze zapisane analizy (i modele pomijające ten klucz) mają go
+    /// pustego, a nie chcemy przez to odrzucać poprawnej skądinąd odpowiedzi.
+    #[serde(default)]
+    pub hipotezy: Vec<String>,
     pub rekomendacje: Vec<String>,
+    /// Ostrzeżenia o jakości danych (mała próba, braki) - żeby użytkownik wiedział, na ile
+    /// wnioskom ufać. `#[serde(default)]` z tego samego powodu co `hipotezy`.
+    #[serde(default)]
+    pub jakosc_danych: Vec<String>,
 }
 
 impl AnalizaWynik {
@@ -201,10 +214,12 @@ impl AnalizaWynik {
             s
         }
         format!(
-            "{}{}{}",
+            "{}{}{}{}{}",
             sekcja("Fakty", &self.fakty),
             sekcja("Obserwacje", &self.obserwacje),
-            sekcja("Rekomendacje", &self.rekomendacje)
+            sekcja("Hipotezy", &self.hipotezy),
+            sekcja("Rekomendacje", &self.rekomendacje),
+            sekcja("Jakość danych", &self.jakosc_danych)
         )
     }
 }
@@ -395,8 +410,12 @@ konkretnie, wspierająco i bez agresywnego oceniania. Nie udzielaj gwarantowanyc
 finansowych. Jeśli próba jest mała (mało transakcji), zaznacz to.\n\n\
 Dane zagregowane (JSON):\n{fakty}\n\n\
 Odpowiedz WYŁĄCZNIE jednym obiektem JSON o dokładnie takich kluczach:\n\
-{{\"fakty\": [\"...\"], \"obserwacje\": [\"...\"], \"rekomendacje\": [\"...\"]}}\n\
-Każda wartość to tablica krótkich zdań po polsku. Bez żadnego tekstu poza tym obiektem JSON."
+{{\"fakty\": [\"...\"], \"obserwacje\": [\"...\"], \"hipotezy\": [\"...\"], \"rekomendacje\": [\"...\"], \"jakosc_danych\": [\"...\"]}}\n\
+\"fakty\" to twarde ustalenia z danych; \"obserwacje\" to wnioski wynikające z faktów; \"hipotezy\" \
+to ostrożne przypuszczenia wymagające potwierdzenia; \"rekomendacje\" to konkretne kroki; \
+\"jakosc_danych\" to ostrzeżenia o małej próbie albo brakach danych (pusta tablica, jeśli danych \
+jest dość). Każda wartość to tablica krótkich zdań po polsku. Bez żadnego tekstu poza tym obiektem \
+JSON."
     )
 }
 
@@ -616,19 +635,35 @@ mod tests {
     }
 
     #[test]
-    fn renderowanie_tekstowe_pokazuje_wszystkie_trzy_sekcje_i_pusta() {
+    fn renderowanie_tekstowe_pokazuje_wszystkie_sekcje_i_pusta() {
         let wynik = AnalizaWynik {
             fakty: vec!["fakt".to_string()],
             obserwacje: vec![],
+            hipotezy: vec!["być może Y".to_string()],
             rekomendacje: vec!["zrób X".to_string()],
+            jakosc_danych: vec!["mała próba".to_string()],
         };
         let tekst = wynik.do_tekstu();
         assert!(tekst.contains("Fakty:"));
         assert!(tekst.contains("- fakt"));
         assert!(tekst.contains("Obserwacje:"));
         assert!(tekst.contains("(brak)")); // pusta sekcja obserwacji
+        assert!(tekst.contains("Hipotezy:"));
+        assert!(tekst.contains("- być może Y"));
         assert!(tekst.contains("Rekomendacje:"));
         assert!(tekst.contains("- zrób X"));
+        assert!(tekst.contains("Jakość danych:"));
+        assert!(tekst.contains("- mała próba"));
+    }
+
+    #[test]
+    fn odpowiedz_bez_nowych_kluczy_wciaz_sie_parsuje() {
+        // Wstecz-kompatybilność: starsza odpowiedź/zapis z 3 kluczami (bez hipotez i jakości
+        // danych) musi się nadal wczytać, a nowe pola dostają puste tablice.
+        let tekst = r#"{"fakty": ["a"], "obserwacje": ["b"], "rekomendacje": ["c"]}"#;
+        let wynik = waliduj_odpowiedz(tekst).expect("stary format nadal poprawny");
+        assert_eq!(wynik.hipotezy, Vec::<String>::new());
+        assert_eq!(wynik.jakosc_danych, Vec::<String>::new());
     }
 
     #[test]

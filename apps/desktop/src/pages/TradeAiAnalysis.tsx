@@ -182,7 +182,9 @@ export function TradeAiAnalysis({ tradeId }: TradeAiAnalysisProps): ReactElement
               <>
                 <Lista tytul="Fakty" pozycje={w.fakty} />
                 <Lista tytul="Obserwacje" pozycje={w.obserwacje} />
+                <Lista tytul="Hipotezy" pozycje={w.hipotezy} />
                 <Lista tytul="Rekomendacje" pozycje={w.rekomendacje} />
+                <Lista tytul="Jakość danych" pozycje={w.jakosc_danych} />
               </>
             );
           })()}
