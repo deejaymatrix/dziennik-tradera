@@ -56,9 +56,10 @@ export function ChatAi({ filter, zakresOpis, gotowe }: ChatAiProps): ReactElemen
     setHistoria([]);
   }, [zakresOpis]);
 
-  // Podstawa danych: pobieramy liczbę transakcji w zakresie z tego samego deterministycznego
-  // silnika raportów, którego fakty widzi model - żeby pokazać, na ilu transakcjach opiera się
-  // rozmowa (i ostrzec, gdy to za mała próba na sensowne wnioski).
+  // Podstawa danych: liczba ZAMKNIĘTYCH transakcji w zakresie - dokładnie tyle, ile widzi model
+  // (pakiet danych opiera się na `closed_trades`, bo tylko zamknięte mają wynik do analizy). Dzięki
+  // temu pokazana podstawa i próg małej próby zgadzają się z tym, po czym model naprawdę rozumuje
+  // (a nie z liczbą wszystkich transakcji, gdy część jest jeszcze otwarta).
   useEffect(() => {
     if (!filter.account_id) {
       return;
@@ -67,7 +68,7 @@ export function ChatAi({ filter, zakresOpis, gotowe }: ChatAiProps): ReactElemen
     void invokeCommand<FilteredReport>("get_filtered_report", { filter })
       .then((raport) => {
         if (aktualne) {
-          setLiczbaTransakcji(raport.stats.total_trades);
+          setLiczbaTransakcji(raport.stats.closed_trades);
         }
       })
       .catch(() => {

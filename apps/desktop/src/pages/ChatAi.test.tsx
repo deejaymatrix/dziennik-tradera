@@ -21,11 +21,17 @@ const filtr: ReportFilter = {
   month: null,
 };
 
-// `get_filtered_report` (podstawa danych) zawsze zwraca prostą liczbę transakcji; `ai_chat` -
-// odpowiedź podaną w teście. Reszta komend nieistotna.
-function ustawCzat(odpowiedz: string): void {
+// `get_filtered_report` (podstawa danych) zwraca statystyki zakresu; `ai_chat` - odpowiedź podaną
+// w teście. Reszta komend nieistotna.
+function ustawCzat(
+  odpowiedz: string,
+  stats: { total_trades: number; closed_trades: number } = {
+    total_trades: 30,
+    closed_trades: 30,
+  },
+): void {
   invokeCommand.mockImplementation((cmd: string) => {
-    if (cmd === "get_filtered_report") return Promise.resolve({ stats: { total_trades: 30 } });
+    if (cmd === "get_filtered_report") return Promise.resolve({ stats });
     if (cmd === "ai_chat") return Promise.resolve(odpowiedz);
     return Promise.resolve(null);
   });
@@ -73,5 +79,16 @@ describe("ChatAi", () => {
     await waitFor(() => expect(pole).toHaveValue("Podsumuj mój miesiąc"));
     // Rozmowa cofnięta do stanu sprzed pytania - żaden dymek nie został, widać placeholder zachęty.
     expect(screen.getByText(/Zapytaj o wyniki wybranego zakresu/)).toBeInTheDocument();
+  });
+
+  it("podstawa i ostrzeżenie o małej próbie liczą się z zamkniętych, nie ze wszystkich transakcji", async () => {
+    // 30 transakcji w zakresie, ale tylko 5 zamkniętych (reszta otwarta) - model rozumuje po 5.
+    ustawCzat("nieistotne", { total_trades: 30, closed_trades: 5 });
+    wyrenderuj();
+
+    // Podstawa pokazuje 5 (zamknięte), a ostrzeżenie o małej próbie się pojawia (5 < 20) - mimo że
+    // wszystkich transakcji jest 30. Gdyby liczyło z total_trades, ostrzeżenia by nie było.
+    expect(await screen.findByText("5")).toBeInTheDocument();
+    expect(screen.getByText(/mała próba/)).toBeInTheDocument();
   });
 });
