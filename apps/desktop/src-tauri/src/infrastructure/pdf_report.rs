@@ -22,10 +22,44 @@ pub struct PdfReportInput {
     pub table_rows: Vec<Vec<String>>,
 }
 
-/// Ucieka znaki specjalne w literale tekstowym PDF - `(`, `)` i `\` mają znaczenie
-/// składniowe w `(...)  Tj`, więc bez tego dowolny tekst z tymi znakami zepsułby stream.
+/// Base-14 Helvetica BEZ ustawionego `/Encoding` renderuje poprawnie tylko ASCII (font nie jest
+/// osadzany - świadomy wybór, żeby PDF ważył kilka kB). Polskie znaki trafiające tam jako surowe
+/// bajty UTF-8 wychodziły jako "krzaki". STOPGAP (opcja A): transliterujemy polskie diakrytyki do
+/// ASCII, a każdy inny znak spoza ASCII zamieniamy na "?", żeby raport był NA PEWNO czytelny.
+/// Pełne wsparcie Unicode wymaga osadzenia fontu (opcja C) - świadomie odłożone na po wydaniu.
+fn to_pdf_safe_ascii(text: &str) -> String {
+    text.chars()
+        .map(|c| match c {
+            'ą' => 'a',
+            'ć' => 'c',
+            'ę' => 'e',
+            'ł' => 'l',
+            'ń' => 'n',
+            'ó' => 'o',
+            'ś' => 's',
+            'ź' => 'z',
+            'ż' => 'z',
+            'Ą' => 'A',
+            'Ć' => 'C',
+            'Ę' => 'E',
+            'Ł' => 'L',
+            'Ń' => 'N',
+            'Ó' => 'O',
+            'Ś' => 'S',
+            'Ź' => 'Z',
+            'Ż' => 'Z',
+            c if c.is_ascii() => c,
+            _ => '?',
+        })
+        .collect()
+}
+
+/// Ucieka znaki specjalne w literale tekstowym PDF - `(`, `)` i `\` mają znaczenie składniowe w
+/// `(...) Tj`, więc bez tego dowolny tekst z tymi znakami zepsułby stream. Najpierw transliteruje
+/// tekst do ASCII (patrz `to_pdf_safe_ascii`), żeby polskie znaki nie wyszły jako "krzaki".
 fn escape(text: &str) -> String {
-    text.replace('\\', "\\\\")
+    to_pdf_safe_ascii(text)
+        .replace('\\', "\\\\")
         .replace('(', "\\(")
         .replace(')', "\\)")
 }
@@ -226,6 +260,52 @@ mod tests {
             1,
             "pusta tabela = dokładnie jedna strona"
         );
+    }
+
+    #[test]
+    fn transliteruje_polskie_znaki_a_egzotyczne_zastepuje_placeholderem() {
+        assert_eq!(to_pdf_safe_ascii("zamknięte"), "zamkniete");
+        assert_eq!(to_pdf_safe_ascii("Łódź gęślą jaźń"), "Lodz gesla jazn");
+        assert_eq!(to_pdf_safe_ascii("ĄĆĘŁŃÓŚŹŻ"), "ACELNOSZZ");
+        // Zwykłe ASCII nietknięte.
+        assert_eq!(
+            to_pdf_safe_ascii("EURUSD 1.2345 (BUY)"),
+            "EURUSD 1.2345 (BUY)"
+        );
+        // Znak spoza ASCII i spoza polskich diakrytyk (np. myślnik "–") -> placeholder, nie "krzak".
+        assert_eq!(to_pdf_safe_ascii("A–B"), "A?B");
+    }
+
+    #[test]
+    fn tekst_w_pdf_jest_czystym_ascii_mimo_polskiego_wejscia() {
+        // Sedno poprawki: base-14 Helvetica bez /Encoding renderuje tylko ASCII, więc każdy literał
+        // tekstowy w strumieniu MUSI być czystym ASCII - inaczej polskie znaki wyszłyby jako
+        // "krzaki". Ten test przechodzi CAŁY strumień strony i pilnuje, że żaden bajt tekstu nie
+        // wychodzi poza ASCII, mimo że wejście jest pełne polskich znaków.
+        let mut wejscie = przykladowe_wejscie();
+        wejscie.title = "Raport: zamknięte pozycje (ćwiczenie)".to_string();
+        wejscie.summary_lines = vec!["Wynik netto: dużo – naprawdę sporo".to_string()];
+        wejscie.table_rows = vec![vec!["1".to_string(), "Żółć".to_string()]];
+
+        let dir = tempfile::tempdir().expect("katalog tymczasowy");
+        let destination = dir.path().join("polski.pdf");
+        generate(&wejscie, &destination).expect("generowanie PDF");
+
+        let doc = Document::load(&destination).expect("wczytanie PDF");
+        for page_id in doc.get_pages().values() {
+            let content =
+                Content::decode(&doc.get_page_content(*page_id)).expect("dekodowanie strumienia");
+            for operation in &content.operations {
+                if operation.operator == "Tj" {
+                    if let Some(Object::String(bytes, _)) = operation.operands.first() {
+                        assert!(
+                            bytes.iter().all(u8::is_ascii),
+                            "literał tekstowy PDF wyszedł poza ASCII: {bytes:?}"
+                        );
+                    }
+                }
+            }
+        }
     }
 
     #[test]
