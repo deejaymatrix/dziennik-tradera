@@ -22,7 +22,7 @@ use crate::error::AppError;
 /// Wersja szablonu polecenia - zapisywana przy każdej analizie, żeby przy późniejszym audycie
 /// dało się odróżnić analizy zrobione różnymi wersjami promptu. Bumpować przy każdej ZMIANIE
 /// treści `zbuduj_prompt`, która może wpłynąć na wynik.
-pub const WERSJA_SZABLONU_TRANSAKCJI: &str = "transakcja-v1";
+pub const WERSJA_SZABLONU_TRANSAKCJI: &str = "transakcja-v2";
 
 /// Deterministyczne, JUŻ POLICZONE dane jednej transakcji, spłaszczone do postaci gotowej dla
 /// modelu. Warstwa aplikacyjna wypełnia to z `Trade` + rozwiązanych nazw (instrument/konto/
@@ -51,6 +51,10 @@ pub struct DaneAnalizyTransakcji {
     pub inne_oplaty: Option<String>,
     pub wynik_netto: Option<String>,
     pub wynik_r: Option<String>,
+    /// Planowany stosunek zysku do ryzyka (reward:risk) z SL/TP/wejścia - JUŻ policzony w silniku
+    /// (`trade_calculations::planned_rr`). Zestawiony z `wynik_r` (realizowanym R) pokazuje modelowi
+    /// dyscyplinę: czy plan był realizowany, czy zyski ucinane / stop przesuwany.
+    pub planowane_rr: Option<String>,
     pub ryzyko_kwota: Option<String>,
     pub ryzyko_procent: Option<String>,
     /// Emocje jako pary (nazwa, natężenie 1-5). Nazwa już rozwiązana z `state_id` w warstwie
@@ -122,6 +126,7 @@ impl DaneAnalizyTransakcji {
         dodaj(&mut mapa, "inne_oplaty", &self.inne_oplaty);
         dodaj(&mut mapa, "wynik_netto", &self.wynik_netto);
         dodaj(&mut mapa, "wynik_r", &self.wynik_r);
+        dodaj(&mut mapa, "planowane_rr", &self.planowane_rr);
         dodaj(&mut mapa, "ryzyko_kwota", &self.ryzyko_kwota);
         dodaj(&mut mapa, "ryzyko_procent", &self.ryzyko_procent);
         dodaj(&mut mapa, "plan_przed_wejsciem", &self.plan_przed);

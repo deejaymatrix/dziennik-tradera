@@ -520,6 +520,12 @@ pub fn zbuduj_dane_transakcji(
         inne_oplaty: Some(format_liczba(trade.other_fees)),
         wynik_netto: trade.net_pnl.map(format_liczba),
         wynik_r: trade.pnl_r.map(format_liczba),
+        planowane_rr: crate::domain::trade_calculations::planned_rr(
+            trade.entry_price,
+            trade.stop_loss,
+            trade.take_profit,
+        )
+        .map(format_liczba),
         ryzyko_kwota: trade.risk_amount.map(format_liczba),
         ryzyko_procent: trade.risk_percent.map(format_liczba),
         emocje,
@@ -695,6 +701,22 @@ mod tests {
         assert_eq!(dane.wynik_r.as_deref(), Some("-1.02"));
         assert_eq!(dane.wolumen.as_deref(), Some("0.5"));
         assert_eq!(dane.wnioski.as_deref(), Some("Wszedłem za wcześnie."));
+    }
+
+    #[test]
+    fn mapuje_planowane_rr_z_cen_sl_tp() {
+        let mut trade = trade_bazowy();
+        trade.entry_price = Some(dec!(100));
+        trade.stop_loss = Some(dec!(90));
+        trade.take_profit = Some(dec!(130));
+        let dane = zbuduj_dane_transakcji(&trade, None, None, &HashMap::new());
+        // reward:risk = |130-100| / |100-90| = 30/10 = 3 (już policzone w silniku, tylko przeniesione).
+        assert_eq!(dane.planowane_rr.as_deref(), Some("3"));
+
+        // Bez stop-lossa nie da się policzyć ryzyka - RR puste (nie trafia do promptu).
+        trade.stop_loss = None;
+        let dane = zbuduj_dane_transakcji(&trade, None, None, &HashMap::new());
+        assert_eq!(dane.planowane_rr, None);
     }
 
     #[test]

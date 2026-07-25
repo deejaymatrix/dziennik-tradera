@@ -103,6 +103,24 @@ pub struct TradeCalculationInput {
     pub partial_closes: Vec<PartialClose>,
 }
 
+/// Planowany stosunek zysku do ryzyka (reward:risk) liczony z samych cen: dystans do take-profit
+/// podzielony przez dystans do stop-lossa. Bierzemy wartości bezwzględne, więc formuła jest
+/// symetryczna względem kierunku (nie potrzebuje `side`). Zwraca `None`, gdy brakuje którejś ceny
+/// albo dystans do SL jest zerowy (uniknięcie dzielenia przez zero). Jedno źródło definicji RR -
+/// używane i w podglądzie transakcji (`calculate`), i w pakiecie danych dla Asystenta AI.
+pub fn planned_rr(
+    entry_price: Option<Decimal>,
+    stop_loss: Option<Decimal>,
+    take_profit: Option<Decimal>,
+) -> Option<Decimal> {
+    let (entry, stop_loss, take_profit) = (entry_price?, stop_loss?, take_profit?);
+    let sl_distance = (entry - stop_loss).abs();
+    if sl_distance.is_zero() {
+        return None;
+    }
+    Some((take_profit - entry).abs() / sl_distance)
+}
+
 /// Silnik przeliczeń transakcji - czysta funkcja, żadnych efektów ubocznych ani zależności od
 /// bazy danych. Każde pole wyniku jest `Option`, bo podgląd na żywo w formularzu może mieć
 /// niekompletne dane (np. brak SL - wtedy `risk_amount`/`rr_planned` zostają puste, ale
@@ -144,14 +162,7 @@ pub fn calculate(input: &TradeCalculationInput) -> TradeCalculation {
         }
     }
 
-    if let (Some(entry), Some(stop_loss), Some(take_profit)) =
-        (input.entry_price, input.stop_loss, input.take_profit)
-    {
-        let sl_distance = (entry - stop_loss).abs();
-        if !sl_distance.is_zero() {
-            result.rr_planned = Some((take_profit - entry).abs() / sl_distance);
-        }
-    }
+    result.rr_planned = planned_rr(input.entry_price, input.stop_loss, input.take_profit);
 
     if let (Some(entry), Some(take_profit), Some(volume), Some(instrument)) = (
         input.entry_price,
