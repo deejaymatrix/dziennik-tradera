@@ -12,11 +12,16 @@ use crate::domain::mt5_import::{parse_positions, RawMt5Position};
 use crate::domain::trade::TradeInput;
 use crate::error::AppError;
 
+/// Prefiks znacznika importu MT5. `import_marker` go SKŁADA, a `already_imported_tickets` go
+/// ODCINA, żeby odzyskać numer biletu - oba MUSZĄ używać dokładnie tego samego napisu, bo od ich
+/// zgodności zależy wykrywanie powtórnego importu (rozjazd = ciche duplikaty przy re-imporcie).
+const IMPORT_MARKER_PREFIX: &str = "Import MT5 #";
+
 /// Znacznik zapisywany w `management_notes` każdej zaimportowanej transakcji - jedyny sposób
 /// wykrycia powtórnego importu TEGO SAMEGO pliku (albo pliku z zachodzącym zakresem dat) bez
 /// migracji schematu bazy o nowe pole na numer biletu MT5.
 fn import_marker(ticket: &str) -> String {
-    format!("Import MT5 #{ticket}")
+    format!("{IMPORT_MARKER_PREFIX}{ticket}")
 }
 
 fn already_imported_tickets(
@@ -27,7 +32,10 @@ fn already_imported_tickets(
     Ok(existing
         .into_iter()
         .filter_map(|t| t.management_notes)
-        .filter_map(|note| note.strip_prefix("Import MT5 #").map(|s| s.to_string()))
+        .filter_map(|note| {
+            note.strip_prefix(IMPORT_MARKER_PREFIX)
+                .map(|s| s.to_string())
+        })
         .collect())
 }
 
@@ -256,5 +264,45 @@ impl<'a> Mt5ImportService<'a> {
             skipped_duplicate,
             errors,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn marker_i_wykrywanie_duplikatu_uzywaja_tego_samego_prefiksu() {
+        // Wykrywanie powtórnego importu opiera się na tym, że `import_marker` składa znacznik
+        // z DOKŁADNIE tego samego prefiksu, który `already_imported_tickets` odcina, by odzyskać
+        // numer biletu. Rozjazd tych dwóch napisów = re-import tego samego pliku PO CICHU tworzy
+        // duplikaty transakcji. Wspólna stała + ten test wymuszają ich zgodność.
+        let note = import_marker("189880141");
+        assert_eq!(note, "Import MT5 #189880141");
+        assert_eq!(note.strip_prefix(IMPORT_MARKER_PREFIX), Some("189880141"));
+    }
+
+    #[test]
+    fn notatka_bez_prefiksu_nie_jest_traktowana_jak_import() {
+        // Ręczna notatka użytkownika nie może zostać wzięta za znacznik importu.
+        assert_eq!(
+            "Moja własna notatka do transakcji".strip_prefix(IMPORT_MARKER_PREFIX),
+            None
+        );
+    }
+
+    #[test]
+    fn parse_mt5_time_przyjmuje_realny_format_mt5() {
+        // Dokładny format z eksportu MT5 ("RRRR.MM.DD GG:MM:SS") - zmiana tego wzorca zerwałaby
+        // odczyt czasów WSZYSTKICH importowanych pozycji.
+        assert!(parse_mt5_time("2025.10.09 16:42:42", "188897878", "czasu otwarcia").is_ok());
+    }
+
+    #[test]
+    fn parse_mt5_time_odrzuca_inne_formaty() {
+        // Format ISO z myślnikami ani śmieci nie mogą po cichu przejść - lepiej czytelny błąd
+        // przy imporcie niż zła data zapisana w transakcji.
+        assert!(parse_mt5_time("2025-10-09 16:42:42", "1", "czasu otwarcia").is_err());
+        assert!(parse_mt5_time("zupełnie nie data", "1", "czasu otwarcia").is_err());
     }
 }
