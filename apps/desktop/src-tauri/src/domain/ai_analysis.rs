@@ -337,6 +337,9 @@ pub struct DaneAnalizyRaportu {
     /// wygranych do przegranych). Już policzone w silniku (`average_win`/`average_loss`).
     pub sredni_zysk: Option<String>,
     pub srednia_strata: Option<String>,
+    /// Średni czas trzymania zrealizowanej pozycji (czytelny opis, np. "2 godz 5 min") - sygnał
+    /// stylu handlu (scalp vs swing). Już policzone w silniku (`average_trade_duration_minutes`).
+    pub sredni_czas_trzymania: Option<String>,
     pub max_drawdown: Option<String>,
     pub laczna_prowizja: Option<String>,
     pub najlepsza_transakcja: Option<String>,
@@ -421,6 +424,11 @@ impl DaneAnalizyRaportu {
             &mut mapa,
             "srednia_strata_na_przegranej",
             &self.srednia_strata,
+        );
+        dodaj(
+            &mut mapa,
+            "sredni_czas_trzymania_pozycji",
+            &self.sredni_czas_trzymania,
         );
         dodaj(&mut mapa, "max_drawdown", &self.max_drawdown);
         dodaj(&mut mapa, "laczna_prowizja", &self.laczna_prowizja);

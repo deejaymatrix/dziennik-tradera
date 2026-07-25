@@ -549,6 +549,37 @@ fn format_liczba(d: Decimal) -> String {
     d.normalize().to_string()
 }
 
+/// Zamienia czas trzymania pozycji (minuty, już policzone w silniku) na czytelny polski zapis dla
+/// modelu: "45 min", "2 godz 5 min", "3 dni 4 godz". Model dostaje jednoznaczny, ludzki opis zamiast
+/// surowej liczby minut - łatwiej mu odróżnić scalping od swingu. Ujemnych wartości nie ma (czas
+/// zamknięcia jest po otwarciu), ale dla bezpieczeństwa poniżej minuty pokazujemy po prostu minuty.
+fn format_czas_trzymania(minuty: i64) -> String {
+    if minuty < 60 {
+        return format!("{minuty} min");
+    }
+    let godziny = minuty / 60;
+    if godziny < 24 {
+        let reszta_min = minuty % 60;
+        return if reszta_min == 0 {
+            format!("{godziny} godz")
+        } else {
+            format!("{godziny} godz {reszta_min} min")
+        };
+    }
+    let dni = godziny / 24;
+    let reszta_godz = godziny % 24;
+    let opis_dni = if dni == 1 {
+        "1 dzień".to_string()
+    } else {
+        format!("{dni} dni")
+    };
+    if reszta_godz == 0 {
+        opis_dni
+    } else {
+        format!("{opis_dni} {reszta_godz} godz")
+    }
+}
+
 /// Zamienia breakdown (`by_strategy`/`by_instrument`/...) na pary `(etykieta, wynik_netto)` -
 /// wszystkie wpisy, bo breakdowny są małe (garść strategii/instrumentów, do 12 miesięcy).
 fn breakdown_na_pary(grupy: &[GroupBreakdown]) -> Vec<(String, String)> {
@@ -574,6 +605,7 @@ pub fn zbuduj_dane_raportu(raport: &FilteredReport, zakres_opis: String) -> Dane
         sredni_wynik_trade: s.expectancy.map(format_liczba),
         sredni_zysk: s.average_win.map(format_liczba),
         srednia_strata: s.average_loss.map(format_liczba),
+        sredni_czas_trzymania: s.average_trade_duration_minutes.map(format_czas_trzymania),
         max_drawdown: s.max_drawdown.map(format_liczba),
         laczna_prowizja: Some(format_liczba(s.total_commission)),
         najlepsza_transakcja: s.best_trade.map(format_liczba),
@@ -848,11 +880,14 @@ mod tests {
         // przenoszone bez modyfikacji (realizowany risk-reward dla modelu do interpretacji).
         raport.stats.average_win = Some(dec!(150));
         raport.stats.average_loss = Some(dec!(60));
+        // Średni czas trzymania - już policzony przez silnik, przenoszony jako czytelny opis.
+        raport.stats.average_trade_duration_minutes = Some(125);
 
         let dane = zbuduj_dane_raportu(&raport, "Konto Główne · 2026".to_string());
         assert_eq!(dane.zakres_opis, "Konto Główne · 2026");
         assert_eq!(dane.sredni_zysk.as_deref(), Some("150"));
         assert_eq!(dane.srednia_strata.as_deref(), Some("60"));
+        assert_eq!(dane.sredni_czas_trzymania.as_deref(), Some("2 godz 5 min"));
         // Pusty raport: 0 zamkniętych transakcji, wynik netto "0".
         assert_eq!(dane.liczba_transakcji, 0);
         assert_eq!(dane.wynik_netto.as_deref(), Some("0"));
@@ -875,5 +910,20 @@ mod tests {
         );
         // Nieustawione breakdowny zostają puste.
         assert!(dane.wg_instrumentu.is_empty());
+    }
+
+    #[test]
+    fn format_czas_trzymania_dobiera_jednostki() {
+        // Poniżej godziny - same minuty.
+        assert_eq!(format_czas_trzymania(0), "0 min");
+        assert_eq!(format_czas_trzymania(45), "45 min");
+        // Pełne godziny bez reszty nie dopisują "0 min".
+        assert_eq!(format_czas_trzymania(60), "1 godz");
+        assert_eq!(format_czas_trzymania(125), "2 godz 5 min");
+        // Doba i więcej - dni (z poprawną formą "1 dzień") plus ewentualne godziny.
+        assert_eq!(format_czas_trzymania(1440), "1 dzień");
+        assert_eq!(format_czas_trzymania(1500), "1 dzień 1 godz");
+        assert_eq!(format_czas_trzymania(2880), "2 dni");
+        assert_eq!(format_czas_trzymania(4380), "3 dni 1 godz");
     }
 }
