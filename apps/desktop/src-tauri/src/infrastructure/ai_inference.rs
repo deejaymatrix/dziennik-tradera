@@ -355,9 +355,11 @@ fn dobierz_n_ctx(
 fn przerwanie_do_bledu(powod: PowodPrzerwania) -> AppError {
     match powod {
         PowodPrzerwania::Anulowano => AppError::Validation("Analiza AI przerwana.".to_string()),
-        PowodPrzerwania::Timeout => {
-            AppError::Validation("Analiza AI przekroczyła limit czasu.".to_string())
-        }
+        PowodPrzerwania::Timeout => AppError::Validation(
+            "Analiza AI przekroczyła limit czasu. Spróbuj mniejszego modelu (Ustawienia → \
+             Asystent AI) albo węższego zakresu."
+                .to_string(),
+        ),
     }
 }
 
@@ -418,6 +420,30 @@ mod dobor_kontekstu {
         let n_ctx = dobierz_n_ctx(potrzebne - 768, 768, 4096).expect("tuż pod limitem przechodzi");
         assert!(n_ctx <= MAKS_N_CTX);
         assert_eq!(n_ctx, MAKS_N_CTX);
+    }
+}
+
+#[cfg(test)]
+mod komunikaty_przerwania {
+    //! Kontrakt komunikatów kończących analizę: anulowanie i timeout dają CZYTELNY błąd walidacji
+    //! (nie awarię I/O), a timeout dodatkowo podpowiada użytkownikowi, co zrobić.
+
+    use super::{przerwanie_do_bledu, PowodPrzerwania};
+    use crate::error::AppError;
+
+    #[test]
+    fn anulowanie_i_timeout_daja_czytelny_blad_walidacji() {
+        let anulowano = przerwanie_do_bledu(PowodPrzerwania::Anulowano);
+        assert!(matches!(anulowano, AppError::Validation(ref m) if m.contains("przerwana")));
+
+        match przerwanie_do_bledu(PowodPrzerwania::Timeout) {
+            AppError::Validation(m) => {
+                assert!(m.contains("limit czasu"));
+                // Podpowiedź działania dla użytkownika (mniejszy model / węższy zakres).
+                assert!(m.contains("mniejszego modelu"));
+            }
+            inny => panic!("timeout musi być błędem walidacji, było: {inny:?}"),
+        }
     }
 }
 
