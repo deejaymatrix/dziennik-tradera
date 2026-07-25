@@ -423,6 +423,33 @@ mod tests {
     }
 
     #[test]
+    fn planned_rr_liczy_z_cen_i_nie_dzieli_przez_zero() {
+        // Bezpośrednio na współdzielonym helperze (używa go i podgląd transakcji, i pakiet AI).
+        // Stosunek z cen: |1.11000-1.10000| / |1.10000-1.09500| = 0.01 / 0.005 = 2.
+        assert_eq!(
+            planned_rr(
+                Some(dec!(1.10000)),
+                Some(dec!(1.09500)),
+                Some(dec!(1.11000))
+            ),
+            Some(dec!(2))
+        );
+        // Stop-loss równy wejściu = zerowy dystans -> None (guard przed dzieleniem przez zero).
+        assert_eq!(
+            planned_rr(
+                Some(dec!(1.10000)),
+                Some(dec!(1.10000)),
+                Some(dec!(1.11000))
+            ),
+            None
+        );
+        // Brak którejkolwiek z trzech cen -> None.
+        assert_eq!(planned_rr(None, Some(dec!(1.0)), Some(dec!(1.1))), None);
+        assert_eq!(planned_rr(Some(dec!(1.0)), None, Some(dec!(1.1))), None);
+        assert_eq!(planned_rr(Some(dec!(1.0)), Some(dec!(0.9)), None), None);
+    }
+
+    #[test]
     fn no_side_returns_all_empty() {
         let result = calculate(&TradeCalculationInput::default());
         assert_eq!(result, TradeCalculation::default());
