@@ -102,7 +102,7 @@ export function AudytAiAnalysis({
 
       {wynik && (
         <div className={styles.wynik}>
-          <WynikAnalizy wynik={wynik} />
+          <WynikAnalizy wynik={wynik} naglowekKopiowania={`Audyt zachowania — „${zakresOpis}"`} />
           <p className={styles.stopka}>
             Audyt zachowania dla zakresu „{zakresOpis}". To interpretacja policzonych sygnałów, nie
             diagnoza ani gwarantowana porada.

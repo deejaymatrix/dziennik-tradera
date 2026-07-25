@@ -90,6 +90,25 @@ describe("analizaDoTekstu", () => {
       }),
     ).toBe("");
   });
+
+  it("nagłówek jest dopisywany na początku, przed sekcjami", () => {
+    const t = analizaDoTekstu({ ...pelny }, "Analiza zakresu „Konto A · 2026”");
+    expect(t.startsWith("Analiza zakresu „Konto A · 2026”\n\nFakty:\n- f1")).toBe(true);
+  });
+
+  it("pusty/sam biały nagłówek nie zmienia wyniku", () => {
+    const bez = analizaDoTekstu(pelny);
+    expect(analizaDoTekstu(pelny, "   ")).toBe(bez);
+    expect(analizaDoTekstu(pelny, undefined)).toBe(bez);
+  });
+
+  it("nagłówek bez treści (puste sekcje) daje sam nagłówek, bez końcowych pustych linii", () => {
+    const t = analizaDoTekstu(
+      { fakty: [], obserwacje: [], hipotezy: [], rekomendacje: [], jakosc_danych: [] },
+      "Nagłówek",
+    );
+    expect(t).toBe("Nagłówek");
+  });
 });
 
 describe("gigabajty", () => {

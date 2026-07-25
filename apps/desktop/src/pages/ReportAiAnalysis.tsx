@@ -104,7 +104,7 @@ export function ReportAiAnalysis({
 
       {wynik && (
         <div className={styles.wynik}>
-          <WynikAnalizy wynik={wynik} />
+          <WynikAnalizy wynik={wynik} naglowekKopiowania={`Analiza AI zakresu „${zakresOpis}"`} />
           <p className={styles.stopka}>
             Analiza zagregowanych danych zakresu „{zakresOpis}". To interpretacja, nie gwarantowana
             porada finansowa.

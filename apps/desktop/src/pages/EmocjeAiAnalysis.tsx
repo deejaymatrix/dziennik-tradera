@@ -103,7 +103,10 @@ export function EmocjeAiAnalysis({
 
       {wynik && (
         <div className={styles.wynik}>
-          <WynikAnalizy wynik={wynik} />
+          <WynikAnalizy
+            wynik={wynik}
+            naglowekKopiowania={`Analiza emocjonalna — „${zakresOpis}"`}
+          />
           <p className={styles.stopka}>
             Korelacja emocja↔wynik dla zakresu „{zakresOpis}". To interpretacja policzonych danych,
             nie diagnoza ani gwarantowana porada.

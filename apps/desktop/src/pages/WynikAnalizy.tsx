@@ -29,12 +29,20 @@ function Lista({ tytul, pozycje }: { tytul: string; pozycje: string[] }): ReactE
  * (np. dodaniu sekcji „hipotezy"). Puste sekcje są pomijane. Stopkę (inną w każdym panelu) oraz
  * ewentualny baner nieaktualności zostawiamy panelom - tu jest tylko część wspólna.
  */
-export function WynikAnalizy({ wynik }: { wynik: AnalizaWynik }): ReactElement {
+export function WynikAnalizy({
+  wynik,
+  naglowekKopiowania,
+}: {
+  wynik: AnalizaWynik;
+  /** Opcjonalny wiersz kontekstu dopisywany na początku kopiowanego tekstu (np. „Analiza zakresu
+   * …") - żeby wklejona analiza mówiła, czego dotyczyła. Na ekranie tę rolę pełni stopka panelu. */
+  naglowekKopiowania?: string;
+}): ReactElement {
   const { showToast } = useToast();
 
   async function kopiuj(): Promise<void> {
     try {
-      await navigator.clipboard.writeText(analizaDoTekstu(wynik));
+      await navigator.clipboard.writeText(analizaDoTekstu(wynik, naglowekKopiowania));
       showToast("Analiza skopiowana do schowka.", "success");
     } catch {
       showToast("Nie udało się skopiować do schowka.", "error");

@@ -161,7 +161,10 @@ export function TradeAiAnalysis({ tradeId }: TradeAiAnalysisProps): ReactElement
               Analiza nieaktualna — dane transakcji zostały zmienione po jej wykonaniu.
             </p>
           )}
-          <WynikAnalizy wynik={parsujWynik(ostatnia.wynik_json)} />
+          <WynikAnalizy
+            wynik={parsujWynik(ostatnia.wynik_json)}
+            naglowekKopiowania={`Analiza transakcji (wygenerowano lokalnie: ${ostatnia.wersja_modelu})`}
+          />
           <p className={styles.stopka}>
             Wygenerowane lokalnie ({ostatnia.wersja_modelu}). To interpretacja, nie gwarantowana
             porada finansowa.

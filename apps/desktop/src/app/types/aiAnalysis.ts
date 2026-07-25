@@ -91,8 +91,10 @@ export interface PozycjaHistorii {
 
 /** Składa czytelny tekst całej analizy (do skopiowania/wklejenia). Pomija puste sekcje - dokładnie
  * jak panele na ekranie, które ich nie pokazują. Kolejność jak w UI: fakty → obserwacje → hipotezy
- * → rekomendacje → jakość danych. */
-export function analizaDoTekstu(w: AnalizaWynik): string {
+ * → rekomendacje → jakość danych. Opcjonalny `naglowek` (np. „Analiza zakresu …") jest dopisywany
+ * na początku, żeby wklejona gdzieś analiza mówiła, czego dotyczyła - na ekranie tę rolę pełni
+ * stopka panelu, ale sam schowek by ją gubił. */
+export function analizaDoTekstu(w: AnalizaWynik, naglowek?: string): string {
   const sekcje: [string, string[]][] = [
     ["Fakty", w.fakty],
     ["Obserwacje", w.obserwacje],
@@ -100,10 +102,15 @@ export function analizaDoTekstu(w: AnalizaWynik): string {
     ["Rekomendacje", w.rekomendacje],
     ["Jakość danych", w.jakosc_danych],
   ];
-  return sekcje
+  const tresc = sekcje
     .filter(([, pozycje]) => pozycje.length > 0)
     .map(([tytul, pozycje]) => `${tytul}:\n${pozycje.map((p) => `- ${p}`).join("\n")}`)
     .join("\n\n");
+  const czolo = naglowek?.trim();
+  if (!czolo) {
+    return tresc;
+  }
+  return tresc ? `${czolo}\n\n${tresc}` : czolo;
 }
 
 /** Jedna wiadomość czatu po danych (`WiadomoscCzatu` w Rust; `rola` = `RolaCzatu` snake_case). */
