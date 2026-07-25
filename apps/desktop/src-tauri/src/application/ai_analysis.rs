@@ -450,6 +450,8 @@ pub fn zbuduj_dane_transakcji(
         .unwrap_or_default();
 
     // Wymagane zasady WEJŚCIA, które nie zostały spełnione - najmocniejszy sygnał dyscypliny.
+    // Dokładamy POWÓD naruszenia (jeśli użytkownik go wpisał) - spec wprost wymaga "powodów
+    // naruszeń", a to najcenniejszy kontekst do analizy dyscypliny.
     let zasady_niespelnione = trade
         .checklist
         .as_ref()
@@ -457,7 +459,10 @@ pub fn zbuduj_dane_transakcji(
             c.entry
                 .iter()
                 .filter(|i| i.required && i.status == ChecklistStatus::Unfulfilled)
-                .map(|i| i.name.clone())
+                .map(|i| match i.reason.as_deref().map(str::trim) {
+                    Some(powod) if !powod.is_empty() => format!("{} (powód: {powod})", i.name),
+                    _ => i.name.clone(),
+                })
                 .collect()
         })
         .unwrap_or_default();
@@ -708,6 +713,26 @@ mod tests {
         let dane = zbuduj_dane_transakcji(&trade, None, None, &HashMap::new());
         // Tylko wymagana + niespełniona.
         assert_eq!(dane.zasady_niespelnione, vec!["Potwierdzenie wolumenu"]);
+    }
+
+    #[test]
+    fn powod_naruszenia_zasady_trafia_do_niespelnionych() {
+        let mut trade = trade_bazowy();
+        trade.checklist = Some(StrategyChecklist {
+            entry: vec![ChecklistItem {
+                rule_id: "r1".to_string(),
+                name: "Potwierdzenie wolumenu".to_string(),
+                required: true,
+                status: ChecklistStatus::Unfulfilled,
+                reason: Some("Wybicie było płaskie.".to_string()),
+            }],
+            management: vec![],
+        });
+        let dane = zbuduj_dane_transakcji(&trade, None, None, &HashMap::new());
+        assert_eq!(
+            dane.zasady_niespelnione,
+            vec!["Potwierdzenie wolumenu (powód: Wybicie było płaskie.)"]
+        );
     }
 
     #[test]
