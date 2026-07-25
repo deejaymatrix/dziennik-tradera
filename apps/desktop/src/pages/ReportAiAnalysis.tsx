@@ -48,11 +48,21 @@ export function ReportAiAnalysis({
     void wczytajModel();
   }, [wczytajModel]);
 
-  // Zmiana zakresu unieważnia poprzedni wynik - inaczej pokazywałby analizę innego okresu.
+  // Zmiana dowolnego wymiaru filtra unieważnia poprzedni wynik. Klucz to TOŻSAMOŚĆ filtra, nie jego
+  // opis: dwa różne zakresy o identycznym `zakresOpis` (np. dwa konta o tej samej nazwie i walucie na
+  // stronie Asystent AI) nie mogą dzielić starego wyniku.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setWynik(null);
-  }, [zakresOpis]);
+  }, [
+    filter.account_id,
+    filter.instrument_id,
+    filter.strategy_id,
+    filter.interval_id,
+    filter.side,
+    filter.year,
+    filter.month,
+  ]);
 
   async function analizuj(): Promise<void> {
     setAnalizuje(true);
