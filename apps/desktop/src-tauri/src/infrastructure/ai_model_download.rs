@@ -333,14 +333,22 @@ fn pobierz_i_zweryfikuj_z_adresu(
         // Uszkodzony/sfałszowany plik NIGDY nie zostaje uznany za gotowy model - usuwamy go,
         // żeby kolejna próba zaczęła się od zera, zamiast wznawiać dopisywanie do złej treści.
         let _ = std::fs::remove_file(&sciezka_tymczasowa);
+        // Szczegóły techniczne (hashe) idą do logu diagnostycznego. To NIE jest błąd IO - odczyt i
+        // zapis się udały, zła jest sama pobrana treść - więc `Validation`, nie `Io`: użytkownik ma
+        // zobaczyć wykonalny komunikat ("pobierz ponownie"), a nie generyczne "sprawdź miejsce na
+        // dysku i uprawnienia" z mapowania błędów IO.
+        crate::logging::log_error(
+            "model-download-sha",
+            &format!("oczekiwano {}, otrzymano {policzony_hash}", opis.sha256),
+        );
         let mut aktualny = postep
             .lock()
             .expect("mutex postępu nie powinien być zatruty");
         aktualny.status = StatusPobrania::Blad;
-        return Err(AppError::io(format!(
-            "suma SHA-256 pobranego pliku się nie zgadza (oczekiwano {}, otrzymano {policzony_hash})",
-            opis.sha256
-        )));
+        return Err(AppError::Validation(
+            "Pobrany plik modelu jest uszkodzony (błędna suma kontrolna). Spróbuj pobrać ponownie."
+                .to_string(),
+        ));
     }
 
     std::fs::rename(&sciezka_tymczasowa, &sciezka_docelowa)?;
@@ -605,7 +613,15 @@ mod tests {
         let blad = pobierz_i_zweryfikuj_z_adresu(&opis, &adres, katalog.path(), &postep, &anuluj)
             .expect_err("zła suma SHA-256 musi zostać odrzucona");
 
-        assert!(matches!(blad, AppError::Io(_)));
+        // Niezgodność sumy to błąd TREŚCI, nie IO - użytkownik dostaje wykonalny komunikat
+        // ("pobierz ponownie"), nie mylące "sprawdź miejsce na dysku" z mapowania błędów IO.
+        match &blad {
+            AppError::Validation(m) => {
+                assert!(m.contains("uszkodzony"));
+                assert!(m.contains("ponownie"));
+            }
+            inny => panic!("zła suma musi być błędem walidacji treści, było: {inny:?}"),
+        }
         assert!(!katalog.path().join(nazwa_docelowa(&opis)).exists());
         assert!(!katalog.path().join(nazwa_tymczasowa(&opis)).exists());
         assert!(!model_pobrany(&opis, katalog.path()));
