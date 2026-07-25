@@ -341,6 +341,8 @@ pub struct DaneAnalizyRaportu {
     pub wg_instrumentu: Vec<(String, String)>,
     pub wg_interwalu: Vec<(String, String)>,
     pub wg_dnia_tygodnia: Vec<(String, String)>,
+    /// Wynik wg PORY DNIA (bloki 4-godzinne) - spec: "zachowanie w konkretnych dniach i godzinach".
+    pub wg_pory_dnia: Vec<(String, String)>,
     pub wg_kierunku: Vec<(String, String)>,
     pub wg_miesiaca: Vec<(String, String)>,
 }
@@ -426,6 +428,7 @@ impl DaneAnalizyRaportu {
         dodaj_breakdown(&mut mapa, "wynik_wg_instrumentu", &self.wg_instrumentu);
         dodaj_breakdown(&mut mapa, "wynik_wg_interwalu", &self.wg_interwalu);
         dodaj_breakdown(&mut mapa, "wynik_wg_dnia_tygodnia", &self.wg_dnia_tygodnia);
+        dodaj_breakdown(&mut mapa, "wynik_wg_pory_dnia", &self.wg_pory_dnia);
         dodaj_breakdown(&mut mapa, "wynik_wg_kierunku", &self.wg_kierunku);
         dodaj_breakdown(&mut mapa, "wynik_wg_miesiaca", &self.wg_miesiaca);
         serde_json::Value::Object(mapa)

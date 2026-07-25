@@ -580,6 +580,7 @@ pub fn zbuduj_dane_raportu(raport: &FilteredReport, zakres_opis: String) -> Dane
         wg_instrumentu: breakdown_na_pary(&raport.by_instrument),
         wg_interwalu: breakdown_na_pary(&raport.by_interval),
         wg_dnia_tygodnia: breakdown_na_pary(&raport.by_day_of_week),
+        wg_pory_dnia: breakdown_na_pary(&raport.by_four_hour),
         wg_kierunku: breakdown_na_pary(&raport.by_side),
         wg_miesiaca: breakdown_na_pary(&raport.calendar_months),
     }
@@ -840,6 +841,7 @@ mod tests {
         let mut raport = raport_pusty();
         raport.by_strategy = vec![grupa("Breakout D1", dec!(420)), grupa("Scalp", dec!(-80))];
         raport.by_side = vec![grupa("BUY", dec!(500))];
+        raport.by_four_hour = vec![grupa("08:00-12:00", dec!(200))];
 
         let dane = zbuduj_dane_raportu(&raport, "Konto Główne · 2026".to_string());
         assert_eq!(dane.zakres_opis, "Konto Główne · 2026");
@@ -857,6 +859,11 @@ mod tests {
         assert_eq!(
             dane.wg_kierunku,
             vec![("BUY".to_string(), "500".to_string())]
+        );
+        // Pora dnia (bloki 4-godzinne) przeniesiona z by_four_hour.
+        assert_eq!(
+            dane.wg_pory_dnia,
+            vec![("08:00-12:00".to_string(), "200".to_string())]
         );
         // Nieustawione breakdowny zostają puste.
         assert!(dane.wg_instrumentu.is_empty());
