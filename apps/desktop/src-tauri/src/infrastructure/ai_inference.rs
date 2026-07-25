@@ -120,9 +120,16 @@ pub fn zaladuj_model(sciezka_modelu: &Path) -> Result<ZaladowanyModel, AppError>
     let model_params = LlamaModelParams::default();
     let model =
         LlamaModel::load_from_file(&backend, sciezka_modelu, &model_params).map_err(|e| {
-            AppError::io(format!(
-                "nie udało się wczytać modelu {sciezka_modelu:?}: {e}"
-            ))
+            // Surowy błąd silnika (najczęściej: uszkodzony/niekompatybilny plik modelu albo za mało
+            // RAM na jego wielkość) idzie do logu diagnostycznego; użytkownik dostaje WYKONALNY
+            // komunikat. Klasyfikacja `Validation`, nie `Io`: to nie jest problem miejsca na dysku
+            // ani uprawnień, więc generyczny komunikat IO ("sprawdź miejsce na dysku") tylko by mylił.
+            crate::logging::log_error("model-load", &format!("{sciezka_modelu:?}: {e}"));
+            AppError::Validation(
+                "Nie udało się wczytać modelu AI. Model może być uszkodzony (pobierz go ponownie w \
+                 Ustawieniach → Asystent AI) albo zabrakło pamięci RAM na jego wielkość."
+                    .to_string(),
+            )
         })?;
     Ok(ZaladowanyModel {
         _backend: backend,
