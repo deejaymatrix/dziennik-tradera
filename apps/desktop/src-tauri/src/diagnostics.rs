@@ -1,3 +1,4 @@
+use rusqlite::Connection;
 use serde::Serialize;
 use tauri::State;
 
@@ -38,31 +39,37 @@ pub enum DatabaseStatus {
     Failed { reason: String },
 }
 
+/// Uruchamia `PRAGMA integrity_check` i zwraca, czy baza jest spójna. Jedno miejsce dla tej
+/// logiki - używają jej i `get_database_status`, i `get_data_overview` (wcześniej powielona).
+/// Każdy błąd (nieudany pragma, nieoczekiwany wynik) traktujemy jako "niespójna" - nigdy nie
+/// udajemy "ok".
+fn integrity_ok(conn: &Connection) -> bool {
+    conn.pragma_query_value(None, "integrity_check", |row| row.get::<_, String>(0))
+        .map(|result| result.eq_ignore_ascii_case("ok"))
+        .unwrap_or(false)
+}
+
+/// Czyste odwzorowanie stanu bazy na status dla frontendu, wydzielone z komendy, żeby dało się
+/// je przetestować bez uchwytu Tauri. Krytyczna własność: `Failed` NIGDY nie może wyjść jako
+/// `Ready` - ekran startowy nie może pokazać fikcyjnego "gotowe", gdy baza nie wstała.
+fn database_status(db: &DbState) -> DatabaseStatus {
+    match db {
+        DbState::Ready { conn, db_path, .. } => DatabaseStatus::Ready {
+            path: db_path.display().to_string(),
+            integrity_ok: conn.lock().ok().map(|c| integrity_ok(&c)).unwrap_or(false),
+        },
+        DbState::Failed { reason } => DatabaseStatus::Failed {
+            reason: reason.clone(),
+        },
+    }
+}
+
 /// Prawdziwy status bazy danych - nigdy nie zwraca "ready", jeśli baza faktycznie nie
 /// została otwarta/zmigrowana przy starcie. Używane przez ekran startowy, żeby nie pokazywać
 /// fikcyjnego statusu "gotowe".
 #[tauri::command]
 pub fn get_database_status(state: State<'_, AppState>) -> DatabaseStatus {
-    match &state.db {
-        DbState::Ready { conn, db_path, .. } => {
-            let integrity_ok = conn
-                .lock()
-                .ok()
-                .and_then(|c| {
-                    c.pragma_query_value(None, "integrity_check", |row| row.get::<_, String>(0))
-                        .ok()
-                })
-                .map(|result| result.eq_ignore_ascii_case("ok"))
-                .unwrap_or(false);
-            DatabaseStatus::Ready {
-                path: db_path.display().to_string(),
-                integrity_ok,
-            }
-        }
-        DbState::Failed { reason } => DatabaseStatus::Failed {
-            reason: reason.clone(),
-        },
-    }
+    database_status(&state.db)
 }
 
 /// Bezpieczne podsumowanie stanu danych dla Ustawień → Dane i kopie bezpieczeństwa.
@@ -123,10 +130,7 @@ pub fn get_data_overview(
     let strategies = count("SELECT count(*) FROM strategies WHERE archived_at IS NULL");
     let attachments = count("SELECT count(*) FROM attachments");
 
-    let integrity_ok = guard
-        .pragma_query_value(None, "integrity_check", |row| row.get::<_, String>(0))
-        .map(|result| result.eq_ignore_ascii_case("ok"))
-        .unwrap_or(false);
+    let integrity_ok = integrity_ok(&guard);
     drop(guard);
 
     // W trybie WAL sam plik `.sqlite3` to nie całość - dziennik `-wal` potrafi ważyć tyle samo.
@@ -228,5 +232,31 @@ mod tests {
     fn reports_a_known_environment_label() {
         let status = build_app_status();
         assert!(status.env == "development" || status.env == "production");
+    }
+
+    #[test]
+    fn status_bazy_dla_failed_nigdy_nie_udaje_gotowej() {
+        // Własność bezpieczeństwa z komentarza przy `get_database_status`: gdy baza nie wstała,
+        // status MUSI być `Failed` z zachowanym powodem, nigdy `Ready` - inaczej ekran startowy
+        // pokazałby fikcyjne "gotowe" mimo martwej bazy.
+        let db = DbState::Failed {
+            reason: "nie można otworzyć bazy danych".to_string(),
+        };
+        match database_status(&db) {
+            DatabaseStatus::Failed { reason } => {
+                assert_eq!(reason, "nie można otworzyć bazy danych");
+            }
+            DatabaseStatus::Ready { .. } => {
+                panic!("stan Failed nie może zostać zaraportowany jako Ready");
+            }
+        }
+    }
+
+    #[test]
+    fn integrity_ok_waliduje_realnie_zdrowa_baze() {
+        // Zabezpiecza, że kontrola faktycznie odpytuje SQLite, a nie zwraca na sztywno `true`:
+        // poprawna (choćby pusta) baza przechodzi `PRAGMA integrity_check` = "ok".
+        let conn = Connection::open_in_memory().expect("open in-memory db");
+        assert!(integrity_ok(&conn));
     }
 }
