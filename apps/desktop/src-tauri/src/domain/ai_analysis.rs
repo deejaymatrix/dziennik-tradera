@@ -57,8 +57,11 @@ pub struct DaneAnalizyTransakcji {
     /// aplikacyjnej - domena nie ma dostępu do repozytorium stanów emocjonalnych.
     pub emocje: Vec<(String, Option<i64>)>,
     /// Wymagane zasady wejścia, które NIE zostały zaznaczone (z checklisty strategii) - kluczowy
-    /// sygnał dla analizy dyscypliny.
+    /// sygnał dla analizy dyscypliny. Każdy wpis może nieść też powód niespełnienia.
     pub zasady_niespelnione: Vec<String>,
+    /// Wymagane zasady ZARZĄDZANIA pozycją, które nie zostały spełnione (druga część checklisty).
+    /// Sygnał dyscypliny prowadzenia pozycji (a nie samego wejścia). Może nieść powód.
+    pub zarzadzanie_niespelnione: Vec<String>,
     pub plan_przed: Option<String>,
     pub notatki_zarzadzania: Option<String>,
     pub podsumowanie: Option<String>,
@@ -161,17 +164,30 @@ impl DaneAnalizyTransakcji {
                 .collect();
             mapa.insert("emocje".to_string(), serde_json::Value::Array(emocje));
         }
-        if !self.zasady_niespelnione.is_empty() {
-            let zasady: Vec<serde_json::Value> = self
-                .zasady_niespelnione
-                .iter()
-                .map(|z| serde_json::Value::String(z.clone()))
-                .collect();
-            mapa.insert(
-                "zasady_wejscia_niespelnione".to_string(),
-                serde_json::Value::Array(zasady),
-            );
+        /// Wstawia niepustą listę zasad jako tablicę stringów pod danym kluczem.
+        fn dodaj_zasady(
+            mapa: &mut serde_json::Map<String, serde_json::Value>,
+            klucz: &str,
+            zasady: &[String],
+        ) {
+            if !zasady.is_empty() {
+                let tablica = zasady
+                    .iter()
+                    .map(|z| serde_json::Value::String(z.clone()))
+                    .collect();
+                mapa.insert(klucz.to_string(), serde_json::Value::Array(tablica));
+            }
         }
+        dodaj_zasady(
+            &mut mapa,
+            "zasady_wejscia_niespelnione",
+            &self.zasady_niespelnione,
+        );
+        dodaj_zasady(
+            &mut mapa,
+            "zasady_zarzadzania_niespelnione",
+            &self.zarzadzanie_niespelnione,
+        );
         serde_json::Value::Object(mapa)
     }
 }

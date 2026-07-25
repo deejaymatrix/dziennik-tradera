@@ -23,7 +23,7 @@ use crate::domain::ai_analysis::{
 use crate::domain::ai_chat::{zbuduj_wiadomosci, WiadomoscCzatu};
 use crate::domain::ai_settings::UstawieniaOdpowiedziAi;
 use crate::domain::emotional_state::EmotionalStateRepository;
-use crate::domain::strategy_checklist::ChecklistStatus;
+use crate::domain::strategy_checklist::{ChecklistItem, ChecklistStatus};
 use crate::domain::trade::{Trade, TradeRepository, TradeSide, TradeStatus};
 use crate::domain::trade_partial_close;
 use crate::domain::trade_stats::{
@@ -449,22 +449,27 @@ pub fn zbuduj_dane_transakcji(
         })
         .unwrap_or_default();
 
-    // Wymagane zasady WEJŚCIA, które nie zostały spełnione - najmocniejszy sygnał dyscypliny.
-    // Dokładamy POWÓD naruszenia (jeśli użytkownik go wpisał) - spec wprost wymaga "powodów
-    // naruszeń", a to najcenniejszy kontekst do analizy dyscypliny.
+    // Wymagane, niespełnione zasady (z POWODEM naruszenia, jeśli podany - spec wprost wymaga
+    // "powodów naruszeń"). Ta sama logika dla wejścia i zarządzania pozycją.
+    let niespelnione = |items: &[ChecklistItem]| -> Vec<String> {
+        items
+            .iter()
+            .filter(|i| i.required && i.status == ChecklistStatus::Unfulfilled)
+            .map(|i| match i.reason.as_deref().map(str::trim) {
+                Some(powod) if !powod.is_empty() => format!("{} (powód: {powod})", i.name),
+                _ => i.name.clone(),
+            })
+            .collect()
+    };
     let zasady_niespelnione = trade
         .checklist
         .as_ref()
-        .map(|c| {
-            c.entry
-                .iter()
-                .filter(|i| i.required && i.status == ChecklistStatus::Unfulfilled)
-                .map(|i| match i.reason.as_deref().map(str::trim) {
-                    Some(powod) if !powod.is_empty() => format!("{} (powód: {powod})", i.name),
-                    _ => i.name.clone(),
-                })
-                .collect()
-        })
+        .map(|c| niespelnione(&c.entry))
+        .unwrap_or_default();
+    let zarzadzanie_niespelnione = trade
+        .checklist
+        .as_ref()
+        .map(|c| niespelnione(&c.management))
         .unwrap_or_default();
 
     // Częściowe zamknięcia - liczby JUŻ POLICZONE (sumatory), tylko sumujemy istniejące wpisy.
@@ -519,6 +524,7 @@ pub fn zbuduj_dane_transakcji(
         ryzyko_procent: trade.risk_percent.map(format_liczba),
         emocje,
         zasady_niespelnione,
+        zarzadzanie_niespelnione,
         plan_przed: trade.plan_before.clone(),
         notatki_zarzadzania: trade.management_notes.clone(),
         podsumowanie: trade.post_trade_summary.clone(),
@@ -732,6 +738,43 @@ mod tests {
         assert_eq!(
             dane.zasady_niespelnione,
             vec!["Potwierdzenie wolumenu (powód: Wybicie było płaskie.)"]
+        );
+    }
+
+    #[test]
+    fn niespelnione_zasady_zarzadzania_sa_osobno_od_wejscia() {
+        let mut trade = trade_bazowy();
+        trade.checklist = Some(StrategyChecklist {
+            entry: vec![ChecklistItem {
+                rule_id: "e1".to_string(),
+                name: "Wejście A".to_string(),
+                required: true,
+                status: ChecklistStatus::Unfulfilled,
+                reason: None,
+            }],
+            management: vec![
+                ChecklistItem {
+                    rule_id: "m1".to_string(),
+                    name: "Przesuń SL na BE".to_string(),
+                    required: true,
+                    status: ChecklistStatus::Unfulfilled,
+                    reason: Some("Zapomniałem.".to_string()),
+                },
+                ChecklistItem {
+                    rule_id: "m2".to_string(),
+                    name: "Opcjonalna".to_string(),
+                    required: false,
+                    status: ChecklistStatus::Unfulfilled,
+                    reason: None,
+                },
+            ],
+        });
+        let dane = zbuduj_dane_transakcji(&trade, None, None, &HashMap::new());
+        // Wejście i zarządzanie są rozdzielone; z zarządzania tylko wymagana niespełniona, z powodem.
+        assert_eq!(dane.zasady_niespelnione, vec!["Wejście A"]);
+        assert_eq!(
+            dane.zarzadzanie_niespelnione,
+            vec!["Przesuń SL na BE (powód: Zapomniałem.)"]
         );
     }
 
