@@ -129,6 +129,16 @@ impl AiRuntimeService {
     /// Włącza/wyłącza Asystenta AI i zapamiętuje wybór na dysku (przeżywa restart).
     pub fn ustaw_wlaczony(&self, wlaczony: bool) -> Result<(), AppError> {
         self.wlaczony.store(wlaczony, Ordering::SeqCst);
+        // Wyłączenie powinno FAKTYCZNIE zwolnić zasoby: jeśli model był załadowany do pamięci (po
+        // jakiejś analizie), usuwamy go z cache - kilka GB RAM wraca do systemu. Trwająca analiza
+        // trzyma własny `Arc`, więc jej to nie ubija; po ponownym włączeniu następna analiza po
+        // prostu wczyta model od nowa (leniwe ładowanie). Spójne z `ustaw_model`.
+        if !wlaczony {
+            *self
+                .zaladowany
+                .lock()
+                .expect("mutex modelu nie powinien być zatruty") = None;
+        }
         zapisz_wlaczony(&self.katalog_modeli, wlaczony)
     }
 
