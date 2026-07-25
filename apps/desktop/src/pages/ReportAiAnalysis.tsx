@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReactElement } from "react";
-import { Sparkles, StopCircle } from "lucide-react";
+import { Copy, Sparkles, StopCircle } from "lucide-react";
 import { invokeCommand, extractErrorMessage } from "../app/invokeCommand";
 import type { ReportFilter } from "../app/types/report";
 import type { AnalizaWynik, StatusModeluAi } from "../app/types/aiAnalysis";
+import { analizaDoTekstu } from "../app/types/aiAnalysis";
 import { Button } from "../ui/components/Button/Button";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import styles from "./TradeAiAnalysis.module.css";
@@ -89,6 +90,15 @@ export function ReportAiAnalysis({
     void invokeCommand("cancel_ai_analysis", {}).catch(() => undefined);
   }
 
+  async function kopiuj(w: AnalizaWynik): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(analizaDoTekstu(w));
+      showToast("Analiza skopiowana do schowka.", "success");
+    } catch {
+      showToast("Nie udało się skopiować do schowka.", "error");
+    }
+  }
+
   return (
     <section className={styles.sekcja}>
       <h3 className={styles.sekcjaTytul}>
@@ -124,6 +134,11 @@ export function ReportAiAnalysis({
           <Lista tytul="Hipotezy" pozycje={wynik.hipotezy} />
           <Lista tytul="Rekomendacje" pozycje={wynik.rekomendacje} />
           <Lista tytul="Jakość danych" pozycje={wynik.jakosc_danych} />
+          <div className={styles.akcje}>
+            <Button variant="secondary" onClick={() => void kopiuj(wynik)}>
+              <Copy size={16} /> Kopiuj analizę
+            </Button>
+          </div>
           <p className={styles.stopka}>
             Analiza zagregowanych danych zakresu „{zakresOpis}". To interpretacja, nie gwarantowana
             porada finansowa.

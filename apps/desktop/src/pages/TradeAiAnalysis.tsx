@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
-import { Sparkles, StopCircle } from "lucide-react";
+import { Copy, Sparkles, StopCircle } from "lucide-react";
 import { invokeCommand, extractErrorMessage } from "../app/invokeCommand";
-import type { PostepPobrania, StatusModeluAi, ZapisanaAnaliza } from "../app/types/aiAnalysis";
-import { opisPostepuPobierania, parsujWynik } from "../app/types/aiAnalysis";
+import type {
+  AnalizaWynik,
+  PostepPobrania,
+  StatusModeluAi,
+  ZapisanaAnaliza,
+} from "../app/types/aiAnalysis";
+import { analizaDoTekstu, opisPostepuPobierania, parsujWynik } from "../app/types/aiAnalysis";
 import { Button } from "../ui/components/Button/Button";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import styles from "./TradeAiAnalysis.module.css";
@@ -93,6 +98,15 @@ export function TradeAiAnalysis({ tradeId }: TradeAiAnalysisProps): ReactElement
 
   function przerwij(): void {
     void invokeCommand("cancel_ai_analysis", {}).catch(() => undefined);
+  }
+
+  async function kopiuj(w: AnalizaWynik): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(analizaDoTekstu(w));
+      showToast("Analiza skopiowana do schowka.", "success");
+    } catch {
+      showToast("Nie udało się skopiować do schowka.", "error");
+    }
   }
 
   async function pobierzModel(): Promise<void> {
@@ -185,6 +199,11 @@ export function TradeAiAnalysis({ tradeId }: TradeAiAnalysisProps): ReactElement
                 <Lista tytul="Hipotezy" pozycje={w.hipotezy} />
                 <Lista tytul="Rekomendacje" pozycje={w.rekomendacje} />
                 <Lista tytul="Jakość danych" pozycje={w.jakosc_danych} />
+                <div className={styles.akcje}>
+                  <Button variant="secondary" onClick={() => void kopiuj(w)}>
+                    <Copy size={16} /> Kopiuj analizę
+                  </Button>
+                </div>
               </>
             );
           })()}

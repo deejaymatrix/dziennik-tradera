@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReactElement } from "react";
-import { ChevronDown, ChevronRight, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Copy, Trash2 } from "lucide-react";
 import { invokeCommand, extractErrorMessage } from "../app/invokeCommand";
-import type { PozycjaHistorii } from "../app/types/aiAnalysis";
-import { parsujWynik } from "../app/types/aiAnalysis";
+import type { AnalizaWynik, PozycjaHistorii } from "../app/types/aiAnalysis";
+import { analizaDoTekstu, parsujWynik } from "../app/types/aiAnalysis";
 import { Button } from "../ui/components/Button/Button";
 import { useConfirm } from "../ui/components/ConfirmDialog/ConfirmDialog";
 import { useToast } from "../ui/components/Toast/ToastProvider";
@@ -80,6 +80,15 @@ export function HistoriaAnaliz(): ReactElement {
     }
   }
 
+  async function kopiuj(w: AnalizaWynik): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(analizaDoTekstu(w));
+      showToast("Analiza skopiowana do schowka.", "success");
+    } catch {
+      showToast("Nie udało się skopiować do schowka.", "error");
+    }
+  }
+
   async function usunWszystkie(): Promise<void> {
     if (
       !(await confirm({
@@ -152,6 +161,11 @@ export function HistoriaAnaliz(): ReactElement {
                   <Lista tytul="Hipotezy" pozycje={wynik.hipotezy} />
                   <Lista tytul="Rekomendacje" pozycje={wynik.rekomendacje} />
                   <Lista tytul="Jakość danych" pozycje={wynik.jakosc_danych} />
+                  <div className={styles.akcje}>
+                    <Button variant="secondary" size="sm" onClick={() => void kopiuj(wynik)}>
+                      <Copy size={16} /> Kopiuj
+                    </Button>
+                  </div>
                   <p className={styles.stopka}>
                     Analiza typu „{p.typ_analizy}", model {p.wersja_modelu}. Objęta kopią zapasową.
                   </p>

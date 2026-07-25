@@ -89,6 +89,23 @@ export interface PozycjaHistorii {
   wynik_json: string;
 }
 
+/** Składa czytelny tekst całej analizy (do skopiowania/wklejenia). Pomija puste sekcje - dokładnie
+ * jak panele na ekranie, które ich nie pokazują. Kolejność jak w UI: fakty → obserwacje → hipotezy
+ * → rekomendacje → jakość danych. */
+export function analizaDoTekstu(w: AnalizaWynik): string {
+  const sekcje: [string, string[]][] = [
+    ["Fakty", w.fakty],
+    ["Obserwacje", w.obserwacje],
+    ["Hipotezy", w.hipotezy],
+    ["Rekomendacje", w.rekomendacje],
+    ["Jakość danych", w.jakosc_danych],
+  ];
+  return sekcje
+    .filter(([, pozycje]) => pozycje.length > 0)
+    .map(([tytul, pozycje]) => `${tytul}:\n${pozycje.map((p) => `- ${p}`).join("\n")}`)
+    .join("\n\n");
+}
+
 /** Jedna wiadomość czatu po danych (`WiadomoscCzatu` w Rust; `rola` = `RolaCzatu` snake_case). */
 export interface WiadomoscCzatu {
   rola: "uzytkownik" | "asystent";
