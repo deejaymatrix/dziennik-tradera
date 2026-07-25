@@ -351,6 +351,12 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
 
 ### Fixed
 
+- Eksport PDF pokazywał polskie znaki (ą, ć, ę, ł, ń, ó, ś, ź, ż) jako "krzaki" - standardowy
+  font PDF (Helvetica) bez osadzonego kroju renderuje wyłącznie ASCII. Teraz polskie znaki są
+  transliterowane do ASCII (ę→e, ł→l, …) tuż przed zapisem do pliku, więc każdy raport jest
+  czytelny; zapisane w aplikacji nazwy kont/strategii zachowują ogonki bez zmian (poprawka
+  dotyczy wyłącznie wyeksportowanego PDF). Pełne polskie znaki w PDF (osadzony font) planowane
+  po wydaniu.
 - Przycisk "Edytuj" i "Zapisz zmiany" na karcie transakcji zajmowały to samo miejsce w stopce
   (prawy, główny przycisk) - szybkie podwójne kliknięcie w "Edytuj" trafiało drugim kliknięciem
   już w nowo podstawiony przycisk zapisu, zapisując transakcję natychmiast, bez żadnej realnej
