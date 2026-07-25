@@ -15,7 +15,7 @@
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::time::Duration;
 
 use serde::{Serialize, Serializer};
@@ -284,15 +284,6 @@ pub fn usun_model(opis: &OpisModelu, katalog_modeli: &Path) -> Result<(), AppErr
 /// nosi docelową nazwę, bo tylko udana weryfikacja w [`pobierz_i_zweryfikuj_z_adresu`] ją nadaje).
 pub fn model_pobrany(opis: &OpisModelu, katalog_modeli: &Path) -> bool {
     katalog_modeli.join(nazwa_docelowa(opis)).exists()
-}
-
-/// Serializacja `Arc<Mutex<...>>` wprost jako wnętrza - żeby komenda zwracająca `PostepPobrania`
-/// mogła po prostu zamknąć uchwyt w `Arc<Mutex<_>>` bez ręcznego odblokowywania w każdym miejscu.
-pub fn zrzut_postepu(postep: &Arc<Mutex<PostepPobrania>>) -> PostepPobrania {
-    postep
-        .lock()
-        .expect("mutex postępu nie powinien być zatruty")
-        .clone()
 }
 
 impl Serialize for OpisModelu {

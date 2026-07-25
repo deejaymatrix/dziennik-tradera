@@ -16,6 +16,8 @@ use std::sync::{Arc, Mutex};
 use tauri::Manager;
 
 use application::accounts::AccountsService;
+use application::ai_analysis::AiAnalysisService;
+use application::ai_runtime::AiRuntimeService;
 use application::attachments::AttachmentsService;
 use application::backup::BackupService;
 use application::broker_templates::BrokerTemplatesService;
@@ -31,6 +33,7 @@ use application::trades::TradesService;
 use application::trading_rules::TradingRulesService;
 use application::trash::TrashService;
 use infrastructure::sqlite_account_repository::SqliteAccountRepository;
+use infrastructure::sqlite_ai_analysis_repository::SqliteAiAnalysisRepository;
 use infrastructure::sqlite_attachment_repository::SqliteAttachmentRepository;
 use infrastructure::sqlite_broker_template_repository::SqliteBrokerTemplateRepository;
 use infrastructure::sqlite_cash_operation_repository::SqliteCashOperationRepository;
@@ -166,6 +169,18 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
     let preferences =
         PreferencesService::new(Arc::new(SqlitePreferencesRepository::new(conn.clone())));
 
+    // Asystent AI (Blok F). Model leży w osobnym podkatalogu katalogu danych aplikacji - obok
+    // bazy i kopii, ale nie w nich, bo to duży plik binarny pobierany osobno (nie backupowany
+    // razem z danymi użytkownika).
+    let ai_runtime = Arc::new(AiRuntimeService::new(app_data_dir.join("ai-models")));
+    let ai_analysis = Arc::new(AiAnalysisService::new(
+        ai_runtime,
+        Arc::new(SqliteAiAnalysisRepository::new(conn.clone())),
+        Arc::new(SqliteTradeRepository::new(conn.clone())),
+        accounts.clone(),
+        Arc::new(SqliteEmotionalStateRepository::new(conn.clone())),
+    ));
+
     DbState::Ready {
         conn,
         db_path,
@@ -184,6 +199,7 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
         instrument_import,
         trash: Box::new(trash),
         preferences,
+        ai_analysis,
     }
 }
 
@@ -208,6 +224,16 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::ai_analysis::analyze_trade,
+            commands::ai_analysis::cancel_ai_analysis,
+            commands::ai_analysis::get_trade_analysis,
+            commands::ai_analysis::delete_trade_analysis,
+            commands::ai_analysis::delete_all_ai_analyses,
+            commands::ai_analysis::ai_model_status,
+            commands::ai_analysis::download_ai_model,
+            commands::ai_analysis::ai_model_download_progress,
+            commands::ai_analysis::cancel_ai_model_download,
+            commands::ai_analysis::delete_ai_model,
             diagnostics::get_app_status,
             diagnostics::get_database_status,
             diagnostics::get_data_overview,

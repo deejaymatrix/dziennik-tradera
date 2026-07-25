@@ -1,17 +1,14 @@
 //! Usługa uruchamiania lokalnego modelu AI (Etap 2 Bloku F).
 //!
 //! Odpowiada za CAŁY cykl życia analizy - to, czego czysta funkcja `ai_inference::generuj` celowo
-//! nie robi:
-//! - ładuje model RAZ (leniwie, przy pierwszej analizie) i przetrzymuje go do ponownego użycia
-//!   (ładowanie to 4-19 s, nie chcemy go płacić na każdą analizę);
-//! - "jedna analiza naraz" - druga próba w trakcie trwającej jest ODRZUCANA (wymóg specyfikacji
-//!   "zakaz uruchamiania wielu ciężkich analiz jednocześnie"; pełna kolejka to osobny, przyszły
-//!   krok - tu wystarczy jednoznaczne odrzucenie zamiast cichego zrównoleglenia);
-//! - "waliduj + ponów" - po każdej próbie sprawdza poprawność odpowiedzi i, jeśli zła, ponawia
-//!   z INNYM ziarnem (patrz `docs/AI_ASYSTENT_WYBOR_MODELU.md` - to zastępuje gramatykę GBNF,
-//!   która crashuje silnik w tej wersji `llama-cpp-2`);
-//! - anulowanie i timeout - flaga sprawdzana przy każdym tokenie w `generuj`, ustawiana z zewnątrz
-//!   przez `anuluj()` (inny wątek/komenda).
+//! nie robi. Ładuje model RAZ (leniwie, przy pierwszej analizie) i przetrzymuje go do ponownego
+//! użycia (ładowanie to 4-19 s, nie chcemy go płacić na każdą analizę). Wymusza "jedną analizę
+//! naraz" - druga próba w trakcie trwającej jest ODRZUCANA (wymóg specyfikacji "zakaz uruchamiania
+//! wielu ciężkich analiz jednocześnie"; pełna kolejka to osobny, przyszły krok). Robi "waliduj +
+//! ponów" - po każdej próbie sprawdza poprawność odpowiedzi i, jeśli zła, ponawia z INNYM ziarnem
+//! (patrz `docs/AI_ASYSTENT_WYBOR_MODELU.md` - to zastępuje gramatykę GBNF, która crashuje silnik w
+//! tej wersji `llama-cpp-2`). Obsługuje anulowanie i timeout - flaga sprawdzana przy każdym tokenie
+//! w `generuj`, ustawiana z zewnątrz przez `anuluj()` (inny wątek/komenda).
 //!
 //! Sama logika cyklu życia (odrzucanie zajętości, pętla ponowień, sprawdzanie anulowania) jest
 //! w `analizuj_z_generatorem`, która przyjmuje DOMYKAJĄCY generator - dzięki temu testy podstawiają
@@ -24,7 +21,10 @@ use std::time::Duration;
 
 use crate::error::AppError;
 use crate::infrastructure::ai_inference::{generuj, zaladuj_model, KonfiguracjaGenerowania};
-use crate::infrastructure::ai_model_download::{model_pobrany, OpisModelu, KANDYDACI};
+use crate::infrastructure::ai_model_download::{
+    model_pobrany, pobierz_i_zweryfikuj, usun_model, OpisModelu, PostepPobrania, StatusPobrania,
+    KANDYDACI,
+};
 
 /// Model produkcyjny (patrz `docs/AI_ASYSTENT_WYBOR_MODELU.md` - Qwen2.5-7B-Instruct wygrał
 /// benchmark po uwzględnieniu strategii "waliduj + ponów").
@@ -50,6 +50,11 @@ pub struct AiRuntimeService {
     /// Flaga anulowania BIEŻĄCEJ analizy. `anuluj()` ustawia `true`; start nowej analizy resetuje
     /// ją do `false`. Współdzielona (`Arc`), bo `generuj` sprawdza ją z wnętrza pętli tokenów.
     anuluj: Arc<AtomicBool>,
+    /// Postęp pobierania modelu - odpytywany przez frontend osobną komendą (ten sam wzorzec co
+    /// reszta aplikacji), aktualizowany z wnętrza `pobierz_model_blocking`.
+    postep_pobierania: Arc<Mutex<PostepPobrania>>,
+    /// Flaga anulowania POBIERANIA modelu (osobna od anulowania analizy).
+    anuluj_pobieranie: Arc<AtomicBool>,
 }
 
 /// Strażnik RAII zdejmujący flagę "zajęty" przy wyjściu z analizy - gwarantuje, że nawet wczesny
@@ -69,7 +74,54 @@ impl AiRuntimeService {
             zaladowany: Mutex::new(None),
             zajety: AtomicBool::new(false),
             anuluj: Arc::new(AtomicBool::new(false)),
+            postep_pobierania: Arc::new(Mutex::new(PostepPobrania {
+                pobrano_bajtow: 0,
+                calkowity_rozmiar: 0,
+                status: StatusPobrania::Trwa,
+            })),
+            anuluj_pobieranie: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    /// Opis modelu produkcyjnego (rozmiar do pokazania przed pobraniem itd.).
+    pub fn opis_modelu_produkcyjnego() -> &'static OpisModelu {
+        Self::opis_modelu()
+    }
+
+    /// Pobiera i weryfikuje model produkcyjny. BLOKUJĄCE (gigabajty + SHA-256) - wołać z
+    /// `spawn_blocking`. Postęp odczytywalny przez `postep_pobierania()`, anulowanie przez
+    /// `anuluj_pobieranie()`. Idempotentne wobec już pobranego modelu (pobiera od nowa/wznawia).
+    pub fn pobierz_model_blocking(&self) -> Result<(), AppError> {
+        self.anuluj_pobieranie.store(false, Ordering::SeqCst);
+        pobierz_i_zweryfikuj(
+            Self::opis_modelu(),
+            &self.katalog_modeli,
+            &self.postep_pobierania,
+            &self.anuluj_pobieranie,
+        )
+        .map(|_| ())
+    }
+
+    /// Bieżący postęp pobierania modelu (do odpytywania z frontendu).
+    pub fn postep_pobierania(&self) -> PostepPobrania {
+        self.postep_pobierania
+            .lock()
+            .expect("mutex postępu nie powinien być zatruty")
+            .clone()
+    }
+
+    /// Przerywa trwające pobieranie modelu.
+    pub fn anuluj_pobieranie(&self) {
+        self.anuluj_pobieranie.store(true, Ordering::SeqCst);
+    }
+
+    /// Usuwa pobrany model z dysku (i zwalnia go z pamięci, jeśli był załadowany).
+    pub fn usun_model(&self) -> Result<(), AppError> {
+        *self
+            .zaladowany
+            .lock()
+            .expect("mutex modelu nie powinien być zatruty") = None;
+        usun_model(Self::opis_modelu(), &self.katalog_modeli)
     }
 
     fn opis_modelu() -> &'static OpisModelu {

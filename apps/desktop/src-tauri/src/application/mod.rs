@@ -1,4 +1,5 @@
 pub mod accounts;
+pub mod ai_analysis;
 pub mod ai_runtime;
 pub mod attachments;
 pub mod backup;

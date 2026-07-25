@@ -214,13 +214,11 @@ impl AnalizaWynik {
 /// obiektu. Uwzględnia stringi i escapowanie, żeby `}` wewnątrz stringa nie ucięło obiektu za
 /// wcześnie.
 fn pierwszy_obiekt_json(tekst: &str) -> Option<&str> {
-    let bajty = tekst.as_bytes();
     let start = tekst.find('{')?;
     let mut glebokosc = 0i32;
     let mut w_stringu = false;
     let mut escape = false;
-    for i in start..bajty.len() {
-        let c = bajty[i];
+    for (i, c) in tekst.bytes().enumerate().skip(start) {
         if w_stringu {
             if escape {
                 escape = false;

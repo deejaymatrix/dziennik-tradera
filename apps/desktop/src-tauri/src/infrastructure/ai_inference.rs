@@ -86,7 +86,12 @@ tekst ::= "\"" ([^"\\] | "\\" (["\\/bfnrt] | "u" [0-9a-fA-F] [0-9a-fA-F] [0-9a-f
 #[derive(Debug, Clone)]
 pub struct WynikGenerowania {
     pub tekst: String,
+    // Odczytywane wyłącznie przez benchmark (`benchmark_wyboru_modelu`) - kod produkcyjny bierze
+    // tylko `tekst`, więc poza testami te pola są nieużywane. Zostają, bo benchmark ich potrzebuje
+    // do pomiaru wydajności kandydatów.
+    #[allow(dead_code)]
     pub czas_generowania: Duration,
+    #[allow(dead_code)]
     pub tokenow_wygenerowanych: usize,
 }
 
@@ -435,7 +440,7 @@ Bez żadnego tekstu poza tym obiektem JSON."#
     }
 
     /// Naprawa niezawodności JSON-a Qwen2.5-7B (który w poprzednim benchmarku raz złamał składnię
-    /// - niezescapowany cudzysłów wewnątrz stringa). Wymuszanie gramatyki GBNF na poziomie
+    /// przez niezescapowany cudzysłów wewnątrz stringa). Wymuszanie gramatyki GBNF na poziomie
     /// silnika okazało się NIEBEZPIECZNE (crashuje proces - patrz dokumentacja
     /// `GRAMATYKA_ANALIZY_JSON`), więc zamiast tego: waliduj wynik i ponów z INNYM ziarnem
     /// samplera, jeśli JSON jest niepoprawny. Inne ziarno naprawdę daje INNY wynik (zob.

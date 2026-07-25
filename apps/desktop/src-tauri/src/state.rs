@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use rusqlite::Connection;
 
 use crate::application::accounts::AccountsService;
+use crate::application::ai_analysis::AiAnalysisService;
 use crate::application::attachments::AttachmentsService;
 use crate::application::backup::BackupService;
 use crate::application::broker_templates::BrokerTemplatesService;
@@ -46,6 +47,9 @@ pub enum DbState {
         instrument_import: InstrumentImportService,
         trash: Box<TrashService>,
         preferences: PreferencesService,
+        /// Asystent AI (Blok F) - w `Arc`, bo komendy analizy uruchamiają go na `spawn_blocking`
+        /// (wątek w tle), więc potrzebują współdzielonego, `'static` uchwytu do usługi.
+        ai_analysis: Arc<AiAnalysisService>,
     },
     Failed {
         reason: String,
