@@ -1,8 +1,9 @@
 # Dziennik Tradera
 
 Lokalna aplikacja desktopowa dla Windows do prowadzenia dziennika transakcji tradingowych.
-Brak logowania, kont, chmury, telemetrii i importu z MT5 — wszystkie dane trzymane są
-lokalnie. Zobacz [ROADMAP.md](ROADMAP.md) i [PROGRESS.md](PROGRESS.md) po aktualny stan prac.
+Bez logowania, kont, chmury i telemetrii — wszystkie dane trzymane są lokalnie. Obsługuje
+import historii z MT5 (xlsx) oraz instrumentów z plików CSV brokera. Zobacz
+[ROADMAP.md](ROADMAP.md) i [PROGRESS.md](PROGRESS.md) po aktualny stan prac.
 
 ## Wymagania
 
