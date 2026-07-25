@@ -4,6 +4,10 @@ Format zgodny z [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-25
+
+Pierwsze publiczne wydanie.
+
 ### Added
 
 - Fundament repozytorium: monorepo pnpm, TypeScript ścisły, ESLint + Prettier, Tauri 2 +
