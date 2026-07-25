@@ -200,6 +200,51 @@ mod tests {
         }
     }
 
+    fn wejscie_z_liczba_wierszy(n: usize) -> PdfReportInput {
+        PdfReportInput {
+            title: "Raport konta".to_string(),
+            subtitle: "Wygenerowano 2026-07-25".to_string(),
+            summary_lines: vec!["Wynik netto: 0".to_string()],
+            table_headers: vec!["#".to_string(), "Instrument".to_string()],
+            table_rows: (0..n)
+                .map(|i| vec![(i + 1).to_string(), "EURUSD".to_string()])
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn pusta_tabela_daje_jedna_poprawna_strone() {
+        // Świeży użytkownik bez ani jednej transakcji też może kliknąć „Eksportuj PDF" - to nie
+        // może dać pustego/uszkodzonego dokumentu ani paniki, tylko jedną stronę z nagłówkami.
+        let dir = tempfile::tempdir().expect("katalog tymczasowy");
+        let destination = dir.path().join("pusty.pdf");
+        generate(&wejscie_z_liczba_wierszy(0), &destination).expect("generowanie PDF");
+
+        let doc = Document::load(&destination).expect("wczytanie PDF");
+        assert_eq!(
+            doc.get_pages().len(),
+            1,
+            "pusta tabela = dokładnie jedna strona"
+        );
+    }
+
+    #[test]
+    fn duzo_wierszy_dzieli_sie_na_wiele_stron() {
+        // Użytkownik po imporcie ~1000 transakcji musi dostać KOMPLETNY raport - wiersze nie mogą
+        // wypaść poza jedną przepełnioną stronę. 100 wierszy pewnie przekracza pojemność pierwszej
+        // strony, więc muszą powstać co najmniej dwie (test odporny na drobne zmiany stałych).
+        let dir = tempfile::tempdir().expect("katalog tymczasowy");
+        let destination = dir.path().join("duzy.pdf");
+        generate(&wejscie_z_liczba_wierszy(100), &destination).expect("generowanie PDF");
+
+        let doc = Document::load(&destination).expect("wczytanie PDF");
+        assert!(
+            doc.get_pages().len() >= 2,
+            "100 wierszy musi rozłożyć się na wiele stron, było: {}",
+            doc.get_pages().len()
+        );
+    }
+
     /// Sekcja 17 promptu: „eksport PDF zachowuje profesjonalne jasne tło".
     ///
     /// PDF powstaje w Ruście i NIE zna motywu aplikacji - to jest właśnie mechanizm gwarancji.
