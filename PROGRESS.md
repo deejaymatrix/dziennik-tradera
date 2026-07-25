@@ -5066,3 +5066,31 @@ niepobrany). To jest **Etap 4 (demo/weryfikacja u użytkownika)**.
 strategia/emocjonalna/pełny audyt), czat po danych, pełna sekcja „Asystent AI" w Ustawieniach,
 pełny model uprawnień do kategorii danych, pełna macierz testów odporności (brak RAM, uszkodzony
 model itd.), macOS (kod pisany wieloplatformowo, ale niezweryfikowany - brak Maca).
+
+**Etap 5 - status końcowy (2026-07-25).** Rdzeń Bloku F jest **ukończony, otestowany i
+udokumentowany**. Zrobione i wypchnięte: analiza wybranego zakresu na ekranie Raporty (dowolny
+filtr: okres/konto/instrument/strategia/interwał/kierunek) oraz całego konta na stronie Asystent
+AI - jeden silnik `analyze_report` na istniejącym `FilteredReport`; dedykowana **analiza
+emocjonalna** (korelacja emocja↔wynik z bazą odniesienia całego zakresu) i **audyt zachowania**
+(overtrading z porównaniem szczytu do średniej dziennej, dyscyplina ze średnimi na transakcję,
+handel po stracie z bazą netto i wolumenu, serie strat/zysków); **czat po danych** (podstawa =
+zamknięte transakcje, ostrzeżenie o małej próbie, obsługa pustej odpowiedzi); **pełna sekcja
+Ustawień** (włączenie/wyłączenie, wybór modelu, zajęte miejsce, język + szczegółowość); **wynik
+5-sekcyjny** (fakty/obserwacje/hipotezy/rekomendacje/jakość danych), kopiowanie z nagłówkiem
+kontekstu, historia zapisanych analiz. Wszystkie deterministyczne KPI, które model mógłby liczyć
+sam, są podawane gotowe z Rust (m.in. średni zysk/strata, czas trzymania, liczby transakcji w
+breakdownach, planowane R:R, bazy emocji i zachowania) - AI tylko interpretuje. Niezawodność:
+odrzucanie pustej odpowiedzi (ponów), czytelny komunikat timeoutu i uszkodzonego pobrania (błąd
+treści, nie mylące „sprawdź dysk"). **Pokrycie testami kompletne**: warstwa Rust + wszystkie
+komponenty AI (hub, 4 panele, ustawienia). Weryfikacja: `cargo test --lib` 511, `vitest` 715,
+`clippy -D warnings` czysto (poza 4 pre-istniejącymi `dead_code` z `task_c91d280f`). Dokumentacja:
+`CHANGELOG.md` (sekcja Blok F) + `docs/ASYSTENT_AI.md` (przewodnik użytkownika), oba podlinkowane
+z README.
+
+**Świadomie odłożone / zablokowane (poza rdzeniem):** trwałe zapisywanie analiz całościowych
+(raport/emocje/audyt) - wymaga migracji schematu, celowo nietknięte bez zgody; czat strumieniowy i
+zawężany do okresu; zgody per-kategoria danych - **pominięte na wyraźną prośbę użytkownika**;
+tryby CPU/GPU i limit RAM - build llama.cpp jest CPU-only, byłyby fikcyjnymi przełącznikami; macOS
+
+- kod wieloplatformowy, empirycznie niezweryfikowany (brak sprzętu); pełna macierz odporności -
+  wymaga realnych uruchomień z pobranym modelem. Instalator/wydanie: `docs/KLUCZE_I_WYDANIE.md`.
