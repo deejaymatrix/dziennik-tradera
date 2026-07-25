@@ -75,6 +75,7 @@ const EXTRA_AKTUALIZACJA = "aktualizacja-dostepna";
 /** Wynik komendy `check_update_manifest` (kształt z `WynikSprawdzenia` w Rust). */
 type WynikManifestu =
   | { kind: "bez_zmian" }
+  | { kind: "brak_wydania" }
   | { kind: "nowy"; manifest: { version: string; notes?: string | null }; etag?: string | null };
 
 export function UpdateMonitorProvider({
@@ -131,9 +132,11 @@ export function UpdateMonitorProvider({
           monitorRef.current = poUdanymSprawdzeniu(Date.now());
         }
 
-        if (wynik.kind === "bez_zmian") {
-          // Manifest bez zmian - nie ruszamy stanu widocznego dla użytkownika, bo znacznik
-          // dostępnej aktualizacji (jeśli jest) ma zostać.
+        if (wynik.kind === "bez_zmian" || wynik.kind === "brak_wydania") {
+          // Manifest bez zmian ALBO nie ma jeszcze żadnego opublikowanego wydania - w obu
+          // przypadkach nie ma czego instalować i nie ruszamy znacznika dostępnej aktualizacji
+          // (jeśli jest, ma zostać). Przy sprawdzeniu ręcznym pokazujemy spokojne „aktualna",
+          // nigdy błędu - brak wydania to normalny stan przed pierwszym wydaniem, nie awaria.
           if (reczne && !znacznikDostepnej) {
             setStan({ rodzaj: "aktualna" });
           }

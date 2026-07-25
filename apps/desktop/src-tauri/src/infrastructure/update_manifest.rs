@@ -68,6 +68,10 @@ impl ManifestAktualizacji {
 pub enum WynikSprawdzenia {
     /// Serwer odpowiedział `304` - manifest bez zmian, nie ma czego robić.
     BezZmian,
+    /// Serwer odpowiedział `404` - nie ma jeszcze ŻADNEGO opublikowanego wydania z manifestem.
+    /// To normalny stan przed pierwszym wydaniem, nie awaria - UI pokazuje spokojny komunikat
+    /// zamiast błędu I/O.
+    BrakWydania,
     /// Manifest się zmienił (albo sprawdzamy pierwszy raz).
     Nowy {
         manifest: ManifestAktualizacji,
@@ -109,6 +113,13 @@ async fn sprawdz_pod_adresem(
 
     if odpowiedz.status() == reqwest::StatusCode::NOT_MODIFIED {
         return Ok(WynikSprawdzenia::BezZmian);
+    }
+    // 404 pod `releases/latest/download/latest.json` znaczy po prostu, że nie ma jeszcze żadnego
+    // opublikowanego wydania z manifestem - normalny stan przed pierwszym wydaniem, nie awaria.
+    // Zwracamy go osobno, żeby UI pokazało spokojny komunikat zamiast błędu I/O („sprawdź miejsce
+    // na dysku"), który do sieciowego 404 zupełnie nie pasuje.
+    if odpowiedz.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok(WynikSprawdzenia::BrakWydania);
     }
     if !odpowiedz.status().is_success() {
         return Err(AppError::io(format!(
@@ -296,7 +307,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn odpowiedz_404_daje_czytelny_blad() {
+    async fn odpowiedz_404_znaczy_brak_wydania_a_nie_blad() {
         zainstaluj_dostawce_kryptografii();
         let (adres, uchwyt) = uruchom_serwer(MockOdpowiedz {
             status_linia: "HTTP/1.1 404 Not Found",
@@ -304,16 +315,13 @@ mod tests {
             tresc: String::new(),
         });
 
-        // `AppError::Io` celowo pokazuje na zewnątrz tylko ogólny komunikat - kod HTTP
-        // trafia do SZCZEGÓŁÓW błędu (zalogowanych), nie do `Display`/`to_string()`.
-        // Dopasowanie do wariantu sprawdza to samo miejsce, które faktycznie loguje.
-        let blad = sprawdz_pod_adresem(&adres, None)
+        // Pod adresem `releases/latest/download/latest.json` 404 to nie awaria, tylko brak
+        // opublikowanego jeszcze wydania - musi dać spokojny `BrakWydania`, nie błąd I/O, który
+        // straszyłby użytkownika komunikatem o miejscu na dysku.
+        let wynik = sprawdz_pod_adresem(&adres, None)
             .await
-            .expect_err("404 musi dać błąd");
-        match &blad {
-            AppError::Io(szczegoly) => assert!(szczegoly.contains("404")),
-            inny => panic!("oczekiwano AppError::Io, jest {inny:?}"),
-        }
+            .expect("404 musi dać spokojny wynik, nie błąd");
+        assert_eq!(wynik, WynikSprawdzenia::BrakWydania);
         uchwyt
             .join()
             .expect("wątek serwera")

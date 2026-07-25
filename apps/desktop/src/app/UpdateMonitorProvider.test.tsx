@@ -322,6 +322,26 @@ describe("UpdateMonitorProvider - stan dla użytkownika", () => {
     expect(screen.getByTestId("rodzaj").textContent).toBe("bezczynny");
   });
 
+  it("brak opublikowanego wydania (404) jest spokojny - żadnego błędu ani wołania wtyczki", async () => {
+    // `releases/latest/download/latest.json` zwraca 404, dopóki nie ma żadnego wydania - to
+    // normalny stan przed pierwszym wydaniem. Monitor nie może z tego robić błędu ani wołać
+    // wtyczki `check()` (która i tak zwróciłaby własny mylący komunikat).
+    invokeCommand.mockResolvedValue({ kind: "brak_wydania" });
+
+    render(
+      <UpdateMonitorProvider wersjaBiezaca="1.0.0">
+        <Podglad />
+      </UpdateMonitorProvider>,
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(STARTOWE_OPOZNIENIE_MS);
+    });
+
+    expect(screen.getByTestId("rodzaj").textContent).toBe("bezczynny");
+    expect(checkUpdate).not.toHaveBeenCalled();
+  });
+
   it("nieudane sprawdzenie automatyczne jest CICHE - nie zmienia stanu widocznego", async () => {
     // Błąd monitorowania nie ma prawa przeszkadzać w pracy ani straszyć użytkownika,
     // który o nic nie prosił.
