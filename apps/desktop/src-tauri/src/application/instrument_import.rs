@@ -87,3 +87,36 @@ impl InstrumentImportService {
             .import_into_template(template_id, &instruments)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn split_csv_zachowuje_przecinek_w_cudzyslowie_jako_jedno_pole() {
+        // Opis z przecinkiem w cudzysłowie to klasyczny wektor CICHEGO rozjazdu kolumn: bez
+        // prawdziwego parsera CSV "Euro, dolar" rozbiłoby się na dwa pola i przesunęło wszystkie
+        // kolejne wartości w prawo - import by się udał, a parametry instrumentu wyszłyby złe.
+        let csv = "Symbol,Description,CurrencyProfit\nEURUSD,\"Euro, dolar\",USD\n";
+        let (header, records) = InstrumentImportService::split_csv(csv).expect("split");
+
+        assert_eq!(header, vec!["Symbol", "Description", "CurrencyProfit"]);
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0], vec!["EURUSD", "Euro, dolar", "USD"]);
+    }
+
+    #[test]
+    fn split_csv_pomija_wiersz_zlozony_z_samych_pustych_pol() {
+        // Prawdziwe eksporty potrafią mieć wiersz z samymi separatorami (albo pustą linię na
+        // końcu). Taki wiersz nie może udawać instrumentu - inaczej domenowy parser odrzuciłby
+        // cały import przez wiersz, którego użytkownik nawet nie widzi.
+        let csv = "Symbol,CurrencyProfit\nEURUSD,USD\n,\n";
+        let (_header, records) = InstrumentImportService::split_csv(csv).expect("split");
+
+        assert_eq!(
+            records.len(),
+            1,
+            "wiersz z samych pustych pól nie tworzy rekordu"
+        );
+    }
+}
