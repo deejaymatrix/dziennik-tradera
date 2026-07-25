@@ -715,6 +715,10 @@ mod tests {
 
         assert!(!katalog.path().join(nazwa_docelowa(&opis)).exists());
         assert!(!katalog.path().join(nazwa_tymczasowa(&opis)).exists());
+
+        // Idempotencja: ponowne usunięcie (gdy pliki już nie istnieją) NIE jest błędem - użytkownik
+        // może kliknąć „Usuń model" dwa razy albo usuwać, gdy nic nie pobrano.
+        usun_model(&opis, katalog.path()).expect("brak pliku nie jest błędem");
     }
 
     /// Każdy kandydat musi mieć sumę SHA-256 zgodnej długości (64 znaki hex) - literówka przy
