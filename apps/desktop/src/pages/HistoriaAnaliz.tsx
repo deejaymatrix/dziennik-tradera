@@ -80,9 +80,9 @@ export function HistoriaAnaliz(): ReactElement {
     }
   }
 
-  async function kopiuj(w: AnalizaWynik): Promise<void> {
+  async function kopiuj(w: AnalizaWynik, naglowek: string): Promise<void> {
     try {
-      await navigator.clipboard.writeText(analizaDoTekstu(w));
+      await navigator.clipboard.writeText(analizaDoTekstu(w, naglowek));
       showToast("Analiza skopiowana do schowka.", "success");
     } catch {
       showToast("Nie udało się skopiować do schowka.", "error");
@@ -162,7 +162,16 @@ export function HistoriaAnaliz(): ReactElement {
                   <Lista tytul="Rekomendacje" pozycje={wynik.rekomendacje} />
                   <Lista tytul="Jakość danych" pozycje={wynik.jakosc_danych} />
                   <div className={styles.akcje}>
-                    <Button variant="secondary" size="sm" onClick={() => void kopiuj(wynik)}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() =>
+                        void kopiuj(
+                          wynik,
+                          `Analiza „${p.etykieta_zakresu}" (${data(p.utworzono_o)}, model ${p.wersja_modelu})`,
+                        )
+                      }
+                    >
                       <Copy size={16} /> Kopiuj
                     </Button>
                   </div>
