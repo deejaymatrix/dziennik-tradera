@@ -453,6 +453,36 @@ pub fn compute_emotion_breakdown(
     result
 }
 
+/// Średnie natężenie (1-5) każdej emocji po `state_id`, liczone z transakcji zrealizowanych.
+/// Emocja bez ani jednego zapisanego natężenia nie trafia do mapy. Ta sama emocja liczy się dla
+/// transakcji raz (pierwsze wystąpienie), spójnie z `compute_emotion_breakdown`. Uzupełnia korelację
+/// „emocja↔wynik" o „jak silnie odczuwana" - warstwa aplikacyjna łączy to z rozbiciem po `state_id`.
+pub fn compute_emotion_avg_intensity(trades: &[Trade]) -> HashMap<String, Decimal> {
+    let mut sumy: HashMap<String, (Decimal, i64)> = HashMap::new();
+    for trade in realized_trades(trades) {
+        let Some(emotions) = &trade.emotions else {
+            continue;
+        };
+        let mut widziane: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        for entry in &emotions.entries {
+            if !widziane.insert(entry.state_id.as_str()) {
+                continue;
+            }
+            if let Some(intensity) = entry.intensity {
+                let e = sumy
+                    .entry(entry.state_id.clone())
+                    .or_insert((Decimal::ZERO, 0));
+                e.0 += Decimal::from(intensity);
+                e.1 += 1;
+            }
+        }
+    }
+    sumy.into_iter()
+        .filter(|(_, (_, n))| *n > 0)
+        .map(|(id, (suma, n))| (id, suma / Decimal::from(n)))
+        .collect()
+}
+
 /// Deterministyczne sygnały ZACHOWANIA tradera do audytu (overtrading, dyscyplina, handel po
 /// stracie). Wszystko liczone z już policzonych pól transakcji (`net_pnl`, `volume`, checklist) -
 /// model dostaje gotowe liczby i tylko je interpretuje. Bierze wyłącznie transakcje zrealizowane.
@@ -1098,6 +1128,33 @@ mod tests {
         assert_eq!(wynik[0].label, "x");
         assert_eq!(wynik[0].trade_count, 1);
         assert_eq!(wynik[0].net_pnl, dec!(40));
+    }
+
+    #[test]
+    fn srednie_natezenie_emocji_usrednia_i_pomija_bez_natezenia() {
+        fn z_natezeniami(mut t: Trade, wpisy: &[(&str, Option<i64>)]) -> Trade {
+            t.emotions = Some(TradeEmotions {
+                entries: wpisy
+                    .iter()
+                    .map(|(id, i)| EmotionEntry {
+                        state_id: id.to_string(),
+                        intensity: *i,
+                    })
+                    .collect(),
+            });
+            t
+        }
+        let a = z_natezeniami(closed_trade("a", 3, dec!(10), None), &[("s1", Some(4))]);
+        let b = z_natezeniami(
+            closed_trade("b", 2, dec!(10), None),
+            &[("s1", Some(2)), ("s2", Some(5))],
+        );
+        let c = z_natezeniami(closed_trade("c", 1, dec!(10), None), &[("s3", None)]);
+
+        let m = compute_emotion_avg_intensity(&[a, b, c]);
+        assert_eq!(m.get("s1"), Some(&dec!(3))); // (4+2)/2
+        assert_eq!(m.get("s2"), Some(&dec!(5)));
+        assert_eq!(m.get("s3"), None); // brak natężenia -> nie ma w mapie
     }
 
     #[test]
