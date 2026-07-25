@@ -4,6 +4,13 @@ import { TradeInspector } from "./TradeInspector";
 import styles from "./TradeInspector.module.css";
 import type { Trade } from "../app/types/trade";
 
+// Sekcja Asystenta AI ma własny stan/efekty (woła `invokeCommand`, używa `useToast`) i własne
+// testy - tutaj testujemy WYŁĄCZNIE logikę samego inspektora, więc podmieniamy ją na pustą, żeby
+// nie wciągać do tych testów providera toastów ani mocka komend.
+vi.mock("./TradeAiAnalysis", () => ({
+  TradeAiAnalysis: () => null,
+}));
+
 function transakcja(overrides: Partial<Trade> = {}): Trade {
   return {
     id: "1",

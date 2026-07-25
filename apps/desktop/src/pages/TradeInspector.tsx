@@ -6,6 +6,7 @@ import { TRADE_SIDE_LABELS, TRADE_STATUS_LABELS } from "../app/types/trade";
 import { Badge } from "../ui/components/Badge/Badge";
 import { Button } from "../ui/components/Button/Button";
 import { IconButton } from "../ui/components/IconButton/IconButton";
+import { TradeAiAnalysis } from "./TradeAiAnalysis";
 import styles from "./TradeInspector.module.css";
 
 export interface TradeInspectorProps {
@@ -143,6 +144,10 @@ export function TradeInspector({
             {trade.conclusion && <p className={styles.note}>{trade.conclusion}</p>}
           </section>
         )}
+
+        {/* Klucz po id transakcji: przełączenie inspektora na inną transakcję ma na nowo wczytać
+            jej stan/analizę, a nie pokazywać dane poprzedniej. */}
+        <TradeAiAnalysis key={trade.id} tradeId={trade.id} />
       </div>
 
       <footer className={styles.footer}>

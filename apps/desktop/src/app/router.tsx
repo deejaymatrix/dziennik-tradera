@@ -16,6 +16,7 @@ import { SzablonyInstrumentowPage } from "../pages/SzablonyInstrumentowPage";
 import { KalkulatorPozycjiPage } from "../pages/KalkulatorPozycjiPage";
 import { StanEmocjonalnyPage } from "../pages/StanEmocjonalnyPage";
 import { InterwalyPage } from "../pages/InterwalyPage";
+import { AsystentAiPage } from "../pages/AsystentAiPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 
 export const router = createBrowserRouter([
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
       { path: "kalkulator-pozycji", element: <KalkulatorPozycjiPage /> },
       { path: "raporty", element: <ReportsPage /> },
       { path: "stan-emocjonalny", element: <StanEmocjonalnyPage /> },
+      { path: "asystent-ai", element: <AsystentAiPage /> },
       { path: "dane", element: <DataPage /> },
       { path: "kosz", element: <KoszPage /> },
       { path: "ustawienia", element: <SettingsPage /> },

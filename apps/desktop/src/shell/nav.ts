@@ -13,6 +13,7 @@ import {
   DatabaseBackup,
   Trash2,
   Settings,
+  Sparkles,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -65,6 +66,9 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: "/kalendarz", label: "Kalendarz", icon: CalendarDays },
       // Zarządzanie emocjami należy do analizy własnego handlu, a nie do konfiguracji aplikacji.
       { to: "/stan-emocjonalny", label: "Stan emocjonalny", icon: HeartPulse },
+      // Asystent AI (Blok F) - lokalna analiza; główne wejście to przycisk przy transakcji, a
+      // ta pozycja daje przegląd i zarządzanie modelem/analizami.
+      { to: "/asystent-ai", label: "Asystent AI", icon: Sparkles },
     ],
   },
   {
