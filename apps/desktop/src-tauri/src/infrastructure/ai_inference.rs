@@ -312,7 +312,7 @@ mod benchmark_wyboru_modelu {
     use std::sync::Mutex;
     use std::time::Instant;
 
-    use super::{uruchom_prompt, KonfiguracjaGenerowania, GRAMATYKA_ANALIZY_JSON};
+    use super::{uruchom_prompt, KonfiguracjaGenerowania};
     use crate::infrastructure::ai_model_download::{
         pobierz_i_zweryfikuj, PostepPobrania, KANDYDACI,
     };
