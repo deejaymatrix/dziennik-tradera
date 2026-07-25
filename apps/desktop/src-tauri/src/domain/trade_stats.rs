@@ -524,10 +524,14 @@ pub struct BehaviorSignals {
     pub active_days: i64,
     pub max_trades_in_day: i64,
     /// Dyscyplina: transakcje z ≥1 wymaganą, niespełnioną zasadą wejścia (z checklisty) vs reszta.
+    /// `*_avg_net` to średni wynik NA TRANSAKCJĘ w grupie - uczciwsze porównanie niż surowe sumy,
+    /// gdy grupy mają różną liczebność (np. 2 złamane vs 20 przestrzegających).
     pub rule_broken_count: i64,
     pub rule_broken_net: Decimal,
+    pub rule_broken_avg_net: Option<Decimal>,
     pub rule_followed_count: i64,
     pub rule_followed_net: Decimal,
+    pub rule_followed_avg_net: Option<Decimal>,
     /// Handel po stracie (revenge/eskalacja): transakcje BEZPOŚREDNIO po transakcji stratnej
     /// (chronologicznie). Porównanie średniego wolumenu z ogólnym wykrywa zwiększanie ryzyka.
     pub after_loss_count: i64,
@@ -582,6 +586,10 @@ pub fn compute_behavior_signals(trades: &[Trade]) -> BehaviorSignals {
             rule_followed_net += net;
         }
     }
+    let rule_broken_avg_net =
+        (rule_broken_count > 0).then(|| rule_broken_net / Decimal::from(rule_broken_count));
+    let rule_followed_avg_net =
+        (rule_followed_count > 0).then(|| rule_followed_net / Decimal::from(rule_followed_count));
 
     // Handel po stracie: transakcja i, gdy poprzednia (chronologicznie) była stratna.
     let mut after_loss_count = 0i64;
@@ -652,8 +660,10 @@ pub fn compute_behavior_signals(trades: &[Trade]) -> BehaviorSignals {
         max_trades_in_day,
         rule_broken_count,
         rule_broken_net,
+        rule_broken_avg_net,
         rule_followed_count,
         rule_followed_net,
+        rule_followed_avg_net,
         after_loss_count,
         after_loss_net,
         after_loss_avg_net,
@@ -1145,8 +1155,11 @@ mod tests {
         // Dyscyplina: a złamała (-50), b i c przestrzegały (+130 łącznie).
         assert_eq!(s.rule_broken_count, 1);
         assert_eq!(s.rule_broken_net, dec!(-50));
+        assert_eq!(s.rule_broken_avg_net, Some(dec!(-50)));
         assert_eq!(s.rule_followed_count, 2);
         assert_eq!(s.rule_followed_net, dec!(130));
+        // Średnia na transakcję w grupie przestrzegającej: 130 / 2 = 65 (uczciwe porównanie).
+        assert_eq!(s.rule_followed_avg_net, Some(dec!(65)));
         // Handel po stracie: b następuje bezpośrednio po stratnej a.
         assert_eq!(s.after_loss_count, 1);
         assert_eq!(s.after_loss_net, dec!(100));
