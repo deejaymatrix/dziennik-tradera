@@ -11,6 +11,7 @@ import { useConfirm } from "../ui/components/ConfirmDialog/ConfirmDialog";
 import { SectionCard } from "../ui/components/SectionCard/SectionCard";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import { ReportAiAnalysis } from "./ReportAiAnalysis";
+import { ChatAi } from "./ChatAi";
 import styles from "./AsystentAiPage.module.css";
 
 function gb(bajty: number): string {
@@ -230,6 +231,19 @@ export function AsystentAiPage(): ReactElement {
             />
           </>
         )}
+      </SectionCard>
+
+      <SectionCard>
+        <h3 className={styles.podtytul}>Czat z danymi</h3>
+        <p className={styles.info}>
+          Zadawaj pytania o wyniki wybranego wyżej konta - model odpowiada wyłącznie na podstawie
+          policzonych danych (nie zmyśla liczb). Rozmowa jest lokalna i nigdzie nie zapisywana.
+        </p>
+        <ChatAi
+          filter={filtrCalegoKonta}
+          zakresOpis={zakresOpis}
+          gotowe={status?.gotowy === true && wybraneKonto !== ""}
+        />
       </SectionCard>
 
       <SectionCard>

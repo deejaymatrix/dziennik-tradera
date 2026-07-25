@@ -10,6 +10,7 @@ use crate::application::ai_analysis::{AiAnalysisService, StatusModeluAi};
 use crate::application::ai_runtime::OpisModeluStatus;
 use crate::application::reports::ReportFilter;
 use crate::domain::ai_analysis::{AnalizaWynik, ZapisanaAnaliza};
+use crate::domain::ai_chat::WiadomoscCzatu;
 use crate::error::AppError;
 use crate::infrastructure::ai_model_download::PostepPobrania;
 use crate::state::{AppState, DbState};
@@ -53,7 +54,27 @@ pub async fn analyze_report(
     .map_err(|e| AppError::io(format!("zadanie analizy raportu nie powiodło się: {e}")))?
 }
 
-/// Przerywa trwającą analizę.
+/// Czat po WŁASNYCH danych: model odpowiada na `pytanie` (z uwzględnieniem `historia`) na podstawie
+/// zagregowanych danych zakresu (`filter` + `zakres_opis`). `async` + `spawn_blocking` (CPU-bound,
+/// jak analiza). Odpowiedź NIE jest zapisywana - historia rozmowy żyje po stronie frontendu.
+/// Przerywanie tą samą komendą co analiza (`cancel_ai_analysis`) - to ten sam silnik "jedna naraz".
+#[tauri::command]
+pub async fn ai_chat(
+    state: State<'_, AppState>,
+    filter: ReportFilter,
+    zakres_opis: String,
+    historia: Vec<WiadomoscCzatu>,
+    pytanie: String,
+) -> Result<String, AppError> {
+    let service = require_ai(&state)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        service.czat_blocking(filter, zakres_opis, historia, pytanie)
+    })
+    .await
+    .map_err(|e| AppError::io(format!("zadanie czatu AI nie powiodło się: {e}")))?
+}
+
+/// Przerywa trwającą analizę (albo czat - to ten sam silnik "jedna operacja naraz").
 #[tauri::command]
 pub fn cancel_ai_analysis(state: State<'_, AppState>) -> Result<(), AppError> {
     require_ai(&state)?.anuluj();

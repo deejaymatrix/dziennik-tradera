@@ -1,0 +1,80 @@
+.czat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.info,
+.pusto {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.rozmowa {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 22rem;
+  overflow-y: auto;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken, var(--color-surface));
+}
+
+.odUzytkownika,
+.odAsystenta {
+  max-width: 85%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.odUzytkownika {
+  align-self: flex-end;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast, #fff);
+}
+
+.odAsystenta {
+  align-self: flex-start;
+  background: var(--color-surface-raised, var(--color-bg));
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+.wejscie {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+}
+
+.pole {
+  flex: 1;
+  min-width: 0;
+  resize: vertical;
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.pole:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.stopka {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
+}

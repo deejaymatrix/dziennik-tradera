@@ -139,14 +139,34 @@ pub enum PowodPrzerwania {
     Timeout,
 }
 
-/// Generuje odpowiedź na `prompt` używając WCZEŚNIEJ załadowanego modelu. Tworzy świeży kontekst
-/// (tanie względem ładowania modelu). Sprawdza `anuluj` oraz `limit_czasu` PRZY KAŻDYM tokenie -
-/// dzięki temu "Przerwij analizę" i timeout działają bez zabijania procesu/wątku (pętla po prostu
-/// kończy się kontrolowanym błędem). Synchroniczne i blokujące (CPU-bound) - wywołujący ma zadbać,
-/// żeby to nie działo się na wątku UI (np. `spawn_blocking`).
+/// Generuje odpowiedź na pojedynczy `prompt` (jedna tura użytkownika) - cienka nakładka na
+/// [`generuj_czat`]. Używana przez analizę, która zawsze wysyła jeden gotowy prompt bez historii.
 pub fn generuj(
     zaladowany: &ZaladowanyModel,
     prompt: &str,
+    konfiguracja: &KonfiguracjaGenerowania,
+    anuluj: &AtomicBool,
+    limit_czasu: Option<Duration>,
+) -> Result<WynikGenerowania, AppError> {
+    generuj_czat(
+        zaladowany,
+        &[("user".to_string(), prompt.to_string())],
+        konfiguracja,
+        anuluj,
+        limit_czasu,
+    )
+}
+
+/// Generuje odpowiedź na CAŁĄ rozmowę używając WCZEŚNIEJ załadowanego modelu. `wiadomosci` to pary
+/// `(rola, treść)` w kolejności, gdzie rola to standardowa nazwa szablonu czatu
+/// (`system`/`user`/`assistant`) - dzięki temu model widzi grunt (dane w wiadomości systemowej) i
+/// historię jako prawdziwe tury, a nie jeden sklejony blok. Tworzy świeży kontekst (tanie względem
+/// ładowania modelu). Sprawdza `anuluj` oraz `limit_czasu` PRZY KAŻDYM tokenie - dzięki temu
+/// "Przerwij" i timeout działają bez zabijania procesu/wątku (pętla kończy się kontrolowanym
+/// błędem). Synchroniczne i blokujące (CPU-bound) - wołać poza wątkiem UI (np. `spawn_blocking`).
+pub fn generuj_czat(
+    zaladowany: &ZaladowanyModel,
+    wiadomosci: &[(String, String)],
     konfiguracja: &KonfiguracjaGenerowania,
     anuluj: &AtomicBool,
     limit_czasu: Option<Duration>,
@@ -159,21 +179,27 @@ pub fn generuj(
     // szablonu czatu model dostaje surowy tekst jako "dokańczanie", nie jako prawdziwą turę
     // rozmowy - w praktyce nie wie, KIEDY się zatrzymać (nie emituje tokenu końca tury) i zamiast
     // jednej odpowiedzi generuje kolejne warianty aż do limitu tokenów. Jeśli model ma zapisany
-    // własny szablon w GGUF, używamy go; brak szablonu to fallback na surowy prompt (rzadki
+    // własny szablon w GGUF, używamy go; brak szablonu to fallback na sklejone tury (rzadki
     // przypadek - lepiej wygenerować cokolwiek niż odmówić działania).
     let tekst_z_szablonem = match model.chat_template(None) {
         Ok(szablon) => {
-            let wiadomosci = [
-                LlamaChatMessage::new("user".to_string(), prompt.to_string())
-                    .map_err(|e| AppError::io(format!("nie udało się zbudować wiadomości: {e}")))?,
-            ];
+            let mut zbudowane = Vec::with_capacity(wiadomosci.len());
+            for (rola, tresc) in wiadomosci {
+                zbudowane.push(LlamaChatMessage::new(rola.clone(), tresc.clone()).map_err(
+                    |e| AppError::io(format!("nie udało się zbudować wiadomości: {e}")),
+                )?);
+            }
             model
-                .apply_chat_template(&szablon, &wiadomosci, true)
+                .apply_chat_template(&szablon, &zbudowane, true)
                 .map_err(|e| {
                     AppError::io(format!("nie udało się zastosować szablonu czatu: {e}"))
                 })?
         }
-        Err(_) => prompt.to_string(),
+        Err(_) => wiadomosci
+            .iter()
+            .map(|(rola, tresc)| format!("{rola}: {tresc}"))
+            .collect::<Vec<_>>()
+            .join("\n\n"),
     };
 
     let tokeny_promptu = model

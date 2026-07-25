@@ -19,6 +19,7 @@ use crate::domain::ai_analysis::{
     AiAnalysisRepository, AnalizaWynik, DaneAnalizyRaportu, DaneAnalizyTransakcji, NowaAnaliza,
     StatusAnalizy, ZapisanaAnaliza, WERSJA_SZABLONU_TRANSAKCJI,
 };
+use crate::domain::ai_chat::{zbuduj_wiadomosci, WiadomoscCzatu};
 use crate::domain::emotional_state::EmotionalStateRepository;
 use crate::domain::strategy_checklist::ChecklistStatus;
 use crate::domain::trade::{Trade, TradeRepository, TradeSide, TradeStatus};
@@ -167,6 +168,23 @@ impl AiAnalysisService {
             .runtime
             .analizuj_blocking(&prompt, czy_poprawna_odpowiedz)?;
         waliduj_odpowiedz(&tekst)
+    }
+
+    /// Czat po WŁASNYCH danych: model odpowiada na `pytanie` (z uwzględnieniem `historia`) wyłącznie
+    /// na podstawie zagregowanych, deterministycznych danych zakresu `filter` (te same co raport).
+    /// `zakres_opis` to ludzki opis zakresu, wpleciony w pakiet danych. Odpowiedź to swobodny tekst
+    /// i NIE jest zapisywana (czat jest przemijający). BLOKUJĄCE - wołać z `spawn_blocking`.
+    pub fn czat_blocking(
+        &self,
+        filter: ReportFilter,
+        zakres_opis: String,
+        historia: Vec<WiadomoscCzatu>,
+        pytanie: String,
+    ) -> Result<String, AppError> {
+        let raport = self.reports.get_filtered_report(filter)?;
+        let pakiet = zbuduj_dane_raportu(&raport, zakres_opis).pakiet_danych();
+        let wiadomosci = zbuduj_wiadomosci(&pakiet, &historia, &pytanie);
+        self.runtime.czat_blocking(wiadomosci)
     }
 
     /// Najnowsza zapisana analiza transakcji (z policzoną flagą nieaktualności względem bieżącego

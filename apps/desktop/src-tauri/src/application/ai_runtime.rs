@@ -20,7 +20,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::error::AppError;
-use crate::infrastructure::ai_inference::{generuj, zaladuj_model, KonfiguracjaGenerowania};
+use crate::infrastructure::ai_inference::{
+    generuj, generuj_czat, zaladuj_model, KonfiguracjaGenerowania,
+};
 use crate::infrastructure::ai_model_download::{
     model_pobrany, pobierz_i_zweryfikuj, usun_model, OpisModelu, PostepPobrania, StatusPobrania,
     KANDYDACI,
@@ -236,6 +238,32 @@ impl AiRuntimeService {
             )
             .map(|wynik| wynik.tekst)
         })
+    }
+
+    /// Generuje odpowiedź czatu na całą rozmowę (`wiadomosci` = pary `(rola, treść)`). W
+    /// odróżnieniu od analizy NIE waliduje formatu ani nie ponawia - odpowiedź czatu to swobodny
+    /// tekst, więc `czy_poprawny` zawsze akceptuje (jedna próba). Reszta cyklu życia (odrzucanie
+    /// zajętości, reset i sprawdzanie anulowania, timeout) jest ta sama co przy analizie.
+    /// BLOKUJĄCE - wołać z `spawn_blocking`. Ładuje model przy pierwszym użyciu.
+    pub fn czat_blocking(&self, wiadomosci: Vec<(String, String)>) -> Result<String, AppError> {
+        let zaladowany = self.zapewnij_model()?;
+        self.analizuj_z_generatorem(
+            |_| true,
+            |ziarno, flaga_anulowania| {
+                let konfiguracja = KonfiguracjaGenerowania {
+                    ziarno,
+                    ..KonfiguracjaGenerowania::default()
+                };
+                generuj_czat(
+                    &zaladowany,
+                    &wiadomosci,
+                    &konfiguracja,
+                    flaga_anulowania,
+                    Some(LIMIT_CZASU_PROBY),
+                )
+                .map(|wynik| wynik.tekst)
+            },
+        )
     }
 
     /// Ładuje model, jeśli jeszcze nie jest w pamięci, i zwraca współdzielony uchwyt. Idempotentne

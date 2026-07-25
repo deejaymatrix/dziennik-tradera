@@ -47,6 +47,12 @@ export interface OpisModeluStatus {
   aktywny: boolean;
 }
 
+/** Jedna wiadomość czatu po danych (`WiadomoscCzatu` w Rust; `rola` = `RolaCzatu` snake_case). */
+export interface WiadomoscCzatu {
+  rola: "uzytkownik" | "asystent";
+  tresc: string;
+}
+
 /** Bezpiecznie parsuje `wynik_json` zapisanej analizy do struktury z trzema listami. Zwraca puste
  * listy, gdy JSON jest z jakiegoś powodu nieczytelny (nie powinien być - backend zapisuje tylko
  * zwalidowane wyniki - ale UI nigdy nie zakłada tego na ślepo). */

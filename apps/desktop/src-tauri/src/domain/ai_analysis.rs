@@ -291,6 +291,13 @@ pub struct DaneAnalizyRaportu {
 }
 
 impl DaneAnalizyRaportu {
+    /// „Pakiet danych" dla czatu: te same zagregowane, deterministyczne fakty co w prompcie
+    /// analizy, ale jako czytelny JSON i BEZ instrukcji - czat dokłada własne instrukcje w
+    /// wiadomości systemowej (patrz `domain::ai_chat`). To jest grunt, na którym model odpowiada.
+    pub fn pakiet_danych(&self) -> String {
+        serde_json::to_string_pretty(&self.fakty_json()).unwrap_or_else(|_| "{}".to_string())
+    }
+
     fn fakty_json(&self) -> serde_json::Value {
         fn dodaj(
             mapa: &mut serde_json::Map<String, serde_json::Value>,
