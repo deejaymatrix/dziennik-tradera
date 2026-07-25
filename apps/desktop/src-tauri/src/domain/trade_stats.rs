@@ -520,9 +520,12 @@ pub fn compute_emotion_avg_volume(trades: &[Trade]) -> HashMap<String, Decimal> 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct BehaviorSignals {
     pub total_closed: i64,
-    /// Overtrading: rozłożenie liczby transakcji na dni (lokalny dzień zamknięcia).
+    /// Overtrading: rozłożenie liczby transakcji na dni (lokalny dzień zamknięcia). `avg_trades_per_day`
+    /// (transakcje / dni aktywne) zestawione z `max_trades_in_day` pokazuje, czy szczyt był
+    /// epizodyczny (dzień znacznie powyżej średniej) czy to stały rytm.
     pub active_days: i64,
     pub max_trades_in_day: i64,
+    pub avg_trades_per_day: Option<Decimal>,
     /// Dyscyplina: transakcje z ≥1 wymaganą, niespełnioną zasadą wejścia (z checklisty) vs reszta.
     /// `*_avg_net` to średni wynik NA TRANSAKCJĘ w grupie - uczciwsze porównanie niż surowe sumy,
     /// gdy grupy mają różną liczebność (np. 2 złamane vs 20 przestrzegających).
@@ -565,6 +568,8 @@ pub fn compute_behavior_signals(trades: &[Trade]) -> BehaviorSignals {
     }
     let active_days = per_day.len() as i64;
     let max_trades_in_day = per_day.values().copied().max().unwrap_or(0);
+    let avg_trades_per_day =
+        (active_days > 0).then(|| Decimal::from(total_closed) / Decimal::from(active_days));
 
     // Dyscyplina: łamanie wymaganych zasad wejścia.
     let mut rule_broken_count = 0i64;
@@ -658,6 +663,7 @@ pub fn compute_behavior_signals(trades: &[Trade]) -> BehaviorSignals {
         total_closed,
         active_days,
         max_trades_in_day,
+        avg_trades_per_day,
         rule_broken_count,
         rule_broken_net,
         rule_broken_avg_net,
@@ -1152,6 +1158,8 @@ mod tests {
         assert_eq!(s.total_closed, 3);
         assert_eq!(s.active_days, 3);
         assert_eq!(s.max_trades_in_day, 1);
+        // 3 transakcje na 3 różnych dniach -> średnio 1 transakcja dziennie.
+        assert_eq!(s.avg_trades_per_day, Some(dec!(1)));
         // Dyscyplina: a złamała (-50), b i c przestrzegały (+130 łącznie).
         assert_eq!(s.rule_broken_count, 1);
         assert_eq!(s.rule_broken_net, dec!(-50));
@@ -1177,6 +1185,21 @@ mod tests {
         // Serie: strata, zysk, zysk -> najdłuższa seria strat 1, seria zysków 2.
         assert_eq!(s.max_losing_streak, 1);
         assert_eq!(s.max_winning_streak, 2);
+    }
+
+    #[test]
+    fn srednia_transakcji_na_dzien_rozni_sie_od_szczytu() {
+        // Dwie transakcje tego samego dnia + jedna innego dnia: 3 transakcje / 2 dni aktywne.
+        let s = compute_behavior_signals(&[
+            closed_trade("a", 1, dec!(10), None),
+            closed_trade("b", 1, dec!(20), None),
+            closed_trade("c", 2, dec!(-5), None),
+        ]);
+        assert_eq!(s.total_closed, 3);
+        assert_eq!(s.active_days, 2);
+        assert_eq!(s.max_trades_in_day, 2);
+        // Średnia 3/2 = 1.5 - niższa od szczytu (2), co ujawnia epizodyczny overtrading.
+        assert_eq!(s.avg_trades_per_day, Some(dec!(1.5)));
     }
 
     #[test]

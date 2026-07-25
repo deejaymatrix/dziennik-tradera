@@ -547,7 +547,9 @@ JSON."
 pub fn zbuduj_prompt_audytu(zakres_opis: &str, sygnaly_json: &str) -> String {
     format!(
         "Jesteś asystentem robiącym audyt ZACHOWANIA tradera. Poniżej masz JUŻ POLICZONE przez \
-aplikację sygnały: overtrading (liczba transakcji na dzień), dyscyplinę (wynik transakcji łamiących \
+aplikację sygnały: overtrading (liczba transakcji na dzień - ZESTAW szczyt \"max_trades_in_day\" ze \
+średnią \"avg_trades_per_day\": pojedynczy dzień znacznie powyżej średniej to epizodyczny \
+overtrading, a wysoka sama średnia to stały nawyk), dyscyplinę (wynik transakcji łamiących \
 wymagane zasady wejścia vs przestrzegających - PORÓWNUJ średnie na transakcję \"rule_broken_avg_net\" \
 i \"rule_followed_avg_net\", nie surowe sumy, bo grupy bywają różnej wielkości), handel po stracie (transakcje zaraz po stratnej: \
 ich średni wynik netto i średni wolumen - PORÓWNAJ je z bazą ogólną (\"overall_avg_net\", \
