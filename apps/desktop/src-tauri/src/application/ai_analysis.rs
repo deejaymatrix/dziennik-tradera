@@ -38,6 +38,9 @@ pub struct StatusModeluAi {
     pub gotowy: bool,
     pub etykieta: String,
     pub rozmiar_bajtow: u64,
+    /// Czy Asystent AI jest włączony (Ustawienia → Asystent AI). Frontend chowa wejścia do AI,
+    /// gdy `false`, a warstwa analizy i tak odrzuci operację czytelnym błędem.
+    pub wlaczony: bool,
 }
 
 /// Jedna pozycja historii wykonanych analiz (do widoku na stronie Asystent AI). Lekki opis +
@@ -97,7 +100,24 @@ impl AiAnalysisService {
             gotowy: self.runtime.model_gotowy(),
             etykieta: opis.etykieta.to_string(),
             rozmiar_bajtow: opis.rozmiar_bajtow,
+            wlaczony: self.runtime.czy_wlaczony(),
         }
+    }
+
+    /// Włącza/wyłącza Asystenta AI (Ustawienia → Asystent AI).
+    pub fn ustaw_wlaczony(&self, wlaczony: bool) -> Result<(), AppError> {
+        self.runtime.ustaw_wlaczony(wlaczony)
+    }
+
+    /// Zwraca błąd, gdy AI jest wyłączony - wspólny strażnik dla analiz i czatu, żeby wyłączenie
+    /// naprawdę blokowało operacje (nie tylko chowało przyciski w UI).
+    fn wymagaj_wlaczony(&self) -> Result<(), AppError> {
+        if !self.runtime.czy_wlaczony() {
+            return Err(AppError::Validation(
+                "Asystent AI jest wyłączony. Włącz go w Ustawieniach → Asystent AI.".to_string(),
+            ));
+        }
+        Ok(())
     }
 
     /// Lista 3 kandydatów z ich stanem (pobrany/aktywny) - do wyboru modelu w Ustawieniach.
@@ -139,6 +159,7 @@ impl AiAnalysisService {
         &self,
         trade_id: &str,
     ) -> Result<ZapisanaAnaliza, AppError> {
+        self.wymagaj_wlaczony()?;
         let trade = self.trades.get(trade_id)?;
         let dane = self.zbuduj_dane(&trade)?;
         let prompt = zbuduj_prompt(&dane);
@@ -175,6 +196,7 @@ impl AiAnalysisService {
         filter: ReportFilter,
         zakres_opis: String,
     ) -> Result<AnalizaWynik, AppError> {
+        self.wymagaj_wlaczony()?;
         let raport = self.reports.get_filtered_report(filter)?;
         let dane = zbuduj_dane_raportu(&raport, zakres_opis);
         let prompt = zbuduj_prompt_raportu(&dane);
@@ -195,6 +217,7 @@ impl AiAnalysisService {
         historia: Vec<WiadomoscCzatu>,
         pytanie: String,
     ) -> Result<String, AppError> {
+        self.wymagaj_wlaczony()?;
         let raport = self.reports.get_filtered_report(filter)?;
         let pakiet = zbuduj_dane_raportu(&raport, zakres_opis).pakiet_danych();
         let wiadomosci = zbuduj_wiadomosci(&pakiet, &historia, &pytanie);

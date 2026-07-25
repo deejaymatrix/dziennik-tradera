@@ -29,6 +29,8 @@ export interface StatusModeluAi {
   gotowy: boolean;
   etykieta: string;
   rozmiar_bajtow: number;
+  /** Czy Asystent AI jest włączony (Ustawienia → Asystent AI). Wyłączony chowa wejścia do AI. */
+  wlaczony: boolean;
 }
 
 /** Postęp pobierania modelu (`PostepPobrania`). `weryfikacja` = przeliczanie już pobranych

@@ -192,7 +192,7 @@ export function AsystentAiPage(): ReactElement {
         <ChatAi
           filter={filtrCalegoKonta}
           zakresOpis={zakresOpis}
-          gotowe={status?.gotowy === true && wybraneKonto !== ""}
+          gotowe={status !== null && status.gotowy && status.wlaczony && wybraneKonto !== ""}
         />
       </SectionCard>
 

@@ -127,6 +127,12 @@ pub fn ai_set_model(state: State<'_, AppState>, id: String) -> Result<(), AppErr
     require_ai(&state)?.ustaw_model(&id)
 }
 
+/// Włącza/wyłącza Asystenta AI (Ustawienia → Asystent AI). Wyłączony blokuje analizy i czat.
+#[tauri::command]
+pub fn ai_set_enabled(state: State<'_, AppState>, enabled: bool) -> Result<(), AppError> {
+    require_ai(&state)?.ustaw_wlaczony(enabled)
+}
+
 /// Pobiera i weryfikuje model. `async` + `spawn_blocking` (gigabajty + SHA-256). Postęp odpytywać
 /// osobno przez `ai_model_download_progress`.
 #[tauri::command]

@@ -131,6 +131,10 @@ export function TradeAiAnalysis({ tradeId }: TradeAiAnalysisProps): ReactElement
 
       {statusModelu === null ? (
         <p className={styles.info}>Sprawdzanie stanu modelu...</p>
+      ) : !statusModelu.wlaczony ? (
+        <p className={styles.info}>
+          Asystent AI jest wyłączony. Włącz go w Ustawieniach → Asystent AI, żeby analizować.
+        </p>
       ) : !statusModelu.gotowy ? (
         <div className={styles.pobieranie}>
           {pobiera ? (

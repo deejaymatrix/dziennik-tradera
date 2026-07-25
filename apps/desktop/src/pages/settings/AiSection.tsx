@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { StopCircle } from "lucide-react";
 import { invokeCommand, extractErrorMessage } from "../../app/invokeCommand";
-import type { OpisModeluStatus, PostepPobrania } from "../../app/types/aiAnalysis";
+import type { OpisModeluStatus, PostepPobrania, StatusModeluAi } from "../../app/types/aiAnalysis";
 import { opisPostepuPobierania } from "../../app/types/aiAnalysis";
 import { Button } from "../../ui/components/Button/Button";
 import { useConfirm } from "../../ui/components/ConfirmDialog/ConfirmDialog";
@@ -22,17 +22,32 @@ export function AiSection(): ReactElement {
   const { showToast } = useToast();
   const confirm = useConfirm();
   const [modele, setModele] = useState<OpisModeluStatus[] | null>(null);
+  const [wlaczony, setWlaczony] = useState<boolean | null>(null);
   const [pobiera, setPobiera] = useState(false);
   const [postep, setPostep] = useState<PostepPobrania | null>(null);
   const ankieta = useRef<number | null>(null);
 
   const wczytaj = useCallback(async () => {
     try {
-      setModele(await invokeCommand<OpisModeluStatus[]>("ai_list_models", {}));
+      const [lista, status] = await Promise.all([
+        invokeCommand<OpisModeluStatus[]>("ai_list_models", {}),
+        invokeCommand<StatusModeluAi>("ai_model_status", {}),
+      ]);
+      setModele(lista);
+      setWlaczony(status.wlaczony);
     } catch (e) {
       showToast(extractErrorMessage(e), "error");
     }
   }, [showToast]);
+
+  async function przelaczWlaczenie(nowy: boolean): Promise<void> {
+    try {
+      await invokeCommand("ai_set_enabled", { enabled: nowy });
+      setWlaczony(nowy);
+    } catch (e) {
+      showToast(extractErrorMessage(e), "error");
+    }
+  }
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -99,9 +114,26 @@ export function AiSection(): ReactElement {
   }
 
   const aktywny = modele.find((m) => m.aktywny) ?? null;
+  const zajeteMiejsce = modele.reduce((s, m) => s + (m.pobrany ? m.rozmiar_bajtow : 0), 0);
 
   return (
     <div className={styles.sekcja}>
+      <label className={styles.przelacznik}>
+        <input
+          type="checkbox"
+          checked={wlaczony === true}
+          onChange={(e) => void przelaczWlaczenie(e.target.checked)}
+          disabled={wlaczony === null}
+        />
+        <span className={styles.nazwa}>Asystent AI włączony</span>
+      </label>
+      {wlaczony === false && (
+        <p className={styles.info}>
+          Asystent AI jest wyłączony — analizy i czat są niedostępne, dopóki go nie włączysz. Model
+          i historia analiz zostają nietknięte.
+        </p>
+      )}
+
       <p className={styles.info}>
         Wybierz model, którym Asystent AI analizuje transakcje. Wszystkie działają w pełni lokalnie.
         Większy model daje dokładniejszą analizę, ale liczy wolniej; mniejszy jest szybszy, lecz
@@ -127,6 +159,10 @@ export function AiSection(): ReactElement {
           </label>
         ))}
       </fieldset>
+
+      <p className={styles.info}>
+        Zajęte miejsce na dysku (pobrane modele): <strong>{gb(zajeteMiejsce)}</strong>.
+      </p>
 
       {aktywny && (
         <div className={styles.akcje}>

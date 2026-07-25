@@ -51,7 +51,8 @@ export function ReportAiAnalysis({
   const wczytajModel = useCallback(async () => {
     try {
       const s = await invokeCommand<StatusModeluAi>("ai_model_status", {});
-      setModelGotowy(s.gotowy);
+      // Wyłączony Asystent AI traktujemy jak brak gotowości - i tak backend odrzuciłby analizę.
+      setModelGotowy(s.gotowy && s.wlaczony);
     } catch {
       setModelGotowy(false);
     }
@@ -96,7 +97,7 @@ export function ReportAiAnalysis({
 
       {modelGotowy === false ? (
         <p className={styles.info}>
-          Aby analizować raporty, pobierz najpierw model w Ustawieniach → Asystent AI.
+          Aby analizować, włącz Asystenta AI i pobierz model w Ustawieniach → Asystent AI.
         </p>
       ) : (
         <div className={styles.akcje}>

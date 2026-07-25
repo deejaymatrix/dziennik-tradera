@@ -35,6 +35,9 @@ const ID_MODELU_DOMYSLNEGO: &str = "qwen2.5-7b-instruct-q4_k_m";
 /// Nazwa pliku zapamiętującego wybór modelu w katalogu modeli - jedna linia z `id` kandydata.
 const PLIK_AKTYWNEGO_MODELU: &str = "aktywny-model.txt";
 
+/// Nazwa pliku zapamiętującego, czy Asystent AI jest włączony (`1`/`0`). Brak pliku = włączony.
+const PLIK_WLACZONY: &str = "ai-wlaczony.txt";
+
 /// Jeden z 3 kandydatów z jego bieżącym stanem - do pokazania w wyborze modelu w Ustawieniach.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct OpisModeluStatus {
@@ -73,6 +76,9 @@ pub struct AiRuntimeService {
     /// `id` aktywnego modelu (jednego z `KANDYDACI`). Wybór zapamiętany w pliku
     /// `PLIK_AKTYWNEGO_MODELU`, więc przeżywa restart. Zmiana modelu zwalnia załadowany poprzedni.
     aktywny_model_id: Mutex<String>,
+    /// Czy Asystent AI jest włączony (Ustawienia → Asystent AI). Wyłączony blokuje analizy i czat
+    /// czytelnym błędem, a frontend chowa wejścia do AI. Zapamiętany w pliku, przeżywa restart.
+    wlaczony: AtomicBool,
 }
 
 /// Strażnik RAII zdejmujący flagę "zajęty" przy wyjściu z analizy - gwarantuje, że nawet wczesny
@@ -88,6 +94,7 @@ impl Drop for StrraznikZajetosci<'_> {
 impl AiRuntimeService {
     pub fn new(katalog_modeli: PathBuf) -> Self {
         let aktywny = wczytaj_aktywny_model(&katalog_modeli);
+        let wlaczony = wczytaj_wlaczony(&katalog_modeli);
         Self {
             katalog_modeli,
             zaladowany: Mutex::new(None),
@@ -100,7 +107,20 @@ impl AiRuntimeService {
             })),
             anuluj_pobieranie: Arc::new(AtomicBool::new(false)),
             aktywny_model_id: Mutex::new(aktywny),
+            wlaczony: AtomicBool::new(wlaczony),
         }
+    }
+
+    /// Czy Asystent AI jest włączony. Frontend pyta o to (przez `status_modelu`), zanim pokaże
+    /// przyciski analizy/czatu, a warstwa analizy blokuje operacje, gdy wyłączony.
+    pub fn czy_wlaczony(&self) -> bool {
+        self.wlaczony.load(Ordering::SeqCst)
+    }
+
+    /// Włącza/wyłącza Asystenta AI i zapamiętuje wybór na dysku (przeżywa restart).
+    pub fn ustaw_wlaczony(&self, wlaczony: bool) -> Result<(), AppError> {
+        self.wlaczony.store(wlaczony, Ordering::SeqCst);
+        zapisz_wlaczony(&self.katalog_modeli, wlaczony)
     }
 
     /// Opis AKTYWNEGO modelu (etykieta/rozmiar do pokazania w UI).
@@ -375,12 +395,48 @@ fn zapisz_aktywny_model(katalog_modeli: &std::path::Path, id: &str) -> Result<()
     Ok(())
 }
 
+/// Wczytuje flagę włączenia AI. Domyślnie WŁĄCZONY - brak pliku albo nieczytelna treść znaczy
+/// „włączony"; tylko jawne `0` wyłącza. Dzięki temu świeża instalacja od razu ma działające AI.
+fn wczytaj_wlaczony(katalog_modeli: &std::path::Path) -> bool {
+    match std::fs::read_to_string(katalog_modeli.join(PLIK_WLACZONY)) {
+        Ok(tresc) => tresc.trim() != "0",
+        Err(_) => true,
+    }
+}
+
+/// Zapisuje flagę włączenia AI (`1`/`0`) do pliku (tworząc katalog, gdyby jeszcze nie istniał).
+fn zapisz_wlaczony(katalog_modeli: &std::path::Path, wlaczony: bool) -> Result<(), AppError> {
+    std::fs::create_dir_all(katalog_modeli)?;
+    std::fs::write(
+        katalog_modeli.join(PLIK_WLACZONY),
+        if wlaczony { "1" } else { "0" },
+    )?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn usluga_testowa() -> AiRuntimeService {
         AiRuntimeService::new(std::env::temp_dir().join("dziennik-ai-runtime-test-nieistnieje"))
+    }
+
+    #[test]
+    fn ai_domyslnie_wlaczony_a_wylaczenie_przezywa_restart() {
+        let katalog = tempfile::tempdir().expect("katalog tymczasowy");
+        let usluga = AiRuntimeService::new(katalog.path().to_path_buf());
+        assert!(usluga.czy_wlaczony(), "świeża instalacja ma AI włączone");
+
+        usluga.ustaw_wlaczony(false).expect("zapis wyłączenia");
+        assert!(!usluga.czy_wlaczony());
+
+        // Nowa usługa z tego samego katalogu wczytuje zapamiętany stan (jak po restarcie aplikacji).
+        let po_restarcie = AiRuntimeService::new(katalog.path().to_path_buf());
+        assert!(
+            !po_restarcie.czy_wlaczony(),
+            "wyłączenie musi przeżyć restart"
+        );
     }
 
     #[test]

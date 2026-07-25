@@ -133,7 +133,7 @@ export function ChatAi({ filter, zakresOpis, gotowe }: ChatAiProps): ReactElemen
   if (!gotowe) {
     return (
       <p className={styles.info}>
-        Aby porozmawiać o swoich danych, pobierz najpierw model (wyżej) i wybierz konto.
+        Aby porozmawiać o swoich danych, włącz Asystenta AI, pobierz model (wyżej) i wybierz konto.
       </p>
     );
   }
