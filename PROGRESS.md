@@ -5031,9 +5031,38 @@ podłączenie `AiRuntimeService`/repozytorium do `DbState`/komend/frontendu czek
 
 Weryfikacja Etap 1-3-fundament: `cargo test` **467/467** (+ 2 ignorowane testy benchmarku).
 
-**Następny krok (Etap 3, reszta - CZEKA na scalenie poprawki `DbState`):** podłączenie
-`AiRuntimeService`+repozytorium do `DbState`/`AppState`, `application/ai_analysis.rs` (rozwiązanie
-`Trade`+nazwy → `DaneAnalizyTransakcji` → prompt → model → zapis), komendy Tauri (`analyze_trade`,
-`get_trade_analysis`, `cancel_analysis`, status/pobranie modelu), rejestracja w `lib.rs`, frontend
-(przycisk „Przeanalizuj z AI" w `TradeInspector`, panel wyniku, pozycja nawigacji „Asystent AI" +
-trasa + strona). Potem Etap 4 (demo) i Etap 5+ (pozostałe rodzaje analiz, czat, pełne Ustawienia).
+**Poprawka `DbState` scalona (2026-07-25):** zadanie w tle (`large_enum_variant`, boksowanie
+`trades`/`backup`/`trash`) było na gałęzi `claude/bold-lederberg-f25757` - użytkownik poprosił o
+scalenie, więc cherry-pick na master (czysto, dotyka tylko `state.rs`/`lib.rs`, których praca AI nie
+ruszała). `cargo clippy --all-targets -- -D warnings` potwierdził brak `large_enum_variant`.
+Odblokowało to resztę Etapu 3.
+
+**Etap 3 (reszta - podłączenie end-to-end).**
+
+- `application/ai_analysis.rs` (5 testów): `AiAnalysisService` spina całość - rozwiązuje `Trade` +
+  nazwy (konto/instrument/strategia/emocje/niespełnione zasady) do `DaneAnalizyTransakcji` (czysta,
+  testowalna funkcja `zbuduj_dane_transakcji`), buduje prompt, woła runtime z walidatorem, zapisuje
+  wynik. Deleguje też pobieranie/status/usuwanie modelu i analiz. Rozszerzony `AiRuntimeService` o
+  pobieranie modelu (postęp + anulowanie) i usuwanie.
+- `state.rs`/`lib.rs`: `AiAnalysisService` jako `Arc` w `DbState::Ready`; model w podkatalogu
+  `ai-models` katalogu danych aplikacji (osobno od bazy/kopii - duży plik pobierany osobno).
+- `commands/ai_analysis.rs`: 10 komend Tauri (`analyze_trade` i `download_ai_model` async +
+  `spawn_blocking`, reszta synchroniczna) + rejestracja w `lib.rs`.
+- Frontend: `app/types/aiAnalysis.ts`; `pages/TradeAiAnalysis.tsx` (sekcja w panelu szczegółów
+  transakcji: pobieranie modelu / „Przeanalizuj z AI" / wynik z banerem nieaktualności) wpięta w
+  `TradeInspector`; `pages/AsystentAiPage.tsx` + trasa `/asystent-ai` + pozycja nawigacji „Asystent
+  AI" w grupie Analiza (przegląd + zarządzanie modelem/analizami).
+
+Cały kod AI przechodzi `cargo clippy --all-targets -- -D warnings` czysto (zostają tylko 4
+przedawnione dead_code z `task_c91d280f`, nie moje). Weryfikacja: `cargo test` **472/472**,
+`cargo fmt` czysto, frontend `tsc`/`eslint`/`prettier` czysto, `vitest` **684/684**.
+
+**Etap 3 zakończony (backend + frontend).** Rzeczywiste uruchomienie (pobranie modelu ~4,7 GB,
+analiza transakcji) wymaga przebudowania aplikacji Tauri (nowe komendy) i pobrania modelu przez
+użytkownika - tego nie da się sprawdzić w sandboxie (port 1430 to serwer użytkownika, model
+niepobrany). To jest **Etap 4 (demo/weryfikacja u użytkownika)**.
+
+**Etap 5+ (osobno, później):** pozostałe rodzaje analiz (dzień/tydzień/miesiąc/rok/konto/instrument/
+strategia/emocjonalna/pełny audyt), czat po danych, pełna sekcja „Asystent AI" w Ustawieniach,
+pełny model uprawnień do kategorii danych, pełna macierz testów odporności (brak RAM, uszkodzony
+model itd.), macOS (kod pisany wieloplatformowo, ale niezweryfikowany - brak Maca).
