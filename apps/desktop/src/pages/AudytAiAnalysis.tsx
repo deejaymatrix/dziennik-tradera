@@ -47,10 +47,13 @@ export function AudytAiAnalysis({
     void wczytajModel();
   }, [wczytajModel]);
 
+  // Reset wyniku przy zmianie KONTA (tożsamość `accountId`, nie opis zakresu): dwa konta o tej samej
+  // nazwie i walucie miałyby identyczny `zakresOpis`, a zmiana nazwy konta nie powinna kasować wciąż
+  // ważnej analizy.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setWynik(null);
-  }, [zakresOpis]);
+  }, [accountId]);
 
   async function analizuj(): Promise<void> {
     setAnalizuje(true);
