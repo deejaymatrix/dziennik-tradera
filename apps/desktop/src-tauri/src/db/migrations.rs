@@ -273,6 +273,23 @@ mod tests {
     use super::*;
     use crate::db::connection;
 
+    /// Runner stosuje migracje po numerze wersji (`version > current`). Luka albo duplikat numeru
+    /// przy dodawaniu nowej migracji po cichu zepsułby kolejność u użytkownika (pominięta albo
+    /// podwójnie policzona migracja) - ten test wychwytuje to natychmiast, nie przy upgradzie
+    /// czyjejś realnej bazy. Wersje MUSZĄ być 1, 2, ..., N, bez luk i duplikatów.
+    #[test]
+    fn wersje_migracji_sa_sekwencyjne_od_jedynki() {
+        for (i, migracja) in MIGRATIONS.iter().enumerate() {
+            let oczekiwana = (i + 1) as i64;
+            assert_eq!(
+                migracja.version, oczekiwana,
+                "migracja '{}' na pozycji {i} ma wersję {}, oczekiwano {oczekiwana} (luka albo \
+                 duplikat numeru w liście MIGRATIONS)",
+                migracja.name, migracja.version
+            );
+        }
+    }
+
     fn table_names(conn: &Connection) -> Vec<String> {
         let mut stmt = conn
             .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
