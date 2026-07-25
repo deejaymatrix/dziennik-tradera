@@ -47,6 +47,20 @@ function nastaw(zapisana: ZapisanaAnaliza | null): void {
   });
 }
 
+// Stan modelu dla ścieżek świeżej instalacji (wyłączony / niepobrany), bez zapisanej analizy.
+function nastawStatus(status: { gotowy: boolean; wlaczony: boolean }): void {
+  invokeCommand.mockImplementation((cmd: string) => {
+    if (cmd === "ai_model_status")
+      return Promise.resolve({
+        gotowy: status.gotowy,
+        wlaczony: status.wlaczony,
+        etykieta: "qwen2.5-7b-instruct-q4_k_m",
+        rozmiar_bajtow: 4_800_000_000,
+      });
+    return Promise.resolve(null);
+  });
+}
+
 function wyrenderuj(): void {
   render(
     <ToastProvider>
@@ -78,5 +92,26 @@ describe("TradeAiAnalysis", () => {
     expect(await screen.findByText(/Analiza nieaktualna/)).toBeInTheDocument();
     // Sekcje wyniku nadal widoczne (baner nie zastępuje treści).
     expect(screen.getByText("Wszedłeś za wcześnie.")).toBeInTheDocument();
+  });
+
+  it("AI wyłączony: prowadzi do włączenia w Ustawieniach, bez przycisku analizy", async () => {
+    // Świeża instalacja z wyłączonym Asystentem - główne wejście AI musi wskazać, gdzie go włączyć,
+    // a nie oferować analizy, której i tak backend by odmówił (wymagaj_wlaczony).
+    nastawStatus({ gotowy: true, wlaczony: false });
+    wyrenderuj();
+
+    expect(await screen.findByText(/Asystent AI jest wyłączony/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Przeanalizuj z AI/ })).not.toBeInTheDocument();
+  });
+
+  it("model niepobrany: pokazuje prośbę o pobranie z przyciskiem pobrania, bez analizy", async () => {
+    // Świeża instalacja bez modelu - zamiast analizy (którą backend odrzuciłby w zapewnij_model)
+    // główne wejście prowadzi do jednorazowego pobrania.
+    nastawStatus({ gotowy: false, wlaczony: true });
+    wyrenderuj();
+
+    expect(await screen.findByRole("button", { name: /Pobierz model AI/ })).toBeInTheDocument();
+    expect(screen.getByText(/wymaga jednorazowego pobrania modelu/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Przeanalizuj z AI/ })).not.toBeInTheDocument();
   });
 });
