@@ -107,7 +107,16 @@ export function ChatAi({ filter, zakresOpis, gotowe }: ChatAiProps): ReactElemen
         historia: historiaPrzed,
         pytanie: tresc,
       });
-      setHistoria((h) => [...h, { rola: "asystent", tresc: odpowiedz.trim() }]);
+      const trescOdpowiedzi = odpowiedz.trim();
+      if (trescOdpowiedzi === "") {
+        // Pusta odpowiedź modelu - nie dodawaj pustego dymka. Zwróć pytanie do pola (jak przy
+        // błędzie), żeby dało się ponowić, i powiedz wprost, co się stało.
+        showToast("Model nie zwrócił odpowiedzi. Spróbuj zapytać ponownie.", "error");
+        setHistoria(historiaPrzed);
+        setPytanie(tresc);
+        return;
+      }
+      setHistoria((h) => [...h, { rola: "asystent", tresc: trescOdpowiedzi }]);
     } catch (e) {
       showToast(extractErrorMessage(e), "error");
       // Cofnij optymistyczne pytanie i zwróć je do pola - można poprawić i wysłać ponownie.
