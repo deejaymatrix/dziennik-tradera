@@ -543,6 +543,50 @@ mod tests {
         assert!(!applied);
     }
 
+    #[test]
+    fn apply_usuwa_osierocone_pliki_wal_i_shm_przed_podmiana_bazy() {
+        // Baza działa w trybie WAL, więc po awarii obok pliku bazy mogą zostać sidecary
+        // `-wal`/`-shm`. Gdyby przetrwały podmianę pliku bazy na PRZYWRÓCONĄ wersję, SQLite
+        // przy następnym otwarciu nałożyłby stary dziennik na nową bazę - czyli korupcja.
+        // Ten test blokuje regresję pętli czyszczącej te sidecary w `apply`.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let app_data_dir = dir.path();
+        let (conn, db_path) = make_db(app_data_dir);
+        let backup_dir = app_data_dir.join("backups");
+        let attachments_dir = app_data_dir.join("attachments");
+        std::fs::create_dir_all(&attachments_dir).expect("create attachments dir");
+
+        let archive_path = app_data_dir.join("original.dtjbackup");
+        create_from_connection(&conn, &archive_path, "0.1.0", &attachments_dir)
+            .expect("create original backup");
+        // Połączenie MUSI być zamknięte przed podmianą pliku bazy (na Windows otwarty uchwyt
+        // blokuje `rename`) i przed usunięciem sidecarów, które SQLite trzymałby otwarte.
+        drop(conn);
+
+        // Symulujemy nieaktualne pliki dziennika pozostawione przez poprzednią sesję.
+        let wal_path = PathBuf::from(format!("{}-wal", db_path.display()));
+        let shm_path = PathBuf::from(format!("{}-shm", db_path.display()));
+        std::fs::write(&wal_path, b"nieaktualny-wal").expect("write stale wal");
+        std::fs::write(&shm_path, b"nieaktualny-shm").expect("write stale shm");
+
+        prepare_restore(app_data_dir, &archive_path).expect("prepare restore");
+        let applied =
+            apply_pending_restore_if_present(app_data_dir, &db_path, &backup_dir, "0.1.0")
+                .expect("apply restore");
+
+        assert!(applied);
+        assert!(
+            !wal_path.exists(),
+            "nieaktualny -wal powinien zostać usunięty"
+        );
+        assert!(
+            !shm_path.exists(),
+            "nieaktualny -shm powinien zostać usunięty"
+        );
+        // Podmieniona baza jest otwieralna - sidecary nie zostawiły jej w niespójnym stanie.
+        connection::open(&db_path).expect("open restored db");
+    }
+
     /// Buduje archiwum "ręcznie", z dowolnym zestawem wpisów - do odtwarzania uszkodzeń,
     /// których nie da się wyprodukować normalną ścieżką tworzenia kopii.
     fn zbuduj_archiwum(sciezka: &Path, wpisy: &[(&str, Vec<u8>)]) {
