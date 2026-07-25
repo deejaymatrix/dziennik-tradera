@@ -59,6 +59,12 @@ export function opisPostepuPobierania(postep: PostepPobrania | null): string {
   return "Pobieranie…";
 }
 
+/** Ustawienia stylu odpowiedzi AI (`UstawieniaOdpowiedziAi`) - język i szczegółowość. */
+export interface UstawieniaOdpowiedziAi {
+  jezyk: "polski" | "angielski";
+  szczegolowosc: "zwiezle" | "standardowe" | "szczegolowe";
+}
+
 /** Jeden z kandydatów na model z jego stanem (`OpisModeluStatus`) - do wyboru w Ustawieniach. */
 export interface OpisModeluStatus {
   id: string;

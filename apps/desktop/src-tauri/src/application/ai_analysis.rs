@@ -20,6 +20,7 @@ use crate::domain::ai_analysis::{
     StatusAnalizy, ZapisanaAnaliza, WERSJA_SZABLONU_TRANSAKCJI,
 };
 use crate::domain::ai_chat::{zbuduj_wiadomosci, WiadomoscCzatu};
+use crate::domain::ai_settings::UstawieniaOdpowiedziAi;
 use crate::domain::emotional_state::EmotionalStateRepository;
 use crate::domain::strategy_checklist::ChecklistStatus;
 use crate::domain::trade::{Trade, TradeRepository, TradeSide, TradeStatus};
@@ -109,6 +110,19 @@ impl AiAnalysisService {
         self.runtime.ustaw_wlaczony(wlaczony)
     }
 
+    /// Bieżące ustawienia stylu odpowiedzi (język + szczegółowość).
+    pub fn ustawienia_odpowiedzi(&self) -> UstawieniaOdpowiedziAi {
+        self.runtime.ustawienia_odpowiedzi()
+    }
+
+    /// Ustawia styl odpowiedzi (język + szczegółowość) - zapamiętywane, wpływa na kolejne analizy.
+    pub fn ustaw_ustawienia_odpowiedzi(
+        &self,
+        ustawienia: UstawieniaOdpowiedziAi,
+    ) -> Result<(), AppError> {
+        self.runtime.ustaw_ustawienia_odpowiedzi(ustawienia)
+    }
+
     /// Zwraca błąd, gdy AI jest wyłączony - wspólny strażnik dla analiz i czatu, żeby wyłączenie
     /// naprawdę blokowało operacje (nie tylko chowało przyciski w UI).
     fn wymagaj_wlaczony(&self) -> Result<(), AppError> {
@@ -162,7 +176,11 @@ impl AiAnalysisService {
         self.wymagaj_wlaczony()?;
         let trade = self.trades.get(trade_id)?;
         let dane = self.zbuduj_dane(&trade)?;
-        let prompt = zbuduj_prompt(&dane);
+        let prompt = format!(
+            "{}\n\n{}",
+            zbuduj_prompt(&dane),
+            self.runtime.instrukcja_stylu()
+        );
 
         let tekst = self
             .runtime
@@ -199,7 +217,11 @@ impl AiAnalysisService {
         self.wymagaj_wlaczony()?;
         let raport = self.reports.get_filtered_report(filter)?;
         let dane = zbuduj_dane_raportu(&raport, zakres_opis);
-        let prompt = zbuduj_prompt_raportu(&dane);
+        let prompt = format!(
+            "{}\n\n{}",
+            zbuduj_prompt_raportu(&dane),
+            self.runtime.instrukcja_stylu()
+        );
         let tekst = self
             .runtime
             .analizuj_blocking(&prompt, czy_poprawna_odpowiedz)?;
@@ -220,7 +242,12 @@ impl AiAnalysisService {
         self.wymagaj_wlaczony()?;
         let raport = self.reports.get_filtered_report(filter)?;
         let pakiet = zbuduj_dane_raportu(&raport, zakres_opis).pakiet_danych();
-        let wiadomosci = zbuduj_wiadomosci(&pakiet, &historia, &pytanie);
+        let wiadomosci = zbuduj_wiadomosci(
+            &pakiet,
+            &self.runtime.instrukcja_stylu(),
+            &historia,
+            &pytanie,
+        );
         self.runtime.czat_blocking(wiadomosci)
     }
 

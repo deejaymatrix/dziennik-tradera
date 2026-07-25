@@ -2,9 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { StopCircle } from "lucide-react";
 import { invokeCommand, extractErrorMessage } from "../../app/invokeCommand";
-import type { OpisModeluStatus, PostepPobrania, StatusModeluAi } from "../../app/types/aiAnalysis";
+import type {
+  OpisModeluStatus,
+  PostepPobrania,
+  StatusModeluAi,
+  UstawieniaOdpowiedziAi,
+} from "../../app/types/aiAnalysis";
 import { opisPostepuPobierania } from "../../app/types/aiAnalysis";
 import { Button } from "../../ui/components/Button/Button";
+import { Select } from "../../ui/components/Select/Select";
 import { useConfirm } from "../../ui/components/ConfirmDialog/ConfirmDialog";
 import { useToast } from "../../ui/components/Toast/ToastProvider";
 import styles from "./AiSection.module.css";
@@ -23,18 +29,21 @@ export function AiSection(): ReactElement {
   const confirm = useConfirm();
   const [modele, setModele] = useState<OpisModeluStatus[] | null>(null);
   const [wlaczony, setWlaczony] = useState<boolean | null>(null);
+  const [odpowiedzi, setOdpowiedzi] = useState<UstawieniaOdpowiedziAi | null>(null);
   const [pobiera, setPobiera] = useState(false);
   const [postep, setPostep] = useState<PostepPobrania | null>(null);
   const ankieta = useRef<number | null>(null);
 
   const wczytaj = useCallback(async () => {
     try {
-      const [lista, status] = await Promise.all([
+      const [lista, status, style] = await Promise.all([
         invokeCommand<OpisModeluStatus[]>("ai_list_models", {}),
         invokeCommand<StatusModeluAi>("ai_model_status", {}),
+        invokeCommand<UstawieniaOdpowiedziAi>("ai_response_settings", {}),
       ]);
       setModele(lista);
       setWlaczony(status.wlaczony);
+      setOdpowiedzi(style);
     } catch (e) {
       showToast(extractErrorMessage(e), "error");
     }
@@ -46,6 +55,20 @@ export function AiSection(): ReactElement {
       setWlaczony(nowy);
     } catch (e) {
       showToast(extractErrorMessage(e), "error");
+    }
+  }
+
+  async function zmienOdpowiedzi(zmiana: Partial<UstawieniaOdpowiedziAi>): Promise<void> {
+    if (odpowiedzi === null) {
+      return;
+    }
+    const nowe = { ...odpowiedzi, ...zmiana };
+    setOdpowiedzi(nowe);
+    try {
+      await invokeCommand("ai_set_response_settings", { ustawienia: nowe });
+    } catch (e) {
+      showToast(extractErrorMessage(e), "error");
+      void wczytaj(); // cofnij optymistyczną zmianę do stanu z backendu
     }
   }
 
@@ -188,6 +211,41 @@ export function AiSection(): ReactElement {
             </Button>
           )}
         </div>
+      )}
+
+      {odpowiedzi && (
+        <fieldset className={styles.lista}>
+          <legend className={styles.legenda}>Styl odpowiedzi</legend>
+          <Select
+            label="Język odpowiedzi"
+            value={odpowiedzi.jezyk}
+            onChange={(e) =>
+              void zmienOdpowiedzi({
+                jezyk: e.target.value as UstawieniaOdpowiedziAi["jezyk"],
+              })
+            }
+            options={[
+              { value: "polski", label: "Polski" },
+              { value: "angielski", label: "Angielski" },
+            ]}
+            compact
+          />
+          <Select
+            label="Szczegółowość odpowiedzi"
+            value={odpowiedzi.szczegolowosc}
+            onChange={(e) =>
+              void zmienOdpowiedzi({
+                szczegolowosc: e.target.value as UstawieniaOdpowiedziAi["szczegolowosc"],
+              })
+            }
+            options={[
+              { value: "zwiezle", label: "Zwięźle" },
+              { value: "standardowe", label: "Standardowo" },
+              { value: "szczegolowe", label: "Szczegółowo" },
+            ]}
+            compact
+          />
+        </fieldset>
       )}
     </div>
   );

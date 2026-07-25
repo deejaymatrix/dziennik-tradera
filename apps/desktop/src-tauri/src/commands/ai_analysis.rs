@@ -11,6 +11,7 @@ use crate::application::ai_runtime::OpisModeluStatus;
 use crate::application::reports::ReportFilter;
 use crate::domain::ai_analysis::{AnalizaWynik, ZapisanaAnaliza};
 use crate::domain::ai_chat::WiadomoscCzatu;
+use crate::domain::ai_settings::UstawieniaOdpowiedziAi;
 use crate::error::AppError;
 use crate::infrastructure::ai_model_download::PostepPobrania;
 use crate::state::{AppState, DbState};
@@ -131,6 +132,23 @@ pub fn ai_set_model(state: State<'_, AppState>, id: String) -> Result<(), AppErr
 #[tauri::command]
 pub fn ai_set_enabled(state: State<'_, AppState>, enabled: bool) -> Result<(), AppError> {
     require_ai(&state)?.ustaw_wlaczony(enabled)
+}
+
+/// Bieżące ustawienia stylu odpowiedzi (język + szczegółowość) - do pokazania w Ustawieniach.
+#[tauri::command]
+pub fn ai_response_settings(
+    state: State<'_, AppState>,
+) -> Result<UstawieniaOdpowiedziAi, AppError> {
+    Ok(require_ai(&state)?.ustawienia_odpowiedzi())
+}
+
+/// Ustawia styl odpowiedzi (język + szczegółowość) - zapamiętywane, wpływa na kolejne analizy/czat.
+#[tauri::command]
+pub fn ai_set_response_settings(
+    state: State<'_, AppState>,
+    ustawienia: UstawieniaOdpowiedziAi,
+) -> Result<(), AppError> {
+    require_ai(&state)?.ustaw_ustawienia_odpowiedzi(ustawienia)
 }
 
 /// Pobiera i weryfikuje model. `async` + `spawn_blocking` (gigabajty + SHA-256). Postęp odpytywać

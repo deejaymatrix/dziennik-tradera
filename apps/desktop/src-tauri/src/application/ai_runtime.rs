@@ -19,6 +19,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use crate::domain::ai_settings::UstawieniaOdpowiedziAi;
 use crate::error::AppError;
 use crate::infrastructure::ai_inference::{
     generuj, generuj_czat, zaladuj_model, KonfiguracjaGenerowania,
@@ -37,6 +38,9 @@ const PLIK_AKTYWNEGO_MODELU: &str = "aktywny-model.txt";
 
 /// Nazwa pliku zapamiętującego, czy Asystent AI jest włączony (`1`/`0`). Brak pliku = włączony.
 const PLIK_WLACZONY: &str = "ai-wlaczony.txt";
+
+/// Nazwa pliku (JSON) z ustawieniami stylu odpowiedzi (język + szczegółowość).
+const PLIK_ODPOWIEDZI: &str = "ai-odpowiedzi.json";
 
 /// Jeden z 3 kandydatów z jego bieżącym stanem - do pokazania w wyborze modelu w Ustawieniach.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -79,6 +83,9 @@ pub struct AiRuntimeService {
     /// Czy Asystent AI jest włączony (Ustawienia → Asystent AI). Wyłączony blokuje analizy i czat
     /// czytelnym błędem, a frontend chowa wejścia do AI. Zapamiętany w pliku, przeżywa restart.
     wlaczony: AtomicBool,
+    /// Ustawienia stylu odpowiedzi (język + szczegółowość). Zapamiętane w pliku JSON, przeżywają
+    /// restart. Doklejane do polecenia jako instrukcja stylu przy każdej analizie i czacie.
+    ustawienia_odpowiedzi: Mutex<UstawieniaOdpowiedziAi>,
 }
 
 /// Strażnik RAII zdejmujący flagę "zajęty" przy wyjściu z analizy - gwarantuje, że nawet wczesny
@@ -95,6 +102,7 @@ impl AiRuntimeService {
     pub fn new(katalog_modeli: PathBuf) -> Self {
         let aktywny = wczytaj_aktywny_model(&katalog_modeli);
         let wlaczony = wczytaj_wlaczony(&katalog_modeli);
+        let ustawienia_odpowiedzi = wczytaj_ustawienia_odpowiedzi(&katalog_modeli);
         Self {
             katalog_modeli,
             zaladowany: Mutex::new(None),
@@ -108,6 +116,7 @@ impl AiRuntimeService {
             anuluj_pobieranie: Arc::new(AtomicBool::new(false)),
             aktywny_model_id: Mutex::new(aktywny),
             wlaczony: AtomicBool::new(wlaczony),
+            ustawienia_odpowiedzi: Mutex::new(ustawienia_odpowiedzi),
         }
     }
 
@@ -121,6 +130,31 @@ impl AiRuntimeService {
     pub fn ustaw_wlaczony(&self, wlaczony: bool) -> Result<(), AppError> {
         self.wlaczony.store(wlaczony, Ordering::SeqCst);
         zapisz_wlaczony(&self.katalog_modeli, wlaczony)
+    }
+
+    /// Bieżące ustawienia stylu odpowiedzi (język + szczegółowość).
+    pub fn ustawienia_odpowiedzi(&self) -> UstawieniaOdpowiedziAi {
+        *self
+            .ustawienia_odpowiedzi
+            .lock()
+            .expect("mutex ustawień odpowiedzi nie powinien być zatruty")
+    }
+
+    /// Ustawia styl odpowiedzi i zapamiętuje na dysku (przeżywa restart).
+    pub fn ustaw_ustawienia_odpowiedzi(
+        &self,
+        ustawienia: UstawieniaOdpowiedziAi,
+    ) -> Result<(), AppError> {
+        *self
+            .ustawienia_odpowiedzi
+            .lock()
+            .expect("mutex ustawień odpowiedzi nie powinien być zatruty") = ustawienia;
+        zapisz_ustawienia_odpowiedzi(&self.katalog_modeli, &ustawienia)
+    }
+
+    /// Instrukcja stylu (język + szczegółowość) doklejana do polecenia/wiadomości systemowej.
+    pub fn instrukcja_stylu(&self) -> String {
+        self.ustawienia_odpowiedzi().instrukcja_stylu()
     }
 
     /// Opis AKTYWNEGO modelu (etykieta/rozmiar do pokazania w UI).
@@ -414,6 +448,30 @@ fn zapisz_wlaczony(katalog_modeli: &std::path::Path, wlaczony: bool) -> Result<(
     Ok(())
 }
 
+/// Wczytuje ustawienia stylu odpowiedzi z pliku JSON. Zwraca wartości domyślne, gdy pliku nie ma
+/// albo jest nieczytelny - brak/uszkodzone ustawienia nie mogą blokować działania AI.
+fn wczytaj_ustawienia_odpowiedzi(katalog_modeli: &std::path::Path) -> UstawieniaOdpowiedziAi {
+    std::fs::read_to_string(katalog_modeli.join(PLIK_ODPOWIEDZI))
+        .ok()
+        .and_then(|tresc| serde_json::from_str(&tresc).ok())
+        .unwrap_or_default()
+}
+
+/// Zapisuje ustawienia stylu odpowiedzi do pliku JSON (tworząc katalog, gdyby jeszcze nie istniał).
+fn zapisz_ustawienia_odpowiedzi(
+    katalog_modeli: &std::path::Path,
+    ustawienia: &UstawieniaOdpowiedziAi,
+) -> Result<(), AppError> {
+    std::fs::create_dir_all(katalog_modeli)?;
+    let tresc = serde_json::to_string_pretty(ustawienia).map_err(|e| {
+        AppError::io(format!(
+            "nie udało się zserializować ustawień odpowiedzi: {e}"
+        ))
+    })?;
+    std::fs::write(katalog_modeli.join(PLIK_ODPOWIEDZI), tresc)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -437,6 +495,30 @@ mod tests {
             !po_restarcie.czy_wlaczony(),
             "wyłączenie musi przeżyć restart"
         );
+    }
+
+    #[test]
+    fn ustawienia_odpowiedzi_domyslne_i_zapamietywane() {
+        use crate::domain::ai_settings::{JezykOdpowiedzi, SzczegolowoscOdpowiedzi};
+        let katalog = tempfile::tempdir().expect("katalog tymczasowy");
+        let usluga = AiRuntimeService::new(katalog.path().to_path_buf());
+        assert_eq!(
+            usluga.ustawienia_odpowiedzi(),
+            UstawieniaOdpowiedziAi::default()
+        );
+
+        let nowe = UstawieniaOdpowiedziAi {
+            jezyk: JezykOdpowiedzi::Angielski,
+            szczegolowosc: SzczegolowoscOdpowiedzi::Szczegolowe,
+        };
+        usluga
+            .ustaw_ustawienia_odpowiedzi(nowe)
+            .expect("zapis ustawień");
+        assert_eq!(usluga.ustawienia_odpowiedzi(), nowe);
+
+        // Po restarcie wczytuje zapamiętane ustawienia.
+        let po_restarcie = AiRuntimeService::new(katalog.path().to_path_buf());
+        assert_eq!(po_restarcie.ustawienia_odpowiedzi(), nowe);
     }
 
     #[test]
