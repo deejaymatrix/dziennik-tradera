@@ -12,6 +12,7 @@ import { SectionCard } from "../ui/components/SectionCard/SectionCard";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import { ReportAiAnalysis } from "./ReportAiAnalysis";
 import { EmocjeAiAnalysis } from "./EmocjeAiAnalysis";
+import { AudytAiAnalysis } from "./AudytAiAnalysis";
 import { ChatAi } from "./ChatAi";
 import { HistoriaAnaliz } from "./HistoriaAnaliz";
 import styles from "./AsystentAiPage.module.css";
@@ -181,6 +182,11 @@ export function AsystentAiPage(): ReactElement {
               gotoweDoAnalizy={wybraneKonto !== ""}
             />
             <EmocjeAiAnalysis
+              accountId={wybraneKonto}
+              zakresOpis={zakresOpis}
+              gotoweDoAnalizy={wybraneKonto !== ""}
+            />
+            <AudytAiAnalysis
               accountId={wybraneKonto}
               zakresOpis={zakresOpis}
               gotoweDoAnalizy={wybraneKonto !== ""}

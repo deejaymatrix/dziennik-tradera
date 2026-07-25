@@ -95,6 +95,22 @@ pub async fn analyze_emotions(
     })?
 }
 
+/// Dedykowany AUDYT ZACHOWANIA konta (overtrading/dyscyplina/handel po stracie z deterministycznych
+/// sygnałów). `async` + `spawn_blocking`. Wynik NIE jest zapisywany - zwracany do pokazania.
+#[tauri::command]
+pub async fn analyze_behavior(
+    state: State<'_, AppState>,
+    account_id: String,
+    zakres_opis: String,
+) -> Result<AnalizaWynik, AppError> {
+    let service = require_ai(&state)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        service.audyt_zachowania_blocking(&account_id, zakres_opis)
+    })
+    .await
+    .map_err(|e| AppError::io(format!("zadanie audytu zachowania nie powiodło się: {e}")))?
+}
+
 /// Przerywa trwającą analizę (albo czat - to ten sam silnik "jedna operacja naraz").
 #[tauri::command]
 pub fn cancel_ai_analysis(state: State<'_, AppState>) -> Result<(), AppError> {

@@ -15,16 +15,19 @@ use rust_decimal::Decimal;
 use crate::application::accounts::AccountsService;
 use crate::application::reports::{FilteredReport, ReportFilter, ReportsService};
 use crate::domain::ai_analysis::{
-    czy_poprawna_odpowiedz, waliduj_odpowiedz, zbuduj_prompt, zbuduj_prompt_emocji,
-    zbuduj_prompt_raportu, AiAnalysisRepository, AnalizaWynik, DaneAnalizyRaportu,
-    DaneAnalizyTransakcji, NowaAnaliza, StatusAnalizy, ZapisanaAnaliza, WERSJA_SZABLONU_TRANSAKCJI,
+    czy_poprawna_odpowiedz, waliduj_odpowiedz, zbuduj_prompt, zbuduj_prompt_audytu,
+    zbuduj_prompt_emocji, zbuduj_prompt_raportu, AiAnalysisRepository, AnalizaWynik,
+    DaneAnalizyRaportu, DaneAnalizyTransakcji, NowaAnaliza, StatusAnalizy, ZapisanaAnaliza,
+    WERSJA_SZABLONU_TRANSAKCJI,
 };
 use crate::domain::ai_chat::{zbuduj_wiadomosci, WiadomoscCzatu};
 use crate::domain::ai_settings::UstawieniaOdpowiedziAi;
 use crate::domain::emotional_state::EmotionalStateRepository;
 use crate::domain::strategy_checklist::ChecklistStatus;
 use crate::domain::trade::{Trade, TradeRepository, TradeSide, TradeStatus};
-use crate::domain::trade_stats::{compute_emotion_breakdown, GroupBreakdown};
+use crate::domain::trade_stats::{
+    compute_behavior_signals, compute_emotion_breakdown, GroupBreakdown,
+};
 use crate::error::AppError;
 
 /// Etykieta modelu zapisywana przy analizie (identyfikuje, czym była zrobiona). Trzymana tu, a nie
@@ -268,6 +271,30 @@ impl AiAnalysisService {
         let prompt = format!(
             "{}\n\n{}",
             zbuduj_prompt_emocji(&zakres_opis, &dane_json),
+            self.runtime.instrukcja_stylu()
+        );
+        let tekst = self
+            .runtime
+            .analizuj_blocking(&prompt, czy_poprawna_odpowiedz)?;
+        waliduj_odpowiedz(&tekst)
+    }
+
+    /// Dedykowany AUDYT ZACHOWANIA konta: deterministyczne sygnały (overtrading, dyscyplina, handel
+    /// po stracie) z `compute_behavior_signals` trafiają do modelu, który je interpretuje i wskazuje
+    /// kroki poprawy. Wynik NIE jest zapisywany. BLOKUJĄCE - wołać z `spawn_blocking`.
+    pub fn audyt_zachowania_blocking(
+        &self,
+        account_id: &str,
+        zakres_opis: String,
+    ) -> Result<AnalizaWynik, AppError> {
+        self.wymagaj_wlaczony()?;
+        let trades = self.trades.list(account_id, false)?;
+        let sygnaly = compute_behavior_signals(&trades);
+        let sygnaly_json =
+            serde_json::to_string_pretty(&sygnaly).unwrap_or_else(|_| "{}".to_string());
+        let prompt = format!(
+            "{}\n\n{}",
+            zbuduj_prompt_audytu(&zakres_opis, &sygnaly_json),
             self.runtime.instrukcja_stylu()
         );
         let tekst = self

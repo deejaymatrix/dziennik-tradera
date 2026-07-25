@@ -447,6 +447,33 @@ JSON."
     )
 }
 
+/// Buduje polecenie AUDYTU ZACHOWANIA. `sygnaly_json` to gotowe, deterministyczne sygnały
+/// (overtrading, dyscyplina, handel po stracie) policzone w Ruście (`compute_behavior_signals`);
+/// model tylko je interpretuje. Obrona jak w innych analizach + zakaz diagnozy. Wynik w tym samym
+/// 5-sekcyjnym schemacie JSON.
+pub fn zbuduj_prompt_audytu(zakres_opis: &str, sygnaly_json: &str) -> String {
+    format!(
+        "Jesteś asystentem robiącym audyt ZACHOWANIA tradera. Poniżej masz JUŻ POLICZONE przez \
+aplikację sygnały: overtrading (liczba transakcji na dzień), dyscyplinę (wynik transakcji łamiących \
+wymagane zasady wejścia vs przestrzegających) oraz handel po stracie (transakcje zaraz po stratnej: \
+ich wynik i średni wolumen względem ogólnego - sygnał revenge tradingu i eskalacji ryzyka). NIE licz \
+niczego sam i nie zmyślaj.\n\n\
+Oceń skłonność do: overtradingu, revenge tradingu, łamania zasad i zwiększania ryzyka po stracie. \
+Wskaż konkretne, wykonalne kroki poprawy dyscypliny i zarządzania ryzykiem. Pisz wspierająco, bez \
+agresywnego oceniania. NIE diagnozuj chorób psychicznych ani nie udzielaj porad medycznych czy \
+gwarantowanych porad finansowych. Przy małej próbie zaznacz niepewność w \"jakosc_danych\".\n\n\
+Zakres: {zakres_opis}\n\
+Sygnały (JSON):\n{sygnaly_json}\n\n\
+Odpowiedz WYŁĄCZNIE jednym obiektem JSON o dokładnie takich kluczach:\n\
+{{\"fakty\": [\"...\"], \"obserwacje\": [\"...\"], \"hipotezy\": [\"...\"], \"rekomendacje\": [\"...\"], \"jakosc_danych\": [\"...\"]}}\n\
+\"fakty\" to twarde ustalenia z danych; \"obserwacje\" to wnioski wynikające z faktów; \"hipotezy\" \
+to ostrożne przypuszczenia wymagające potwierdzenia; \"rekomendacje\" to konkretne kroki; \
+\"jakosc_danych\" to ostrzeżenia o małej próbie albo brakach danych (pusta tablica, jeśli danych \
+jest dość). Każda wartość to tablica krótkich zdań po polsku. Bez żadnego tekstu poza tym obiektem \
+JSON."
+    )
+}
+
 /// Stan wykonania zapisanej analizy. `Nieaktualna` NIE jest tu - to nie stan zapisu, tylko wynik
 /// porównania `zrodlo_updated_at` z bieżącym `updated_at` transakcji, liczony przy odczycie.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -720,6 +747,21 @@ mod tests {
         assert!(prompt.contains("\"obserwacje\""));
         assert!(prompt.contains("\"rekomendacje\""));
         // Odpowiedź raportu przechodzi tym samym walidatorem.
+        let odpowiedz = r#"{"fakty":["a"],"obserwacje":["b"],"rekomendacje":["c"]}"#;
+        assert!(czy_poprawna_odpowiedz(odpowiedz));
+    }
+
+    #[test]
+    fn prompt_audytu_zawiera_zakres_sygnaly_i_schemat() {
+        let prompt = zbuduj_prompt_audytu(
+            "Konto Główne · cała historia",
+            r#"{"after_loss_count":8,"after_loss_avg_volume":"2.5"}"#,
+        );
+        assert!(prompt.contains("Konto Główne · cała historia"));
+        assert!(prompt.contains("after_loss_count"));
+        assert!(prompt.to_lowercase().contains("revenge"));
+        assert!(prompt.to_lowercase().contains("nie diagnozuj"));
+        assert!(prompt.contains("\"jakosc_danych\""));
         let odpowiedz = r#"{"fakty":["a"],"obserwacje":["b"],"rekomendacje":["c"]}"#;
         assert!(czy_poprawna_odpowiedz(odpowiedz));
     }

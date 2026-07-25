@@ -5,6 +5,7 @@ use chrono::{DateTime, Datelike, Local, NaiveDate, Timelike, Utc};
 use rust_decimal::Decimal;
 use serde::Serialize;
 
+use super::strategy_checklist::ChecklistStatus;
 use super::trade::{Trade, TradeSide, TradeStatus};
 
 /// Zamknięta, nieusunięta transakcja z policzonym wynikiem netto - jedyny kształt, na którym
@@ -450,6 +451,114 @@ pub fn compute_emotion_breakdown(
         .collect();
     result.sort_by_key(|g| std::cmp::Reverse(g.net_pnl));
     result
+}
+
+/// Deterministyczne sygnały ZACHOWANIA tradera do audytu (overtrading, dyscyplina, handel po
+/// stracie). Wszystko liczone z już policzonych pól transakcji (`net_pnl`, `volume`, checklist) -
+/// model dostaje gotowe liczby i tylko je interpretuje. Bierze wyłącznie transakcje zrealizowane.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct BehaviorSignals {
+    pub total_closed: i64,
+    /// Overtrading: rozłożenie liczby transakcji na dni (lokalny dzień zamknięcia).
+    pub active_days: i64,
+    pub max_trades_in_day: i64,
+    /// Dyscyplina: transakcje z ≥1 wymaganą, niespełnioną zasadą wejścia (z checklisty) vs reszta.
+    pub rule_broken_count: i64,
+    pub rule_broken_net: Decimal,
+    pub rule_followed_count: i64,
+    pub rule_followed_net: Decimal,
+    /// Handel po stracie (revenge/eskalacja): transakcje BEZPOŚREDNIO po transakcji stratnej
+    /// (chronologicznie). Porównanie średniego wolumenu z ogólnym wykrywa zwiększanie ryzyka.
+    pub after_loss_count: i64,
+    pub after_loss_net: Decimal,
+    pub after_loss_avg_volume: Option<Decimal>,
+    pub overall_avg_volume: Option<Decimal>,
+}
+
+/// Liczy sygnały zachowania (patrz [`BehaviorSignals`]). Deterministyczne, testowalne bez modelu.
+pub fn compute_behavior_signals(trades: &[Trade]) -> BehaviorSignals {
+    let mut realized = realized_trades(trades);
+    realized.sort_by_key(|t| zamkniecie(t));
+
+    let total_closed = realized.len() as i64;
+
+    // Overtrading: liczba transakcji na dzień.
+    let mut per_day: HashMap<String, i64> = HashMap::new();
+    for t in &realized {
+        let dzien = zamkniecie_lokalnie(t).format("%Y-%m-%d").to_string();
+        *per_day.entry(dzien).or_insert(0) += 1;
+    }
+    let active_days = per_day.len() as i64;
+    let max_trades_in_day = per_day.values().copied().max().unwrap_or(0);
+
+    // Dyscyplina: łamanie wymaganych zasad wejścia.
+    let mut rule_broken_count = 0i64;
+    let mut rule_broken_net = Decimal::ZERO;
+    let mut rule_followed_count = 0i64;
+    let mut rule_followed_net = Decimal::ZERO;
+    for t in &realized {
+        let net = t.net_pnl.expect("realized_trades gwarantuje Some");
+        let zlamane = t.checklist.as_ref().is_some_and(|c| {
+            c.entry
+                .iter()
+                .any(|i| i.required && i.status == ChecklistStatus::Unfulfilled)
+        });
+        if zlamane {
+            rule_broken_count += 1;
+            rule_broken_net += net;
+        } else {
+            rule_followed_count += 1;
+            rule_followed_net += net;
+        }
+    }
+
+    // Handel po stracie: transakcja i, gdy poprzednia (chronologicznie) była stratna.
+    let mut after_loss_count = 0i64;
+    let mut after_loss_net = Decimal::ZERO;
+    let mut after_loss_vol_sum = Decimal::ZERO;
+    let mut after_loss_vol_n = 0i64;
+    for i in 1..realized.len() {
+        let prev_net = realized[i - 1]
+            .net_pnl
+            .expect("realized_trades gwarantuje Some");
+        if prev_net.is_sign_negative() {
+            after_loss_count += 1;
+            after_loss_net += realized[i]
+                .net_pnl
+                .expect("realized_trades gwarantuje Some");
+            if let Some(v) = realized[i].volume {
+                after_loss_vol_sum += v;
+                after_loss_vol_n += 1;
+            }
+        }
+    }
+    let after_loss_avg_volume =
+        (after_loss_vol_n > 0).then(|| after_loss_vol_sum / Decimal::from(after_loss_vol_n));
+
+    // Średni wolumen ogółem - punkt odniesienia dla „po stracie".
+    let mut vol_sum = Decimal::ZERO;
+    let mut vol_n = 0i64;
+    for t in &realized {
+        if let Some(v) = t.volume {
+            vol_sum += v;
+            vol_n += 1;
+        }
+    }
+    let overall_avg_volume = (vol_n > 0).then(|| vol_sum / Decimal::from(vol_n));
+
+    BehaviorSignals {
+        total_closed,
+        active_days,
+        max_trades_in_day,
+        rule_broken_count,
+        rule_broken_net,
+        rule_followed_count,
+        rule_followed_net,
+        after_loss_count,
+        after_loss_net,
+        after_loss_avg_volume,
+        overall_avg_volume,
+    }
 }
 
 pub fn compute_strategy_breakdown(trades: &[Trade]) -> Vec<GroupBreakdown> {
@@ -898,6 +1007,50 @@ mod tests {
         assert_eq!(chciwosc.label, "Chciwość");
         assert_eq!(chciwosc.trade_count, 2);
         assert_eq!(chciwosc.net_pnl, dec!(-20));
+    }
+
+    #[test]
+    fn sygnaly_zachowania_licza_overtrading_dyscypline_i_handel_po_stracie() {
+        use crate::domain::strategy_checklist::{
+            ChecklistItem, ChecklistStatus as CS, StrategyChecklist,
+        };
+        fn zlamana() -> StrategyChecklist {
+            StrategyChecklist {
+                entry: vec![ChecklistItem {
+                    rule_id: "r1".to_string(),
+                    name: "Wybicie".to_string(),
+                    required: true,
+                    status: CS::Unfulfilled,
+                    reason: None,
+                }],
+                ..Default::default()
+            }
+        }
+        let mut a = closed_trade("a", 3, dec!(-50), None);
+        a.volume = Some(dec!(1));
+        a.checklist = Some(zlamana());
+        let mut b = closed_trade("b", 2, dec!(100), None);
+        b.volume = Some(dec!(2)); // brak checklisty = brak złamania
+        let mut c = closed_trade("c", 1, dec!(30), None);
+        c.volume = Some(dec!(1));
+
+        let s = compute_behavior_signals(&[a, b, c]);
+        assert_eq!(s.total_closed, 3);
+        assert_eq!(s.active_days, 3);
+        assert_eq!(s.max_trades_in_day, 1);
+        // Dyscyplina: a złamała (-50), b i c przestrzegały (+130 łącznie).
+        assert_eq!(s.rule_broken_count, 1);
+        assert_eq!(s.rule_broken_net, dec!(-50));
+        assert_eq!(s.rule_followed_count, 2);
+        assert_eq!(s.rule_followed_net, dec!(130));
+        // Handel po stracie: b następuje bezpośrednio po stratnej a.
+        assert_eq!(s.after_loss_count, 1);
+        assert_eq!(s.after_loss_net, dec!(100));
+        assert_eq!(s.after_loss_avg_volume, Some(dec!(2)));
+        assert_eq!(
+            s.overall_avg_volume,
+            Some((dec!(1) + dec!(2) + dec!(1)) / dec!(3))
+        );
     }
 
     #[test]
