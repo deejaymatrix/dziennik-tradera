@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { RouterProvider } from "react-router";
 import { ErrorBoundary } from "./app/ErrorBoundary";
@@ -10,6 +11,21 @@ import { ToastProvider } from "./ui/components/Toast/ToastProvider";
 import "./App.css";
 
 function App(): ReactElement {
+  // Wersja bieżąca aplikacji dla monitora aktualizacji - dzięki niej lekki check może pominąć
+  // wołanie wtyczki, gdy manifest zapowiada wersję, którą użytkownik już ma. Poza środowiskiem
+  // Tauri (podgląd w przeglądarce) zostaje `undefined` i monitor opiera się na `check()` wtyczki.
+  const [wersjaBiezaca, setWersjaBiezaca] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    void (async () => {
+      try {
+        const { getVersion } = await import("@tauri-apps/api/app");
+        setWersjaBiezaca(await getVersion());
+      } catch {
+        // Brak środowiska Tauri - monitor działa dalej, autorytatywnie decyduje wtyczka.
+      }
+    })();
+  }, []);
+
   return (
     <ErrorBoundary>
       {/* Preferencje muszą być NAD motywem - `ThemeProvider` jest teraz tylko nakładką na nie,
@@ -21,7 +37,7 @@ function App(): ReactElement {
               {/* Monitorowanie aktualizacji siedzi NAD routerem, żeby zmiana widoku nie
                   odmontowywała go i nie tworzyła drugiego harmonogramu - wymaganie Celu 1.8
                   mówi wprost o jednym centralnym serwisie zamiast timerów w widokach. */}
-              <UpdateMonitorProvider>
+              <UpdateMonitorProvider wersjaBiezaca={wersjaBiezaca}>
                 <RouterProvider router={router} />
               </UpdateMonitorProvider>
             </ConfirmProvider>

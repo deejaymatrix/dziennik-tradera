@@ -84,7 +84,7 @@ export function UpdateMonitorProvider({
   wersjaBiezaca,
 }: {
   children: ReactNode;
-  wersjaBiezaca?: string;
+  wersjaBiezaca?: string | undefined;
 }): ReactElement {
   const [stan, setStan] = useState<StanAktualizacji>({ rodzaj: "bezczynny" });
   const [znacznikDostepnej, setZnacznikDostepnej] = useState(false);
