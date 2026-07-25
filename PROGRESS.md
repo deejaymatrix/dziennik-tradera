@@ -407,8 +407,10 @@ GitHub Releases).
   dodatkowo zabezpieczony regułą `*.key`/`*.key.pub` w `.gitignore`), klucz publiczny wpisany
   w `tauri.conf.json` → `plugins.updater.pubkey`.
 - Endpoint sprawdzania aktualizacji skonfigurowany pod GitHub Releases
-  (`.../releases/latest/download/latest.json`) — **na razie z placeholderem zamiast
-  prawdziwej nazwy repozytorium**, patrz sekcja "Wymaga uwagi" poniżej.
+  (`https://github.com/deejaymatrix/dziennik-tradera/releases/latest/download/latest.json`) —
+  **prawdziwa nazwa repozytorium jest już wpisana** (potwierdzone w sekcji "Resprawdzenie po
+  audycie" niżej; repo jest publiczne, więc `latest.json` pobiera się bez logowania). Do
+  weryfikacji przy wydaniu zostaje wyłącznie realne pobranie/instalacja z opublikowanego wydania.
 - `.github/workflows/release.yml` — buduje, podpisuje i publikuje wydanie robocze (draft) na
   GitHub po wypchnięciu tagu `v*`, przez `tauri-apps/tauri-action`.
 - `docs/adr/0005-autoaktualizacja.md` — pełna dokumentacja decyzji i instrukcja krok po kroku,
