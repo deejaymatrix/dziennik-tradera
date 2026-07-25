@@ -514,6 +514,21 @@ pub fn compute_emotion_avg_volume(trades: &[Trade]) -> HashMap<String, Decimal> 
         .collect()
 }
 
+/// Średni wolumen (wielkość lota) na zrealizowaną transakcję z zapisanym wolumenem. Wspólna baza
+/// odniesienia: audyt zachowania używa jej dla „handlu po stracie", a analiza emocji - żeby porównać
+/// wolumen per emocja z ogólnym. `None`, gdy żadna zrealizowana transakcja nie ma wolumenu.
+pub fn compute_overall_avg_volume(trades: &[Trade]) -> Option<Decimal> {
+    let mut suma = Decimal::ZERO;
+    let mut n = 0i64;
+    for t in realized_trades(trades) {
+        if let Some(v) = t.volume {
+            suma += v;
+            n += 1;
+        }
+    }
+    (n > 0).then(|| suma / Decimal::from(n))
+}
+
 /// Deterministyczne sygnały ZACHOWANIA tradera do audytu (overtrading, dyscyplina, handel po
 /// stracie). Wszystko liczone z już policzonych pól transakcji (`net_pnl`, `volume`, checklist) -
 /// model dostaje gotowe liczby i tylko je interpretuje. Bierze wyłącznie transakcje zrealizowane.
@@ -627,16 +642,9 @@ pub fn compute_behavior_signals(trades: &[Trade]) -> BehaviorSignals {
     let overall_avg_net = (total_closed > 0)
         .then(|| (rule_broken_net + rule_followed_net) / Decimal::from(total_closed));
 
-    // Średni wolumen ogółem - punkt odniesienia dla „po stracie".
-    let mut vol_sum = Decimal::ZERO;
-    let mut vol_n = 0i64;
-    for t in &realized {
-        if let Some(v) = t.volume {
-            vol_sum += v;
-            vol_n += 1;
-        }
-    }
-    let overall_avg_volume = (vol_n > 0).then(|| vol_sum / Decimal::from(vol_n));
+    // Średni wolumen ogółem - punkt odniesienia dla „po stracie" (wspólny helper, ten sam co w bazie
+    // analizy emocji).
+    let overall_avg_volume = compute_overall_avg_volume(trades);
 
     // Najdłuższe serie kolejnych strat/zysków (chronologicznie). Breakeven zeruje obie.
     let mut max_losing_streak = 0i64;
@@ -1200,6 +1208,23 @@ mod tests {
         assert_eq!(s.max_trades_in_day, 2);
         // Średnia 3/2 = 1.5 - niższa od szczytu (2), co ujawnia epizodyczny overtrading.
         assert_eq!(s.avg_trades_per_day, Some(dec!(1.5)));
+    }
+
+    #[test]
+    fn sredni_wolumen_ogolem_liczy_tylko_zrealizowane_z_wolumenem() {
+        let mut a = closed_trade("a", 1, dec!(10), None);
+        a.volume = Some(dec!(1));
+        let mut b = closed_trade("b", 2, dec!(20), None);
+        b.volume = Some(dec!(3));
+        let mut c = closed_trade("c", 3, dec!(5), None);
+        c.volume = None; // bez wolumenu - pomijana w średniej
+                         // (1 + 3) / 2 = 2.
+        assert_eq!(compute_overall_avg_volume(&[a, b, c]), Some(dec!(2)));
+
+        // Żadna zrealizowana transakcja z wolumenem -> None.
+        let mut d = closed_trade("d", 1, dec!(1), None);
+        d.volume = None;
+        assert_eq!(compute_overall_avg_volume(&[d]), None);
     }
 
     #[test]

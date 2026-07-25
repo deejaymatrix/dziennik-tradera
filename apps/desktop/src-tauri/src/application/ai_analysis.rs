@@ -28,7 +28,8 @@ use crate::domain::trade::{Trade, TradeRepository, TradeSide, TradeStatus};
 use crate::domain::trade_partial_close;
 use crate::domain::trade_stats::{
     compute_behavior_signals, compute_emotion_avg_intensity, compute_emotion_avg_volume,
-    compute_emotion_breakdown, compute_stats, GroupBreakdown, TradeStats,
+    compute_emotion_breakdown, compute_overall_avg_volume, compute_stats, GroupBreakdown,
+    TradeStats,
 };
 use crate::error::AppError;
 
@@ -285,7 +286,8 @@ impl AiAnalysisService {
         let wolumeny = compute_emotion_avg_volume(&trades);
         // Baza odniesienia dla całego zakresu (ta sama matematyka co raporty) - do porównania emocji z tłem.
         let baza = compute_stats(&trades);
-        let dane_json = emocje_do_json(&wg_emocji, &natezenia, &wolumeny, &baza);
+        let baza_wolumen = compute_overall_avg_volume(&trades);
+        let dane_json = emocje_do_json(&wg_emocji, &natezenia, &wolumeny, &baza, baza_wolumen);
         let prompt = format!(
             "{}\n\n{}",
             zbuduj_prompt_emocji(&zakres_opis, &dane_json),
@@ -406,6 +408,7 @@ fn emocje_do_json(
     natezenia: &HashMap<String, Decimal>,
     wolumeny: &HashMap<String, Decimal>,
     baza: &TradeStats,
+    baza_wolumen: Option<Decimal>,
 ) -> String {
     let tablica: Vec<serde_json::Value> = wg_emocji
         .iter()
@@ -429,6 +432,7 @@ fn emocje_do_json(
         "liczba_zamknietych_transakcji": baza.closed_trades,
         "ogolny_win_rate": baza.win_rate.map(|w| format!("{}%", w.round_dp(1).normalize())),
         "ogolny_wynik_netto": baza.net_pnl.normalize().to_string(),
+        "ogolny_sredni_wolumen": baza_wolumen.map(|w| w.round_dp(2).normalize().to_string()),
     });
     serde_json::to_string_pretty(&serde_json::json!({
         "baza_calego_zakresu": baza_json,
@@ -974,7 +978,13 @@ mod tests {
         baza.win_rate = Some(dec!(55));
         baza.net_pnl = dec!(1234.5);
 
-        let json = emocje_do_json(&[], &HashMap::new(), &HashMap::new(), &baza);
+        let json = emocje_do_json(
+            &[],
+            &HashMap::new(),
+            &HashMap::new(),
+            &baza,
+            Some(dec!(1.5)),
+        );
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(
             v["baza_calego_zakresu"]["liczba_zamknietych_transakcji"],
@@ -982,6 +992,8 @@ mod tests {
         );
         assert_eq!(v["baza_calego_zakresu"]["ogolny_win_rate"], "55%");
         assert_eq!(v["baza_calego_zakresu"]["ogolny_wynik_netto"], "1234.5");
+        // Baza wolumenu - tło dla „sredni_wolumen" per emocja.
+        assert_eq!(v["baza_calego_zakresu"]["ogolny_sredni_wolumen"], "1.5");
         // Rozbicie per-emocja nadal jest, jako osobna tablica.
         assert!(v["wg_emocji"].is_array());
     }
