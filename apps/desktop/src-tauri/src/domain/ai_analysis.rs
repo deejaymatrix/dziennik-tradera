@@ -501,7 +501,9 @@ tygodnia i kierunki dają najlepszy i najgorszy wynik, gdzie są przewagi, a gdz
 słabości.\n\n\
 Oddzielaj fakty od interpretacji. Każda rekomendacja ma wynikać z konkretnych danych. Pisz \
 konkretnie, wspierająco i bez agresywnego oceniania. Nie udzielaj gwarantowanych porad \
-finansowych. Jeśli próba jest mała (mało transakcji), zaznacz to.\n\n\
+finansowych. Jeśli próba jest mała (mało transakcji), zaznacz to. Każda grupa w rozbiciach ma \
+\"liczba_transakcji\" - WAŻ nią wnioski: z grupy o kilku transakcjach nie wyciągaj mocnych \
+wniosków (zaznacz niepewność w \"jakosc_danych\").\n\n\
 Dane zagregowane (JSON):\n{fakty}\n\n\
 Odpowiedz WYŁĄCZNIE jednym obiektem JSON o dokładnie takich kluczach:\n\
 {{\"fakty\": [\"...\"], \"obserwacje\": [\"...\"], \"hipotezy\": [\"...\"], \"rekomendacje\": [\"...\"], \"jakosc_danych\": [\"...\"]}}\n\
@@ -889,6 +891,8 @@ mod tests {
         assert!(prompt.contains("wynik_wg_kierunku"));
         // Liczba transakcji w grupie trafia do promptu (waga wiarygodności breakdownu).
         assert!(prompt.contains("liczba_transakcji"));
+        // Instrukcja: ważyć wnioski liczbą transakcji w grupie (nie przeceniać małych grup).
+        assert!(prompt.contains("WAŻ nią wnioski"));
         // Ten sam schemat odpowiedzi co przy transakcji.
         assert!(prompt.contains("\"fakty\""));
         assert!(prompt.contains("\"obserwacje\""));
