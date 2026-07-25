@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
-import { Copy, Sparkles, StopCircle } from "lucide-react";
+import { Sparkles, StopCircle } from "lucide-react";
 import { invokeCommand, extractErrorMessage } from "../app/invokeCommand";
-import type {
-  AnalizaWynik,
-  PostepPobrania,
-  StatusModeluAi,
-  ZapisanaAnaliza,
-} from "../app/types/aiAnalysis";
-import { analizaDoTekstu, opisPostepuPobierania, parsujWynik } from "../app/types/aiAnalysis";
+import type { PostepPobrania, StatusModeluAi, ZapisanaAnaliza } from "../app/types/aiAnalysis";
+import { opisPostepuPobierania, parsujWynik } from "../app/types/aiAnalysis";
 import { Button } from "../ui/components/Button/Button";
 import { useToast } from "../ui/components/Toast/ToastProvider";
+import { WynikAnalizy } from "./WynikAnalizy";
 import styles from "./TradeAiAnalysis.module.css";
 
 export interface TradeAiAnalysisProps {
@@ -19,22 +15,6 @@ export interface TradeAiAnalysisProps {
 
 function gb(bajty: number): string {
   return `${(bajty / 1_000_000_000).toFixed(1)} GB`;
-}
-
-function Lista({ tytul, pozycje }: { tytul: string; pozycje: string[] }): ReactElement | null {
-  if (pozycje.length === 0) {
-    return null;
-  }
-  return (
-    <div className={styles.grupa}>
-      <h4 className={styles.grupaTytul}>{tytul}</h4>
-      <ul className={styles.lista}>
-        {pozycje.map((p, i) => (
-          <li key={i}>{p}</li>
-        ))}
-      </ul>
-    </div>
-  );
 }
 
 /**
@@ -98,15 +78,6 @@ export function TradeAiAnalysis({ tradeId }: TradeAiAnalysisProps): ReactElement
 
   function przerwij(): void {
     void invokeCommand("cancel_ai_analysis", {}).catch(() => undefined);
-  }
-
-  async function kopiuj(w: AnalizaWynik): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(analizaDoTekstu(w));
-      showToast("Analiza skopiowana do schowka.", "success");
-    } catch {
-      showToast("Nie udało się skopiować do schowka.", "error");
-    }
   }
 
   async function pobierzModel(): Promise<void> {
@@ -190,23 +161,7 @@ export function TradeAiAnalysis({ tradeId }: TradeAiAnalysisProps): ReactElement
               Analiza nieaktualna — dane transakcji zostały zmienione po jej wykonaniu.
             </p>
           )}
-          {(() => {
-            const w = parsujWynik(ostatnia.wynik_json);
-            return (
-              <>
-                <Lista tytul="Fakty" pozycje={w.fakty} />
-                <Lista tytul="Obserwacje" pozycje={w.obserwacje} />
-                <Lista tytul="Hipotezy" pozycje={w.hipotezy} />
-                <Lista tytul="Rekomendacje" pozycje={w.rekomendacje} />
-                <Lista tytul="Jakość danych" pozycje={w.jakosc_danych} />
-                <div className={styles.akcje}>
-                  <Button variant="secondary" onClick={() => void kopiuj(w)}>
-                    <Copy size={16} /> Kopiuj analizę
-                  </Button>
-                </div>
-              </>
-            );
-          })()}
+          <WynikAnalizy wynik={parsujWynik(ostatnia.wynik_json)} />
           <p className={styles.stopka}>
             Wygenerowane lokalnie ({ostatnia.wersja_modelu}). To interpretacja, nie gwarantowana
             porada finansowa.

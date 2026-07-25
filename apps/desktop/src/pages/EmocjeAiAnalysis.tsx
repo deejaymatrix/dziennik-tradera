@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReactElement } from "react";
-import { Copy, HeartPulse, StopCircle } from "lucide-react";
+import { HeartPulse, StopCircle } from "lucide-react";
 import { invokeCommand, extractErrorMessage } from "../app/invokeCommand";
 import type { AnalizaWynik, StatusModeluAi } from "../app/types/aiAnalysis";
-import { analizaDoTekstu } from "../app/types/aiAnalysis";
 import { Button } from "../ui/components/Button/Button";
 import { useToast } from "../ui/components/Toast/ToastProvider";
+import { WynikAnalizy } from "./WynikAnalizy";
 import styles from "./TradeAiAnalysis.module.css";
 
 export interface EmocjeAiAnalysisProps {
@@ -15,22 +15,6 @@ export interface EmocjeAiAnalysisProps {
   zakresOpis: string;
   /** Czy można analizować - model włączony/pobrany i konto wybrane. */
   gotoweDoAnalizy: boolean;
-}
-
-function Lista({ tytul, pozycje }: { tytul: string; pozycje: string[] }): ReactElement | null {
-  if (pozycje.length === 0) {
-    return null;
-  }
-  return (
-    <div className={styles.grupa}>
-      <h4 className={styles.grupaTytul}>{tytul}</h4>
-      <ul className={styles.lista}>
-        {pozycje.map((p, i) => (
-          <li key={i}>{p}</li>
-        ))}
-      </ul>
-    </div>
-  );
 }
 
 /**
@@ -89,15 +73,6 @@ export function EmocjeAiAnalysis({
     void invokeCommand("cancel_ai_analysis", {}).catch(() => undefined);
   }
 
-  async function kopiuj(w: AnalizaWynik): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(analizaDoTekstu(w));
-      showToast("Analiza skopiowana do schowka.", "success");
-    } catch {
-      showToast("Nie udało się skopiować do schowka.", "error");
-    }
-  }
-
   return (
     <section className={styles.sekcja}>
       <h3 className={styles.sekcjaTytul}>
@@ -128,16 +103,7 @@ export function EmocjeAiAnalysis({
 
       {wynik && (
         <div className={styles.wynik}>
-          <Lista tytul="Fakty" pozycje={wynik.fakty} />
-          <Lista tytul="Obserwacje" pozycje={wynik.obserwacje} />
-          <Lista tytul="Hipotezy" pozycje={wynik.hipotezy} />
-          <Lista tytul="Rekomendacje" pozycje={wynik.rekomendacje} />
-          <Lista tytul="Jakość danych" pozycje={wynik.jakosc_danych} />
-          <div className={styles.akcje}>
-            <Button variant="secondary" onClick={() => void kopiuj(wynik)}>
-              <Copy size={16} /> Kopiuj analizę
-            </Button>
-          </div>
+          <WynikAnalizy wynik={wynik} />
           <p className={styles.stopka}>
             Korelacja emocja↔wynik dla zakresu „{zakresOpis}". To interpretacja policzonych danych,
             nie diagnoza ani gwarantowana porada.
