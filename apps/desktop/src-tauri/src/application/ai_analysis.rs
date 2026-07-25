@@ -572,6 +572,8 @@ pub fn zbuduj_dane_raportu(raport: &FilteredReport, zakres_opis: String) -> Dane
         wynik_netto: Some(format_liczba(s.net_pnl)),
         profit_factor: s.profit_factor.map(format_liczba),
         sredni_wynik_trade: s.expectancy.map(format_liczba),
+        sredni_zysk: s.average_win.map(format_liczba),
+        srednia_strata: s.average_loss.map(format_liczba),
         max_drawdown: s.max_drawdown.map(format_liczba),
         laczna_prowizja: Some(format_liczba(s.total_commission)),
         najlepsza_transakcja: s.best_trade.map(format_liczba),
@@ -842,9 +844,15 @@ mod tests {
         raport.by_strategy = vec![grupa("Breakout D1", dec!(420)), grupa("Scalp", dec!(-80))];
         raport.by_side = vec![grupa("BUY", dec!(500))];
         raport.by_four_hour = vec![grupa("08:00-12:00", dec!(200))];
+        // Średni zysk na wygranej i średnia strata na przegranej - już policzone przez silnik,
+        // przenoszone bez modyfikacji (realizowany risk-reward dla modelu do interpretacji).
+        raport.stats.average_win = Some(dec!(150));
+        raport.stats.average_loss = Some(dec!(60));
 
         let dane = zbuduj_dane_raportu(&raport, "Konto Główne · 2026".to_string());
         assert_eq!(dane.zakres_opis, "Konto Główne · 2026");
+        assert_eq!(dane.sredni_zysk.as_deref(), Some("150"));
+        assert_eq!(dane.srednia_strata.as_deref(), Some("60"));
         // Pusty raport: 0 zamkniętych transakcji, wynik netto "0".
         assert_eq!(dane.liczba_transakcji, 0);
         assert_eq!(dane.wynik_netto.as_deref(), Some("0"));

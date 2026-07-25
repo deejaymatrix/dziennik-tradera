@@ -333,6 +333,10 @@ pub struct DaneAnalizyRaportu {
     pub wynik_netto: Option<String>,
     pub profit_factor: Option<String>,
     pub sredni_wynik_trade: Option<String>,
+    /// Średni zysk na wygranej i średnia strata na przegranej - realizowany risk-reward (asymetria
+    /// wygranych do przegranych). Już policzone w silniku (`average_win`/`average_loss`).
+    pub sredni_zysk: Option<String>,
+    pub srednia_strata: Option<String>,
     pub max_drawdown: Option<String>,
     pub laczna_prowizja: Option<String>,
     pub najlepsza_transakcja: Option<String>,
@@ -411,6 +415,12 @@ impl DaneAnalizyRaportu {
             &mut mapa,
             "sredni_wynik_na_transakcje",
             &self.sredni_wynik_trade,
+        );
+        dodaj(&mut mapa, "sredni_zysk_na_wygranej", &self.sredni_zysk);
+        dodaj(
+            &mut mapa,
+            "srednia_strata_na_przegranej",
+            &self.srednia_strata,
         );
         dodaj(&mut mapa, "max_drawdown", &self.max_drawdown);
         dodaj(&mut mapa, "laczna_prowizja", &self.laczna_prowizja);
