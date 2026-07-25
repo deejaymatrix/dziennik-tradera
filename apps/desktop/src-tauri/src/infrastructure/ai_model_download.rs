@@ -68,6 +68,16 @@ pub const KANDYDACI: &[OpisModelu] = &[
 /// tylko limit na "serwer w ogóle nie odpowiada", nie na całe pobieranie.
 const TIMEOUT_POLACZENIA: Duration = Duration::from_secs(15);
 
+/// Ile razy wznawiamy transfer, gdy zerwie się w połowie (błąd sieci albo serwer/CDN rozłączy
+/// przed końcem). Przy pliku wielogigabajtowym pobieranym kilkanaście minut pojedyncze zerwanie
+/// jest normalne - bez wznawiania każde z nich przekreślałoby całą dotychczasową pracę i model
+/// praktycznie nie dałoby się pobrać. Wznawiamy od bajtu, na którym stanęło (`Range`).
+const MAKS_PONOWIEN_STRUMIENIA: u32 = 5;
+
+/// Odstęp przed próbą wznowienia zerwanego transferu - drobny oddech dla sieci/serwera, nie
+/// agresywne dobijanie się w pętli.
+const OPOZNIENIE_PONOWIENIA: Duration = Duration::from_secs(2);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StatusPobrania {
@@ -193,6 +203,7 @@ fn pobierz_i_zweryfikuj_z_adresu(
     }
 
     let mut bufor = [0u8; 64 * 1024];
+    let mut ponowien = 0u32;
     loop {
         if anuluj.load(Ordering::SeqCst) {
             let mut aktualny = postep
@@ -203,20 +214,89 @@ fn pobierz_i_zweryfikuj_z_adresu(
                 "Pobieranie modelu anulowane.".to_string(),
             ));
         }
-        let n = odpowiedz
-            .read(&mut bufor)
-            .map_err(|e| AppError::io(format!("błąd odczytu strumienia pobierania: {e}")))?;
-        if n == 0 {
-            break;
-        }
-        plik.write_all(&bufor[..n])?;
-        hasher.update(&bufor[..n]);
-        pobrano_bajtow += n as u64;
 
-        let mut aktualny = postep
-            .lock()
-            .expect("mutex postępu nie powinien być zatruty");
-        aktualny.pobrano_bajtow = pobrano_bajtow;
+        match odpowiedz.read(&mut bufor) {
+            Ok(n) if n > 0 => {
+                plik.write_all(&bufor[..n])?;
+                hasher.update(&bufor[..n]);
+                pobrano_bajtow += n as u64;
+                let mut aktualny = postep
+                    .lock()
+                    .expect("mutex postępu nie powinien być zatruty");
+                aktualny.pobrano_bajtow = pobrano_bajtow;
+                continue;
+            }
+            // Strumień się skończył z kompletem bajtów - prawdziwy koniec pobierania.
+            Ok(_) if pobrano_bajtow >= opis.rozmiar_bajtow => break,
+            // Strumień skończył się PRZED kompletem (serwer/CDN rozłączył w połowie) - to nie
+            // koniec, tylko zerwanie; wznawiamy poniżej resztę od bieżącego bajtu.
+            Ok(_) => {}
+            // Błąd sieci w środku transferu - tak samo traktujemy jak zerwanie i wznawiamy.
+            Err(_) => {}
+        }
+
+        // Doszliśmy tu przez zerwanie (przedwczesny koniec albo błąd odczytu). Dociągamy resztę
+        // od miejsca, w którym stanęło - dopóki starcza budżetu ponowień.
+        plik.flush()?;
+        let mut wznowiono = false;
+        while ponowien < MAKS_PONOWIEN_STRUMIENIA {
+            ponowien += 1;
+            std::thread::sleep(OPOZNIENIE_PONOWIENIA);
+            if anuluj.load(Ordering::SeqCst) {
+                let mut aktualny = postep
+                    .lock()
+                    .expect("mutex postępu nie powinien być zatruty");
+                aktualny.status = StatusPobrania::Anulowano;
+                return Err(AppError::Validation(
+                    "Pobieranie modelu anulowane.".to_string(),
+                ));
+            }
+            match klient
+                .get(adres)
+                .header(reqwest::header::RANGE, format!("bytes={pobrano_bajtow}-"))
+                .send()
+            {
+                Ok(o) if o.status() == reqwest::StatusCode::PARTIAL_CONTENT => {
+                    odpowiedz = o;
+                    wznowiono = true;
+                    break;
+                }
+                // Serwer nie wspiera wznowienia w połowie - nie ryzykujemy doszycia treści od
+                // złego miejsca; przerywamy (użytkownik może zacząć od nowa, `.part` zostaje).
+                Ok(o) if o.status().is_success() => {
+                    let mut aktualny = postep
+                        .lock()
+                        .expect("mutex postępu nie powinien być zatruty");
+                    aktualny.status = StatusPobrania::Blad;
+                    return Err(AppError::io(format!(
+                        "serwer modelu nie wspiera wznowienia pobierania (kod {})",
+                        o.status()
+                    )));
+                }
+                Ok(o) => {
+                    let mut aktualny = postep
+                        .lock()
+                        .expect("mutex postępu nie powinien być zatruty");
+                    aktualny.status = StatusPobrania::Blad;
+                    return Err(AppError::io(format!(
+                        "serwer modelu odpowiedział kodem {}",
+                        o.status()
+                    )));
+                }
+                // Ponowne połączenie też padło - spróbuj jeszcze raz, dopóki starcza budżetu.
+                Err(_) => continue,
+            }
+        }
+        if !wznowiono {
+            let mut aktualny = postep
+                .lock()
+                .expect("mutex postępu nie powinien być zatruty");
+            aktualny.status = StatusPobrania::Blad;
+            return Err(AppError::io(format!(
+                "nie udało się dokończyć pobierania modelu po {MAKS_PONOWIEN_STRUMIENIA} próbach wznowienia (pobrano {pobrano_bajtow} z {} bajtów)",
+                opis.rozmiar_bajtow
+            )));
+        }
     }
     plik.flush()?;
     drop(plik);
@@ -393,6 +473,68 @@ mod tests {
         let _ = polaczenie.write_all(fragment);
     }
 
+    /// Wyłuskuje początek zakresu z nagłówka `Range` żądania (0, gdy go nie ma).
+    fn przeczytaj_zakres(polaczenie: &TcpStream) -> usize {
+        let mut czytnik = BufReader::new(polaczenie.try_clone().expect("klon strumienia"));
+        let mut linia = String::new();
+        let _ = czytnik.read_line(&mut linia); // linia startowa
+        let mut zakres_od = 0usize;
+        loop {
+            let mut naglowek = String::new();
+            if czytnik.read_line(&mut naglowek).unwrap_or(0) == 0 || naglowek.trim().is_empty() {
+                break;
+            }
+            if let Some(wartosc) = naglowek.to_lowercase().strip_prefix("range: bytes=") {
+                if let Some(od) = wartosc.trim().trim_end_matches('-').split('-').next() {
+                    zakres_od = od.trim().parse().unwrap_or(0);
+                }
+            }
+        }
+        zakres_od
+    }
+
+    /// Serwer, który PIERWSZE połączenie zrywa w połowie (deklaruje pełną długość, wysyła połowę
+    /// i zamyka), a kolejne obsługuje poprawnie z `Range` - do sprawdzenia automatycznego
+    /// wznawiania po zerwaniu strumienia w środku pobierania.
+    fn uruchom_serwer_zrywajacy(tresc: &'static [u8]) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind lokalnego portu");
+        let port = listener.local_addr().expect("adres lokalny").port();
+        let adres = format!("http://127.0.0.1:{port}/model.gguf");
+
+        std::thread::spawn(move || {
+            let mut nr = 0u32;
+            for polaczenie in listener.incoming() {
+                let Ok(mut polaczenie) = polaczenie else {
+                    break;
+                };
+                nr += 1;
+                let zakres_od = przeczytaj_zakres(&polaczenie);
+                if nr == 1 {
+                    // Zerwanie: deklaruj pełną długość, wyślij tylko połowę, zamknij połączenie.
+                    let polowa = tresc.len() / 2;
+                    let naglowek =
+                        format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", tresc.len());
+                    let _ = polaczenie.write_all(naglowek.as_bytes());
+                    let _ = polaczenie.write_all(&tresc[..polowa]);
+                    // brak dalszego zapisu + drop = zerwanie w połowie
+                } else {
+                    let fragment = &tresc[zakres_od.min(tresc.len())..];
+                    let naglowek = format!(
+                        "HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\nContent-Range: bytes {}-{}/{}\r\n\r\n",
+                        fragment.len(),
+                        zakres_od,
+                        tresc.len().saturating_sub(1),
+                        tresc.len()
+                    );
+                    let _ = polaczenie.write_all(naglowek.as_bytes());
+                    let _ = polaczenie.write_all(fragment);
+                }
+            }
+        });
+
+        adres
+    }
+
     fn opis_testowy(tresc: &[u8], sha256: &'static str) -> OpisModelu {
         OpisModelu {
             id: "model-testowy",
@@ -489,6 +631,30 @@ mod tests {
             opis.rozmiar_bajtow,
             "wznowione pobranie musi doprowadzić postęp do 100%"
         );
+    }
+
+    /// Serwer zrywa transfer w połowie (najczęstsza realna awaria przy pobieraniu kilku GB z CDN).
+    /// Bez automatycznego wznawiania pobranie kończyłoby się błędem długości; z nim - dociąga
+    /// resztę od miejsca zerwania i weryfikuje sumę, bez udziału użytkownika.
+    #[test]
+    fn zerwanie_strumienia_w_polowie_jest_automatycznie_wznawiane() {
+        zainstaluj_dostawce_kryptografii();
+        static TRESC: &[u8] =
+            b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-tresc-testowa-do-wznowienia-po-zerwaniu-w-polowie";
+        let hash = Box::leak(policz_sha256(TRESC).into_boxed_str());
+        let adres = uruchom_serwer_zrywajacy(TRESC);
+        let opis = opis_testowy(TRESC, hash);
+        let katalog = tempfile::tempdir().expect("katalog tymczasowy");
+        let postep = Mutex::new(PostepPobrania::nowy(opis.rozmiar_bajtow));
+        let anuluj = AtomicBool::new(false);
+
+        let sciezka =
+            pobierz_i_zweryfikuj_z_adresu(&opis, &adres, katalog.path(), &postep, &anuluj)
+                .expect("po zerwaniu w połowie pobranie musi się wznowić i dokończyć");
+
+        assert_eq!(std::fs::read(&sciezka).expect("odczyt pliku"), TRESC);
+        assert_eq!(postep.lock().unwrap().status, StatusPobrania::Zweryfikowano);
+        assert!(model_pobrany(&opis, katalog.path()));
     }
 
     #[test]
