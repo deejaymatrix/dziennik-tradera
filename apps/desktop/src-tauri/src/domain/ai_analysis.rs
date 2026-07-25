@@ -314,6 +314,24 @@ pub fn waliduj_odpowiedz(tekst: &str) -> Result<AnalizaWynik, AppError> {
     let wynik: AnalizaWynik = serde_json::from_str(obiekt).map_err(|_| {
         AppError::Validation("Odpowiedź AI ma nieprawidłowy format JSON.".to_string())
     })?;
+    // Odrzuć odpowiedź bez żadnej treści (wszystkie sekcje puste albo same puste stringi) - to nie
+    // jest użyteczna analiza. Zwrócenie błędu każe `AiRuntimeService` ponowić z innym ziarnem, a po
+    // wyczerpaniu prób analiza kończy się czytelnym błędem zamiast pustym panelem.
+    let ma_tresc = [
+        &wynik.fakty,
+        &wynik.obserwacje,
+        &wynik.hipotezy,
+        &wynik.rekomendacje,
+        &wynik.jakosc_danych,
+    ]
+    .into_iter()
+    .flatten()
+    .any(|s| !s.trim().is_empty());
+    if !ma_tresc {
+        return Err(AppError::Validation(
+            "Odpowiedź AI nie zawiera żadnej treści.".to_string(),
+        ));
+    }
     Ok(wynik)
 }
 
@@ -755,9 +773,20 @@ mod tests {
     #[test]
     fn odpowiedz_owinieta_w_dodatkowy_tekst_jest_wydobyta() {
         let tekst =
-            "Oto analiza:\n{\"fakty\": [], \"obserwacje\": [], \"rekomendacje\": []}\nDziękuję.";
+            "Oto analiza:\n{\"fakty\": [\"ustalenie\"], \"obserwacje\": [], \"rekomendacje\": []}\nDziękuję.";
         let wynik = waliduj_odpowiedz(tekst).expect("obiekt JSON wewnątrz tekstu");
-        assert!(wynik.fakty.is_empty());
+        assert_eq!(wynik.fakty, vec!["ustalenie"]);
+    }
+
+    #[test]
+    fn calkowicie_pusta_odpowiedz_jest_odrzucana() {
+        // Poprawny JSON, ale wszystkie sekcje puste - bezużyteczna analiza, ma być ponowiona.
+        let tekst = r#"{"fakty": [], "obserwacje": [], "hipotezy": [], "rekomendacje": [], "jakosc_danych": []}"#;
+        assert!(waliduj_odpowiedz(tekst).is_err());
+        assert!(!czy_poprawna_odpowiedz(tekst));
+        // Same puste/białe stringi też liczą się jako brak treści.
+        let biale = r#"{"fakty": ["   "], "obserwacje": [], "rekomendacje": []}"#;
+        assert!(waliduj_odpowiedz(biale).is_err());
     }
 
     #[test]
