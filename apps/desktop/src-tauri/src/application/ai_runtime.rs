@@ -481,6 +481,30 @@ mod tests {
     }
 
     #[test]
+    fn ustaw_model_odrzuca_nieznane_id_a_zmiane_zapamietuje() {
+        let katalog = tempfile::tempdir().expect("katalog tymczasowy");
+        let usluga = AiRuntimeService::new(katalog.path().to_path_buf());
+
+        // Nieznane id -> błąd walidacji (guard zwraca przed dostępem do dysku).
+        assert!(matches!(
+            usluga.ustaw_model("nieistniejacy-model"),
+            Err(AppError::Validation(_))
+        ));
+
+        // Znany id -> Ok; nowa usługa z tego samego katalogu wczytuje wybór (jak po restarcie).
+        usluga
+            .ustaw_model("bielik-11b-v2.3-q4_k_m")
+            .expect("znany model musi się ustawić");
+        let po_restarcie = AiRuntimeService::new(katalog.path().to_path_buf());
+        let aktywny = po_restarcie
+            .lista_modeli()
+            .into_iter()
+            .find(|m| m.aktywny)
+            .expect("jakiś model jest aktywny");
+        assert_eq!(aktywny.id, "bielik-11b-v2.3-q4_k_m");
+    }
+
+    #[test]
     fn ai_domyslnie_wlaczony_a_wylaczenie_przezywa_restart() {
         let katalog = tempfile::tempdir().expect("katalog tymczasowy");
         let usluga = AiRuntimeService::new(katalog.path().to_path_buf());
