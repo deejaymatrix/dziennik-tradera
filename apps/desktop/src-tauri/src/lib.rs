@@ -205,6 +205,13 @@ fn init_db_state(app_data_dir: &std::path::Path) -> DbState {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // reqwest budowany z `rustls-no-provider` nie wybiera dostawcy kryptografii sam - musimy
+    // zainstalować go RAZ, zanim powstanie JAKIKOLWIEK klient HTTPS (sprawdzanie aktualizacji,
+    // pobieranie modelu AI). Wtyczka aktualizacji też to robi, ale dopiero przy pierwszym użyciu,
+    // więc pobranie modelu kliknięte wcześniej panikowało bez dostawcy. Idempotentne - pierwszy
+    // wygrywa, kolejne wywołania (np. z wtyczki) są bezczynne.
+    let _ = rustls::crypto::ring::default_provider().install_default();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
