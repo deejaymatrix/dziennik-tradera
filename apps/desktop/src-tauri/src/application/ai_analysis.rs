@@ -25,6 +25,7 @@ use crate::domain::ai_settings::UstawieniaOdpowiedziAi;
 use crate::domain::emotional_state::EmotionalStateRepository;
 use crate::domain::strategy_checklist::ChecklistStatus;
 use crate::domain::trade::{Trade, TradeRepository, TradeSide, TradeStatus};
+use crate::domain::trade_partial_close;
 use crate::domain::trade_stats::{
     compute_behavior_signals, compute_emotion_avg_intensity, compute_emotion_avg_volume,
     compute_emotion_breakdown, GroupBreakdown,
@@ -461,6 +462,22 @@ pub fn zbuduj_dane_transakcji(
         })
         .unwrap_or_default();
 
+    // Częściowe zamknięcia - liczby JUŻ POLICZONE (sumatory), tylko sumujemy istniejące wpisy.
+    let (liczba_czesciowych, wolumen_czesciowo_zamkniety, wynik_czesciowych) =
+        if trade.partial_closes.is_empty() {
+            (None, None, None)
+        } else {
+            (
+                Some(trade.partial_closes.len() as i64),
+                Some(format_liczba(trade_partial_close::closed_volume(
+                    &trade.partial_closes,
+                ))),
+                Some(format_liczba(trade_partial_close::realized_pnl(
+                    &trade.partial_closes,
+                ))),
+            )
+        };
+
     DaneAnalizyTransakcji {
         numer: trade.display_number,
         instrument: trade
@@ -501,6 +518,9 @@ pub fn zbuduj_dane_transakcji(
         notatki_zarzadzania: trade.management_notes.clone(),
         podsumowanie: trade.post_trade_summary.clone(),
         wnioski: trade.conclusion.clone(),
+        liczba_czesciowych,
+        wolumen_czesciowo_zamkniety,
+        wynik_czesciowych,
     }
 }
 

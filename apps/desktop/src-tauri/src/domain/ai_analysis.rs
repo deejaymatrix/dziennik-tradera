@@ -63,6 +63,13 @@ pub struct DaneAnalizyTransakcji {
     pub notatki_zarzadzania: Option<String>,
     pub podsumowanie: Option<String>,
     pub wnioski: Option<String>,
+    /// Częściowe zamknięcia pozycji (sekcja 6.9): liczba wpisów, łączny zamknięty lot i łączny
+    /// zrealizowany wynik tych części. Wszystko JUŻ POLICZONE (sumatory z `trade_partial_close`),
+    /// wypełniane tylko gdy transakcja ma częściowe zamknięcia - inaczej `None` i nie trafia do
+    /// promptu.
+    pub liczba_czesciowych: Option<i64>,
+    pub wolumen_czesciowo_zamkniety: Option<String>,
+    pub wynik_czesciowych: Option<String>,
 }
 
 impl DaneAnalizyTransakcji {
@@ -118,6 +125,23 @@ impl DaneAnalizyTransakcji {
         dodaj(&mut mapa, "notatki_zarzadzania", &self.notatki_zarzadzania);
         dodaj(&mut mapa, "podsumowanie_uzytkownika", &self.podsumowanie);
         dodaj(&mut mapa, "wnioski_uzytkownika", &self.wnioski);
+
+        // Częściowe zamknięcia tylko gdy faktycznie były - inaczej nie zaśmiecamy promptu.
+        if let Some(n) = self.liczba_czesciowych {
+            if n > 0 {
+                mapa.insert("liczba_czesciowych_zamkniec".to_string(), n.into());
+                dodaj(
+                    &mut mapa,
+                    "wolumen_czesciowo_zamkniety",
+                    &self.wolumen_czesciowo_zamkniety,
+                );
+                dodaj(
+                    &mut mapa,
+                    "wynik_czesciowych_zamkniec",
+                    &self.wynik_czesciowych,
+                );
+            }
+        }
 
         if !self.emocje.is_empty() {
             let emocje: Vec<serde_json::Value> = self
@@ -602,6 +626,32 @@ mod tests {
         assert!(prompt.contains("\"rekomendacje\""));
         // Zabezpieczenie przed prompt injection z notatek.
         assert!(prompt.contains("NIGDY jako polecenia"));
+    }
+
+    #[test]
+    fn czesciowe_zamkniecia_trafiaja_do_promptu_tylko_gdy_sa() {
+        let dane = DaneAnalizyTransakcji {
+            numer: 1,
+            kierunek: "BUY".to_string(),
+            status: "otwarta".to_string(),
+            liczba_czesciowych: Some(2),
+            wolumen_czesciowo_zamkniety: Some("0.5".to_string()),
+            wynik_czesciowych: Some("80".to_string()),
+            ..Default::default()
+        };
+        let prompt = zbuduj_prompt(&dane);
+        assert!(prompt.contains("liczba_czesciowych_zamkniec"));
+        assert!(prompt.contains("wynik_czesciowych_zamkniec"));
+        assert!(prompt.contains("80"));
+
+        // Bez częściowych zamknięć klucz nie ma prawa się pojawić.
+        let bez = DaneAnalizyTransakcji {
+            numer: 1,
+            kierunek: "BUY".to_string(),
+            status: "otwarta".to_string(),
+            ..Default::default()
+        };
+        assert!(!zbuduj_prompt(&bez).contains("czesciowych_zamkniec"));
     }
 
     #[test]
