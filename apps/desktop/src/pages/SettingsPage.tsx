@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
-import { Bell, Database, Info, Palette, RotateCcw, SlidersHorizontal } from "lucide-react";
+import {
+  Bell,
+  Database,
+  Info,
+  Palette,
+  RotateCcw,
+  SlidersHorizontal,
+  Sparkles,
+} from "lucide-react";
 import { useTauriQuery, type TauriQueryState } from "../app/useTauriQuery";
 import { useUpdateMonitor } from "../app/UpdateMonitorProvider";
 import { usePreferences } from "../app/PreferencesProvider";
@@ -22,6 +30,7 @@ import {
   NotificationsSection,
 } from "./settings/PreferenceSections";
 import { DataSection } from "./settings/DataSection";
+import { AiSection } from "./settings/AiSection";
 import styles from "./SettingsPage.module.css";
 
 const ENV_LABELS: Record<string, string> = {
@@ -31,7 +40,7 @@ const ENV_LABELS: Record<string, string> = {
 
 /** Klucz sekcji widocznej w menu. `updates` nie jest sekcją preferencji - nie ma tam nic do
  * zapisania, to widok wyłącznie informacyjny, więc nie dostaje paska zapisu. */
-type SectionKey = PreferencesSectionKey | "updates";
+type SectionKey = PreferencesSectionKey | "updates" | "ai";
 
 const SECTIONS: {
   key: SectionKey;
@@ -68,6 +77,12 @@ const SECTIONS: {
     label: "Dane i kopie bezpieczeństwa",
     description: "Kopie automatyczne i strefa konserwacji.",
     icon: Database,
+  },
+  {
+    key: "ai",
+    label: "Asystent AI",
+    description: "Wybór lokalnego modelu i zarządzanie pobraniem.",
+    icon: Sparkles,
   },
   {
     key: "updates",
@@ -340,7 +355,9 @@ export function SettingsPage(): ReactElement {
   }, []);
 
   const activeSection = SECTION_BY_KEY[active];
-  const isPreferenceSection = active !== "updates";
+  // "updates" i "ai" nie są sekcjami preferencji - nie mają nic do zapisania (własne akcje/widok),
+  // więc nie dostają paska zapisu.
+  const isPreferenceSection = active !== "updates" && active !== "ai";
   const dirty =
     isPreferenceSection && draft !== null && preferences !== null
       ? sectionChanged(draft, preferences, active)
@@ -502,6 +519,7 @@ export function SettingsPage(): ReactElement {
             onResetAllSettings={handleResetAllSections}
           />
         )}
+        {active === "ai" && <AiSection />}
         {active === "updates" && <UpdatesInfoSection />}
 
         {saveError && (

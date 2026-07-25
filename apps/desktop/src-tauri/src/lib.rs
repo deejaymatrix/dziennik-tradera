@@ -237,6 +237,8 @@ pub fn run() {
             commands::ai_analysis::delete_trade_analysis,
             commands::ai_analysis::delete_all_ai_analyses,
             commands::ai_analysis::ai_model_status,
+            commands::ai_analysis::ai_list_models,
+            commands::ai_analysis::ai_set_model,
             commands::ai_analysis::download_ai_model,
             commands::ai_analysis::ai_model_download_progress,
             commands::ai_analysis::cancel_ai_model_download,

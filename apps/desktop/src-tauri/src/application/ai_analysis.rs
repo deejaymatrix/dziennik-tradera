@@ -66,15 +66,25 @@ impl AiAnalysisService {
         self.runtime.anuluj();
     }
 
-    /// Status modelu do pokazania w UI: gotowość + etykieta + rozmiar (żeby zapytać o zgodę na
-    /// pobranie przed jego rozpoczęciem).
+    /// Status AKTYWNEGO modelu do pokazania w UI: gotowość + etykieta + rozmiar (żeby zapytać o
+    /// zgodę na pobranie przed jego rozpoczęciem).
     pub fn status_modelu(&self) -> StatusModeluAi {
-        let opis = crate::application::ai_runtime::AiRuntimeService::opis_modelu_produkcyjnego();
+        let opis = self.runtime.opis_aktywnego_modelu();
         StatusModeluAi {
             gotowy: self.runtime.model_gotowy(),
             etykieta: opis.etykieta.to_string(),
             rozmiar_bajtow: opis.rozmiar_bajtow,
         }
+    }
+
+    /// Lista 3 kandydatów z ich stanem (pobrany/aktywny) - do wyboru modelu w Ustawieniach.
+    pub fn lista_modeli(&self) -> Vec<crate::application::ai_runtime::OpisModeluStatus> {
+        self.runtime.lista_modeli()
+    }
+
+    /// Ustawia aktywny model AI (jeden z trzech kandydatów).
+    pub fn ustaw_model(&self, id: &str) -> Result<(), AppError> {
+        self.runtime.ustaw_model(id)
     }
 
     /// Pobiera i weryfikuje model (BLOKUJĄCE - komenda woła na `spawn_blocking`).

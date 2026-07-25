@@ -26,9 +26,22 @@ use crate::infrastructure::ai_model_download::{
     KANDYDACI,
 };
 
-/// Model produkcyjny (patrz `docs/AI_ASYSTENT_WYBOR_MODELU.md` - Qwen2.5-7B-Instruct wygrał
-/// benchmark po uwzględnieniu strategii "waliduj + ponów").
-const ID_MODELU_PRODUKCYJNEGO: &str = "qwen2.5-7b-instruct-q4_k_m";
+/// Model domyślny, gdy użytkownik nie wybrał innego (patrz `docs/AI_ASYSTENT_WYBOR_MODELU.md` -
+/// Qwen2.5-7B-Instruct wygrał benchmark po uwzględnieniu strategii "waliduj + ponów").
+const ID_MODELU_DOMYSLNEGO: &str = "qwen2.5-7b-instruct-q4_k_m";
+
+/// Nazwa pliku zapamiętującego wybór modelu w katalogu modeli - jedna linia z `id` kandydata.
+const PLIK_AKTYWNEGO_MODELU: &str = "aktywny-model.txt";
+
+/// Jeden z 3 kandydatów z jego bieżącym stanem - do pokazania w wyborze modelu w Ustawieniach.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct OpisModeluStatus {
+    pub id: String,
+    pub etykieta: String,
+    pub rozmiar_bajtow: u64,
+    pub pobrany: bool,
+    pub aktywny: bool,
+}
 
 /// Ile razy maksymalnie ponawiamy generowanie, jeśli odpowiedź nie przechodzi walidacji. Po
 /// wyczerpaniu prób zgłaszamy błąd - lepiej powiedzieć "nie udało się", niż zapisać zły wynik.
@@ -55,6 +68,9 @@ pub struct AiRuntimeService {
     postep_pobierania: Arc<Mutex<PostepPobrania>>,
     /// Flaga anulowania POBIERANIA modelu (osobna od anulowania analizy).
     anuluj_pobieranie: Arc<AtomicBool>,
+    /// `id` aktywnego modelu (jednego z `KANDYDACI`). Wybór zapamiętany w pliku
+    /// `PLIK_AKTYWNEGO_MODELU`, więc przeżywa restart. Zmiana modelu zwalnia załadowany poprzedni.
+    aktywny_model_id: Mutex<String>,
 }
 
 /// Strażnik RAII zdejmujący flagę "zajęty" przy wyjściu z analizy - gwarantuje, że nawet wczesny
@@ -69,6 +85,7 @@ impl Drop for StrraznikZajetosci<'_> {
 
 impl AiRuntimeService {
     pub fn new(katalog_modeli: PathBuf) -> Self {
+        let aktywny = wczytaj_aktywny_model(&katalog_modeli);
         Self {
             katalog_modeli,
             zaladowany: Mutex::new(None),
@@ -80,21 +97,65 @@ impl AiRuntimeService {
                 status: StatusPobrania::Trwa,
             })),
             anuluj_pobieranie: Arc::new(AtomicBool::new(false)),
+            aktywny_model_id: Mutex::new(aktywny),
         }
     }
 
-    /// Opis modelu produkcyjnego (rozmiar do pokazania przed pobraniem itd.).
-    pub fn opis_modelu_produkcyjnego() -> &'static OpisModelu {
-        Self::opis_modelu()
+    /// Opis AKTYWNEGO modelu (etykieta/rozmiar do pokazania w UI).
+    pub fn opis_aktywnego_modelu(&self) -> &'static OpisModelu {
+        self.opis_modelu()
     }
 
-    /// Pobiera i weryfikuje model produkcyjny. BLOKUJĄCE (gigabajty + SHA-256) - wołać z
+    /// Lista 3 kandydatów z bieżącym stanem (pobrany? aktywny?) - do wyboru modelu w Ustawieniach.
+    pub fn lista_modeli(&self) -> Vec<OpisModeluStatus> {
+        let aktywny = self
+            .aktywny_model_id
+            .lock()
+            .expect("mutex aktywnego modelu nie powinien być zatruty")
+            .clone();
+        KANDYDACI
+            .iter()
+            .map(|k| OpisModeluStatus {
+                id: k.id.to_string(),
+                etykieta: k.etykieta.to_string(),
+                rozmiar_bajtow: k.rozmiar_bajtow,
+                pobrany: model_pobrany(k, &self.katalog_modeli),
+                aktywny: k.id == aktywny,
+            })
+            .collect()
+    }
+
+    /// Ustawia aktywny model (jeden z `KANDYDACI`). Zapamiętuje wybór na dysku i ZWALNIA załadowany
+    /// poprzedni model, żeby kolejna analiza wczytała nowo wybrany. Odrzuca nieznane `id`.
+    pub fn ustaw_model(&self, id: &str) -> Result<(), AppError> {
+        if !KANDYDACI.iter().any(|k| k.id == id) {
+            return Err(AppError::Validation(format!("Nieznany model AI: {id}.")));
+        }
+        {
+            let mut aktywny = self
+                .aktywny_model_id
+                .lock()
+                .expect("mutex aktywnego modelu nie powinien być zatruty");
+            if *aktywny == id {
+                return Ok(()); // nic się nie zmienia
+            }
+            *aktywny = id.to_string();
+        }
+        // Zwolnij poprzedni model z pamięci - następna analiza wczyta nowo wybrany.
+        *self
+            .zaladowany
+            .lock()
+            .expect("mutex modelu nie powinien być zatruty") = None;
+        zapisz_aktywny_model(&self.katalog_modeli, id)
+    }
+
+    /// Pobiera i weryfikuje AKTYWNY model. BLOKUJĄCE (gigabajty + SHA-256) - wołać z
     /// `spawn_blocking`. Postęp odczytywalny przez `postep_pobierania()`, anulowanie przez
     /// `anuluj_pobieranie()`. Idempotentne wobec już pobranego modelu (pobiera od nowa/wznawia).
     pub fn pobierz_model_blocking(&self) -> Result<(), AppError> {
         self.anuluj_pobieranie.store(false, Ordering::SeqCst);
         pobierz_i_zweryfikuj(
-            Self::opis_modelu(),
+            self.opis_modelu(),
             &self.katalog_modeli,
             &self.postep_pobierania,
             &self.anuluj_pobieranie,
@@ -115,26 +176,34 @@ impl AiRuntimeService {
         self.anuluj_pobieranie.store(true, Ordering::SeqCst);
     }
 
-    /// Usuwa pobrany model z dysku (i zwalnia go z pamięci, jeśli był załadowany).
+    /// Usuwa pobrany AKTYWNY model z dysku (i zwalnia go z pamięci, jeśli był załadowany).
     pub fn usun_model(&self) -> Result<(), AppError> {
         *self
             .zaladowany
             .lock()
             .expect("mutex modelu nie powinien być zatruty") = None;
-        usun_model(Self::opis_modelu(), &self.katalog_modeli)
+        usun_model(self.opis_modelu(), &self.katalog_modeli)
     }
 
-    fn opis_modelu() -> &'static OpisModelu {
+    /// Opis AKTYWNEGO modelu (z listy `KANDYDACI`). Wybór jest walidowany przy ustawianiu i przy
+    /// wczytywaniu z pliku, więc `id` zawsze wskazuje istniejącego kandydata; gdyby jednak nie -
+    /// spadamy na domyślny, zamiast panikować.
+    fn opis_modelu(&self) -> &'static OpisModelu {
+        let id = self
+            .aktywny_model_id
+            .lock()
+            .expect("mutex aktywnego modelu nie powinien być zatruty")
+            .clone();
         KANDYDACI
             .iter()
-            .find(|k| k.id == ID_MODELU_PRODUKCYJNEGO)
-            .expect("model produkcyjny musi być na liście KANDYDACI")
+            .find(|k| k.id == id)
+            .unwrap_or_else(domyslny_model)
     }
 
-    /// Czy model produkcyjny jest już pobrany i gotowy do użycia - frontend pyta o to, zanim
-    /// pokaże przycisk "Przeanalizuj z AI" (bez modelu analiza i tak by się nie udała).
+    /// Czy AKTYWNY model jest już pobrany i gotowy do użycia - frontend pyta o to, zanim pokaże
+    /// przycisk "Przeanalizuj z AI" (bez modelu analiza i tak by się nie udała).
     pub fn model_gotowy(&self) -> bool {
-        model_pobrany(Self::opis_modelu(), &self.katalog_modeli)
+        model_pobrany(self.opis_modelu(), &self.katalog_modeli)
     }
 
     /// Ustawia flagę anulowania bieżącej analizy. Bezpieczne do wołania z innego wątku/komendy w
@@ -181,7 +250,7 @@ impl AiRuntimeService {
         if let Some(istniejacy) = slot.as_ref() {
             return Ok(Arc::clone(istniejacy));
         }
-        let opis = Self::opis_modelu();
+        let opis = self.opis_modelu();
         if !model_pobrany(opis, &self.katalog_modeli) {
             return Err(AppError::Validation(
                 "Model AI nie jest jeszcze pobrany. Pobierz go w Ustawieniach → Asystent AI."
@@ -249,6 +318,33 @@ impl AiRuntimeService {
             AppError::Validation("Nie udało się uzyskać poprawnej odpowiedzi AI.".to_string())
         }))
     }
+}
+
+/// Domyślny kandydat, gdy nic nie wybrano albo zapamiętany wybór jest nieznany.
+fn domyslny_model() -> &'static OpisModelu {
+    KANDYDACI
+        .iter()
+        .find(|k| k.id == ID_MODELU_DOMYSLNEGO)
+        .expect("domyślny model musi być na liście KANDYDACI")
+}
+
+/// Wczytuje zapamiętany wybór modelu z pliku. Zwraca `id` domyślnego, gdy pliku nie ma, jest
+/// nieczytelny albo wskazuje nieznanego kandydata (np. po zmianie listy modeli między wersjami).
+fn wczytaj_aktywny_model(katalog_modeli: &std::path::Path) -> String {
+    let zapisany = std::fs::read_to_string(katalog_modeli.join(PLIK_AKTYWNEGO_MODELU))
+        .ok()
+        .map(|s| s.trim().to_string());
+    match zapisany {
+        Some(id) if KANDYDACI.iter().any(|k| k.id == id) => id,
+        _ => ID_MODELU_DOMYSLNEGO.to_string(),
+    }
+}
+
+/// Zapisuje wybór modelu do pliku (tworząc katalog, gdyby jeszcze nie istniał).
+fn zapisz_aktywny_model(katalog_modeli: &std::path::Path, id: &str) -> Result<(), AppError> {
+    std::fs::create_dir_all(katalog_modeli)?;
+    std::fs::write(katalog_modeli.join(PLIK_AKTYWNEGO_MODELU), id)?;
+    Ok(())
 }
 
 #[cfg(test)]

@@ -7,6 +7,7 @@ use std::sync::Arc;
 use tauri::State;
 
 use crate::application::ai_analysis::{AiAnalysisService, StatusModeluAi};
+use crate::application::ai_runtime::OpisModeluStatus;
 use crate::domain::ai_analysis::ZapisanaAnaliza;
 use crate::error::AppError;
 use crate::infrastructure::ai_model_download::PostepPobrania;
@@ -67,6 +68,18 @@ pub fn delete_all_ai_analyses(state: State<'_, AppState>) -> Result<(), AppError
 #[tauri::command]
 pub fn ai_model_status(state: State<'_, AppState>) -> Result<StatusModeluAi, AppError> {
     Ok(require_ai(&state)?.status_modelu())
+}
+
+/// Lista 3 kandydatów na model z ich stanem (pobrany/aktywny) - do wyboru modelu w Ustawieniach.
+#[tauri::command]
+pub fn ai_list_models(state: State<'_, AppState>) -> Result<Vec<OpisModeluStatus>, AppError> {
+    Ok(require_ai(&state)?.lista_modeli())
+}
+
+/// Ustawia aktywny model AI (jeden z kandydatów) - zapamiętywane, zwalnia poprzedni z pamięci.
+#[tauri::command]
+pub fn ai_set_model(state: State<'_, AppState>, id: String) -> Result<(), AppError> {
+    require_ai(&state)?.ustaw_model(&id)
 }
 
 /// Pobiera i weryfikuje model. `async` + `spawn_blocking` (gigabajty + SHA-256). Postęp odpytywać

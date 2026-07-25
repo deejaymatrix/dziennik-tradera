@@ -38,6 +38,15 @@ export interface PostepPobrania {
   status: "trwa" | "zweryfikowano" | "anulowano" | "blad";
 }
 
+/** Jeden z kandydatów na model z jego stanem (`OpisModeluStatus`) - do wyboru w Ustawieniach. */
+export interface OpisModeluStatus {
+  id: string;
+  etykieta: string;
+  rozmiar_bajtow: number;
+  pobrany: boolean;
+  aktywny: boolean;
+}
+
 /** Bezpiecznie parsuje `wynik_json` zapisanej analizy do struktury z trzema listami. Zwraca puste
  * listy, gdy JSON jest z jakiegoś powodu nieczytelny (nie powinien być - backend zapisuje tylko
  * zwalidowane wyniki - ale UI nigdy nie zakłada tego na ślepo). */
