@@ -3,6 +3,7 @@ pub mod ai_model_download;
 pub mod backup_archive;
 pub mod pdf_report;
 pub mod sqlite_account_repository;
+pub mod sqlite_ai_analysis_repository;
 pub mod sqlite_attachment_repository;
 pub mod sqlite_broker_template_repository;
 pub mod sqlite_cash_operation_repository;

@@ -1,4 +1,5 @@
 pub mod account;
+pub mod ai_analysis;
 pub mod attachment;
 pub mod backup;
 pub mod balance;
