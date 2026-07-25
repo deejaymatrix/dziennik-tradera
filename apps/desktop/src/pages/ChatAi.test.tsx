@@ -91,4 +91,37 @@ describe("ChatAi", () => {
     expect(await screen.findByText("5")).toBeInTheDocument();
     expect(screen.getByText(/mała próba/)).toBeInTheDocument();
   });
+
+  it("zmiana konta czyści historię nawet przy identycznym opisie zakresu", async () => {
+    ustawCzat("Odpowiedź o koncie A.");
+    // Renderujemy wprost, żeby dostać `rerender` i podmienić konto w propsach.
+    const { rerender } = render(
+      <ToastProvider>
+        <ChatAi filter={filtr} zakresOpis="Konto (USD) · cała historia" gotowe />
+      </ToastProvider>,
+    );
+    const user = userEvent.setup();
+
+    await user.type(screen.getByPlaceholderText("Zadaj pytanie o swoje dane…"), "Pytanie A");
+    await user.click(screen.getByRole("button", { name: /Wyślij/ }));
+    expect(await screen.findByText("Odpowiedź o koncie A.")).toBeInTheDocument();
+
+    // Inne konto (inny account_id), ale IDENTYCZNY zakresOpis - jak dwa konta o tej samej nazwie i
+    // walucie. Reset keyowany na account_id, więc historia znika mimo tego samego opisu (na starym
+    // kluczu `zakresOpis` ten test by nie przeszedł).
+    rerender(
+      <ToastProvider>
+        <ChatAi
+          filter={{ ...filtr, account_id: "konto-2" }}
+          zakresOpis="Konto (USD) · cała historia"
+          gotowe
+        />
+      </ToastProvider>,
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByText("Odpowiedź o koncie A.")).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByText("Pytanie A")).not.toBeInTheDocument();
+  });
 });
