@@ -220,6 +220,12 @@ impl AiAnalysisService {
     ) -> Result<AnalizaWynik, AppError> {
         self.wymagaj_wlaczony()?;
         let raport = self.reports.get_filtered_report(filter)?;
+        if raport.stats.closed_trades == 0 {
+            return Err(AppError::Validation(
+                "Brak zamkniętych transakcji w wybranym zakresie - nie ma czego analizować."
+                    .to_string(),
+            ));
+        }
         let dane = zbuduj_dane_raportu(&raport, zakres_opis);
         let prompt = format!(
             "{}\n\n{}",
@@ -268,6 +274,12 @@ impl AiAnalysisService {
         let trades = self.trades.list(account_id, false)?;
         let nazwy_emocji = self.mapa_nazw_emocji();
         let wg_emocji = compute_emotion_breakdown(&trades, &nazwy_emocji);
+        if wg_emocji.is_empty() {
+            return Err(AppError::Validation(
+                "Brak transakcji z zapisanymi emocjami w tym zakresie - nie ma czego analizować."
+                    .to_string(),
+            ));
+        }
         let natezenia = compute_emotion_avg_intensity(&trades);
         let wolumeny = compute_emotion_avg_volume(&trades);
         let dane_json = emocje_do_json(&wg_emocji, &natezenia, &wolumeny);
@@ -293,6 +305,11 @@ impl AiAnalysisService {
         self.wymagaj_wlaczony()?;
         let trades = self.trades.list(account_id, false)?;
         let sygnaly = compute_behavior_signals(&trades);
+        if sygnaly.total_closed == 0 {
+            return Err(AppError::Validation(
+                "Brak zamkniętych transakcji do audytu w tym zakresie.".to_string(),
+            ));
+        }
         let sygnaly_json =
             serde_json::to_string_pretty(&sygnaly).unwrap_or_else(|_| "{}".to_string());
         let prompt = format!(
