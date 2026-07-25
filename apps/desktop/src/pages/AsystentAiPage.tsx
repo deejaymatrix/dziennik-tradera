@@ -120,6 +120,16 @@ export function AsystentAiPage(): ReactElement {
         </div>
       </SectionCard>
 
+      {status !== null && !status.wlaczony && (
+        <SectionCard>
+          <p className={styles.info}>
+            Asystent AI jest <strong>wyłączony</strong>. Analizy i czat są niedostępne, dopóki nie
+            włączysz go w <strong>Ustawieniach → Asystent AI</strong>. Model i zapisane analizy
+            zostają nietknięte.
+          </p>
+        </SectionCard>
+      )}
+
       <SectionCard>
         <h3 className={styles.podtytul}>Model</h3>
         {status === null ? (

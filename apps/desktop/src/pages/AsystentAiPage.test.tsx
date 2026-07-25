@@ -81,5 +81,27 @@ describe("AsystentAiPage", () => {
     expect(wybor).toBeInTheDocument();
     // Konto trafia do opcji jako "nazwa (waluta)".
     expect(screen.getByRole("option", { name: "Konto główne (USD)" })).toBeInTheDocument();
+    // Przy włączonym AI hubowego banera o wyłączeniu nie ma.
+    expect(screen.queryByText(/Analizy i czat są niedostępne/)).not.toBeInTheDocument();
+  });
+
+  it("wyłączony AI: hub pokazuje baner o wyłączeniu (mimo pobranego modelu)", async () => {
+    invokeCommand.mockImplementation((cmd: string) => {
+      if (cmd === "ai_model_status")
+        return Promise.resolve({
+          gotowy: true,
+          wlaczony: false,
+          etykieta: "Qwen 7B",
+          rozmiar_bajtow: 4_700_000_000,
+        });
+      if (cmd === "list_accounts") return Promise.resolve([konto()]);
+      if (cmd === "ai_analysis_history") return Promise.resolve([]);
+      if (cmd === "get_filtered_report")
+        return Promise.resolve({ stats: { total_trades: 10, closed_trades: 10 } });
+      return Promise.resolve(null);
+    });
+    wyrenderuj();
+
+    expect(await screen.findByText(/Analizy i czat są niedostępne/)).toBeInTheDocument();
   });
 });
