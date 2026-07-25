@@ -4993,5 +4993,47 @@ tym przebiegu; Qwen2.5-1.5B szybki ale analitycznie płytki) - **rekomendacja: Q
   Face to `qwen-research` (ograniczenia komercyjne), nie Apache 2.0; zastąpiony przez
   `Qwen2.5-1.5B-Instruct` (naprawdę Apache 2.0).
 
-**Następny krok:** punkt kontrolny z użytkownikiem (potwierdzenie modelu/podejścia z gramatyką
-GBNF) przed Etapem 2 (`AiRuntimeService`).
+**Etap 1 - naprawa niezawodności JSON Qwen2.5-7B.** Rekomendacja z benchmarku (gramatyka GBNF)
+okazała się NIEBEZPIECZNA: `LlamaSampler::grammar` crashuje cały proces w tej wersji
+`llama-cpp-2`/`llama-cpp-sys-2` 0.1.152 (`GGML_ASSERT(!stacks.empty())` w `llama-grammar.cpp:940`,
+oznaczone `// REVIEW` przez autorów llama.cpp) na pierwszym tokenie - odtworzone niezależnie od
+treści gramatyki (własna ORAZ werbatim ogólna gramatyka JSON) i modelu (Qwen2.5-7B i -1.5B).
+Zamiast tego: **walidacja + ponowienie z innym ziarnem**. Pierwsza próba zawiodła (sampler
+`greedy` deterministyczny → identyczny zły wynik); naprawa: `temp(0.4)` + `top_p(0.95)` +
+`dist(ziarno)`. Po tym Qwen2.5-7B dał poprawny JSON w pierwszej próbie. Integracja z gramatyką
+została w kodzie jako WYŁĄCZONA (`gramatyka_json` domyślnie `None`), na wypadek naprawy upstream.
+
+**Etap 2 - `application/ai_runtime.rs` (`AiRuntimeService`).** Rozdzielono `ai_inference`:
+`zaladuj_model` (kosztowne, RAZ) od `generuj` (świeży kontekst per analiza, tanie); `generuj`
+sprawdza flagę anulowania i limit czasu PRZY KAŻDYM tokenie → „Przerwij analizę" i timeout bez
+zabijania wątku. Usługa: leniwe ładowanie modelu (raz), „jedna analiza naraz" (odrzucenie drugiej
+przez `compare_exchange` + strażnik RAII), pętla „waliduj + ponów z innym ziarnem", anulowanie/
+timeout. Logika cyklu życia wydzielona do `analizuj_z_generatorem` przyjmującej domykający
+generator → 7 testów sprawdza CAŁĄ logikę bez ładowania 4 GB modelu. `LlamaModel` jest `Send+Sync`
+(można trzymać w `Arc`), `LlamaContext` związany lifetime'em → tworzony per generowanie.
+
+**Etap 3 (fundament, bezkolizyjny - bez `DbState`).** Świadoma decyzja z użytkownikiem
+(2026-07-25): `DbState` równolegle naprawia osobne zadanie w tle (`large_enum_variant`), więc
+podłączenie `AiRuntimeService`/repozytorium do `DbState`/komend/frontendu czeka na scalenie tamtego
+
+- teraz zrobione tylko części niekolidujące:
+
+- Migracja `0014_ai_analyses` (tabela `trade_ai_analyses`): analiza niezmienna po zapisie,
+  nieaktualność liczona z porównania `zrodlo_updated_at` vs bieżące `trades.updated_at` (nie
+  przechowywana); deterministyczne KPI nigdy stąd nie pochodzą.
+- `domain/ai_analysis.rs` (11 testów): budowanie „pakietu faktów" (model interpretuje policzone
+  dane, nie liczy); szablon polecenia z zabezpieczeniem przed prompt injection z notatek (tekst
+  użytkownika jako DANE, `serde_json` escapuje cudzysłowy); walidacja odpowiedzi wg schematu
+  `fakty`/`obserwacje`/`rekomendacje` (parser bierze pierwszy kompletny obiekt JSON, odporny na
+  `}` w stringu i zdublowany obiekt).
+- `infrastructure/sqlite_ai_analysis_repository.rs` (8 testów): zapis/odczyt najnowszej/usuwanie
+  pojedynczej/usuwanie wszystkich; flaga `nieaktualna` liczona przy odczycie.
+
+Weryfikacja Etap 1-3-fundament: `cargo test` **467/467** (+ 2 ignorowane testy benchmarku).
+
+**Następny krok (Etap 3, reszta - CZEKA na scalenie poprawki `DbState`):** podłączenie
+`AiRuntimeService`+repozytorium do `DbState`/`AppState`, `application/ai_analysis.rs` (rozwiązanie
+`Trade`+nazwy → `DaneAnalizyTransakcji` → prompt → model → zapis), komendy Tauri (`analyze_trade`,
+`get_trade_analysis`, `cancel_analysis`, status/pobranie modelu), rejestracja w `lib.rs`, frontend
+(przycisk „Przeanalizuj z AI" w `TradeInspector`, panel wyniku, pozycja nawigacji „Asystent AI" +
+trasa + strona). Potem Etap 4 (demo) i Etap 5+ (pozostałe rodzaje analiz, czat, pełne Ustawienia).
