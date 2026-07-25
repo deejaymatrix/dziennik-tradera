@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { Sparkles, StopCircle } from "lucide-react";
 import { invokeCommand, extractErrorMessage } from "../app/invokeCommand";
 import type { PostepPobrania, StatusModeluAi, ZapisanaAnaliza } from "../app/types/aiAnalysis";
-import { parsujWynik } from "../app/types/aiAnalysis";
+import { opisPostepuPobierania, parsujWynik } from "../app/types/aiAnalysis";
 import { Button } from "../ui/components/Button/Button";
 import { useToast } from "../ui/components/Toast/ToastProvider";
 import styles from "./TradeAiAnalysis.module.css";
@@ -135,12 +135,7 @@ export function TradeAiAnalysis({ tradeId }: TradeAiAnalysisProps): ReactElement
         <div className={styles.pobieranie}>
           {pobiera ? (
             <>
-              <p className={styles.info}>
-                Pobieranie modelu
-                {postep && postep.calkowity_rozmiar > 0
-                  ? ` — ${gb(postep.pobrano_bajtow)} / ${gb(postep.calkowity_rozmiar)}`
-                  : "..."}
-              </p>
+              <p className={styles.info}>{opisPostepuPobierania(postep)}</p>
               <Button variant="secondary" onClick={przerwijPobieranie}>
                 <StopCircle size={16} /> Przerwij pobieranie
               </Button>

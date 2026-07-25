@@ -31,11 +31,30 @@ export interface StatusModeluAi {
   rozmiar_bajtow: number;
 }
 
-/** Postęp pobierania modelu (`PostepPobrania`). */
+/** Postęp pobierania modelu (`PostepPobrania`). `weryfikacja` = przeliczanie już pobranych
+ * fragmentów do sumy kontrolnej przy wznowieniu (pasek wtedy nie rusza - to normalne). */
 export interface PostepPobrania {
   pobrano_bajtow: number;
   calkowity_rozmiar: number;
-  status: "trwa" | "zweryfikowano" | "anulowano" | "blad";
+  status: "trwa" | "weryfikacja" | "zweryfikowano" | "anulowano" | "blad";
+}
+
+/** Formatuje bajty jako „X.Y GB" (dziesiętne GB, spójnie z resztą UI pobierania). */
+export function gigabajty(bajty: number): string {
+  return `${(bajty / 1_000_000_000).toFixed(1)} GB`;
+}
+
+/** Pełna etykieta fazy pobierania do UI. Kluczowe: przy `weryfikacja` (przeliczanie już pobranych
+ * fragmentów przy wznowieniu) pasek postępu STOI - piszemy wprost, że sprawdzamy, żeby nie
+ * wyglądało na zawieszone. */
+export function opisPostepuPobierania(postep: PostepPobrania | null): string {
+  if (postep?.status === "weryfikacja") {
+    return "Sprawdzam już pobrane fragmenty…";
+  }
+  if (postep && postep.calkowity_rozmiar > 0) {
+    return `Pobieranie — ${gigabajty(postep.pobrano_bajtow)} / ${gigabajty(postep.calkowity_rozmiar)}`;
+  }
+  return "Pobieranie…";
 }
 
 /** Jeden z kandydatów na model z jego stanem (`OpisModeluStatus`) - do wyboru w Ustawieniach. */

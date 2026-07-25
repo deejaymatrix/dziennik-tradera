@@ -82,6 +82,10 @@ const OPOZNIENIE_PONOWIENIA: Duration = Duration::from_secs(2);
 #[serde(rename_all = "snake_case")]
 pub enum StatusPobrania {
     Trwa,
+    /// Przeliczanie już pobranych fragmentów do sumy kontrolnej przy WZNOWIENIU - czyta cały plik
+    /// `.part` z dysku (dla kilku GB nawet minutę), więc pasek postępu wtedy nie rusza. Osobny
+    /// status pozwala UI pokazać „weryfikuję", zamiast wyglądać na zawieszone.
+    Weryfikacja,
     Zweryfikowano,
     Anulowano,
     Blad,
@@ -190,16 +194,24 @@ fn pobierz_i_zweryfikuj_z_adresu(
     let mut hasher = Sha256::new();
     if wznowione && pobrano_bajtow > 0 {
         // Doliczenie już pobranych gigabajtów do SHA-256 CZYTA cały plik `.part` z dysku - dla
-        // kilku GB trwa to kilkadziesiąt sekund. Bez tego pasek postępu tkwiłby na zerze i całość
-        // wyglądałaby na zawieszoną, choć pobieranie tylko wznawia od miejsca przerwania. Dlatego
-        // od razu pokazujemy, ile już leży na dysku, zanim ruszy powolne czytanie do hasza.
+        // kilku GB trwa to kilkadziesiąt sekund, w których nic się nie pobiera. Dlatego (1) od razu
+        // pokazujemy, ile już leży na dysku, i (2) ustawiamy status `Weryfikacja`, żeby UI napisało
+        // „sprawdzam już pobrane" zamiast pokazywać zamrożony pasek postępu.
         {
             let mut aktualny = postep
                 .lock()
                 .expect("mutex postępu nie powinien być zatruty");
             aktualny.pobrano_bajtow = pobrano_bajtow;
+            aktualny.status = StatusPobrania::Weryfikacja;
         }
         dolicz_istniejaca_tresc_do_hasha(&sciezka_tymczasowa, &mut hasher)?;
+        // Wracamy do zwykłego stanu „trwa" - dalej leci już właściwe pobieranie reszty.
+        {
+            let mut aktualny = postep
+                .lock()
+                .expect("mutex postępu nie powinien być zatruty");
+            aktualny.status = StatusPobrania::Trwa;
+        }
     }
 
     let mut bufor = [0u8; 64 * 1024];

@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { Sparkles, StopCircle } from "lucide-react";
 import { invokeCommand, extractErrorMessage } from "../app/invokeCommand";
 import type { PostepPobrania, StatusModeluAi } from "../app/types/aiAnalysis";
+import { opisPostepuPobierania } from "../app/types/aiAnalysis";
 import type { AccountWithBalance } from "../app/types/account";
 import type { ReportFilter } from "../app/types/report";
 import { Button } from "../ui/components/Button/Button";
@@ -89,26 +90,6 @@ export function AsystentAiPage(): ReactElement {
     }
   }
 
-  async function usunModel(): Promise<void> {
-    if (
-      !(await confirm({
-        message:
-          "Usunąć pobrany model AI z dysku? Trzeba go będzie pobrać ponownie, żeby znów analizować.",
-        danger: true,
-        confirmLabel: "Usuń model",
-      }))
-    ) {
-      return;
-    }
-    try {
-      await invokeCommand("delete_ai_model", {});
-      showToast("Model AI usunięty.", "success");
-      await wczytaj();
-    } catch (e) {
-      showToast(extractErrorMessage(e), "error");
-    }
-  }
-
   async function usunAnalizy(): Promise<void> {
     if (
       !(await confirm({
@@ -161,25 +142,13 @@ export function AsystentAiPage(): ReactElement {
         {status === null ? (
           <p className={styles.info}>Sprawdzanie stanu modelu...</p>
         ) : status.gotowy ? (
-          <>
-            <p className={styles.info}>
-              Model <strong>{status.etykieta}</strong> ({gb(status.rozmiar_bajtow)}) jest pobrany i
-              gotowy.
-            </p>
-            <div className={styles.akcje}>
-              <Button variant="danger" onClick={() => void usunModel()}>
-                Usuń model
-              </Button>
-            </div>
-          </>
+          <p className={styles.info}>
+            Model <strong>{status.etykieta}</strong> ({gb(status.rozmiar_bajtow)}) jest pobrany i
+            gotowy. Model usuniesz w <strong>Ustawieniach → Asystent AI</strong>.
+          </p>
         ) : pobiera ? (
           <div className={styles.akcje}>
-            <p className={styles.info}>
-              Pobieranie modelu
-              {postep && postep.calkowity_rozmiar > 0
-                ? ` — ${gb(postep.pobrano_bajtow)} / ${gb(postep.calkowity_rozmiar)}`
-                : "..."}
-            </p>
+            <p className={styles.info}>{opisPostepuPobierania(postep)}</p>
             <Button
               variant="secondary"
               onClick={() =>

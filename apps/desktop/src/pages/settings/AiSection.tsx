@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { StopCircle } from "lucide-react";
 import { invokeCommand, extractErrorMessage } from "../../app/invokeCommand";
 import type { OpisModeluStatus, PostepPobrania } from "../../app/types/aiAnalysis";
+import { opisPostepuPobierania } from "../../app/types/aiAnalysis";
 import { Button } from "../../ui/components/Button/Button";
 import { useConfirm } from "../../ui/components/ConfirmDialog/ConfirmDialog";
 import { useToast } from "../../ui/components/Toast/ToastProvider";
@@ -131,12 +132,7 @@ export function AiSection(): ReactElement {
         <div className={styles.akcje}>
           {pobiera ? (
             <>
-              <span className={styles.info}>
-                Pobieranie
-                {postep && postep.calkowity_rozmiar > 0
-                  ? ` — ${gb(postep.pobrano_bajtow)} / ${gb(postep.calkowity_rozmiar)}`
-                  : "..."}
-              </span>
+              <span className={styles.info}>{opisPostepuPobierania(postep)}</span>
               <Button
                 variant="secondary"
                 onClick={() =>
