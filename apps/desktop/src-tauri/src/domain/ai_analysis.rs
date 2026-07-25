@@ -525,7 +525,9 @@ pub fn zbuduj_prompt_audytu(zakres_opis: &str, sygnaly_json: &str) -> String {
         "Jesteś asystentem robiącym audyt ZACHOWANIA tradera. Poniżej masz JUŻ POLICZONE przez \
 aplikację sygnały: overtrading (liczba transakcji na dzień), dyscyplinę (wynik transakcji łamiących \
 wymagane zasady wejścia vs przestrzegających), handel po stracie (transakcje zaraz po stratnej: \
-ich wynik i średni wolumen względem ogólnego - sygnał revenge tradingu i eskalacji ryzyka) oraz \
+ich średni wynik netto i średni wolumen - PORÓWNAJ je z bazą ogólną (\"overall_avg_net\", \
+\"overall_avg_volume\"): niższy wynik i większy wolumen po stracie to sygnał revenge tradingu i \
+eskalacji ryzyka) oraz \
 najdłuższe serie strat i zysków (sygnał tiltu po serii strat i przepewności po serii zysków). NIE \
 licz niczego sam i nie zmyślaj.\n\n\
 Oceń skłonność do: overtradingu, revenge tradingu, łamania zasad, zwiększania ryzyka po stracie oraz \

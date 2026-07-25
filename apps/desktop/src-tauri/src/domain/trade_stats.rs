@@ -532,8 +532,14 @@ pub struct BehaviorSignals {
     /// (chronologicznie). Porównanie średniego wolumenu z ogólnym wykrywa zwiększanie ryzyka.
     pub after_loss_count: i64,
     pub after_loss_net: Decimal,
+    /// Średni wynik netto na transakcję PO STRACIE - zestawiony z `overall_avg_net` pokazuje wprost
+    /// koszt rewanżu (gdy jest wyraźnie niższy od ogólnej średniej).
+    pub after_loss_avg_net: Option<Decimal>,
     pub after_loss_avg_volume: Option<Decimal>,
     pub overall_avg_volume: Option<Decimal>,
+    /// Średni wynik netto na transakcję OGÓŁEM (baza odniesienia dla „po stracie"). Liczony z sumy
+    /// netto wszystkich zrealizowanych transakcji / ich liczby.
+    pub overall_avg_net: Option<Decimal>,
     /// Najdłuższa seria kolejnych strat i kolejnych zysków (chronologicznie). Sygnał tiltu po
     /// serii strat i przepewności po serii zysków. Breakeven (wynik zero) przerywa obie serie.
     pub max_losing_streak: i64,
@@ -599,6 +605,14 @@ pub fn compute_behavior_signals(trades: &[Trade]) -> BehaviorSignals {
     }
     let after_loss_avg_volume =
         (after_loss_vol_n > 0).then(|| after_loss_vol_sum / Decimal::from(after_loss_vol_n));
+    let after_loss_avg_net =
+        (after_loss_count > 0).then(|| after_loss_net / Decimal::from(after_loss_count));
+
+    // Baza netto: średni wynik na transakcję OGÓŁEM. Suma netto wszystkich zrealizowanych to
+    // rule_broken_net + rule_followed_net (każda zrealizowana trafia do dokładnie jednej grupy),
+    // więc nie trzeba osobnej pętli.
+    let overall_avg_net = (total_closed > 0)
+        .then(|| (rule_broken_net + rule_followed_net) / Decimal::from(total_closed));
 
     // Średni wolumen ogółem - punkt odniesienia dla „po stracie".
     let mut vol_sum = Decimal::ZERO;
@@ -642,8 +656,10 @@ pub fn compute_behavior_signals(trades: &[Trade]) -> BehaviorSignals {
         rule_followed_net,
         after_loss_count,
         after_loss_net,
+        after_loss_avg_net,
         after_loss_avg_volume,
         overall_avg_volume,
+        overall_avg_net,
         max_losing_streak,
         max_winning_streak,
     }
@@ -1134,10 +1150,16 @@ mod tests {
         // Handel po stracie: b następuje bezpośrednio po stratnej a.
         assert_eq!(s.after_loss_count, 1);
         assert_eq!(s.after_loss_net, dec!(100));
+        assert_eq!(s.after_loss_avg_net, Some(dec!(100)));
         assert_eq!(s.after_loss_avg_volume, Some(dec!(2)));
         assert_eq!(
             s.overall_avg_volume,
             Some((dec!(1) + dec!(2) + dec!(1)) / dec!(3))
+        );
+        // Baza netto = średnia z wszystkich trzech wyników (-50, 100, 30).
+        assert_eq!(
+            s.overall_avg_net,
+            Some((dec!(-50) + dec!(100) + dec!(30)) / dec!(3))
         );
         // Serie: strata, zysk, zysk -> najdłuższa seria strat 1, seria zysków 2.
         assert_eq!(s.max_losing_streak, 1);
