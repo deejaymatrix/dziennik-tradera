@@ -500,8 +500,9 @@ interpretuj. Szukaj WZORCÓW w całym zakresie: które strategie, instrumenty, i
 tygodnia i kierunki dają najlepszy i najgorszy wynik, gdzie są przewagi, a gdzie systematyczne \
 słabości.\n\n\
 Oddzielaj fakty od interpretacji. Każda rekomendacja ma wynikać z konkretnych danych. Pisz \
-konkretnie, wspierająco i bez agresywnego oceniania. Nie udzielaj gwarantowanych porad \
-finansowych. Jeśli próba jest mała (mało transakcji), zaznacz to. Każda grupa w rozbiciach ma \
+konkretnie, wspierająco i bez agresywnego oceniania. Nie diagnozuj chorób ani nie udzielaj porad \
+medycznych czy gwarantowanych porad finansowych. Jeśli próba jest mała (mało transakcji), zaznacz \
+to. Każda grupa w rozbiciach ma \
 \"liczba_transakcji\" - WAŻ nią wnioski: z grupy o kilku transakcjach nie wyciągaj mocnych \
 wniosków (zaznacz niepewność w \"jakosc_danych\").\n\n\
 Dane zagregowane (JSON):\n{fakty}\n\n\
@@ -893,6 +894,8 @@ mod tests {
         assert!(prompt.contains("liczba_transakcji"));
         // Instrukcja: ważyć wnioski liczbą transakcji w grupie (nie przeceniać małych grup).
         assert!(prompt.contains("WAŻ nią wnioski"));
+        // Guard bezpieczeństwa spójny z innymi analizami: bez diagnozy medycznej/finansowej.
+        assert!(prompt.contains("Nie diagnozuj chorób"));
         // Ten sam schemat odpowiedzi co przy transakcji.
         assert!(prompt.contains("\"fakty\""));
         assert!(prompt.contains("\"obserwacje\""));
