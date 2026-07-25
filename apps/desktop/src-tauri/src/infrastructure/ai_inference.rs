@@ -154,17 +154,13 @@ pub fn generuj(
     let model = &zaladowany.model;
     let poczatek_generowania = Instant::now();
 
-    let ctx_params =
-        LlamaContextParams::default().with_n_ctx(std::num::NonZeroU32::new(konfiguracja.n_ctx));
-    let mut ctx = model
-        .new_context(&zaladowany._backend, ctx_params)
-        .map_err(|e| AppError::io(format!("nie udało się utworzyć kontekstu modelu: {e}")))?;
-
-    // Bez zastosowania szablonu czatu model dostaje surowy tekst jako "dokańczanie", nie jako
-    // prawdziwą turę rozmowy - w praktyce nie wie, KIEDY się zatrzymać (nie emituje tokenu końca
-    // tury) i zamiast jednej odpowiedzi generuje kolejne warianty aż do limitu tokenów. Jeśli
-    // model ma zapisany własny szablon w GGUF, używamy go; brak szablonu to fallback na surowy
-    // prompt (rzadki przypadek - lepiej wygenerować cokolwiek niż odmówić działania).
+    // Szablon czatu i kodowanie promptu NIE potrzebują kontekstu - robimy je najpierw, żeby znać
+    // długość promptu i dobrać do niej rozmiar kontekstu oraz partii tokenów. Bez zastosowania
+    // szablonu czatu model dostaje surowy tekst jako "dokańczanie", nie jako prawdziwą turę
+    // rozmowy - w praktyce nie wie, KIEDY się zatrzymać (nie emituje tokenu końca tury) i zamiast
+    // jednej odpowiedzi generuje kolejne warianty aż do limitu tokenów. Jeśli model ma zapisany
+    // własny szablon w GGUF, używamy go; brak szablonu to fallback na surowy prompt (rzadki
+    // przypadek - lepiej wygenerować cokolwiek niż odmówić działania).
     let tekst_z_szablonem = match model.chat_template(None) {
         Ok(szablon) => {
             let wiadomosci = [
@@ -184,9 +180,28 @@ pub fn generuj(
         .str_to_token(&tekst_z_szablonem, AddBos::Always)
         .map_err(|e| AppError::io(format!("nie udało się zakodować promptu: {e}")))?;
 
+    // Kontekst i partia tokenów MUSZĄ pomieścić cały prompt w jednym `decode` PLUS miejsce na
+    // odpowiedź. Stałe 512 tokenów partii wystarczało krótkim promptom, ale analiza całościowa
+    // (raport z wieloma rozbiciami) albo transakcja z długimi notatkami łatwo je przekracza -
+    // wtedy `LlamaBatch::add` zwracał `InsufficientSpace` i analiza padała błędem I/O, ZANIM
+    // cokolwiek wygenerowała. Skalujemy więc kontekst i partię do rzeczywistej długości promptu.
+    let n_ctx = dobierz_n_ctx(
+        tokeny_promptu.len(),
+        konfiguracja.max_nowych_tokenow,
+        konfiguracja.n_ctx,
+    )?;
+
+    let ctx_params = LlamaContextParams::default()
+        .with_n_ctx(std::num::NonZeroU32::new(n_ctx))
+        .with_n_batch(n_ctx);
+    let mut ctx = model
+        .new_context(&zaladowany._backend, ctx_params)
+        .map_err(|e| AppError::io(format!("nie udało się utworzyć kontekstu modelu: {e}")))?;
+
     let ostatni_indeks = i32::try_from(tokeny_promptu.len().saturating_sub(1))
         .map_err(|_| AppError::io("prompt zbyt długi do zakodowania".to_string()))?;
-    let mut batch = LlamaBatch::new(512, 1);
+    // Pojemność partii musi zmieścić cały prompt (min. 512, żeby krótkie prompty też miały zapas).
+    let mut batch = LlamaBatch::new(tokeny_promptu.len().max(512), 1);
     for (i, token) in (0_i32..).zip(tokeny_promptu) {
         let ostatni = i == ostatni_indeks;
         batch
@@ -271,6 +286,43 @@ pub fn generuj(
     })
 }
 
+/// Górny limit rozmiaru kontekstu. Dłuższego promptu i tak nie ma sensu wpychać do modelu 7B na
+/// CPU (rośnie zużycie RAM i czas generowania), a taki prompt to sygnał, że zakres analizy jest
+/// po prostu za szeroki - lepiej poprosić o zawężenie niż w nieskończoność liczyć.
+const MAKS_N_CTX: u32 = 8192;
+
+/// Zapas tokenów ponad `prompt + odpowiedź` (tokeny sterujące szablonu czatu, drobne rozjazdy
+/// między liczbą tokenów wejścia a rzeczywistym zapotrzebowaniem kontekstu).
+const MARGINES_KONTEKSTU: usize = 64;
+
+/// Dobiera rozmiar kontekstu: co najmniej `bazowy_n_ctx`, ale na tyle duży, by pomieścił CAŁY
+/// prompt plus zarezerwowane miejsce na odpowiedź (`max_nowych_tokenow`) i mały margines. Zwraca
+/// czytelny `AppError::Validation`, gdy nawet po rozszerzeniu do `MAKS_N_CTX` prompt się nie
+/// mieści - to jest „zakres za obszerny do analizy", komunikat dla użytkownika, nie awaria I/O.
+///
+/// Wydzielone jako czysta funkcja, bo to arytmetyka rozmiarów podatna na błędy o jeden - da się
+/// ją przetestować bez ładowania modelu (4 GB), w przeciwieństwie do samego `generuj`.
+fn dobierz_n_ctx(
+    liczba_tokenow_promptu: usize,
+    max_nowych_tokenow: i32,
+    bazowy_n_ctx: u32,
+) -> Result<u32, AppError> {
+    let rezerwa_odpowiedzi = max_nowych_tokenow.max(0) as usize;
+    let potrzebne = liczba_tokenow_promptu
+        .saturating_add(rezerwa_odpowiedzi)
+        .saturating_add(MARGINES_KONTEKSTU);
+    if potrzebne > MAKS_N_CTX as usize {
+        return Err(AppError::Validation(
+            "Zakres analizy jest zbyt obszerny dla modelu — zawęź go (krótszy okres, jedna \
+             strategia albo jeden instrument) i spróbuj ponownie."
+                .to_string(),
+        ));
+    }
+    Ok((bazowy_n_ctx as usize)
+        .max(potrzebne)
+        .min(MAKS_N_CTX as usize) as u32)
+}
+
 /// Anulowanie i timeout to POPRAWNE, oczekiwane zakończenia (użytkownik przerwał / minął limit),
 /// nie awarie - zwracamy je jako `AppError::Validation`, którego komunikat trafia w całości do
 /// użytkownika (nie jest chowany jak techniczne `Io`/`Database`).
@@ -300,6 +352,47 @@ fn uruchom_prompt(
         &AtomicBool::new(false),
         None,
     )
+}
+
+#[cfg(test)]
+mod dobor_kontekstu {
+    //! Testy czystej arytmetyki `dobierz_n_ctx` - bez ładowania modelu. To ta logika regresowała
+    //! (partia/kontekst nie skalowały się do promptu), więc jest pokryta wprost.
+
+    use super::{dobierz_n_ctx, MAKS_N_CTX, MARGINES_KONTEKSTU};
+    use crate::error::AppError;
+
+    #[test]
+    fn krotki_prompt_zostaje_przy_bazowym_kontekscie() {
+        // Prompt + odpowiedź mieszczą się w bazowym n_ctx - nie ma potrzeby go powiększać.
+        let n_ctx = dobierz_n_ctx(200, 768, 4096).expect("krótki prompt musi przejść");
+        assert_eq!(n_ctx, 4096);
+    }
+
+    #[test]
+    fn dlugi_prompt_powieksza_kontekst_ponad_bazowy() {
+        // 4000 + 768 + 64 = 4832 > 4096, więc kontekst rośnie dokładnie do zapotrzebowania.
+        let n_ctx = dobierz_n_ctx(4000, 768, 4096).expect("długi prompt w granicach limitu");
+        assert_eq!(n_ctx, 4000 + 768 + MARGINES_KONTEKSTU as u32);
+    }
+
+    #[test]
+    fn prompt_powyzej_maksimum_daje_czytelny_blad_walidacji() {
+        // Nawet po rozszerzeniu do MAKS_N_CTX prompt się nie mieści - to komunikat dla
+        // użytkownika ("zawęź zakres"), nie awaria I/O.
+        let blad = dobierz_n_ctx(MAKS_N_CTX as usize, 768, 4096)
+            .expect_err("prompt ponad limit musi zostać odrzucony");
+        assert!(matches!(blad, AppError::Validation(_)));
+    }
+
+    #[test]
+    fn nigdy_nie_przekracza_maksimum() {
+        // Tuż pod granicą: wynik musi być <= MAKS_N_CTX (i dokładnie tyle, ile potrzeba).
+        let potrzebne = MAKS_N_CTX as usize - MARGINES_KONTEKSTU;
+        let n_ctx = dobierz_n_ctx(potrzebne - 768, 768, 4096).expect("tuż pod limitem przechodzi");
+        assert!(n_ctx <= MAKS_N_CTX);
+        assert_eq!(n_ctx, MAKS_N_CTX);
+    }
 }
 
 #[cfg(test)]
