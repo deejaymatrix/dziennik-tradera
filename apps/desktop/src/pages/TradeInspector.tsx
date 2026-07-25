@@ -147,7 +147,7 @@ export function TradeInspector({
 
         {/* Klucz po id transakcji: przełączenie inspektora na inną transakcję ma na nowo wczytać
             jej stan/analizę, a nie pokazywać dane poprzedniej. */}
-        <TradeAiAnalysis key={trade.id} tradeId={trade.id} />
+        <TradeAiAnalysis key={trade.id} tradeId={trade.id} numer={trade.display_number} />
       </div>
 
       <footer className={styles.footer}>

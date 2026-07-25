@@ -11,6 +11,9 @@ import styles from "./TradeAiAnalysis.module.css";
 
 export interface TradeAiAnalysisProps {
   tradeId: string;
+  /** Numer porządkowy transakcji (#N) - do nagłówka kopiowanej analizy, żeby wklejka mówiła,
+   * której transakcji dotyczy (na ekranie kontekst daje sam panel). */
+  numer: number;
 }
 
 function gb(bajty: number): string {
@@ -38,7 +41,7 @@ function data(iso: string): string {
  *
  * Analiza trwa dziesiątki sekund - backend robi to na osobnym wątku, tu tylko czekamy na wynik.
  */
-export function TradeAiAnalysis({ tradeId }: TradeAiAnalysisProps): ReactElement {
+export function TradeAiAnalysis({ tradeId, numer }: TradeAiAnalysisProps): ReactElement {
   const { showToast } = useToast();
   const [statusModelu, setStatusModelu] = useState<StatusModeluAi | null>(null);
   const [ostatnia, setOstatnia] = useState<ZapisanaAnaliza | null>(null);
@@ -174,7 +177,7 @@ export function TradeAiAnalysis({ tradeId }: TradeAiAnalysisProps): ReactElement
           )}
           <WynikAnalizy
             wynik={parsujWynik(ostatnia.wynik_json)}
-            naglowekKopiowania={`Analiza transakcji (wygenerowano lokalnie: ${ostatnia.wersja_modelu})`}
+            naglowekKopiowania={`Analiza transakcji #${numer} (wygenerowano lokalnie: ${ostatnia.wersja_modelu})`}
           />
           <p className={styles.stopka}>
             Wygenerowane lokalnie {data(ostatnia.utworzono_o)}, model {ostatnia.wersja_modelu}. To
