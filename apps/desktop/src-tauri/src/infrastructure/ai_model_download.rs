@@ -179,6 +179,16 @@ fn pobierz_i_zweryfikuj_z_adresu(
 
     let mut hasher = Sha256::new();
     if wznowione && pobrano_bajtow > 0 {
+        // Doliczenie już pobranych gigabajtów do SHA-256 CZYTA cały plik `.part` z dysku - dla
+        // kilku GB trwa to kilkadziesiąt sekund. Bez tego pasek postępu tkwiłby na zerze i całość
+        // wyglądałaby na zawieszoną, choć pobieranie tylko wznawia od miejsca przerwania. Dlatego
+        // od razu pokazujemy, ile już leży na dysku, zanim ruszy powolne czytanie do hasza.
+        {
+            let mut aktualny = postep
+                .lock()
+                .expect("mutex postępu nie powinien być zatruty");
+            aktualny.pobrano_bajtow = pobrano_bajtow;
+        }
         dolicz_istniejaca_tresc_do_hasha(&sciezka_tymczasowa, &mut hasher)?;
     }
 
@@ -473,6 +483,12 @@ mod tests {
                 .expect("wznowione pobranie musi się udać");
 
         assert_eq!(std::fs::read(&sciezka).expect("odczyt pliku"), TRESC);
+        // Po wznowieniu postęp musi dojść do pełnego rozmiaru - inaczej pasek zawisłby przed metą.
+        assert_eq!(
+            postep.lock().unwrap().pobrano_bajtow,
+            opis.rozmiar_bajtow,
+            "wznowione pobranie musi doprowadzić postęp do 100%"
+        );
     }
 
     #[test]
