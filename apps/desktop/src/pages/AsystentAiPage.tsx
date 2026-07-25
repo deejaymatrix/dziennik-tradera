@@ -3,10 +3,14 @@ import type { ReactElement } from "react";
 import { Sparkles, StopCircle } from "lucide-react";
 import { invokeCommand, extractErrorMessage } from "../app/invokeCommand";
 import type { PostepPobrania, StatusModeluAi } from "../app/types/aiAnalysis";
+import type { AccountWithBalance } from "../app/types/account";
+import type { ReportFilter } from "../app/types/report";
 import { Button } from "../ui/components/Button/Button";
+import { Select } from "../ui/components/Select/Select";
 import { useConfirm } from "../ui/components/ConfirmDialog/ConfirmDialog";
 import { SectionCard } from "../ui/components/SectionCard/SectionCard";
 import { useToast } from "../ui/components/Toast/ToastProvider";
+import { ReportAiAnalysis } from "./ReportAiAnalysis";
 import styles from "./AsystentAiPage.module.css";
 
 function gb(bajty: number): string {
@@ -24,6 +28,8 @@ export function AsystentAiPage(): ReactElement {
   const [status, setStatus] = useState<StatusModeluAi | null>(null);
   const [pobiera, setPobiera] = useState(false);
   const [postep, setPostep] = useState<PostepPobrania | null>(null);
+  const [konta, setKonta] = useState<AccountWithBalance[]>([]);
+  const [wybraneKonto, setWybraneKonto] = useState("");
   const ankieta = useRef<number | null>(null);
 
   const wczytaj = useCallback(async () => {
@@ -34,15 +40,29 @@ export function AsystentAiPage(): ReactElement {
     }
   }, [showToast]);
 
+  const wczytajKonta = useCallback(async () => {
+    try {
+      const lista = await invokeCommand<AccountWithBalance[]>("list_accounts", {
+        includeArchived: false,
+      });
+      setKonta(lista);
+      // Domyślnie pierwsze konto - żeby analiza całościowa była o jeden klik, a nie o wybór.
+      setWybraneKonto((biezace) => biezace || (lista[0]?.id ?? ""));
+    } catch {
+      // Brak listy kont nie blokuje reszty strony (model, zapisane analizy).
+    }
+  }, []);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void wczytaj();
+    void wczytajKonta();
     return () => {
       if (ankieta.current !== null) {
         window.clearInterval(ankieta.current);
       }
     };
-  }, [wczytaj]);
+  }, [wczytaj, wczytajKonta]);
 
   async function pobierz(): Promise<void> {
     setPobiera(true);
@@ -106,6 +126,19 @@ export function AsystentAiPage(): ReactElement {
     }
   }
 
+  const konto = konta.find((k) => k.id === wybraneKonto) ?? null;
+  // Filtr „cała historia konta" - te same pola co na ekranie Raporty, tylko bez żadnego zawężenia.
+  const filtrCalegoKonta: ReportFilter = {
+    account_id: wybraneKonto,
+    instrument_id: null,
+    strategy_id: null,
+    interval_id: null,
+    side: null,
+    year: null,
+    month: null,
+  };
+  const zakresOpis = konto ? `${konto.name} (${konto.currency}) · cała historia` : "";
+
   return (
     <div className={styles.strona}>
       <SectionCard>
@@ -166,6 +199,35 @@ export function AsystentAiPage(): ReactElement {
                 Pobierz model AI ({gb(status.rozmiar_bajtow)})
               </Button>
             </div>
+          </>
+        )}
+      </SectionCard>
+
+      <SectionCard>
+        <h3 className={styles.podtytul}>Analiza całościowa</h3>
+        <p className={styles.info}>
+          Przeanalizuj <strong>całą historię wybranego konta</strong> naraz - model szuka wzorców w
+          zagregowanych, policzonych przez aplikację danych (wyniki, serie, rozbicia wg strategii,
+          instrumentu, dnia tygodnia). Analizę węższego okresu albo pojedynczej
+          strategii/instrumentu zrobisz na ekranie <strong>Raporty</strong>, wybierając zakres i
+          klikając „Przeanalizuj ten zakres z AI".
+        </p>
+        {konta.length === 0 ? (
+          <p className={styles.info}>Dodaj najpierw konto, żeby było co analizować.</p>
+        ) : (
+          <>
+            <Select
+              label="Konto"
+              value={wybraneKonto}
+              onChange={(e) => setWybraneKonto(e.target.value)}
+              options={konta.map((k) => ({ value: k.id, label: `${k.name} (${k.currency})` }))}
+              compact
+            />
+            <ReportAiAnalysis
+              filter={filtrCalegoKonta}
+              zakresOpis={zakresOpis}
+              gotoweDoAnalizy={wybraneKonto !== ""}
+            />
           </>
         )}
       </SectionCard>
